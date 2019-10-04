@@ -1,0 +1,34 @@
+from setuptools import find_packages, setup
+
+
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
+setup(
+    name="simpletransformers",
+    version="0.1.1",
+    author="Thilina Rajapakse",
+    author_email="chaturangarajapakshe@gmail.com",
+    description="A wrapper for the Transformers library by Hugging Face.",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://test.pypi.org/legacy/",
+    packages=find_packages(exclude=["*.tests", "*.tests.*",
+                                    "tests.*", "tests"]),
+    classifiers=[
+          'Intended Audience :: Science/Research',
+          'License :: OSI Approved :: Apache Software License',
+          'Programming Language :: Python :: 3',
+          'Topic :: Scientific/Engineering :: Artificial Intelligence',
+    ],
+    python_requires='>=3.6',
+    install_requires=[
+    'numpy',
+    'requests',
+    'tqdm',
+    'regex',
+    'transformers',
+    'scipy',
+    'scikit-learn',
+    ],
+)
