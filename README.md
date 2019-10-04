@@ -30,9 +30,9 @@ Table of contents
 `conda create -n transformers python pandas tqdm`  
 `conda activate transformers`  
 If using cuda:  
-`  conda install pytorch cudatoolkit=10.0 -c pytorch`  
+&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cudatoolkit=10.0 -c pytorch`  
 else:  
-`  conda install pytorch cpuonly -c pytorch`  
+&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cpuonly -c pytorch`  
 `conda install -c anaconda scipy`  
 `conda install -c anaconda scikit-learn`  
 `pip install transformers`  
