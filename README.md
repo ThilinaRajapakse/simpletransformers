@@ -66,6 +66,10 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 
 To make predictions on arbitary data, the `predict(to_predict)` function can be used. For a list of text, it returns the model predictions and the raw model outputs.
 
+```
+predictions = model.predict(['Some arbitary sentence'])
+```
+
 ### Default Settings
 
 
