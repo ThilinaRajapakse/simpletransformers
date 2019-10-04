@@ -207,6 +207,18 @@ Returns:
 
 >wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
 
+**`predict(self, to_predict)`**
+
+Performs predictions on a list of text.
+
+Args:
+>to_predict: A python list of text (str) to be sent to the model for prediction.
+
+Returns:
+>preds: A python list of the predictions (0 or 1) for each text.
+>model_outputs: A python list of the raw model outputs for each text.
+
+
 **`train(self, train_dataset, output_dir)`**
 
 Trains the model on train_dataset.
