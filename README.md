@@ -15,6 +15,8 @@ Table of contents
       * [With Conda](#with-conda)
    * [Usage](#usage)
       * [Minimal Start](#minimal-start)
+      * [Default Settings](#default-settings)
+      * [TransformerModel](#transformermodel)
       * [Current Pretrained Models](#current-pretrained-models)
    * [Acknowledgements](#acknowledgements)
 <!--te-->
@@ -104,12 +106,6 @@ self.args = {
 
 ### Args Explained
 
-#### *model_type: str*
-The type of model to use. Currently, BERT, XLNet, XLM, and RoBERTa models are available.
-
-#### *model_name: str*
-The exact model to use. See [Current Pretrained Models](#current-pretrained-models) for all available models.
-
 #### *output_dir: str*
 The directory where all outputs will be stored. This includes model checkpoints and evaluation results.
 
@@ -160,6 +156,80 @@ If True, the trained model will be saved to the ouput_dir and will overwrite exi
 
 #### *reprocess_input_data: bool*
 If True, the input data will be reprocessed even if a cached file of the input data exists in the cache_dir.
+
+
+### TransformerModel
+
+`class simpletransformers.model.TransformerModel (model_type, model_name, args=None, use_cuda=True)`  
+This is the main class of this library. All configuration, training, and evaluation is performed using this class.
+
+`Class attributes`
+* `tokenizer`: The tokenizer to be used.
+* `model`: The model to be used.
+* `device`: The device on which the model will be trained and evaluated.
+* `results`: A python dict of past evaluation results for the TransformerModel object.
+* `args`: A python dict of arguments used for training and evaluation.
+
+`Parameters`
+* `model_type`: (required) str - The type of model to use. Currently, BERT, XLNet, XLM, and RoBERTa models are available.
+* `model_name`: (required) str - The exact model to use. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+* `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
+* `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
+
+`class methods`  
+**`train_model(self, train_df, output_dir=None)`**
+
+Trains the model using 'train_df'
+
+Args:  
+>train_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.<p>
+>output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+
+Returns:  
+>None
+
+**`eval_model(self, eval_df, output_dir=None, verbose=False)`**
+
+Evaluates the model on eval_df. Saves results to output_dir.
+
+Args:  
+>eval_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
+>output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+>verbose: If verbose, results will be printed to the console on completion of evaluation.  
+
+Returns:  
+>result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
+>model_outputs: List of model outputs for each row in eval_df  
+>wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
+
+**`train(self, train_dataset, output_dir)`**
+
+Trains the model on train_dataset.
+*Utility function to be used by the train_model() method. Not intended to be used directly.*
+
+**`evaluate(self, eval_df, output_dir, prefix="")`**
+
+Evaluates the model on eval_df.
+*Utility function to be used by the eval_model() method. Not intended to be used directly*
+
+**`load_and_cache_examples(self, examples, evaluate=False)`**
+
+Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
+*Utility function for train() and eval() methods. Not intended to be used directly*
+
+**`List of InputExample objects corresponding to each incorrect prediction by the model`**
+
+Computes the evaluation metrics for the model predictions.
+
+Args:
+>preds: Model predictions  
+>labels: Ground truth labels  
+>eval_examples: List of examples on which evaluation was performed  
+
+Returns:
+>result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
+>wrong: List of InputExample objects corresponding to each incorrect prediction by the model  
+
 
 ### Current Pretrained Models
 
