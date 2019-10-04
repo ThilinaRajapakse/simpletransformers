@@ -31,7 +31,7 @@ from transformers import (WEIGHTS_NAME, BertConfig,
 
 from transformers import AdamW, WarmupLinearSchedule
 
-from simpletransformers.utils import (convert_examples_to_features, BinaryProcessor, InputExample)
+from simpletransformers.utils import (convert_examples_to_features, InputExample)
 
 import math
 from tensorboardX import SummaryWriter
@@ -72,16 +72,16 @@ class TransformerModel:
 
         self.args = {
             'data_dir': 'data/',
+            'output_dir': 'outputs/',
             'model_type':  'roberta',
             'model_name': 'roberta-base',
-            'output_dir': 'outputs/',
 
             'fp16': True,
             'fp16_opt_level': 'O1',
             'max_seq_length': 128,
             'train_batch_size': 8,
-            'eval_batch_size': 8,
             'gradient_accumulation_steps': 1,
+            'eval_batch_size': 8,
             'num_train_epochs': 1,
             'weight_decay': 0,
             'learning_rate': 4e-5,
@@ -218,7 +218,7 @@ class TransformerModel:
         eval_loss = eval_loss / nb_eval_steps
         model_outputs = preds
         preds = np.argmax(preds, axis=1)
-        result, wrong = self.compute_metrics(preds, out_label_ids)
+        result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples)
         results.update(result)
 
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
@@ -238,7 +238,6 @@ class TransformerModel:
 
         Utility function for train() and eval() methods. Not intended to be used directly.
         """
-        processor = BinaryProcessor()
         tokenizer = self.tokenizer
         output_mode = 'classification'
         args=self.args
@@ -250,9 +249,8 @@ class TransformerModel:
             features = torch.load(cached_features_file)
 
         else:
-            label_list = processor.get_labels()
 
-            features = convert_examples_to_features(examples, label_list, args['max_seq_length'], tokenizer, output_mode,
+            features = convert_examples_to_features(examples, args['max_seq_length'], tokenizer, output_mode,
                                                     # xlnet has a cls token at the end
                                                     cls_token_at_end=bool(
                                                         args['model_type'] in ['xlnet']),
@@ -386,15 +384,14 @@ class TransformerModel:
         return global_step, tr_loss / global_step
 
 
-    def get_mismatched(self, labels, preds):
+    def get_mismatched(self, labels, preds, eval_examples):
         mismatched = labels != preds
-        examples = BinaryProcessor().get_dev_examples(self.args['data_dir'])
-        wrong = [i for (i, v) in zip(examples, mismatched) if v]
+        wrong = [i for (i, v) in zip(eval_examples, mismatched) if v]
 
         return wrong
 
 
-    def get_eval_report(self, labels, preds):
+    def get_eval_report(self, labels, preds, eval_examples):
         mcc = matthews_corrcoef(labels, preds)
         tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
         return {
@@ -403,9 +400,9 @@ class TransformerModel:
             "tn": tn,
             "fp": fp,
             "fn": fn
-        }, self.get_mismatched(labels, preds)
+        }, self.get_mismatched(labels, preds, eval_examples)
 
 
-    def compute_metrics(self, preds, labels):
+    def compute_metrics(self, preds, labels, eval_examples):
         assert len(preds) == len(labels)
-        return self.get_eval_report(labels, preds)
+        return self.get_eval_report(labels, preds, eval_examples)
