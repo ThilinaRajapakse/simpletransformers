@@ -71,10 +71,8 @@ class TransformerModel:
         self.results = {}
 
         self.args = {
-            'data_dir': 'data/',
             'output_dir': 'outputs/',
-            'model_type':  'roberta',
-            'model_name': 'roberta-base',
+            'cache_dir': 'cache_dir',
 
             'fp16': True,
             'fp16_opt_level': 'O1',
@@ -91,10 +89,7 @@ class TransformerModel:
             'max_grad_norm': 1.0,
 
             'logging_steps': 50,
-            'evaluate_during_training': False,
             'save_steps': 2000,
-            'eval_all_checkpoints': True,
-            'use_tensorboard': True,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -115,8 +110,12 @@ class TransformerModel:
             None
 
         """
+
         if not output_dir:
             output_dir = self.args['output_dir']
+
+        if os.path.exists(output_dir) and os.listdir(output_dir) and not args['overwrite_output_dir']:
+            raise ValueError("Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(output_dir))
         
         self.model.to(self.device)
 
@@ -243,7 +242,7 @@ class TransformerModel:
         args=self.args
 
         mode = 'dev' if evaluate else 'train'
-        cached_features_file = os.path.join(args['data_dir'], f"cached_{mode}_{args['model_name']}_{args['max_seq_length']}_binary")
+        cached_features_file = os.path.join(args['cache_dir'], f"cached_{mode}_{args['model_name']}_{args['max_seq_length']}_binary")
 
         if os.path.exists(cached_features_file) and not args['reprocess_input_data']:
             features = torch.load(cached_features_file)
@@ -292,8 +291,7 @@ class TransformerModel:
         device = self.device
         model = self.model
         args = self.args
-        if args['use_tensorboard']:
-            tb_writer = SummaryWriter()
+        tb_writer = SummaryWriter()
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args['train_batch_size'])
 
@@ -363,10 +361,6 @@ class TransformerModel:
                     if args['logging_steps'] > 0 and global_step % args['logging_steps'] == 0:
                         # Log metrics
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        if args['evaluate_during_training']:
-                            results = evaluate(model, tokenizer)
-                            for key, value in results.items():
-                                tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
                         tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
                         tb_writer.add_scalar('loss', (tr_loss - logging_loss)/args['logging_steps'], global_step)
                         logging_loss = tr_loss
@@ -384,25 +378,31 @@ class TransformerModel:
         return global_step, tr_loss / global_step
 
 
-    def get_mismatched(self, labels, preds, eval_examples):
-        mismatched = labels != preds
-        wrong = [i for (i, v) in zip(eval_examples, mismatched) if v]
+    def compute_metrics(self, preds, labels, eval_examples):
+        """
+        Computes the evaluation metrics for the model predictions.
 
-        return wrong
+        Args:
+            preds: Model predictions
+            labels: Ground truth labels
+            eval_examples: List of examples on which evaluation was performed
 
+        Returns:
+            result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
+            wrong: List of InputExample objects corresponding to each incorrect prediction by the model
 
-    def get_eval_report(self, labels, preds, eval_examples):
+        """
+        assert len(preds) == len(labels)
+
         mcc = matthews_corrcoef(labels, preds)
         tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
+        mismatched = labels != preds
+        wrong = [i for (i, v) in zip(eval_examples, mismatched) if v]
+        
         return {
             "mcc": mcc,
             "tp": tp,
             "tn": tn,
             "fp": fp,
             "fn": fn
-        }, self.get_mismatched(labels, preds, eval_examples)
-
-
-    def compute_metrics(self, preds, labels, eval_examples):
-        assert len(preds) == len(labels)
-        return self.get_eval_report(labels, preds, eval_examples)
+        }, wrong
