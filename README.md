@@ -74,7 +74,6 @@ self.args = {
    'data_dir': 'data/',
    'model_type':  'roberta',
    'model_name': 'roberta-base',
-   'task_name': 'binary',
    'output_dir': 'outputs/',
 
    'fp16': True,
