@@ -50,7 +50,7 @@ from simpletransformers.model import TransformerModel
 import pandas as pd
 
 
-# Train and Evaluation data needs to be in a Pandas Dataframe of two columns. The first column is the text with type str, and the second column in the label with type int.
+# Train and Evaluation data needs to be in a Pandas Dataframe of two columns. The first column is the text with type str, and the second column is the label with type int.
 train_data = [['Example sentence belonging to class 1', 1], ['Example sentence belonging to class 0', 0]]
 train_df = pd.DataFrame(train_data)
 
