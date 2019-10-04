@@ -182,7 +182,8 @@ This is the main class of this library. All configuration, training, and evaluat
 Trains the model using 'train_df'
 
 Args:  
->train_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.<p>
+>train_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
+
 >output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
 Returns:  
@@ -194,12 +195,16 @@ Evaluates the model on eval_df. Saves results to output_dir.
 
 Args:  
 >eval_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
+
 >output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+
 >verbose: If verbose, results will be printed to the console on completion of evaluation.  
 
 Returns:  
 >result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
+
 >model_outputs: List of model outputs for each row in eval_df  
+
 >wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
 
 **`train(self, train_dataset, output_dir)`**
@@ -223,11 +228,14 @@ Computes the evaluation metrics for the model predictions.
 
 Args:
 >preds: Model predictions  
+
 >labels: Ground truth labels  
+
 >eval_examples: List of examples on which evaluation was performed  
 
 Returns:
 >result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
+
 >wrong: List of InputExample objects corresponding to each incorrect prediction by the model  
 
 
