@@ -74,7 +74,6 @@ class TransformerModel:
             'data_dir': 'data/',
             'model_type':  'roberta',
             'model_name': 'roberta-base',
-            'task_name': 'binary',
             'output_dir': 'outputs/',
 
             'fp16': True,
@@ -179,7 +178,6 @@ class TransformerModel:
         eval_output_dir = output_dir
 
         results = {}
-        EVAL_TASK = args['task_name']
 
         eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))]
 
@@ -220,7 +218,7 @@ class TransformerModel:
         eval_loss = eval_loss / nb_eval_steps
         model_outputs = preds
         preds = np.argmax(preds, axis=1)
-        result, wrong = self.compute_metrics(EVAL_TASK, preds, out_label_ids)
+        result, wrong = self.compute_metrics(preds, out_label_ids)
         results.update(result)
 
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
@@ -408,6 +406,6 @@ class TransformerModel:
         }, self.get_mismatched(labels, preds)
 
 
-    def compute_metrics(self, task_name, preds, labels):
+    def compute_metrics(self, preds, labels):
         assert len(preds) == len(labels)
         return self.get_eval_report(labels, preds)
