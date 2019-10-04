@@ -406,3 +406,61 @@ class TransformerModel:
             "fp": fp,
             "fn": fn
         }, wrong
+
+
+    def predict(self, to_predict):
+        """
+        Perform predictions on a list of texts.
+
+        Args:
+            to_predict: A python list of texts to be sent to the model for prediction.
+
+        Returns:
+            preds: A python list of the predictions (0 or 1) for each text.
+            model_outputs: A python list of the raw model outputs for each text.
+        """
+
+        tokenizer = self.tokenizer
+        device = self.device
+        model = self.model
+        args = self.args
+
+        eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
+
+        eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True)
+
+        eval_sampler = SequentialSampler(eval_dataset)
+        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args['eval_batch_size'])
+
+        eval_loss = 0.0
+        nb_eval_steps = 0
+        preds = None
+        out_label_ids = None
+        for batch in tqdm(eval_dataloader):
+            model.eval()
+            batch = tuple(t.to(device) for t in batch)
+
+            with torch.no_grad():
+                inputs = {'input_ids':      batch[0],
+                        'attention_mask': batch[1],
+                        # XLM don't use segment_ids
+                        'token_type_ids': batch[2] if args['model_type'] in ['bert', 'xlnet'] else None,
+                        'labels':         batch[3]}
+                outputs = model(**inputs)
+                tmp_eval_loss, logits = outputs[:2]
+
+                eval_loss += tmp_eval_loss.mean().item()
+            nb_eval_steps += 1
+            if preds is None:
+                preds = logits.detach().cpu().numpy()
+                out_label_ids = inputs['labels'].detach().cpu().numpy()
+            else:
+                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                out_label_ids = np.append(
+                    out_label_ids, inputs['labels'].detach().cpu().numpy(), axis=0)
+
+        eval_loss = eval_loss / nb_eval_steps
+        model_outputs = preds
+        preds = np.argmax(preds, axis=1)
+
+        return preds, model_outputs
