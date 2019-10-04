@@ -3,9 +3,6 @@
 
 This library is based on the [Pytorch-Transformers](https://github.com/huggingface/pytorch-transformers) library by HuggingFace. Using this library, you can quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate the model.
 
-Please refer to this [Medium article](https://medium.com/p/https-medium-com-chaturangarajapakshe-text-classification-with-transformer-models-d370944b50ca?source=email-6b1e2355088e--writer.postDistributed&sk=f21ffeb66c03a9804572d7063f57c04e) for further information on how this project works.
-
-Please note that the documentation is still being written.
 
 Table of contents
 =================
@@ -66,6 +63,8 @@ model.train_model(train_df)
 # Evaluate the model
 result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 ```
+
+To make predictions on arbitary data, the `predict(to_predict)` function can be used. For a list of text, it returns the model predictions and the raw model outputs.
 
 ### Default Settings
 
