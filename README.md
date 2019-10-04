@@ -3,6 +3,8 @@
 
 This library is based on the [Pytorch-Transformers](https://github.com/huggingface/pytorch-transformers) library by HuggingFace. Using this library, you can quickly train and evaluate Transformer models.
 
+Visit the [Github page](https://github.com/ThilinaRajapakse/simpletransformers) for documentation and code.
+
 Please refer to this [Medium article](https://medium.com/p/https-medium-com-chaturangarajapakshe-text-classification-with-transformer-models-d370944b50ca?source=email-6b1e2355088e--writer.postDistributed&sk=f21ffeb66c03a9804572d7063f57c04e) for further information on how this project works.
 
 Please note that the documentation is still being written.
@@ -36,7 +38,7 @@ else:
 `pip install transformers`  
 `pip install tensorboardx`  
 
-3. Clone repo.
+3. Install simpletransformers.  
 `pip install simpletransformers`  
 
 ## Usage

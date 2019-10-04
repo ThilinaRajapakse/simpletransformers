@@ -6,15 +6,14 @@ with open("README.md", "r") as fh:
 
 setup(
     name="simpletransformers",
-    version="0.1.1",
+    version="0.1.3",
     author="Thilina Rajapakse",
     author_email="chaturangarajapakshe@gmail.com",
-    description="A wrapper for the Transformers library by Hugging Face.",
+    description="An easy-t0-use wrapper library for the Transformers library.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://test.pypi.org/legacy/",
-    packages=find_packages(exclude=["*.tests", "*.tests.*",
-                                    "tests.*", "tests"]),
+    packages=find_packages(),
     classifiers=[
           'Intended Audience :: Science/Research',
           'License :: OSI Approved :: Apache Software License',
