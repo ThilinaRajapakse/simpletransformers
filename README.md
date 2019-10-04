@@ -67,6 +67,43 @@ model.train_model(train_df)
 result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 ```
 
+The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding key: value pairs to the the init method of TransformerModel.
+
+```
+self.args = {
+   'data_dir': 'data/',
+   'model_type':  'roberta',
+   'model_name': 'roberta-base',
+   'task_name': 'binary',
+   'output_dir': 'outputs/',
+
+   'fp16': True,
+   'fp16_opt_level': 'O1',
+   'max_seq_length': 128,
+   'train_batch_size': 8,
+   'eval_batch_size': 8,
+   'gradient_accumulation_steps': 1,
+   'num_train_epochs': 1,
+   'weight_decay': 0,
+   'learning_rate': 4e-5,
+   'adam_epsilon': 1e-8,
+   'warmup_ratio': 0.06,
+   'warmup_steps': 0,
+   'max_grad_norm': 1.0,
+
+   'logging_steps': 50,
+   'evaluate_during_training': False,
+   'save_steps': 2000,
+   'eval_all_checkpoints': True,
+   'use_tensorboard': True,
+
+   'overwrite_output_dir': False,
+   'reprocess_input_data': False,
+}
+```
+
+*Explanation of each parameter to be added to docs soon*
+
 ### Current Pretrained Models
 
 The table below shows the currently available model types and their models. You can use any of these by setting the `model_type` and `model_name` in the `args` dictionary. For more information about pretrained models, see [HuggingFace docs](https://huggingface.co/pytorch-transformers/pretrained_models.html).
