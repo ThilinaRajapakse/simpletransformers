@@ -1,9 +1,7 @@
 # Simple Transformers
 
 
-This library is based on the [Pytorch-Transformers](https://github.com/huggingface/pytorch-transformers) library by HuggingFace. Using this library, you can quickly train and evaluate Transformer models.
-
-Visit the [Github page](https://github.com/ThilinaRajapakse/simpletransformers) for documentation and code.
+This library is based on the [Pytorch-Transformers](https://github.com/huggingface/pytorch-transformers) library by HuggingFace. Using this library, you can quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate the model.
 
 Please refer to this [Medium article](https://medium.com/p/https-medium-com-chaturangarajapakshe-text-classification-with-transformer-models-d370944b50ca?source=email-6b1e2355088e--writer.postDistributed&sk=f21ffeb66c03a9804572d7063f57c04e) for further information on how this project works.
 
@@ -67,14 +65,17 @@ model.train_model(train_df)
 result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 ```
 
+### Default Settings
+
+
 The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding key: value pairs to the the init method of TransformerModel.
 
 ```
 self.args = {
-   'data_dir': 'data/',
    'model_type':  'roberta',
    'model_name': 'roberta-base',
    'output_dir': 'outputs/',
+   'cache_dir': 'cache/',
 
    'fp16': True,
    'fp16_opt_level': 'O1',
@@ -101,7 +102,64 @@ self.args = {
 }
 ```
 
-*Explanation of each parameter to be added to docs soon*
+### Args Explained
+
+#### *model_type: str*
+The type of model to use. Currently, BERT, XLNet, XLM, and RoBERTa models are available.
+
+#### *model_name: str*
+The exact model to use. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+
+#### *output_dir: str*
+The directory where all outputs will be stored. This includes model checkpoints and evaluation results.
+
+#### *cache_dir: str*
+The directory where cached files will be saved.
+
+#### *fp16: bool*
+Whether or not fp16 mode should be used. Requires NVidia Apex library.
+
+#### *fp16_opt_level: str*
+Can be '01', '02', '03'. See the [Apex docs](https://nvidia.github.io/apex/amp.html) for an explanation of the different optimization levels (opt_levels).
+
+#### *max_seq_length: int*
+Maximum sequence level the model will support.
+
+#### *train_batch_size: int*
+The training batch size.
+
+#### *gradient_accumulation_steps: int*
+The number of training steps to execute before performing a `optimizer.step()`. Effectively increases the training batch size while sacrificing training time to lower memory consumption.
+
+#### *eval_batch_size: int*
+The evaluation batch size.
+
+#### *num_train_epochs: int*
+The number of epochs the model will be trained for.
+
+#### *weight_decay: float*
+Adds L2 penalty.
+
+#### *learning_rate: float*
+The learning rate for training.
+
+#### *adam_epsilon: float*
+Epsilon hyperparameter used in AdamOptimizer.
+
+#### *max_grad_norm: float*
+Maximum gradient clipping.
+
+#### *logging_steps: int*
+Log training loss and learning at every specified number of steps.
+
+#### *save_steps: int*
+Save a model checkpoint at every specified number of steps.
+
+#### *overwrite_output_dir: bool*
+If True, the trained model will be saved to the ouput_dir and will overwrite existing saved models in the same directory.
+
+#### *reprocess_input_data: bool*
+If True, the input data will be reprocessed even if a cached file of the input data exists in the cache_dir.
 
 ### Current Pretrained Models
 
