@@ -98,6 +98,9 @@ class TransformerModel:
         if args:
             self.args.update(args)
 
+        args['model_name'] = model_name
+        args['model_type'] = model_type
+
     def train_model(self, train_df, output_dir=None):
         """
         Trains the model using 'train_df'
