@@ -244,6 +244,9 @@ class TransformerModel:
         output_mode = 'classification'
         args=self.args
 
+        if not os.path.isdir(self.args['cache_dir']):
+            os.mkdir(self.args['cache_dir'])
+
         mode = 'dev' if evaluate else 'train'
         cached_features_file = os.path.join(args['cache_dir'], f"cached_{mode}_{args['model_name']}_{args['max_seq_length']}_binary")
 
