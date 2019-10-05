@@ -70,6 +70,8 @@ To make predictions on arbitary data, the `predict(to_predict)` function can be 
 predictions = model.predict(['Some arbitary sentence'])
 ```
 
+Please refer to [this Medium article](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c) for an example of using the library on the Yelp Reviews Dataset.
+
 ### Default Settings
 
 
