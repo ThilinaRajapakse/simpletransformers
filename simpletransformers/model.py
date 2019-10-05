@@ -410,10 +410,10 @@ class TransformerModel:
 
     def predict(self, to_predict):
         """
-        Perform predictions on a list of texts.
+        Performs predictions on a list of text.
 
         Args:
-            to_predict: A python list of texts to be sent to the model for prediction.
+            to_predict: A python list of text (str) to be sent to the model for prediction.
 
         Returns:
             preds: A python list of the predictions (0 or 1) for each text.

@@ -191,11 +191,3 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
         else:
             tokens_b.pop()
 
-
-processors = {
-    "binary": BinaryProcessor
-}
-
-output_modes = {
-    "binary": "classification"
-}
