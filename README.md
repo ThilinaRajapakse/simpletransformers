@@ -3,9 +3,6 @@
 
 This library is based on the [Pytorch-Transformers](https://github.com/huggingface/pytorch-transformers) library by HuggingFace. Using this library, you can quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate the model.
 
-Please refer to this [Medium article](https://medium.com/p/https-medium-com-chaturangarajapakshe-text-classification-with-transformer-models-d370944b50ca?source=email-6b1e2355088e--writer.postDistributed&sk=f21ffeb66c03a9804572d7063f57c04e) for further information on how this project works.
-
-Please note that the documentation is still being written.
 
 Table of contents
 =================
@@ -66,6 +63,14 @@ model.train_model(train_df)
 # Evaluate the model
 result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 ```
+
+To make predictions on arbitary data, the `predict(to_predict)` function can be used. For a list of text, it returns the model predictions and the raw model outputs.
+
+```
+predictions = model.predict(['Some arbitary sentence'])
+```
+
+Please refer to [this Medium article](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c) for an example of using the library on the Yelp Reviews Dataset.
 
 ### Default Settings
 
@@ -206,6 +211,18 @@ Returns:
 >model_outputs: List of model outputs for each row in eval_df  
 
 >wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
+
+**`predict(self, to_predict)`**
+
+Performs predictions on a list of text.
+
+Args:
+>to_predict: A python list of text (str) to be sent to the model for prediction.
+
+Returns:
+>preds: A python list of the predictions (0 or 1) for each text.
+>model_outputs: A python list of the raw model outputs for each text.
+
 
 **`train(self, train_dataset, output_dir)`**
 
