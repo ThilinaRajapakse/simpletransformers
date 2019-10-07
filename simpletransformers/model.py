@@ -93,7 +93,7 @@ class TransformerModel:
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
-            'process_count': cpu_count - 2 if cpu_count > 2 else 1,
+            'process_count': cpu_count() - 2 if cpu_count() > 2 else 1,
         }
 
         if args:
@@ -118,7 +118,7 @@ class TransformerModel:
         if not output_dir:
             output_dir = self.args['output_dir']
 
-        if os.path.exists(output_dir) and os.listdir(output_dir) and not args['overwrite_output_dir']:
+        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args['overwrite_output_dir']:
             raise ValueError("Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(output_dir))
         
         self.model.to(self.device)
