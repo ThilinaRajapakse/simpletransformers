@@ -235,12 +235,15 @@ class TransformerModel:
 
 
 
-    def load_and_cache_examples(self, examples, evaluate=False, process_count=self.args['process_count']):
+    def load_and_cache_examples(self, examples, evaluate=False):
         """
         Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
 
         Utility function for train() and eval() methods. Not intended to be used directly.
         """
+
+        process_count = self.args['process_count']
+
         tokenizer = self.tokenizer
         output_mode = 'classification'
         args=self.args
