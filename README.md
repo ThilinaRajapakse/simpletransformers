@@ -223,7 +223,7 @@ Args:
 >to_predict: A python list of text (str) to be sent to the model for prediction.
 
 Returns:
->preds: A python list of the predictions (0 or 1) for each text.
+>preds: A python list of the predictions (0 or 1) for each text.  
 >model_outputs: A python list of the raw model outputs for each text.
 
 
