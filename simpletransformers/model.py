@@ -36,7 +36,7 @@ from simpletransformers.utils import (convert_examples_to_features, InputExample
 import math
 from tensorboardX import SummaryWriter
 from tqdm import trange, tqdm
-
+from multiprocessing import cpu_count
 
 
 class TransformerModel:
@@ -93,6 +93,7 @@ class TransformerModel:
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
+            'process_count': cpu_count - 2 if cpu_count > 2 else 1,
         }
 
         if args:
@@ -234,7 +235,7 @@ class TransformerModel:
 
 
 
-    def load_and_cache_examples(self, examples, evaluate=False):
+    def load_and_cache_examples(self, examples, evaluate=False, process_count=self.args['process_count']):
         """
         Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
 
@@ -254,24 +255,19 @@ class TransformerModel:
             features = torch.load(cached_features_file)
 
         else:
-
             features = convert_examples_to_features(examples, args['max_seq_length'], tokenizer, output_mode,
                                                     # xlnet has a cls token at the end
-                                                    cls_token_at_end=bool(
-                                                        args['model_type'] in ['xlnet']),
+                                                    cls_token_at_end=bool(args['model_type'] in ['xlnet']),
                                                     cls_token=tokenizer.cls_token,
-                                                    cls_token_segment_id=2 if args['model_type'] in [
-                                                        'xlnet'] else 0,
+                                                    cls_token_segment_id=2 if args['model_type'] in ['xlnet'] else 0,
                                                     sep_token=tokenizer.sep_token,
                                                     # roberta uses an extra separator b/w pairs of sentences, cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
-                                                    sep_token_extra=bool(
-                                                        args['model_type'] in ['roberta']),
+                                                    sep_token_extra=bool(args['model_type'] in ['roberta']),
                                                     # pad on the left for xlnet
-                                                    pad_on_left=bool(
-                                                        args['model_type'] in ['xlnet']),
-                                                    pad_token=tokenizer.convert_tokens_to_ids(
-                [tokenizer.pad_token])[0],
-                pad_token_segment_id=4 if args['model_type'] in ['xlnet'] else 0)
+                                                    pad_on_left=bool(args['model_type'] in ['xlnet']),
+                                                    pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
+                                                    pad_token_segment_id=4 if args['model_type'] in ['xlnet'] else 0,
+                                                    process_count=process_count)
 
             torch.save(features, cached_features_file)
 
