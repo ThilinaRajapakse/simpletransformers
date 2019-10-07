@@ -34,8 +34,9 @@ else:
 `conda install -c anaconda scikit-learn`  
 `pip install transformers`  
 `pip install tensorboardx`  
+3. Install Apex if you are using fp16 training. Please follow the instructions [here](https://github.com/NVIDIA/apex). (Installing Apex from pip has caused issues for several people.)
 
-3. Install simpletransformers.  
+4. Install simpletransformers.  
 `pip install simpletransformers`  
 
 ## Usage
