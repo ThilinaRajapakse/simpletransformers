@@ -162,6 +162,8 @@ If True, the trained model will be saved to the ouput_dir and will overwrite exi
 #### *reprocess_input_data: bool*
 If True, the input data will be reprocessed even if a cached file of the input data exists in the cache_dir.
 
+#### *process_count: int*
+Number of cpu cores (processes) to use when converting examples to features. Default is (number of cores - 2) or 1 if (number of cores <= 2)
 
 ### TransformerModel
 
