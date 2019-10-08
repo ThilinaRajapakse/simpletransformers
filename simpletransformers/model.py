@@ -45,7 +45,7 @@ class TransformerModel:
         Initializes a Transformer model.
 
         Args:
-            model_type: The type of model (bert, xlnet, xlm, roberta)
+            model_type: The type of model (bert, xlnet, xlm, roberta, distilbert)
             model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
             args: Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda: Use GPU if available. Setting to False will force model to use CPU only.
@@ -57,6 +57,7 @@ class TransformerModel:
                     'xlnet': (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
                     'xlm': (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
                     'roberta': (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
+                    'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
                 }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
