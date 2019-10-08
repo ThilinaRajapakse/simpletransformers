@@ -232,10 +232,6 @@ class TransformerModel:
 
         return results, model_outputs, wrong
 
-
-
-
-
     def load_and_cache_examples(self, examples, evaluate=False):
         """
         Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
@@ -286,7 +282,6 @@ class TransformerModel:
         dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
         return dataset
 
-
     def train(self, train_dataset, output_dir):
         """
         Trains the model on train_dataset.
@@ -300,7 +295,7 @@ class TransformerModel:
         tb_writer = SummaryWriter()
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args['train_batch_size'])
-
+        
         t_total = len(train_dataloader) // args['gradient_accumulation_steps'] * args['num_train_epochs']
 
         no_decay = ['bias', 'LayerNorm.weight']
@@ -337,9 +332,10 @@ class TransformerModel:
                 batch = tuple(t.to(device) for t in batch)
                 inputs = {'input_ids':      batch[0],
                         'attention_mask': batch[1],
-                        # XLM don't use segment_ids
-                        'token_type_ids': batch[2] if args['model_type'] in ['bert', 'xlnet'] else None,
                         'labels':         batch[3]}
+                # XLM don't use segment_ids
+                if args['model_type'] in ['bert', 'xlnet']:
+                    inputs.update({'token_type_ids':batch[2]})
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
                 loss = outputs[0]
@@ -383,7 +379,6 @@ class TransformerModel:
                         model_to_save.save_pretrained(output_dir)
         return global_step, tr_loss / global_step
 
-
     def compute_metrics(self, preds, labels, eval_examples):
         """
         Computes the evaluation metrics for the model predictions.
@@ -412,7 +407,6 @@ class TransformerModel:
             "fp": fp,
             "fn": fn
         }, wrong
-
 
     def predict(self, to_predict):
         """
