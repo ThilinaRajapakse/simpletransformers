@@ -12,6 +12,8 @@ Table of contents
       * [With Conda](#with-conda)
    * [Usage](#usage)
       * [Minimal Start](#minimal-start)
+      * [Yelp Reviews Dataset](#yelp-reviews-dataset)
+      * [Multiclass Classification](#multiclass-classification)
       * [Default Settings](#default-settings)
       * [TransformerModel](#transformermodel)
       * [Current Pretrained Models](#current-pretrained-models)
