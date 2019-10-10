@@ -249,7 +249,7 @@ class TransformerModel:
             os.mkdir(self.args['cache_dir'])
 
         mode = 'dev' if evaluate else 'train'
-        cached_features_file = os.path.join(args['cache_dir'], f"cached_{mode}_{args['model_name']}_{args['max_seq_length']}_binary")
+        cached_features_file = os.path.join(args['cache_dir'], f"cached_{mode}_{args['model_type']}_{args['max_seq_length']}_binary")
 
         if os.path.exists(cached_features_file) and not args['reprocess_input_data']:
             features = torch.load(cached_features_file)
