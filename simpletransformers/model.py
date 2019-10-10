@@ -40,7 +40,7 @@ from multiprocessing import cpu_count
 
 
 class TransformerModel:
-    def __init__(self, model_type, model_name, args=None, use_cuda=True):
+    def __init__(self, model_type, model_name, num_labels=2, args=None, use_cuda=True):
         """
         Initializes a Transformer model.
 
@@ -61,7 +61,7 @@ class TransformerModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.tokenizer = tokenizer_class.from_pretrained(model_name)
-        self.model = model_class.from_pretrained(model_name)
+        self.model = model_class.from_pretrained(model_name, num_labels=num_labels)
         
         if use_cuda:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -232,9 +232,6 @@ class TransformerModel:
         return results, model_outputs, wrong
 
 
-
-
-
     def load_and_cache_examples(self, examples, evaluate=False):
         """
         Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
@@ -400,17 +397,21 @@ class TransformerModel:
         assert len(preds) == len(labels)
 
         mcc = matthews_corrcoef(labels, preds)
-        tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
         mismatched = labels != preds
         wrong = [i for (i, v) in zip(eval_examples, mismatched) if v]
         
-        return {
-            "mcc": mcc,
-            "tp": tp,
-            "tn": tn,
-            "fp": fp,
-            "fn": fn
-        }, wrong
+        if self.model.num_labels == 2:
+            tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
+            return {
+                "mcc": mcc,
+                "tp": tp,
+                "tn": tn,
+                "fp": fp,
+                "fn": fn
+            }, wrong
+        
+        else:
+            return {"mcc": mcc}, wrong
 
 
     def predict(self, to_predict):

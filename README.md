@@ -68,10 +68,40 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 To make predictions on arbitary data, the `predict(to_predict)` function can be used. For a list of text, it returns the model predictions and the raw model outputs.
 
 ```
-predictions = model.predict(['Some arbitary sentence'])
+predictions, raw_outputs = model.predict(['Some arbitary sentence'])
 ```
 
+### Yelp Reviews Dataset
+
 Please refer to [this Medium article](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c) for an example of using the library on the Yelp Reviews Dataset.
+
+### Multiclass Classification
+
+For multiclass classification, simply pass in the number of classes to the `num_labels` optional parameter of `TransformerModel`.
+
+```
+from simpletransformers.model import TransformerModel
+import pandas as pd
+
+
+# Train and Evaluation data needs to be in a Pandas Dataframe of two columns. The first column is the text with type str, and the second column in the label with type int.
+train_data = [['Example sentence belonging to class 1', 1], ['Example sentence belonging to class 0', 0], ['Example eval senntence belonging to class 2', 2]]
+train_df = pd.DataFrame(train_data)
+
+eval_data = [['Example eval sentence belonging to class 1', 1], ['Example eval sentence belonging to class 0', 0], ['Example eval senntence belonging to class 2', 2]]
+eval_df = pd.DataFrame(eval_data)
+
+# Create a TransformerModel
+model = TransformerModel('bert', 'bert-base-cased', num_labels=3, args={'reprocess_input_data': True, 'overwrite_output_dir': True})
+
+# Train the model
+model.train_model(train_df)
+
+# Evaluate the model
+result, model_outputs, wrong_predictions = model.eval_model(eval_df)
+
+predictions, raw_outputs = model.predict(["Some arbitary sentence"])
+```
 
 ### Default Settings
 

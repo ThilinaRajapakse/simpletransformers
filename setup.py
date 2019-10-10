@@ -6,10 +6,10 @@ with open("README.md", "r") as fh:
 
 setup(
     name="simpletransformers",
-    version="0.2.12",
+    version="0.3.0",
     author="Thilina Rajapakse",
     author_email="chaturangarajapakshe@gmail.com",
-    description="An easy-t0-use wrapper library for the Transformers library.",
+    description="An easy-to-use wrapper library for the Transformers library.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://test.pypi.org/legacy/",
