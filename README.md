@@ -112,8 +112,6 @@ The default args used are given below. Any of these can be overridden by passing
 
 ```
 self.args = {
-   'model_type':  'roberta',
-   'model_name': 'roberta-base',
    'output_dir': 'outputs/',
    'cache_dir': 'cache/',
 
@@ -139,6 +137,7 @@ self.args = {
 
    'overwrite_output_dir': False,
    'reprocess_input_data': False,
+   'process_count': cpu_count() - 2 if cpu_count() > 2 else 1
 }
 ```
 
