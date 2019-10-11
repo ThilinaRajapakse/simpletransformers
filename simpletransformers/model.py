@@ -138,7 +138,7 @@ class TransformerModel:
 
         print(f'Training of {self.args["model_type"]} model complete. Saved to {output_dir}.')
 
-    def eval_model(self, eval_df, output_dir=None, verbose=False):
+    def eval_model(self, eval_df, output_dir=None, verbose=False, **kwargs):
         """
         Evaluates the model on eval_df. Saves results to output_dir.
 
@@ -146,6 +146,8 @@ class TransformerModel:
             eval_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
             result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
@@ -159,7 +161,7 @@ class TransformerModel:
 
         self.model.to(self.device)
 
-        result, model_outputs, wrong_preds = self.evaluate(eval_df, output_dir)
+        result, model_outputs, wrong_preds = self.evaluate(eval_df, output_dir, **kwargs)
         self.results.update(result)
 
         if not verbose:
@@ -167,7 +169,7 @@ class TransformerModel:
 
         return result, model_outputs, wrong_preds
 
-    def evaluate(self, eval_df, output_dir, prefix=""):
+    def evaluate(self, eval_df, output_dir, prefix="", **kwargs):
         """
         Evaluates the model on eval_df.
 
@@ -221,7 +223,7 @@ class TransformerModel:
         eval_loss = eval_loss / nb_eval_steps
         model_outputs = preds
         preds = np.argmax(preds, axis=1)
-        result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples)
+        result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples, **kwargs)
         results.update(result)
 
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
@@ -327,8 +329,8 @@ class TransformerModel:
         train_iterator = trange(int(args['num_train_epochs']), desc="Epoch")
         
         for _ in train_iterator:
-            epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(epoch_iterator):
+            # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
+            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration")):
                 model.train()
                 batch = tuple(t.to(device) for t in batch)
                 inputs = {'input_ids':      batch[0],
@@ -380,7 +382,7 @@ class TransformerModel:
         return global_step, tr_loss / global_step
 
 
-    def compute_metrics(self, preds, labels, eval_examples):
+    def compute_metrics(self, preds, labels, eval_examples, **kwargs):
         """
         Computes the evaluation metrics for the model predictions.
 
@@ -388,6 +390,9 @@ class TransformerModel:
             preds: Model predictions
             labels: Ground truth labels
             eval_examples: List of examples on which evaluation was performed
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+
 
         Returns:
             result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
@@ -397,21 +402,26 @@ class TransformerModel:
         assert len(preds) == len(labels)
 
         mcc = matthews_corrcoef(labels, preds)
+
+        extra_metrics = {}
+        for metric, func in kwargs.items():
+            extra_metrics[metric] = func(labels, preds)
+
         mismatched = labels != preds
         wrong = [i for (i, v) in zip(eval_examples, mismatched) if v]
         
         if self.model.num_labels == 2:
             tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
-            return {
+            return {**{
                 "mcc": mcc,
                 "tp": tp,
                 "tn": tn,
                 "fp": fp,
                 "fn": fn
-            }, wrong
+            }, **extra_metrics}, wrong
         
         else:
-            return {"mcc": mcc}, wrong
+            return {**{"mcc": mcc}, **extra_metrics}, wrong
 
 
     def predict(self, to_predict):
