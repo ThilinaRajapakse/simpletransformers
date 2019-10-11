@@ -27,7 +27,7 @@ from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
 
 from multiprocessing import Pool, cpu_count
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 logger = logging.getLogger(__name__)
 csv.field_size_limit(2147483647)
