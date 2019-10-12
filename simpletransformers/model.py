@@ -102,7 +102,7 @@ class TransformerModel:
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
 
-    def train_model(self, train_df, output_dir=None):
+    def train_model(self, train_df, output_dir=None, show_running_loss=True):
         """
         Trains the model using 'train_df'
 
@@ -126,7 +126,7 @@ class TransformerModel:
         train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))]
 
         train_dataset = self.load_and_cache_examples(train_examples)
-        global_step, tr_loss = self.train(train_dataset, output_dir)
+        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss)
         
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -234,7 +234,7 @@ class TransformerModel:
         return results, model_outputs, wrong
 
 
-    def load_and_cache_examples(self, examples, evaluate=False):
+    def load_and_cache_examples(self, examples, evaluate=False, no_cache=False):
         """
         Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
 
@@ -253,7 +253,7 @@ class TransformerModel:
         mode = 'dev' if evaluate else 'train'
         cached_features_file = os.path.join(args['cache_dir'], f"cached_{mode}_{args['model_type']}_{args['max_seq_length']}_binary")
 
-        if os.path.exists(cached_features_file) and not args['reprocess_input_data']:
+        if os.path.exists(cached_features_file) and not args['reprocess_input_data'] and not no_cache:
             features = torch.load(cached_features_file)
 
         else:
@@ -271,7 +271,8 @@ class TransformerModel:
                                                     pad_token_segment_id=4 if args['model_type'] in ['xlnet'] else 0,
                                                     process_count=process_count)
 
-            torch.save(features, cached_features_file)
+            if not no_cache:
+                torch.save(features, cached_features_file)
 
         all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
         all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
@@ -285,7 +286,7 @@ class TransformerModel:
         return dataset
 
 
-    def train(self, train_dataset, output_dir):
+    def train(self, train_dataset, output_dir, show_running_loss=True):
         """
         Trains the model on train_dataset.
 
@@ -341,7 +342,8 @@ class TransformerModel:
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
                 loss = outputs[0]
-                print("\rRunning loss: %f" % loss, end='')
+                if show_running_loss:
+                    print("\rRunning loss: %f" % loss, end='')
 
                 if args['gradient_accumulation_steps'] > 1:
                     loss = loss / args['gradient_accumulation_steps']
@@ -443,7 +445,7 @@ class TransformerModel:
 
         eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
 
-        eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True)
+        eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args['eval_batch_size'])
