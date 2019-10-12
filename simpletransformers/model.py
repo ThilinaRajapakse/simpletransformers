@@ -40,7 +40,7 @@ from multiprocessing import cpu_count
 
 
 class TransformerModel:
-    def __init__(self, model_type, model_name, args=None, use_cuda=True):
+    def __init__(self, model_type, model_name, num_labels=2, args=None, use_cuda=True):
         """
         Initializes a Transformer model.
 
@@ -62,7 +62,7 @@ class TransformerModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.tokenizer = tokenizer_class.from_pretrained(model_name)
-        self.model = model_class.from_pretrained(model_name)
+        self.model = model_class.from_pretrained(model_name, num_labels=num_labels)
         
         if use_cuda:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -103,18 +103,22 @@ class TransformerModel:
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
 
-    def train_model(self, train_df, output_dir=None):
+    def train_model(self, train_df, output_dir=None, show_running_loss=True, args=None):
         """
         Trains the model using 'train_df'
 
         Args:
             train_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
+            args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
 
         Returns:
             None
 
         """
+        if args:
+            self.args.update(args)
 
         if not output_dir:
             output_dir = self.args['output_dir']
@@ -127,7 +131,7 @@ class TransformerModel:
         train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))]
 
         train_dataset = self.load_and_cache_examples(train_examples)
-        global_step, tr_loss = self.train(train_dataset, output_dir)
+        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss)
         
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -139,7 +143,7 @@ class TransformerModel:
 
         print(f'Training of {self.args["model_type"]} model complete. Saved to {output_dir}.')
 
-    def eval_model(self, eval_df, output_dir=None, verbose=False):
+    def eval_model(self, eval_df, output_dir=None, verbose=False, **kwargs):
         """
         Evaluates the model on eval_df. Saves results to output_dir.
 
@@ -147,6 +151,8 @@ class TransformerModel:
             eval_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
             result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
@@ -160,7 +166,7 @@ class TransformerModel:
 
         self.model.to(self.device)
 
-        result, model_outputs, wrong_preds = self.evaluate(eval_df, output_dir)
+        result, model_outputs, wrong_preds = self.evaluate(eval_df, output_dir, **kwargs)
         self.results.update(result)
 
         if not verbose:
@@ -168,7 +174,7 @@ class TransformerModel:
 
         return result, model_outputs, wrong_preds
 
-    def evaluate(self, eval_df, output_dir, prefix=""):
+    def evaluate(self, eval_df, output_dir, prefix="", **kwargs):
         """
         Evaluates the model on eval_df.
 
@@ -202,10 +208,10 @@ class TransformerModel:
 
             with torch.no_grad():
                 inputs = {'input_ids':      batch[0],
-                        'attention_mask': batch[1],
-                        # XLM don't use segment_ids
-                        'token_type_ids': batch[2] if args['model_type'] in ['bert', 'xlnet'] else None,
-                        'labels':         batch[3]}
+                          'attention_mask': batch[1],
+                          'labels':         batch[3]}
+                if args.model_type != 'distilbert':
+                    inputs['token_type_ids'] = batch[2] if args.model_type in ['bert', 'xlnet'] else None  # XLM, DistilBERT and RoBERTa don't use segment_ids
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
@@ -222,7 +228,7 @@ class TransformerModel:
         eval_loss = eval_loss / nb_eval_steps
         model_outputs = preds
         preds = np.argmax(preds, axis=1)
-        result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples)
+        result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples, **kwargs)
         results.update(result)
 
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
@@ -232,7 +238,8 @@ class TransformerModel:
 
         return results, model_outputs, wrong
 
-    def load_and_cache_examples(self, examples, evaluate=False):
+              
+    def load_and_cache_examples(self, examples, evaluate=False, no_cache=False):
         """
         Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
 
@@ -249,9 +256,9 @@ class TransformerModel:
             os.mkdir(self.args['cache_dir'])
 
         mode = 'dev' if evaluate else 'train'
-        cached_features_file = os.path.join(args['cache_dir'], f"cached_{mode}_{args['model_name']}_{args['max_seq_length']}_binary")
+        cached_features_file = os.path.join(args['cache_dir'], f"cached_{mode}_{args['model_type']}_{args['max_seq_length']}_binary")
 
-        if os.path.exists(cached_features_file) and not args['reprocess_input_data']:
+        if os.path.exists(cached_features_file) and not args['reprocess_input_data'] and not no_cache:
             features = torch.load(cached_features_file)
 
         else:
@@ -269,7 +276,8 @@ class TransformerModel:
                                                     pad_token_segment_id=4 if args['model_type'] in ['xlnet'] else 0,
                                                     process_count=process_count)
 
-            torch.save(features, cached_features_file)
+            if not no_cache:
+                torch.save(features, cached_features_file)
 
         all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
         all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
@@ -282,7 +290,8 @@ class TransformerModel:
         dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
         return dataset
 
-    def train(self, train_dataset, output_dir):
+
+    def train(self, train_dataset, output_dir, show_running_loss=True):
         """
         Trains the model on train_dataset.
 
@@ -326,8 +335,8 @@ class TransformerModel:
         train_iterator = trange(int(args['num_train_epochs']), desc="Epoch")
         
         for _ in train_iterator:
-            epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(epoch_iterator):
+            # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
+            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration")):
                 model.train()
                 batch = tuple(t.to(device) for t in batch)
                 inputs = {'input_ids':      batch[0],
@@ -339,7 +348,8 @@ class TransformerModel:
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
                 loss = outputs[0]
-                print("\rRunning loss: %f" % loss, end='')
+                if show_running_loss:
+                    print("\rRunning loss: %f" % loss, end='')
 
                 if args['gradient_accumulation_steps'] > 1:
                     loss = loss / args['gradient_accumulation_steps']
@@ -379,7 +389,8 @@ class TransformerModel:
                         model_to_save.save_pretrained(output_dir)
         return global_step, tr_loss / global_step
 
-    def compute_metrics(self, preds, labels, eval_examples):
+                                            
+    def compute_metrics(self, preds, labels, eval_examples, **kwargs):
         """
         Computes the evaluation metrics for the model predictions.
 
@@ -387,6 +398,9 @@ class TransformerModel:
             preds: Model predictions
             labels: Ground truth labels
             eval_examples: List of examples on which evaluation was performed
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+
 
         Returns:
             result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
@@ -396,17 +410,26 @@ class TransformerModel:
         assert len(preds) == len(labels)
 
         mcc = matthews_corrcoef(labels, preds)
-        tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
+
+        extra_metrics = {}
+        for metric, func in kwargs.items():
+            extra_metrics[metric] = func(labels, preds)
+
         mismatched = labels != preds
         wrong = [i for (i, v) in zip(eval_examples, mismatched) if v]
         
-        return {
-            "mcc": mcc,
-            "tp": tp,
-            "tn": tn,
-            "fp": fp,
-            "fn": fn
-        }, wrong
+        if self.model.num_labels == 2:
+            tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
+            return {**{
+                "mcc": mcc,
+                "tp": tp,
+                "tn": tn,
+                "fp": fp,
+                "fn": fn
+            }, **extra_metrics}, wrong
+        
+        else:
+            return {**{"mcc": mcc}, **extra_metrics}, wrong
 
     def predict(self, to_predict):
         """
@@ -427,7 +450,7 @@ class TransformerModel:
 
         eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
 
-        eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True)
+        eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args['eval_batch_size'])
