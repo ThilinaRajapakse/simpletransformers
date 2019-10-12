@@ -47,8 +47,9 @@ class TransformerModel:
         Args:
             model_type: The type of model (bert, xlnet, xlm, roberta)
             model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
-            args: Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
-            use_cuda: Use GPU if available. Setting to False will force model to use CPU only.
+            num_labels (optional): The number of labels or classes in the dataset.
+            args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
+            use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
 
         """
 

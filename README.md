@@ -215,13 +215,15 @@ This is the main class of this library. All configuration, training, and evaluat
 `Class attributes`
 * `tokenizer`: The tokenizer to be used.
 * `model`: The model to be used.
+            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
 * `device`: The device on which the model will be trained and evaluated.
 * `results`: A python dict of past evaluation results for the TransformerModel object.
 * `args`: A python dict of arguments used for training and evaluation.
 
 `Parameters`
 * `model_type`: (required) str - The type of model to use. Currently, BERT, XLNet, XLM, and RoBERTa models are available.
-* `model_name`: (required) str - The exact model to use. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+* `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+* `num_labels` (optional): The number of labels or classes in the dataset.
 * `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
 * `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 
