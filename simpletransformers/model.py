@@ -333,9 +333,9 @@ class TransformerModel:
                 inputs = {'input_ids':      batch[0],
                         'attention_mask': batch[1],
                         'labels':         batch[3]}
-                # XLM don't use segment_ids
-                if args['model_type'] in ['bert', 'xlnet']:
-                    inputs.update({'token_type_ids':batch[2]})
+                # XLM, DistilBERT and RoBERTa don't use segment_ids
+                if args.model_type != 'distilbert':
+                    inputs['token_type_ids'] = batch[2] if args.model_type in ['bert', 'xlnet'] else None  
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
                 loss = outputs[0]
