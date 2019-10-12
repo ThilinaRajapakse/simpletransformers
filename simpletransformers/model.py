@@ -102,18 +102,22 @@ class TransformerModel:
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
 
-    def train_model(self, train_df, output_dir=None, show_running_loss=True):
+    def train_model(self, train_df, output_dir=None, show_running_loss=True, args=None):
         """
         Trains the model using 'train_df'
 
         Args:
             train_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
+            args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
 
         Returns:
             None
 
         """
+        if args:
+            self.args.update(args)
 
         if not output_dir:
             output_dir = self.args['output_dir']
