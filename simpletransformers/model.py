@@ -46,7 +46,7 @@ class TransformerModel:
 
         Args:
             model_type: The type of model (bert, xlnet, xlm, roberta, distilbert)
-            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
             num_labels (optional): The number of labels or classes in the dataset.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
@@ -448,6 +448,8 @@ class TransformerModel:
         device = self.device
         model = self.model
         args = self.args
+
+        self.model.to(self.device)
 
         eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
 

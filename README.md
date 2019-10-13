@@ -222,7 +222,7 @@ This is the main class of this library. All configuration, training, and evaluat
 
 `Parameters`
 * `model_type`: (required) str - The type of model to use. Currently, BERT, XLNet, XLM, and RoBERTa models are available.
-* `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+* `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
 * `num_labels` (optional): The number of labels or classes in the dataset.
 * `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
 * `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
