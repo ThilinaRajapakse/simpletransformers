@@ -91,6 +91,8 @@ Please refer to [this Medium article](https://towardsdatascience.com/simple-tran
 
 For multiclass classification, simply pass in the number of classes to the `num_labels` optional parameter of `TransformerModel`.
 
+See the tutorial on the AGNews Dataset [here](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a) for a complete example, or check the minimal example below.
+
 ```
 from simpletransformers.model import TransformerModel
 import pandas as pd
