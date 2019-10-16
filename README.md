@@ -1,7 +1,7 @@
 # Simple Transformers
 
 
-This library is based on the [Pytorch-Transformers](https://github.com/huggingface/pytorch-transformers) library by HuggingFace. Using this library, you can quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate the model.
+This library is based on the [Pytorch-Transformers](https://github.com/huggingface/pytorch-transformers) library by HuggingFace. Using this library, you can quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate the model on classification tasks.
 
 
 Table of contents
