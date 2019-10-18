@@ -17,26 +17,29 @@
 
 from __future__ import absolute_import, division, print_function
 
-import csv
-import logging
 import os
 import sys
-from io import open
+import csv
+import logging
 
+from io import open
+from multiprocessing import Pool, cpu_count
+
+from tqdm.auto import tqdm
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
 
-from multiprocessing import Pool, cpu_count
-from tqdm.auto import tqdm
 
 logger = logging.getLogger(__name__)
 csv.field_size_limit(2147483647)
+
 
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
 
     def __init__(self, guid, text_a, text_b=None, label=None):
-        """Constructs a InputExample.
+        """
+        Constructs a InputExample.
 
         Args:
             guid: Unique id for the example.
@@ -47,6 +50,7 @@ class InputExample(object):
             label: (Optional) string. The label of the example. This should be
             specified for train and dev examples, but not for test examples.
         """
+
         self.guid = guid
         self.text_a = text_a
         self.text_b = text_b
@@ -63,10 +67,16 @@ class InputFeatures(object):
         self.label_id = label_id
 
 
-def convert_example_to_feature(example_row, pad_token=0,
-sequence_a_segment_id=0, sequence_b_segment_id=1,
-cls_token_segment_id=1, pad_token_segment_id=0,
-mask_padding_with_zero=True, sep_token_extra=False):
+def convert_example_to_feature(
+        example_row,
+        pad_token=0,
+        sequence_a_segment_id=0,
+        sequence_b_segment_id=1,
+        cls_token_segment_id=1,
+        pad_token_segment_id=0,
+        mask_padding_with_zero=True,
+        sep_token_extra=False
+    ):
     example, max_seq_length, tokenizer, output_mode, cls_token_at_end, cls_token, sep_token, cls_token_segment_id, pad_on_left, pad_token_segment_id, sep_token_extra = example_row
 
     tokens_a = tokenizer.tokenize(example.text_a)
@@ -123,7 +133,6 @@ mask_padding_with_zero=True, sep_token_extra=False):
     # tokens are attended to.
     input_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
 
-
     # Zero-pad up to the sequence length.
     padding_length = max_seq_length - len(input_ids)
     if pad_on_left:
@@ -146,27 +155,39 @@ mask_padding_with_zero=True, sep_token_extra=False):
     # else:
     #     raise KeyError(output_mode)
 
-    return InputFeatures(input_ids=input_ids,
-                        input_mask=input_mask,
-                        segment_ids=segment_ids,
-                        label_id=example.label)
-    
+    return InputFeatures(
+        input_ids=input_ids,
+        input_mask=input_mask,
+        segment_ids=segment_ids,
+        label_id=example.label
+    )
 
-def convert_examples_to_features(examples, max_seq_length,
-                                 tokenizer, output_mode,
-                                 cls_token_at_end=False, sep_token_extra=False, pad_on_left=False,
-                                 cls_token='[CLS]', sep_token='[SEP]', pad_token=0,
-                                 sequence_a_segment_id=0, sequence_b_segment_id=1,
-                                 cls_token_segment_id=1, pad_token_segment_id=0,
-                                 mask_padding_with_zero=True,
-                                 process_count=cpu_count() - 2):
+
+def convert_examples_to_features(
+        examples,
+        max_seq_length,
+        tokenizer,
+        output_mode,
+        cls_token_at_end=False,
+        sep_token_extra=False,
+        pad_on_left=False,
+        cls_token="[CLS]",
+        sep_token="[SEP]",
+        pad_token=0,
+        sequence_a_segment_id=0,
+        sequence_b_segment_id=1,
+        cls_token_segment_id=1,
+        pad_token_segment_id=0,
+        mask_padding_with_zero=True,
+        process_count=cpu_count() - 2
+    ):
     """ Loads a data file into a list of `InputBatch`s
         `cls_token_at_end` define the location of the CLS token:
             - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
             - True (XLNet/GPT pattern): A + [SEP] + B + [SEP] + [CLS]
         `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
     """
-    
+
     examples = [(example, max_seq_length, tokenizer, output_mode, cls_token_at_end, cls_token, sep_token, cls_token_segment_id, pad_on_left, pad_token_segment_id, sep_token_extra) for example in examples]
 
     with Pool(process_count) as p:
@@ -182,6 +203,7 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     # one token at a time. This makes more sense than truncating an equal percent
     # of tokens from each, since if one sequence is very short then each token
     # that's truncated likely contains more information than a longer sequence.
+
     while True:
         total_length = len(tokens_a) + len(tokens_b)
         if total_length <= max_length:
