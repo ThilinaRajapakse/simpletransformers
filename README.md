@@ -98,7 +98,7 @@ from simpletransformers.model import TransformerModel
 import pandas as pd
 
 
-# Train and Evaluation data needs to be in a Pandas Dataframe of two columns. The first column is the text with type str, and the second column in the label with type int.
+# Train and Evaluation data needs to be in a Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column is the text with type str, and the second column in the label with type int.
 train_data = [['Example sentence belonging to class 1', 1], ['Example sentence belonging to class 0', 0], ['Example eval senntence belonging to class 2', 2]]
 train_df = pd.DataFrame(train_data)
 
@@ -235,7 +235,7 @@ This is the main class of this library. All configuration, training, and evaluat
 Trains the model using 'train_df'
 
 Args:  
->train_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
+>train_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
 
 >output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
@@ -247,7 +247,7 @@ Returns:
 Evaluates the model on eval_df. Saves results to output_dir.
 
 Args:  
->eval_df: Pandas Dataframe (no header) of two columns, first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
+>eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
 
 >output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
 
