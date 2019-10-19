@@ -272,7 +272,9 @@ class TransformerModel:
 
         if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
             features = torch.load(cached_features_file)
+            print(f"Features loaded from cache at {cached_features_file}")
         else:
+            print(f"Converting to features started.")
             features = convert_examples_to_features(
                 examples,
                 args["max_seq_length"],
