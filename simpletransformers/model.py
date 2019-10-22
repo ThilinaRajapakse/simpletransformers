@@ -17,7 +17,7 @@ import numpy as np
 from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error, matthews_corrcoef, confusion_matrix
 from tensorboardX import SummaryWriter
-from tqdm import trange, tqdm
+from tqdm.auto import trange, tqdm
 
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import (
