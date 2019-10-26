@@ -397,14 +397,16 @@ class TransformerModel:
 
                     if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
                         # Save model checkpoint
-                        output_dir = os.path.join(output_dir, "checkpoint-{}".format(global_step))
+                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        if not os.path.exists(output_dir):
-                            os.makedirs(output_dir)
+                        if not os.path.exists(output_dir_current):
+                            os.makedirs(output_dir_current)
 
                         # Take care of distributed/parallel training
                         model_to_save = model.module if hasattr(model, "module") else model
-                        model_to_save.save_pretrained(output_dir)
+                        model_to_save.save_pretrained(output_dir_current)
+                        self.tokenizer.save_pretrained(output_dir_current)
+
 
         return global_step, tr_loss / global_step
 
