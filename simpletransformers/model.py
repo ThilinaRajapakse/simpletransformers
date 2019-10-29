@@ -98,7 +98,9 @@ class TransformerModel:
 
             "overwrite_output_dir": False,
             "reprocess_input_data": False,
+
             "process_count": cpu_count() - 2 if cpu_count() > 2 else 1,
+            "n_gpu": 1,
         }
 
         if args:
@@ -178,7 +180,7 @@ class TransformerModel:
         result, model_outputs, wrong_preds = self.evaluate(eval_df, output_dir, **kwargs)
         self.results.update(result)
 
-        if not verbose:
+        if verbose:
             print(self.results)
 
         return result, model_outputs, wrong_preds
@@ -215,9 +217,9 @@ class TransformerModel:
         nb_eval_steps = 0
         preds = None
         out_label_ids = None
+        model.eval()
 
         for batch in tqdm(eval_dataloader):
-            model.eval()
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
@@ -352,15 +354,18 @@ class TransformerModel:
 
             model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
 
+        if args["n_gpu"] > 1:
+            model = torch.nn.DataParallel(model)
+
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch")
 
+        model.train()
         for _ in train_iterator:
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
             for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration")):
-                model.train()
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)

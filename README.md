@@ -11,12 +11,17 @@ Table of contents
    * [Setup](#Setup)
       * [With Conda](#with-conda)
    * [Usage](#usage)
-      * [Minimal Start](#minimal-start)
-      * [Yelp Reviews Dataset](#yelp-reviews-dataset)
-      * [Multiclass Classification](#multiclass-classification)
-      * [Default Settings](#default-settings)
-      * [TransformerModel](#transformermodel)
-      * [Current Pretrained Models](#current-pretrained-models)
+     * [Text Classification](#text-classification)
+       * [Minimal Start for Binary Classification](#minimal-start-for-binary-classification)
+       * [Minimal Start for Multiclass Classification](#multiclass-classification)
+       * [Real Dataset Examples](#real-dataset-examples)
+       * [TransformerModel](#transformermodel)
+     * [Named Entity Recognition](#named-entity-recognition)
+       * [Minimal Start](#minimal-start)
+       * [Real Dataset Examples](#real-dataset-examples-1)
+       * [NERModel](#nermodel)
+     * [Default Settings](#default-settings)
+     * [Current Pretrained Models](#current-pretrained-models)
    * [Acknowledgements](#acknowledgements)
 <!--te-->
 
@@ -35,6 +40,7 @@ else:
 `conda install -c anaconda scipy`  
 `conda install -c anaconda scikit-learn`  
 `pip install transformers`  
+`pip install seqeval`  
 `pip install tensorboardx`  
 3. Install Apex if you are using fp16 training. Please follow the instructions [here](https://github.com/NVIDIA/apex). (Installing Apex from pip has caused issues for several people.)
 
@@ -43,7 +49,13 @@ else:
 
 ## Usage
 
-### Minimal Start
+Available hyperparameters are common for all tasks. See [Default Settings](#default-settings) and [Args Explained](#args-explained) sections for more information.
+
+### Text Classification
+
+Both Binary and Multiclass Classification is supported.
+
+#### Minimal Start for Binary Classification
 
 ```
 from simpletransformers.model import TransformerModel
@@ -83,15 +95,9 @@ To make predictions on arbitary data, the `predict(to_predict)` function can be 
 predictions, raw_outputs = model.predict(['Some arbitary sentence'])
 ```
 
-### Yelp Reviews Dataset
-
-Please refer to [this Medium article](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c) for an example of using the library on the Yelp Reviews Dataset.
-
-### Multiclass Classification
+#### Minimal Start for Multiclass Classification
 
 For multiclass classification, simply pass in the number of classes to the `num_labels` optional parameter of `TransformerModel`.
-
-See the tutorial on the AGNews Dataset [here](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a) for a complete example, or check the minimal example below.
 
 ```
 from simpletransformers.model import TransformerModel
@@ -117,8 +123,250 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 predictions, raw_outputs = model.predict(["Some arbitary sentence"])
 ```
 
-### Default Settings
+#### Real Dataset Examples
 
+* [Yelp Reviews Dataset - Binary Classification](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c)
+* [AG News Dataset - Multiclass Classification](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a)
+
+
+#### TransformerModel
+
+`class simpletransformers.model.TransformerModel (model_type, model_name, args=None, use_cuda=True)`  
+This class  is used for Text Classification tasks.
+
+`Class attributes`
+* `tokenizer`: The tokenizer to be used.
+* `model`: The model to be used.
+            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+* `device`: The device on which the model will be trained and evaluated.
+* `results`: A python dict of past evaluation results for the TransformerModel object.
+* `args`: A python dict of arguments used for training and evaluation.
+
+`Parameters`
+* `model_type`: (required) str - The type of model to use. Currently, BERT, XLNet, XLM, and RoBERTa models are available.
+* `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+* `num_labels` (optional): The number of labels or classes in the dataset.
+* `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
+* `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
+
+`class methods`  
+**`train_model(self, train_df, output_dir=None)`**
+
+Trains the model using 'train_df'
+
+Args:  
+>train_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
+
+>output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+
+Returns:  
+>None
+
+**`eval_model(self, eval_df, output_dir=None, verbose=False)`**
+
+Evaluates the model on eval_df. Saves results to output_dir.
+
+Args:  
+>eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
+
+>output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+
+>verbose: If verbose, results will be printed to the console on completion of evaluation.  
+
+Returns:  
+>result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
+
+>model_outputs: List of model outputs for each row in eval_df  
+
+>wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
+
+**`predict(self, to_predict)`**
+
+Performs predictions on a list of text.
+
+Args:
+>to_predict: A python list of text (str) to be sent to the model for prediction.
+
+Returns:
+>preds: A python list of the predictions (0 or 1) for each text.  
+>model_outputs: A python list of the raw model outputs for each text.
+
+
+**`train(self, train_dataset, output_dir)`**
+
+Trains the model on train_dataset.
+*Utility function to be used by the train_model() method. Not intended to be used directly.*
+
+**`evaluate(self, eval_df, output_dir, prefix="")`**
+
+Evaluates the model on eval_df.
+*Utility function to be used by the eval_model() method. Not intended to be used directly*
+
+**`load_and_cache_examples(self, examples, evaluate=False)`**
+
+Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
+*Utility function for train() and eval() methods. Not intended to be used directly*
+
+**`compute_metrics(self, preds, labels, eval_examples, **kwargs):`**
+
+Computes the evaluation metrics for the model predictions.
+
+Args:
+>preds: Model predictions  
+
+>labels: Ground truth labels  
+
+>eval_examples: List of examples on which evaluation was performed  
+
+Returns:
+>result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
+
+>wrong: List of InputExample objects corresponding to each incorrect prediction by the model  
+
+### Named Entity Recognition
+
+This section describes how to use Simple Transformers for Named Entity Recognition. (If you are updating from a Simple Transformers before 0.5.0, note that `seqeval` needs to be installed to perform NER.)
+
+*This model can also be used for any other NLP task involving token level classification.*
+
+#### Minimal Start
+
+```
+from simpletransformers.ner.ner_model import NERModel
+import pandas as pd
+
+
+# Creating train_df  and eval_df for demonstration
+train_data = [
+    [0, 'Simple', 'B-MISC'], [0, 'Transformers', 'I-MISC'], [0, 'started', 'O'], [1, 'with', 'O'], [0, 'text', 'O'], [0, 'classification', 'B-MISC'],
+    [1, 'Simple', 'B-MISC'], [1, 'Transformers', 'I-MISC'], [1, 'can', 'O'], [1, 'now', 'O'], [1, 'perform', 'O'], [1, 'NER', 'B-MISC']
+]
+train_df = pd.DataFrame(train_data, columns=['sentence_id', 'words', 'labels'])
+
+eval_data = [
+    [0, 'Simple', 'B-MISC'], [0, 'Transformers', 'I-MISC'], [0, 'was', 'O'], [1, 'built', 'O'], [1, 'for', 'O'], [0, 'text', 'O'], [0, 'classification', 'B-MISC'],
+    [1, 'Simple', 'B-MISC'], [1, 'Transformers', 'I-MISC'], [1, 'then', 'O'], [1, 'expanded', 'O'], [1, 'to', 'O'], [1, 'perform', 'O'], [1, 'NER', 'B-MISC']
+]
+eval_df = pd.DataFrame(eval_data, columns=['sentence_id', 'words', 'labels'])
+
+# Create a NERModel
+model = NERModel('bert', 'bert-base-cased', args={'overwrite_output_dir': True, 'reprocess_input_data': True})
+
+# Train the model
+model.train_model(train_df)
+
+# Evaluate the model
+result, model_outputs, predictions = model.eval_model(eval_df)
+
+# Predictions on arbitary text strings
+predictions, raw_outputs = model.predict(["Some arbitary sentence"])
+
+print(predictions)
+```
+
+#### Real Dataset Examples
+
+#### NERModel
+
+`class simpletransformers.ner.ner_model.NERModel (model_type, model_name, labels=None, args=None, use_cuda=True)`  
+This class  is used for Named Entity Recognition.
+
+`Class attributes`
+* `tokenizer`: The tokenizer to be used.
+* `model`: The model to be used.
+            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+* `device`: The device on which the model will be trained and evaluated.
+* `results`: A python dict of past evaluation results for the TransformerModel object.
+* `args`: A python dict of arguments used for training and evaluation.
+
+`Parameters`
+* `model_type`: (required) str - The type of model to use. Currently, BERT, XLNet, XLM, and RoBERTa models are available.
+* `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+* `labels` (optional): A list of all Named Entity labels.  If not given, ["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"] will be used.
+* `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
+* `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
+
+`class methods`  
+**`train_model(self, train_df, output_dir=None)`**
+
+Trains the model using 'train_data'
+
+Args:  
+>train_data: train_data should be the path to a .txt file containing the training data OR a pandas DataFrame with 3 columns.
+If a text file is used the data should be in the CoNLL format. i.e. One word per line, with sentences seperated by an empty line. 
+The first word of the line should be a word, and the last should be a Name Entity Tag.
+If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
+
+>output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+
+>show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
+
+>args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+
+
+Returns:  
+>None
+
+**`eval_model(self, eval_df, output_dir=None, verbose=True)`**
+
+Evaluates the model on eval_df. Saves results to output_dir.
+
+Args:  
+>eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
+
+>output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+
+>verbose: If verbose, results will be printed to the console on completion of evaluation.  
+
+Returns:  
+>result: Dictionary containing evaluation results. (eval_loss, precision, recall, f1_score)
+
+>model_outputs: List of raw model outputs
+
+>preds_list: List of predicted tags
+
+**`predict(self, to_predict)`**
+
+Performs predictions on a list of text.
+
+Args:
+>to_predict: A python list of text (str) to be sent to the model for prediction.
+
+Returns:
+>preds: A Python dict with each word mapped to its NER tag. 
+>model_outputs: A python list of the raw model outputs for each text.
+
+
+**`train(self, train_dataset, output_dir)`**
+
+Trains the model on train_dataset.
+*Utility function to be used by the train_model() method. Not intended to be used directly.*
+
+**`evaluate(self, eval_dataset, output_dir, prefix="")`**
+
+Evaluates the model on eval_dataset.
+*Utility function to be used by the eval_model() method. Not intended to be used directly*
+
+**`load_and_cache_examples(self, data, evaluate=False, no_cache=False, to_predict=None)`**
+
+Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
+*Utility function for train() and eval() methods. Not intended to be used directly*
+
+
+### Loading Saved Models
+
+To load a saved model, provide the path to the directory containing the saved model as the `model_name`.
+
+```
+model = TransformerModel('roberta', 'outputs/')
+```
+
+```
+model = NERModel('bert', 'outputs/')
+```
+
+
+### Default Settings
 
 The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding key: value pairs to the the init method of TransformerModel.
 
@@ -208,100 +456,6 @@ If True, the input data will be reprocessed even if a cached file of the input d
 
 #### *process_count: int*
 Number of cpu cores (processes) to use when converting examples to features. Default is (number of cores - 2) or 1 if (number of cores <= 2)
-
-### TransformerModel
-
-`class simpletransformers.model.TransformerModel (model_type, model_name, args=None, use_cuda=True)`  
-This is the main class of this library. All configuration, training, and evaluation is performed using this class.
-
-`Class attributes`
-* `tokenizer`: The tokenizer to be used.
-* `model`: The model to be used.
-            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
-* `device`: The device on which the model will be trained and evaluated.
-* `results`: A python dict of past evaluation results for the TransformerModel object.
-* `args`: A python dict of arguments used for training and evaluation.
-
-`Parameters`
-* `model_type`: (required) str - The type of model to use. Currently, BERT, XLNet, XLM, and RoBERTa models are available.
-* `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
-* `num_labels` (optional): The number of labels or classes in the dataset.
-* `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
-* `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
-
-`class methods`  
-**`train_model(self, train_df, output_dir=None)`**
-
-Trains the model using 'train_df'
-
-Args:  
->train_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
-
->output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
-
-Returns:  
->None
-
-**`eval_model(self, eval_df, output_dir=None, verbose=False)`**
-
-Evaluates the model on eval_df. Saves results to output_dir.
-
-Args:  
->eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
-
->output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
-
->verbose: If verbose, results will be printed to the console on completion of evaluation.  
-
-Returns:  
->result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
-
->model_outputs: List of model outputs for each row in eval_df  
-
->wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
-
-**`predict(self, to_predict)`**
-
-Performs predictions on a list of text.
-
-Args:
->to_predict: A python list of text (str) to be sent to the model for prediction.
-
-Returns:
->preds: A python list of the predictions (0 or 1) for each text.  
->model_outputs: A python list of the raw model outputs for each text.
-
-
-**`train(self, train_dataset, output_dir)`**
-
-Trains the model on train_dataset.
-*Utility function to be used by the train_model() method. Not intended to be used directly.*
-
-**`evaluate(self, eval_df, output_dir, prefix="")`**
-
-Evaluates the model on eval_df.
-*Utility function to be used by the eval_model() method. Not intended to be used directly*
-
-**`load_and_cache_examples(self, examples, evaluate=False)`**
-
-Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
-*Utility function for train() and eval() methods. Not intended to be used directly*
-
-**`List of InputExample objects corresponding to each incorrect prediction by the model`**
-
-Computes the evaluation metrics for the model predictions.
-
-Args:
->preds: Model predictions  
-
->labels: Ground truth labels  
-
->eval_examples: List of examples on which evaluation was performed  
-
-Returns:
->result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
-
->wrong: List of InputExample objects corresponding to each incorrect prediction by the model  
 
 
 ### Current Pretrained Models
