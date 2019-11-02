@@ -30,7 +30,7 @@ try:
     from transformers import RobertaConfig, RobertaForTokenClassification, RobertaTokenizer
     roberta_available = True
 except ImportError:
-    print("Error when attempting to import RobertaForTokenClassification. Please use BERT for now. See issue on https://github.com/huggingface/transformers/issues/1631.")
+    print("Warning: Importing RobertaForTokenClassification unsuccessful. Please use BERT for now. See issue on https://github.com/huggingface/transformers/issues/1631.")
     roberta_available = False
 
 
