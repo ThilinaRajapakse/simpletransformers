@@ -15,7 +15,7 @@ import torch
 import numpy as np
 
 from scipy.stats import pearsonr
-from sklearn.metrics import mean_squared_error, matthews_corrcoef, confusion_matrix
+from sklearn.metrics import mean_squared_error, matthews_corrcoef, confusion_matrix, label_ranking_average_precision_score
 from tensorboardX import SummaryWriter
 from tqdm.auto import trange, tqdm
 
@@ -46,7 +46,7 @@ from simpletransformers.classification.classification_utils import (
 class ClassificationModel:
     def __init__(self, model_type, model_name, num_labels=2, args=None, use_cuda=True):
         """
-        Initializes a Transformer model.
+        Initializes a ClassificationModel model.
 
         Args:
             model_type: The type of model (bert, xlnet, xlm, roberta, distilbert)
@@ -109,7 +109,7 @@ class ClassificationModel:
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
 
-    def train_model(self, train_df, output_dir=None, show_running_loss=True, args=None):
+    def train_model(self, train_df, multi_label=False, output_dir=None, show_running_loss=True, args=None):
         """
         Trains the model using 'train_df'
 
@@ -135,11 +135,20 @@ class ClassificationModel:
 
         self._move_model_to_device()
 
+        # Multi-label uses multi-hot encoding for labels
+        if multi_label:
+            if 'text' in train_df.columns and 'labels' in train_df.columns:
+                train_df['labels'] = train_df['labels'].apply(self.convert_to_multihot)
+            else:
+                print("Error: Multilabel models requre explicitly named Dataframe columns (text, labels).")
+                raise ValueError
+
         if 'text' in train_df.columns and 'labels' in train_df.columns:
             train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df['text'], train_df['labels']))]
         else:
             train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))]
 
+        
         train_dataset = self.load_and_cache_examples(train_examples)
         global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss)
 
@@ -186,7 +195,7 @@ class ClassificationModel:
         return result, model_outputs, wrong_preds
 
 
-    def evaluate(self, eval_df, output_dir, prefix="", **kwargs):
+    def evaluate(self, eval_df, output_dir, multi_label=False, prefix="", **kwargs):
         """
         Evaluates the model on eval_df.
 
@@ -200,6 +209,14 @@ class ClassificationModel:
         eval_output_dir = output_dir
 
         results = {}
+
+        # Multi-label uses multi-hot encoding for labels
+        if multi_label:
+            if 'text' in eval_df.columns and 'labels' in eval_df.columns:
+                eval_df['labels'] = eval_df['labels'].apply(self.convert_to_multihot)
+            else:
+                raise ValueError("Multilabel models requre explicitly named Dataframe columns (text, labels).")
+            
 
         if 'text' in eval_df.columns and 'labels' in eval_df.columns:
             eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df['text'], eval_df['labels']))]
@@ -241,7 +258,14 @@ class ClassificationModel:
 
         eval_loss = eval_loss / nb_eval_steps
         model_outputs = preds
-        preds = np.argmax(preds, axis=1)
+
+        if multi_label:
+            predicted_labels = np.zeros(preds.shape)
+            predicted_labels[preds > 0.5] = 1
+            preds = predicted_labels
+        else:
+            preds = np.argmax(preds, axis=1)
+
         result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples, **kwargs)
         results.update(result)
 
@@ -253,7 +277,7 @@ class ClassificationModel:
         return results, model_outputs, wrong
 
 
-    def load_and_cache_examples(self, examples, evaluate=False, no_cache=False):
+    def load_and_cache_examples(self, examples, evaluate=False, no_cache=False, multi_label=False):
         """
         Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
 
@@ -293,7 +317,8 @@ class ClassificationModel:
                 pad_on_left=bool(args["model_type"] in ["xlnet"]),
                 pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
                 pad_token_segment_id=4 if args["model_type"] in ["xlnet"] else 0,
-                process_count=process_count
+                process_count=process_count,
+                multi_label=multi_label
             )
 
             if not no_cache:
@@ -375,6 +400,8 @@ class ClassificationModel:
                 if show_running_loss:
                     print("\rRunning loss: %f" % loss, end="")
 
+                if args['n_gpu'] > 1:
+                    loss = loss.mean()  # mean() to average on multi-gpu parallel training
                 if args["gradient_accumulation_steps"] > 1:
                     loss = loss / args["gradient_accumulation_steps"]
 
@@ -416,7 +443,7 @@ class ClassificationModel:
         return global_step, tr_loss / global_step
 
 
-    def compute_metrics(self, preds, labels, eval_examples, **kwargs):
+    def compute_metrics(self, preds, labels, eval_examples, multi_label=False, **kwargs):
         """
         Computes the evaluation metrics for the model predictions.
 
@@ -434,14 +461,19 @@ class ClassificationModel:
 
         assert len(preds) == len(labels)
 
-        mcc = matthews_corrcoef(labels, preds)
-
         extra_metrics = {}
         for metric, func in kwargs.items():
             extra_metrics[metric] = func(labels, preds)
 
         mismatched = labels != preds
-        wrong = [i for (i, v) in zip(eval_examples, mismatched) if v]
+        wrong = [i for (i, v) in zip(eval_examples, mismatched) if v.any()]
+
+        if multi_label:
+            label_ranking_score = label_ranking_average_precision_score(labels, preds)
+            return {**{"LRAP": label_ranking_score}, **extra_metrics}, wrong
+
+
+        mcc = matthews_corrcoef(labels, preds)
 
         if self.model.num_labels == 2:
             tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
@@ -456,7 +488,7 @@ class ClassificationModel:
         else:
             return {**{"mcc": mcc}, **extra_metrics}, wrong
 
-    def predict(self, to_predict):
+    def predict(self, to_predict, multi_label=False):
         """
         Performs predictions on a list of text.
 
@@ -475,9 +507,12 @@ class ClassificationModel:
 
         self._move_model_to_device()
 
-        eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
+        if multi_label:
+            eval_examples = [InputExample(i, text, None, self.convert_to_multihot([0])) for i, text in enumerate(to_predict)]
+        else:
+            eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
 
-        eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
+        eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, multi_label=multi_label, no_cache=True)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
@@ -509,9 +544,18 @@ class ClassificationModel:
 
         eval_loss = eval_loss / nb_eval_steps
         model_outputs = preds
-        preds = np.argmax(preds, axis=1)
+        if multi_label:
+            predicted_labels = np.zeros(preds.shape)
+            predicted_labels[preds > 0.5] = 1
+            preds = predicted_labels
+        else:
+            preds = np.argmax(preds, axis=1)
 
         return preds, model_outputs
+
+    
+    def convert_to_multihot(self, labels):
+        return [1 if i in labels else 0 for i in range(self.num_labels)]
 
 
     def _move_model_to_device(self):
