@@ -152,7 +152,7 @@ class TransformerModel:
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        if not args["silent"]:
+        if not self.args["silent"]:
             print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
 
@@ -182,7 +182,7 @@ class TransformerModel:
         result, model_outputs, wrong_preds = self.evaluate(eval_df, output_dir, **kwargs)
         self.results.update(result)
 
-        if not args["silent"]:
+        if not self.args["silent"]:
             if verbose:
                 print(self.results)
 
