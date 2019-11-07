@@ -53,7 +53,7 @@ Available hyperparameters are common for all tasks. See [Default Settings](#defa
 
 ### Structure
 
-_The file structure has been updated starting with version 0.6.0. This should only affect import statements. The old import paths should still be functional although the updated paths given below is now recommended_.
+_The file structure has been updated starting with version 0.6.0. This should only affect import statements. The old import paths should still be functional although it is recommended to use the updated paths given below and in the minimal start examples_.
 
 * `simpletransformers.classification` - Includes all classification models.
   * `ClassificationModel`
@@ -64,8 +64,6 @@ _The file structure has been updated starting with version 0.6.0. This should on
 ### Text Classification
 
 Both Binary and Multiclass Classification is supported.
-
-
 
 #### Minimal Start for Binary Classification
 
@@ -109,7 +107,7 @@ predictions, raw_outputs = model.predict(['Some arbitary sentence'])
 
 #### Minimal Start for Multiclass Classification
 
-For multiclass classification, simply pass in the number of classes to the `num_labels` optional parameter of `classification`.
+For multiclass classification, simply pass in the number of classes to the `num_labels` optional parameter of `ClassificationModel`.
 
 ```
 from simpletransformers.classification import ClassificationModel
@@ -133,6 +131,42 @@ model.train_model(train_df)
 result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 
 predictions, raw_outputs = model.predict(["Some arbitary sentence"])
+```
+
+#### Minimal Start for Multi-Label Classification
+
+For Multi-Label Classification, the labels should be multi-hot encoded. The number of classes can be specified (default is 2) by passing it to the `num_labels` optional parameter of `MultiLabelClassificationModel`.
+
+Currently, Bert and Roberta are supported.
+
+```
+from simpletransformers.classification import MultiLabelClassificationModel
+import pandas as pd
+
+
+# Train and Evaluation data needs to be in a Pandas Dataframe containing at least two columns, a 'text' and a 'labels' column. The `labels` column should contain multi-hot encoded lists.
+train_data = [['Example sentence 1 for multilabel classification.', [1, 1, 1, 1, 0, 1]]] + [['This is another example sentence. ', [0, 1, 1, 0, 0, 0]]]
+train_df = pd.DataFrame(train_data, columns=['text', 'labels'])
+train_df = pd.DataFrame(train_data)
+
+eval_data = [['Example eval sentence for multilabel classification.', [1, 1, 1, 1, 0, 1]], ['Another example eval sentence.', 0], ['Example eval senntence belonging to class 2', [0, 1, 1, 0, 0, 0]]]
+eval_df = pd.DataFrame(eval_data)
+
+# Create a MultiLabelClassificationModel
+model = MultiLabelClassificationModel('roberta', 'roberta-base', num_labels=6, args={'reprocess_input_data': True, 'overwrite_output_dir': True, 'num_train_epochs': 5})
+print(train_df.head())
+
+# Train the model
+model.train_model(train_df)
+
+# Evaluate the model
+result, model_outputs, wrong_predictions = model.eval_model(eval_df)
+print(result)
+print(model_outputs)
+
+predictions, raw_outputs = model.predict(['This thing is entirely different from the other thing. '])
+print(predictions)
+print(raw_outputs)
 ```
 
 #### Real Dataset Examples
