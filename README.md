@@ -140,6 +140,8 @@ For Multi-Label Classification, the labels should be multi-hot encoded. The numb
 
 Currently, Bert and Roberta are supported.
 
+The default evaluation metric used is Label Ranking Average Precision ([LRAP](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.label_ranking_average_precision_score.html)) Score.
+
 ```
 from simpletransformers.classification import MultiLabelClassificationModel
 import pandas as pd
