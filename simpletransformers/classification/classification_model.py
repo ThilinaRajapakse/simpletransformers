@@ -57,57 +57,65 @@ class ClassificationModel:
         """
 
         MODEL_CLASSES = {
-            "bert":       (BertConfig, BertForSequenceClassification, BertTokenizer),
-            "xlnet":      (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
-            "xlm":        (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
-            "roberta":    (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-            "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
+            'bert':       (BertConfig, BertForSequenceClassification, BertTokenizer),
+            'xlnet':      (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
+            'xlm':        (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
+            'roberta':    (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
+            'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.tokenizer = tokenizer_class.from_pretrained(model_name)
         self.model = model_class.from_pretrained(model_name, num_labels=num_labels)
+        self.num_labels = num_labels
 
         if use_cuda:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            if torch.cuda.is_available():
+                self.device = torch.device("cuda")
+            else:
+                raise ValueError("'use_cuda' set to True when cuda is unavailable. Make sure CUDA is available or set use_cuda=False.")
         else:
             self.device = "cpu"
 
         self.results = {}
 
         self.args = {
-            "output_dir": "outputs/",
-            "cache_dir": "cache_dir/",
+            'output_dir': 'outputs/',
+            'cache_dir': 'cache_dir/',
 
-            "fp16": True,
-            "fp16_opt_level": "O1",
-            "max_seq_length": 128,
-            "train_batch_size": 8,
-            "gradient_accumulation_steps": 1,
-            "eval_batch_size": 8,
-            "num_train_epochs": 1,
-            "weight_decay": 0,
-            "learning_rate": 4e-5,
-            "adam_epsilon": 1e-8,
-            "warmup_ratio": 0.06,
-            "warmup_steps": 0,
-            "max_grad_norm": 1.0,
+            'fp16': True,
+            'fp16_opt_level': 'O1',
+            'max_seq_length': 128,
+            'train_batch_size': 8,
+            'gradient_accumulation_steps': 1,
+            'eval_batch_size': 8,
+            'num_train_epochs': 1,
+            'weight_decay': 0,
+            'learning_rate': 4e-5,
+            'adam_epsilon': 1e-8,
+            'warmup_ratio': 0.06,
+            'warmup_steps': 0,
+            'max_grad_norm': 1.0,
 
-            "logging_steps": 50,
-            "save_steps": 2000,
+            'logging_steps': 50,
+            'save_steps': 2000,
 
-            "overwrite_output_dir": False,
-            "reprocess_input_data": False,
+            'overwrite_output_dir': False,
+            'reprocess_input_data': False,
 
-            "process_count": cpu_count() - 2 if cpu_count() > 2 else 1,
-            "n_gpu": 1,
+            'process_count': cpu_count() - 2 if cpu_count() > 2 else 1,
+            'n_gpu': 1,
+            'silent': False,
         }
+
+        if not use_cuda:
+            self.args['fp16'] = False
 
         if args:
             self.args.update(args)
 
-        self.args["model_name"] = model_name
-        self.args["model_type"] = model_type
+        self.args['model_name'] = model_name
+        self.args['model_type'] = model_type
 
     def train_model(self, train_df, multi_label=False, output_dir=None, show_running_loss=True, args=None):
         """
@@ -135,14 +143,6 @@ class ClassificationModel:
 
         self._move_model_to_device()
 
-        # Multi-label uses multi-hot encoding for labels
-        if multi_label:
-            if 'text' in train_df.columns and 'labels' in train_df.columns:
-                train_df['labels'] = train_df['labels'].apply(self.convert_to_multihot)
-            else:
-                print("Error: Multilabel models requre explicitly named Dataframe columns (text, labels).")
-                raise ValueError
-
         if 'text' in train_df.columns and 'labels' in train_df.columns:
             train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df['text'], train_df['labels']))]
         else:
@@ -163,7 +163,7 @@ class ClassificationModel:
         print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
 
-    def eval_model(self, eval_df, output_dir=None, verbose=False, **kwargs):
+    def eval_model(self, eval_df, multi_label=False, output_dir=None, verbose=False, **kwargs):
         """
         Evaluates the model on eval_df. Saves results to output_dir.
 
@@ -186,7 +186,7 @@ class ClassificationModel:
 
         self._move_model_to_device()
 
-        result, model_outputs, wrong_preds = self.evaluate(eval_df, output_dir, **kwargs)
+        result, model_outputs, wrong_preds = self.evaluate(eval_df, output_dir, multi_label=multi_label, **kwargs)
         self.results.update(result)
 
         if verbose:
@@ -209,14 +209,7 @@ class ClassificationModel:
         eval_output_dir = output_dir
 
         results = {}
-
-        # Multi-label uses multi-hot encoding for labels
-        if multi_label:
-            if 'text' in eval_df.columns and 'labels' in eval_df.columns:
-                eval_df['labels'] = eval_df['labels'].apply(self.convert_to_multihot)
-            else:
-                raise ValueError("Multilabel models requre explicitly named Dataframe columns (text, labels).")
-            
+           
 
         if 'text' in eval_df.columns and 'labels' in eval_df.columns:
             eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df['text'], eval_df['labels']))]
@@ -236,17 +229,21 @@ class ClassificationModel:
         out_label_ids = None
         model.eval()
 
-        for batch in tqdm(eval_dataloader):
+        for batch in tqdm(eval_dataloader, disable=args['silent']):
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
                 inputs = self._get_inputs_dict(batch)
+
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
+                if  multi_label:
+                    logits = logits.sigmoid()
                 eval_loss += tmp_eval_loss.mean().item()
 
             nb_eval_steps += 1
+
 
             if preds is None:
                 preds = logits.detach().cpu().numpy()
@@ -259,11 +256,7 @@ class ClassificationModel:
         eval_loss = eval_loss / nb_eval_steps
         model_outputs = preds
 
-        if multi_label:
-            predicted_labels = np.zeros(preds.shape)
-            predicted_labels[preds > 0.5] = 1
-            preds = predicted_labels
-        else:
+        if not multi_label:
             preds = np.argmax(preds, axis=1)
 
         result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples, **kwargs)
@@ -390,7 +383,7 @@ class ClassificationModel:
         model.train()
         for _ in train_iterator:
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration")):
+            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args['silent'])):
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
@@ -508,7 +501,7 @@ class ClassificationModel:
         self._move_model_to_device()
 
         if multi_label:
-            eval_examples = [InputExample(i, text, None, self.convert_to_multihot([0])) for i, text in enumerate(to_predict)]
+            eval_examples = [InputExample(i, text, None, [0 for i in range(self.num_labels)]) for i, text in enumerate(to_predict)]
         else:
             eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
 
@@ -522,7 +515,7 @@ class ClassificationModel:
         preds = None
         out_label_ids = None
 
-        for batch in tqdm(eval_dataloader):
+        for batch in tqdm(eval_dataloader, disable=args['silent']):
             model.eval()
             batch = tuple(t.to(device) for t in batch)
 
@@ -530,6 +523,9 @@ class ClassificationModel:
                 inputs = self._get_inputs_dict(batch)
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
+
+                if  multi_label:
+                    logits = logits.sigmoid()
 
                 eval_loss += tmp_eval_loss.mean().item()
 
@@ -544,19 +540,10 @@ class ClassificationModel:
 
         eval_loss = eval_loss / nb_eval_steps
         model_outputs = preds
-        if multi_label:
-            predicted_labels = np.zeros(preds.shape)
-            predicted_labels[preds > 0.5] = 1
-            preds = predicted_labels
-        else:
+        if not multi_label:
             preds = np.argmax(preds, axis=1)
 
         return preds, model_outputs
-
-    
-    def convert_to_multihot(self, labels):
-        return [1 if i in labels else 0 for i in range(self.num_labels)]
-
 
     def _move_model_to_device(self):
         self.model.to(self.device)

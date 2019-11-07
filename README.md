@@ -51,14 +51,26 @@ else:
 
 Available hyperparameters are common for all tasks. See [Default Settings](#default-settings) and [Args Explained](#args-explained) sections for more information.
 
+### Structure
+
+_The file structure has been updated starting with version 0.6.0. This should only affect import statements. The old import paths should still be functional although the updated paths given below is now recommended_.
+
+* `simpletransformers.classification` - Includes all classification models.
+  * `ClassificationModel`
+  * `MultiLabelClassificationModel`
+* `simpletransformers.ner` - Includes all Named Entity Recognition models
+  * `NERModel`
+
 ### Text Classification
 
 Both Binary and Multiclass Classification is supported.
 
+
+
 #### Minimal Start for Binary Classification
 
 ```
-from simpletransformers.model import TransformerModel
+from simpletransformers.classification import ClassificationModel
 import pandas as pd
 
 
@@ -69,8 +81,8 @@ train_df = pd.DataFrame(train_data)
 eval_data = [['Example eval sentence belonging to class 1', 1], ['Example eval sentence belonging to class 0', 0]]
 eval_df = pd.DataFrame(eval_data)
 
-# Create a TransformerModel
-model = TransformerModel('roberta', 'roberta-base')
+# Create a ClassificationModel
+model = ClassificationModel('roberta', 'roberta-base')
 
 # Train the model
 model.train_model(train_df)
@@ -97,10 +109,10 @@ predictions, raw_outputs = model.predict(['Some arbitary sentence'])
 
 #### Minimal Start for Multiclass Classification
 
-For multiclass classification, simply pass in the number of classes to the `num_labels` optional parameter of `TransformerModel`.
+For multiclass classification, simply pass in the number of classes to the `num_labels` optional parameter of `classification`.
 
 ```
-from simpletransformers.model import TransformerModel
+from simpletransformers.classification import ClassificationModel
 import pandas as pd
 
 
@@ -111,8 +123,8 @@ train_df = pd.DataFrame(train_data)
 eval_data = [['Example eval sentence belonging to class 1', 1], ['Example eval sentence belonging to class 0', 0], ['Example eval senntence belonging to class 2', 2]]
 eval_df = pd.DataFrame(eval_data)
 
-# Create a TransformerModel
-model = TransformerModel('bert', 'bert-base-cased', num_labels=3, args={'reprocess_input_data': True, 'overwrite_output_dir': True})
+# Create a ClassificationModel
+model = ClassificationModel('bert', 'bert-base-cased', num_labels=3, args={'reprocess_input_data': True, 'overwrite_output_dir': True})
 
 # Train the model
 model.train_model(train_df)
@@ -129,9 +141,9 @@ predictions, raw_outputs = model.predict(["Some arbitary sentence"])
 * [AG News Dataset - Multiclass Classification](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a)
 
 
-#### TransformerModel
+#### ClassificationModel
 
-`class simpletransformers.model.TransformerModel (model_type, model_name, args=None, use_cuda=True)`  
+`class simpletransformers.classification.ClassificationModel (model_type, model_name, args=None, use_cuda=True)`  
 This class  is used for Text Classification tasks.
 
 `Class attributes`
@@ -236,7 +248,7 @@ model = NERModel('bert', 'bert-base-cased', labels=["LABEL_1", "LABEL_2", "LABEL
 #### Minimal Start
 
 ```
-from simpletransformers.ner.ner_model import NERModel
+from simpletransformers.ner import NERModel
 import pandas as pd
 
 
@@ -378,32 +390,35 @@ The default args used are given below. Any of these can be overridden by passing
 
 ```
 self.args = {
-   'output_dir': 'outputs/',
-   'cache_dir': 'cache/',
+  'output_dir': 'outputs/',
+  'cache_dir': 'cache/',
 
-   'fp16': True,
-   'fp16_opt_level': 'O1',
-   'max_seq_length': 128,
-   'train_batch_size': 8,
-   'eval_batch_size': 8,
-   'gradient_accumulation_steps': 1,
-   'num_train_epochs': 1,
-   'weight_decay': 0,
-   'learning_rate': 4e-5,
-   'adam_epsilon': 1e-8,
-   'warmup_ratio': 0.06,
-   'warmup_steps': 0,
-   'max_grad_norm': 1.0,
+  'fp16': True,
+  'fp16_opt_level': 'O1',
+  'max_seq_length': 128,
+  'train_batch_size': 8,
+  'eval_batch_size': 8,
+  'gradient_accumulation_steps': 1,
+  'num_train_epochs': 1,
+  'weight_decay': 0,
+  'learning_rate': 4e-5,
+  'adam_epsilon': 1e-8,
+  'warmup_ratio': 0.06,
+  'warmup_steps': 0,
+  'max_grad_norm': 1.0,
 
-   'logging_steps': 50,
-   'evaluate_during_training': False,
-   'save_steps': 2000,
-   'eval_all_checkpoints': True,
-   'use_tensorboard': True,
+  'logging_steps': 50,
+  'evaluate_during_training': False,
+  'save_steps': 2000,
+  'eval_all_checkpoints': True,
+  'use_tensorboard': True,
 
-   'overwrite_output_dir': False,
-   'reprocess_input_data': False,
-   'process_count': cpu_count() - 2 if cpu_count() > 2 else 1
+  'overwrite_output_dir': False,
+  'reprocess_input_data': False,
+
+  'process_count': cpu_count() - 2 if cpu_count() > 2 else 1
+  'n_gpu': 1,
+  'silent': False,
 }
 ```
 
@@ -462,6 +477,12 @@ If True, the input data will be reprocessed even if a cached file of the input d
 
 #### *process_count: int*
 Number of cpu cores (processes) to use when converting examples to features. Default is (number of cores - 2) or 1 if (number of cores <= 2)
+
+#### *n_gpu: int*
+Number of GPUs to use.
+
+#### *silent: bool*
+Disables progress bars.
 
 
 ### Current Pretrained Models
