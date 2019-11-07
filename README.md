@@ -13,7 +13,7 @@ Table of contents
    * [Usage](#usage)
      * [Text Classification](#text-classification)
        * [Minimal Start for Binary Classification](#minimal-start-for-binary-classification)
-       * [Minimal Start for Multiclass Classification](#multiclass-classification)
+       * [Minimal Start for Multiclass Classification](#minimal-start-for-multiclass-classification)
        * [Minimal Start for Multilabel Classification](#minimal-start-for-multilabel-classification)
        * [Real Dataset Examples](#real-dataset-examples)
        * [TransformerModel](#transformermodel)
