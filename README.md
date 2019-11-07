@@ -14,6 +14,7 @@ Table of contents
      * [Text Classification](#text-classification)
        * [Minimal Start for Binary Classification](#minimal-start-for-binary-classification)
        * [Minimal Start for Multiclass Classification](#multiclass-classification)
+       * [Minimal Start for Multilabel Classification](#minimal-start-for-multilabel-classification)
        * [Real Dataset Examples](#real-dataset-examples)
        * [TransformerModel](#transformermodel)
      * [Named Entity Recognition](#named-entity-recognition)
@@ -133,7 +134,7 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 predictions, raw_outputs = model.predict(["Some arbitary sentence"])
 ```
 
-#### Minimal Start for Multi-Label Classification
+#### Minimal Start for Multilabel Classification
 
 For Multi-Label Classification, the labels should be multi-hot encoded. The number of classes can be specified (default is 2) by passing it to the `num_labels` optional parameter of `MultiLabelClassificationModel`.
 
