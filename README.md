@@ -1,7 +1,7 @@
 # Simple Transformers
 
 
-This library is based on the [Pytorch-Transformers](https://github.com/huggingface/pytorch-transformers) library by HuggingFace. Using this library, you can quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate the model on classification tasks.
+This library is based on the [Transformers](https://github.com/huggingface/transformers) library by HuggingFace. Using this library, you can quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate the model on classification tasks.
 
 
 Table of contents
@@ -13,7 +13,8 @@ Table of contents
    * [Usage](#usage)
      * [Text Classification](#text-classification)
        * [Minimal Start for Binary Classification](#minimal-start-for-binary-classification)
-       * [Minimal Start for Multiclass Classification](#multiclass-classification)
+       * [Minimal Start for Multiclass Classification](#minimal-start-for-multiclass-classification)
+       * [Minimal Start for Multilabel Classification](#minimal-start-for-multilabel-classification)
        * [Real Dataset Examples](#real-dataset-examples)
        * [TransformerModel](#transformermodel)
      * [Named Entity Recognition](#named-entity-recognition)
@@ -133,11 +134,13 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 predictions, raw_outputs = model.predict(["Some arbitary sentence"])
 ```
 
-#### Minimal Start for Multi-Label Classification
+#### Minimal Start for Multilabel Classification
 
 For Multi-Label Classification, the labels should be multi-hot encoded. The number of classes can be specified (default is 2) by passing it to the `num_labels` optional parameter of `MultiLabelClassificationModel`.
 
 Currently, Bert and Roberta are supported.
+
+The default evaluation metric used is Label Ranking Average Precision ([LRAP](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.label_ranking_average_precision_score.html)) Score.
 
 ```
 from simpletransformers.classification import MultiLabelClassificationModel
