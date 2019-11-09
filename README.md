@@ -176,6 +176,7 @@ print(raw_outputs)
 
 * [Yelp Reviews Dataset - Binary Classification](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c)
 * [AG News Dataset - Multiclass Classification](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a)
+* [Toxic Comments Dataset - Multilabel Classification](https://medium.com/@chaturangarajapakshe/multi-label-classification-using-bert-roberta-xlnet-xlm-and-distilbert-with-simple-transformers-b3e0cda12ce5?sk=354e688fe238bfb43e9a575216816219)
 
 
 #### ClassificationModel
