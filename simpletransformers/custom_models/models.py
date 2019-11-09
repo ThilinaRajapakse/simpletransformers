@@ -4,8 +4,9 @@ from torch import nn
 from transformers import BertPreTrainedModel, BertModel
 from transformers import XLNetPreTrainedModel, XLNetModel
 from transformers import XLMPreTrainedModel, XLMModel
-from transformers import DistilBertPreTrainedModel, DistilBertModel
-from transformers.modeling_utils import SequenceSummary
+from transformers import DistilBertModel
+from transformers.configuration_distilbert import DistilBertConfig
+from transformers.modeling_utils import SequenceSummary, PreTrainedModel
 from transformers import RobertaModel
 from transformers.configuration_roberta import RobertaConfig
 
@@ -14,6 +15,11 @@ ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP = {
     'roberta-large': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-pytorch_model.bin",
     'roberta-large-mnli': "https://s3.amazonaws.com/models.huggingface.co/bert/roberta-large-mnli-pytorch_model.bin",
     'distilroberta-base': "https://s3.amazonaws.com/models.huggingface.co/bert/distilroberta-base-pytorch_model.bin",
+}
+
+DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP = {
+    'distilbert-base-uncased': "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-pytorch_model.bin",
+    'distilbert-base-uncased-distilled-squad': "https://s3.amazonaws.com/models.huggingface.co/bert/distilbert-base-uncased-distilled-squad-pytorch_model.bin"
 }
 
 from torch.nn import BCEWithLogitsLoss
@@ -55,6 +61,25 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
         return outputs  # (loss), logits, (hidden_states), (attentions)
 
 
+class RobertaClassificationHead(nn.Module):
+    """Head for sentence-level classification tasks."""
+
+    def __init__(self, config):
+        super(RobertaClassificationHead, self).__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, features, **kwargs):
+        x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = torch.tanh(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
+
+
 class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
     """
     Roberta model adapted for multi-label sequence classification
@@ -88,25 +113,6 @@ class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
             outputs = (loss,) + outputs
 
         return outputs
-
-
-class RobertaClassificationHead(nn.Module):
-    """Head for sentence-level classification tasks."""
-
-    def __init__(self, config):
-        super(RobertaClassificationHead, self).__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
-
-    def forward(self, features, **kwargs):
-        x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
-        x = self.dropout(x)
-        x = self.dense(x)
-        x = torch.tanh(x)
-        x = self.dropout(x)
-        x = self.out_proj(x)
-        return x
 
 
 class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
@@ -187,7 +193,31 @@ class XLMForMultiLabelSequenceClassification(XLNetPreTrainedModel):
         return outputs
 
 
-class DistilBertForMultiLabelSequenceClassification(XLNetPreTrainedModel):
+class DistilBertPreTrainedModel(PreTrainedModel):
+    """ An abstract class to handle weights initialization and
+        a simple interface for downloading and loading pretrained models.
+    """
+    config_class = DistilBertConfig
+    pretrained_model_archive_map = DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP
+    load_tf_weights = None
+    base_model_prefix = "distilbert"
+
+    def _init_weights(self, module):
+        """ Initialize the weights.
+        """
+        if isinstance(module, nn.Embedding):
+            if module.weight.requires_grad:
+                module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+        if isinstance(module, nn.Linear):
+            module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
+        elif isinstance(module, nn.LayerNorm):
+            module.bias.data.zero_()
+            module.weight.data.fill_(1.0)
+        if isinstance(module, nn.Linear) and module.bias is not None:
+            module.bias.data.zero_()
+
+
+class DistilBertForMultiLabelSequenceClassification(DistilBertPreTrainedModel):
     """
     DistilBert model adapted for multi-label sequence classification
     """
@@ -221,3 +251,5 @@ class DistilBertForMultiLabelSequenceClassification(XLNetPreTrainedModel):
             outputs = (loss,) + outputs
 
         return outputs
+
+
