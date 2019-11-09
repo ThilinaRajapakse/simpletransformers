@@ -459,7 +459,6 @@ self.args = {
 
   'overwrite_output_dir': False,
   'reprocess_input_data': False,
-  'evaluate_during_training': False,
   
   'process_count': cpu_count() - 2 if cpu_count() > 2 else 1
   'n_gpu': 1,
