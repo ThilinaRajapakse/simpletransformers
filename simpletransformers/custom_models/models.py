@@ -2,6 +2,10 @@ import torch
 from torch import nn
 
 from transformers import BertPreTrainedModel, BertModel
+from transformers import XLNetPreTrainedModel, XLNetModel
+from transformers import XLMPreTrainedModel, XLMModel
+from transformers import DistilBertPreTrainedModel, DistilBertModel
+from transformers.modeling_utils import SequenceSummary
 from transformers import RobertaModel
 from transformers.configuration_roberta import RobertaConfig
 
@@ -103,3 +107,117 @@ class RobertaClassificationHead(nn.Module):
         x = self.dropout(x)
         x = self.out_proj(x)
         return x
+
+
+class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
+    """
+    XLNet model adapted for multi-label sequence classification
+    """
+    def __init__(self, config):
+        super(XLNetForMultiLabelSequenceClassification, self).__init__(config)
+        self.num_labels = config.num_labels
+
+        self.transformer = XLNetModel(config)
+        self.sequence_summary = SequenceSummary(config)
+        self.logits_proj = nn.Linear(config.d_model, config.num_labels)
+
+        self.init_weights()
+
+    def forward(self, input_ids=None, attention_mask=None, mems=None, perm_mask=None, target_mapping=None,
+                token_type_ids=None, input_mask=None, head_mask=None, inputs_embeds=None, labels=None):
+        transformer_outputs = self.transformer(input_ids,
+                                               attention_mask=attention_mask,
+                                               mems=mems,
+                                               perm_mask=perm_mask,
+                                               target_mapping=target_mapping,
+                                               token_type_ids=token_type_ids,
+                                               input_mask=input_mask,
+                                               head_mask=head_mask)
+        output = transformer_outputs[0]
+
+        output = self.sequence_summary(output)
+        logits = self.logits_proj(output)
+
+        outputs = (logits,) + transformer_outputs[1:]  # Keep mems, hidden states, attentions if there are in it
+
+        if labels is not None:
+            loss_fct = BCEWithLogitsLoss()
+            labels = labels.float()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
+            outputs = (loss,) + outputs
+
+        return outputs
+
+
+class XLMForMultiLabelSequenceClassification(XLNetPreTrainedModel):
+    """
+    XLM model adapted for multi-label sequence classification
+    """
+    def __init__(self, config):
+        super(XLMForMultiLabelSequenceClassification, self).__init__(config)
+        self.num_labels = config.num_labels
+
+        self.transformer = XLMModel(config)
+        self.sequence_summary = SequenceSummary(config)
+
+        self.init_weights()
+
+    def forward(self, input_ids=None, attention_mask=None, langs=None, token_type_ids=None, position_ids=None,
+                lengths=None, cache=None, head_mask=None, inputs_embeds=None, labels=None):
+        transformer_outputs = self.transformer(input_ids,
+                                               attention_mask=attention_mask,
+                                               langs=langs,
+                                               token_type_ids=token_type_ids,
+                                               position_ids=position_ids,
+                                               lengths=lengths, 
+                                               cache=cache,
+                                               head_mask=head_mask)
+
+        output = transformer_outputs[0]
+        logits = self.sequence_summary(output)
+
+        outputs = (logits,) + transformer_outputs[1:]  # Keep new_mems and attention/hidden states if they are here
+
+        if labels is not None:
+            loss_fct = BCEWithLogitsLoss()
+            labels = labels.float()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
+            outputs = (loss,) + outputs
+
+        return outputs
+
+
+class DistilBertForMultiLabelSequenceClassification(XLNetPreTrainedModel):
+    """
+    DistilBert model adapted for multi-label sequence classification
+    """
+    def __init__(self, config):
+        super(DistilBertForMultiLabelSequenceClassification, self).__init__(config)
+        self.num_labels = config.num_labels
+
+        self.distilbert = DistilBertModel(config)
+        self.pre_classifier = nn.Linear(config.dim, config.dim)
+        self.classifier = nn.Linear(config.dim, config.num_labels)
+        self.dropout = nn.Dropout(config.seq_classif_dropout)
+
+        self.init_weights()
+
+    def forward(self, input_ids=None, attention_mask=None, head_mask=None, inputs_embeds=None, labels=None):
+        distilbert_output = self.distilbert(input_ids=input_ids,
+                                            attention_mask=attention_mask,
+                                            head_mask=head_mask)
+        hidden_state = distilbert_output[0]                    # (bs, seq_len, dim)
+        pooled_output = hidden_state[:, 0]                    # (bs, dim)
+        pooled_output = self.pre_classifier(pooled_output)   # (bs, dim)
+        pooled_output = nn.ReLU()(pooled_output)             # (bs, dim)
+        pooled_output = self.dropout(pooled_output)         # (bs, dim)
+        logits = self.classifier(pooled_output)              # (bs, dim)
+
+        outputs = (logits,) + distilbert_output[1:]
+        if labels is not None:
+            loss_fct = BCEWithLogitsLoss()
+            labels = labels.float()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
+            outputs = (loss,) + outputs
+
+        return outputs

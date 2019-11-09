@@ -3,8 +3,12 @@ import torch
 from multiprocessing import cpu_count
 
 from simpletransformers.classification import ClassificationModel
-from simpletransformers.custom_models.models import BertForMultiLabelSequenceClassification, RobertaForMultiLabelSequenceClassification
-
+from simpletransformers.custom_models.models import (BertForMultiLabelSequenceClassification, 
+                                                    RobertaForMultiLabelSequenceClassification, 
+                                                    XLNetForMultiLabelSequenceClassification,
+                                                    XLMForMultiLabelSequenceClassification,
+                                                    DistilBertForMultiLabelSequenceClassification
+                                                    )
 from transformers import (
     WEIGHTS_NAME,
     BertConfig, BertTokenizer,
@@ -30,6 +34,9 @@ class MultiLabelClassificationModel(ClassificationModel):
         MODEL_CLASSES = {
             'bert': (BertConfig, BertForMultiLabelSequenceClassification, BertTokenizer),
             'roberta': (RobertaConfig, RobertaForMultiLabelSequenceClassification, RobertaTokenizer),
+            'xlnet': (XLNetConfig, XLNetForMultiLabelSequenceClassification, XLNetTokenizer),
+            'xlm': (XLMConfig, XLMForMultiLabelSequenceClassification, XLMTokenizer),
+            'distilbert': (DistilBertConfig, DistilBertForMultiLabelSequenceClassification, DistilBertTokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
@@ -67,6 +74,7 @@ class MultiLabelClassificationModel(ClassificationModel):
 
             'logging_steps': 50,
             'save_steps': 2000,
+            'evaluate_during_training': False,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
