@@ -74,6 +74,8 @@ class MultiLabelClassificationModel(ClassificationModel):
             'process_count': cpu_count() - 2 if cpu_count() > 2 else 1,
             'n_gpu': 1,
             'silent': False,
+
+            'threshold': 0.5
         }
 
         if not use_cuda:

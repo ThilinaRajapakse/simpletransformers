@@ -188,6 +188,7 @@ def convert_examples_to_features(
         mask_padding_with_zero=True,
         process_count=cpu_count() - 2,
         chunksize=500,
+        silent=False
     ):
     """ Loads a data file into a list of `InputBatch`s
         `cls_token_at_end` define the location of the CLS token:
@@ -218,7 +219,7 @@ def convert_examples_to_features(
             for example in examples]
 
     with Pool(process_count) as p:
-        features = list(tqdm(p.imap(convert_example_to_feature, examples, chunksize=chunksize), total=len(examples)))
+        features = list(tqdm(p.imap(convert_example_to_feature, examples, chunksize=chunksize), total=len(examples), disable=silent))
 
     return features
 

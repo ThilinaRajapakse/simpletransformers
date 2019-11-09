@@ -135,6 +135,9 @@ class ClassificationModel:
         if args:
             self.args.update(args)
 
+        if self.args['silent']:
+            show_running_loss = False
+
         if not output_dir:
             output_dir = self.args['output_dir']
 
@@ -541,10 +544,23 @@ class ClassificationModel:
 
         eval_loss = eval_loss / nb_eval_steps
         model_outputs = preds
-        if not multi_label:
+        if multi_label:
+            if isinstance(args['threshold'], list):
+                threshold_values = args['threshold']
+                preds = [[self._threshold(pred, threshold_values[i]) for i, pred in enumerate(example)] for example in preds]
+            else:
+                preds = [[self._threshold(pred, args['threshold']) for pred in example] for example in preds]
+        else:
             preds = np.argmax(preds, axis=1)
 
         return preds, model_outputs
+
+
+    def _threshold(self, x, threshold):
+        if x >= threshold:
+            return 1
+        return 0
+
 
     def _move_model_to_device(self):
         self.model.to(self.device)

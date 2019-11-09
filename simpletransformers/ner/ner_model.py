@@ -142,6 +142,9 @@ class NERModel:
         if args:
             self.args.update(args)
 
+        if self.args['silent']:
+            show_running_loss = False
+
         if not output_dir:
             output_dir = self.args['output_dir']
 
@@ -212,7 +215,7 @@ class NERModel:
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
-        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch")
+        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args['silent'])
 
         for _ in train_iterator:
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
@@ -521,7 +524,8 @@ class NERModel:
                 pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
                 pad_token_segment_id=4 if args["model_type"] in ["xlnet"] else 0,
                 pad_token_label_id=self.pad_token_label_id,
-                process_count=process_count
+                process_count=process_count,
+                silent=args['silent']
             )
 
             if not no_cache:
