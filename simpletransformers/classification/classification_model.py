@@ -99,6 +99,7 @@ class ClassificationModel:
 
             'logging_steps': 50,
             'save_steps': 2000,
+            'evaluate_during_training': False,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -117,7 +118,7 @@ class ClassificationModel:
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
 
-    def train_model(self, train_df, multi_label=False, output_dir=None, show_running_loss=True, args=None):
+    def train_model(self, train_df, multi_label=False, output_dir=None, show_running_loss=True, args=None, eval_df=None):
         """
         Trains the model using 'train_df'
 
@@ -138,6 +139,9 @@ class ClassificationModel:
         if self.args['silent']:
             show_running_loss = False
 
+        if self.args['evaluate_during_training'] and eval_df is None:
+            raise ValueError("evaluate_during_training is enabled but eval_df is not specified. Pass eval_df to model.train_model() if using evaluate_during_training.")
+
         if not output_dir:
             output_dir = self.args['output_dir']
 
@@ -153,7 +157,7 @@ class ClassificationModel:
 
         
         train_dataset = self.load_and_cache_examples(train_examples)
-        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss)
+        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df)
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -164,6 +168,115 @@ class ClassificationModel:
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
         print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+
+    
+    def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None):
+        """
+        Trains the model on train_dataset.
+
+        Utility function to be used by the train_model() method. Not intended to be used directly.
+        """
+
+        tokenizer = self.tokenizer
+        device = self.device
+        model = self.model
+        args = self.args
+
+        tb_writer = SummaryWriter()
+        train_sampler = RandomSampler(train_dataset)
+        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
+
+        t_total = len(train_dataloader) // args["gradient_accumulation_steps"] * args["num_train_epochs"]
+
+        no_decay = ["bias", "LayerNorm.weight"]
+        optimizer_grouped_parameters = [
+            {"params": [p for n, p in model.named_parameters() if not any(
+                nd in n for nd in no_decay)], "weight_decay": args["weight_decay"]},
+            {"params": [p for n, p in model.named_parameters() if any(
+                nd in n for nd in no_decay)], "weight_decay": 0.0}
+        ]
+
+        warmup_steps = math.ceil(t_total * args["warmup_ratio"])
+        args["warmup_steps"] = warmup_steps if args["warmup_steps"] == 0 else args["warmup_steps"]
+
+        optimizer = AdamW(optimizer_grouped_parameters, lr=args["learning_rate"], eps=args["adam_epsilon"])
+        scheduler = WarmupLinearSchedule(optimizer, warmup_steps=args["warmup_steps"], t_total=t_total)
+
+        if args["fp16"]:
+            try:
+                from apex import amp
+            except ImportError:
+                raise ImportError(
+                    "Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+
+            model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
+
+        if args["n_gpu"] > 1:
+            model = torch.nn.DataParallel(model)
+
+        global_step = 0
+        tr_loss, logging_loss = 0.0, 0.0
+        model.zero_grad()
+        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args['silent'])
+
+        model.train()
+        for _ in train_iterator:
+            # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
+            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args['silent'])):
+                batch = tuple(t.to(device) for t in batch)
+
+                inputs = self._get_inputs_dict(batch)
+                outputs = model(**inputs)
+                # model outputs are always tuple in pytorch-transformers (see doc)
+                loss = outputs[0]
+                if show_running_loss:
+                    print("\rRunning loss: %f" % loss, end="")
+
+                if args['n_gpu'] > 1:
+                    loss = loss.mean()  # mean() to average on multi-gpu parallel training
+                if args["gradient_accumulation_steps"] > 1:
+                    loss = loss / args["gradient_accumulation_steps"]
+
+                if args["fp16"]:
+                    with amp.scale_loss(loss, optimizer) as scaled_loss:
+                        scaled_loss.backward()
+                    torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args["max_grad_norm"])
+                else:
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args["max_grad_norm"])
+
+                tr_loss += loss.item()
+                if (step + 1) % args["gradient_accumulation_steps"] == 0:
+                    optimizer.step()
+                    scheduler.step()  # Update learning rate schedule
+                    model.zero_grad()
+                    global_step += 1
+
+                    if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
+                        # Log metrics
+                        if args['evaluate_during_training']:
+                        # Only evaluate when single GPU otherwise metrics may not average well
+                            results, _, _ = self.eval_model(eval_df, verbose=True)
+                            for key, value in results.items():
+                                tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
+                        tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
+                        tb_writer.add_scalar("loss", (tr_loss - logging_loss)/args["logging_steps"], global_step)
+                        logging_loss = tr_loss
+
+                    if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
+                        # Save model checkpoint
+                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
+
+                        if not os.path.exists(output_dir_current):
+                            os.makedirs(output_dir_current)
+
+                        # Take care of distributed/parallel training
+                        model_to_save = model.module if hasattr(model, "module") else model
+                        model_to_save.save_pretrained(output_dir_current)
+                        self.tokenizer.save_pretrained(output_dir_current)
+
+
+        return global_step, tr_loss / global_step
 
 
     def eval_model(self, eval_df, multi_label=False, output_dir=None, verbose=False, **kwargs):
@@ -333,112 +446,6 @@ class ClassificationModel:
         dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
         return dataset
-
-
-    def train(self, train_dataset, output_dir, show_running_loss=True):
-        """
-        Trains the model on train_dataset.
-
-        Utility function to be used by the train_model() method. Not intended to be used directly.
-        """
-
-        tokenizer = self.tokenizer
-        device = self.device
-        model = self.model
-        args = self.args
-
-        tb_writer = SummaryWriter()
-        train_sampler = RandomSampler(train_dataset)
-        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
-
-        t_total = len(train_dataloader) // args["gradient_accumulation_steps"] * args["num_train_epochs"]
-
-        no_decay = ["bias", "LayerNorm.weight"]
-        optimizer_grouped_parameters = [
-            {"params": [p for n, p in model.named_parameters() if not any(
-                nd in n for nd in no_decay)], "weight_decay": args["weight_decay"]},
-            {"params": [p for n, p in model.named_parameters() if any(
-                nd in n for nd in no_decay)], "weight_decay": 0.0}
-        ]
-
-        warmup_steps = math.ceil(t_total * args["warmup_ratio"])
-        args["warmup_steps"] = warmup_steps if args["warmup_steps"] == 0 else args["warmup_steps"]
-
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args["learning_rate"], eps=args["adam_epsilon"])
-        scheduler = WarmupLinearSchedule(optimizer, warmup_steps=args["warmup_steps"], t_total=t_total)
-
-        if args["fp16"]:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError(
-                    "Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
-
-        if args["n_gpu"] > 1:
-            model = torch.nn.DataParallel(model)
-
-        global_step = 0
-        tr_loss, logging_loss = 0.0, 0.0
-        model.zero_grad()
-        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args['silent'])
-
-        model.train()
-        for _ in train_iterator:
-            # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args['silent'])):
-                batch = tuple(t.to(device) for t in batch)
-
-                inputs = self._get_inputs_dict(batch)
-                outputs = model(**inputs)
-                # model outputs are always tuple in pytorch-transformers (see doc)
-                loss = outputs[0]
-                if show_running_loss:
-                    print("\rRunning loss: %f" % loss, end="")
-
-                if args['n_gpu'] > 1:
-                    loss = loss.mean()  # mean() to average on multi-gpu parallel training
-                if args["gradient_accumulation_steps"] > 1:
-                    loss = loss / args["gradient_accumulation_steps"]
-
-                if args["fp16"]:
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args["max_grad_norm"])
-                else:
-                    loss.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args["max_grad_norm"])
-
-                tr_loss += loss.item()
-                if (step + 1) % args["gradient_accumulation_steps"] == 0:
-                    optimizer.step()
-                    scheduler.step()  # Update learning rate schedule
-                    model.zero_grad()
-                    global_step += 1
-
-                    if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
-                        # Log metrics
-                        # Only evaluate when single GPU otherwise metrics may not average well
-                        tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar("loss", (tr_loss - logging_loss)/args["logging_steps"], global_step)
-                        logging_loss = tr_loss
-
-                    if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
-                        # Save model checkpoint
-                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
-
-                        if not os.path.exists(output_dir_current):
-                            os.makedirs(output_dir_current)
-
-                        # Take care of distributed/parallel training
-                        model_to_save = model.module if hasattr(model, "module") else model
-                        model_to_save.save_pretrained(output_dir_current)
-                        self.tokenizer.save_pretrained(output_dir_current)
-
-
-        return global_step, tr_loss / global_step
-
 
     def compute_metrics(self, preds, labels, eval_examples, multi_label=False, **kwargs):
         """

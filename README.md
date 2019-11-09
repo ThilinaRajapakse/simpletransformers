@@ -199,14 +199,18 @@ This class  is used for Text Classification tasks.
 * `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 
 `class methods`  
-**`train_model(self, train_df, output_dir=None)`**
+**`train_model(self, train_df, output_dir=None, args=None, eval_df=None)`**
 
 Trains the model using 'train_df'
 
 Args:  
 >train_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
 
->output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+>output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+
+>args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+
+>eval_df (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
 
 Returns:  
 >None
@@ -342,7 +346,7 @@ This class  is used for Named Entity Recognition.
 * `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 
 `class methods`  
-**`train_model(self, train_data, output_dir=None)`**
+**`train_model(self, train_data, output_dir=None, args=None, eval_df=None)`**
 
 Trains the model using 'train_data'
 
@@ -357,6 +361,8 @@ If a DataFrame is given, each sentence should be split into words, with each wor
 >show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
 
 >args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+
+>eval_df (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
 
 
 Returns:  

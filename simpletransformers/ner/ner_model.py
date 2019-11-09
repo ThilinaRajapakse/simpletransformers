@@ -101,6 +101,7 @@ class NERModel:
 
             'logging_steps': 50,
             'save_steps': 2000,
+            'evaluate_during_training': False,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -121,7 +122,7 @@ class NERModel:
 
         self.pad_token_label_id = CrossEntropyLoss().ignore_index
 
-    def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None):
+    def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None):
         """
         Trains the model using 'train_data'
 
@@ -145,6 +146,9 @@ class NERModel:
         if self.args['silent']:
             show_running_loss = False
 
+        if self.args['evaluate_during_training'] and eval_df is None:
+            raise ValueError("evaluate_during_training is enabled but eval_df is not specified. Pass eval_df to model.train_model() if using evaluate_during_training.")
+
         if not output_dir:
             output_dir = self.args['output_dir']
 
@@ -155,7 +159,7 @@ class NERModel:
 
         train_dataset = self.load_and_cache_examples(train_data)
 
-        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss)
+        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df)
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -168,7 +172,7 @@ class NERModel:
         print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
 
-    def train(self, train_dataset, output_dir, show_running_loss=True):
+    def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None):
         """
         Trains the model on train_dataset.
 
@@ -257,6 +261,11 @@ class NERModel:
 
                     if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
                         # Log metrics
+                        if args['evaluate_during_training']:
+                        # Only evaluate when single GPU otherwise metrics may not average well
+                            results, _, _ = self.eval_model(eval_df, verbose=True)
+                            for key, value in results.items():
+                                tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
                         # Only evaluate when single GPU otherwise metrics may not average well
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
                         tb_writer.add_scalar("loss", (tr_loss - logging_loss)/args["logging_steps"], global_step)
