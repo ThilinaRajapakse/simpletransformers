@@ -16,7 +16,7 @@ Table of contents
        * [Minimal Start for Multiclass Classification](#minimal-start-for-multiclass-classification)
        * [Minimal Start for Multilabel Classification](#minimal-start-for-multilabel-classification)
        * [Real Dataset Examples](#real-dataset-examples)
-       * [TransformerModel](#transformermodel)
+       * [ClassificationModel](#classificationmodel)
      * [Named Entity Recognition](#named-entity-recognition)
        * [Minimal Start](#minimal-start)
        * [Real Dataset Examples](#real-dataset-examples-1)
@@ -64,7 +64,14 @@ _The file structure has been updated starting with version 0.6.0. This should on
 
 ### Text Classification
 
-Both Binary and Multiclass Classification is supported.
+Supports Binary Classification, Multiclass Classification, and Multilabel Classification.
+
+Supported model types:
+* BERT
+* RoBERTa
+* XLNet
+* XLM
+* DistilBert
 
 #### Minimal Start for Binary Classification
 
