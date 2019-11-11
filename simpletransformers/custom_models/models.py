@@ -155,7 +155,7 @@ class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
         return outputs
 
 
-class XLMForMultiLabelSequenceClassification(XLNetPreTrainedModel):
+class XLMForMultiLabelSequenceClassification(XLMPreTrainedModel):
     """
     XLM model adapted for multi-label sequence classification
     """
