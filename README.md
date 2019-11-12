@@ -548,7 +548,7 @@ print(model.predict(to_predict))
 ### QuestionAnsweringModel
 
 `class simpletransformers.question_answering.QuestionAnsweringModel (model_type, model_name, args=None, use_cuda=True)`  
-This class  is used for Text Classification tasks.
+This class  is used for Question Answering tasks.
 
 `Class attributes`
 * `tokenizer`: The tokenizer to be used.
