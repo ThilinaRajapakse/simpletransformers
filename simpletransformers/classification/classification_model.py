@@ -106,6 +106,7 @@ class ClassificationModel:
 
             'process_count': cpu_count() - 2 if cpu_count() > 2 else 1,
             'n_gpu': 1,
+            'use_multiprocessing': True,
             'silent': False,
         }
 
@@ -377,6 +378,7 @@ class ClassificationModel:
             preds = np.argmax(preds, axis=1)
 
         result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples, **kwargs)
+        result['eval_loss'] = eval_loss
         results.update(result)
 
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
@@ -429,7 +431,8 @@ class ClassificationModel:
                 pad_token_segment_id=4 if args["model_type"] in ["xlnet"] else 0,
                 process_count=process_count,
                 multi_label=multi_label,
-                silent=args['silent']
+                silent=args['silent'],
+                use_multiprocessing=args['use_multiprocessing']
             )
 
             if not no_cache:

@@ -23,6 +23,11 @@ Table of contents
        * [Minimal Start](#minimal-start)
        * [Real Dataset Examples](#real-dataset-examples-1)
        * [NERModel](#nermodel)
+     * [Question Answering](#question-answering)
+       * [Data Format](#data-format)
+       * [Minimal Start](#minimal-example)
+       * [QuestionAnsweringModel](#questionansweringmodel)
+     * [Loading Saved Models](#loading-saved-models)
      * [Default Settings](#default-settings)
      * [Current Pretrained Models](#current-pretrained-models)
    * [Acknowledgements](#acknowledgements)
@@ -64,7 +69,9 @@ _The file structure has been updated starting with version 0.6.0. This should on
 * `simpletransformers.ner` - Includes all Named Entity Recognition models
   * `NERModel`
 
-### Text Classification
+---
+
+## Text Classification
 
 Supports Binary Classification, Multiclass Classification, and Multilabel Classification.
 
@@ -286,7 +293,9 @@ Returns:
 
 >wrong: List of InputExample objects corresponding to each incorrect prediction by the model  
 
-### Named Entity Recognition
+---
+
+## Named Entity Recognition
 
 This section describes how to use Simple Transformers for Named Entity Recognition. (If you are updating from a Simple Transformers before 0.5.0, note that `seqeval` needs to be installed to perform NER.)
 
@@ -423,23 +432,260 @@ Evaluates the model on eval_dataset.
 Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
 *Utility function for train() and eval() methods. Not intended to be used directly*
 
+___
 
-### Loading Saved Models
+## Question Answering
+
+Supported model types:
+
+* BERT
+* XLNet
+* XLM
+* DistilBert
+
+### Data format
+
+For question answering tasks, the input data should be in JSON files.
+
+The file should contain a single list (JSON array) of dictionaries. A dictionary represents a single context and its associated questions.
+
+Each such dictionary contains two attributes, the `"context"` and `"qas"`.
+* `context`: The paragraph or text from which the question is asked.
+* `qas`: A list of questions and answers.
+
+Questions and answers are represented as dictionaries. Each dictionary in `qas` has the following format.
+* `id`: (string) A unique ID for the question. Should be unique across the entire dataset.
+* `question`: (string) A question. 
+* `is_impossible`: (bool) Indicates whether the question can be answered correctly from the context. 
+* `answers`: (list) The list of correct answers to the question.
+
+A single answer is represented by a dictionary with the following attributes.
+* `answer`: (string) The answer to the question. Must be a substring of the context.
+* `answer_start`: (int) Starting index of the answer in the context.
+
+### Minimal Example
+
+```
+from simpletransformers.question_answering import QuestionAnsweringModel
+import json
+import os
+
+
+# Create dummy data to use for training.
+train_data = [
+    {
+        'context': "This is the first context",
+        'qas': [
+            {
+                'id': "00001",
+                'is_impossible': False,
+                'question': "Which context is this?",
+                'answers': [
+                    {
+                        'text': "the first",
+                        'answer_start': 8
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        'context': "Other legislation followed, including the Migratory Bird Conservation Act of 1929, a 1937 treaty prohibiting the hunting of right and gray whales,
+            and the Bald Eagle Protection Act of 1940. These later laws had a low cost to society—the species were relatively rare—and little opposition was raised",
+        'qas': [
+            {
+                'id': "00002",
+                'is_impossible': False,
+                'question': "What was the cost to society?",
+                'answers': [
+                    {
+                        'text': "low cost",
+                        'answer_start': 225
+                    }
+                ]
+            },
+            {
+                'id': "00003",
+                'is_impossible': False,
+                'question': "What was the name of the 1937 treaty?",
+                'answers': [
+                    {
+                        'text': "Bald Eagle Protection Act",
+                        'answer_start': 167
+                    }
+                ]
+            }
+        ]
+    }
+]
+
+# Save as a JSON file
+os.makedirs('data', exist_ok=True)
+with open('data/train.json', 'w') as f:
+    json.dump(train_data, f)
+
+
+# Create the QuestionAnsweringModel
+model = QuestionAnsweringModel('distilbert', 'distilbert-base-uncased-distilled-squad', args={'reprocess_input_data': True, 'overwrite_output_dir': True})
+
+# Train the model
+model.train_model('data/train.json')
+
+# Evaluate the model. (Being lazy and evaluating on the train data itself)
+result, text = model.eval_model('data/train.json')
+
+print(result)
+print(text)
+
+print('-------------------')
+
+# Making predictions using the model.
+to_predict = [{'context': 'This is the context used for demonstrating predictions.', 'qas': [{'question': 'What is this context?', 'id': '0'}]}]
+
+print(model.predict(to_predict))
+```
+
+### QuestionAnsweringModel
+
+`class simpletransformers.question_answering.QuestionAnsweringModel (model_type, model_name, args=None, use_cuda=True)`  
+This class  is used for Text Classification tasks.
+
+`Class attributes`
+* `tokenizer`: The tokenizer to be used.
+* `model`: The model to be used.
+            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+* `device`: The device on which the model will be trained and evaluated.
+* `results`: A python dict of past evaluation results for the TransformerModel object.
+* `args`: A python dict of arguments used for training and evaluation.
+
+`Parameters`
+* `model_type`: (required) str - The type of model to use.
+* `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+* `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
+* `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
+
+`class methods`  
+**`train_model(self, train_df, output_dir=None, args=None, eval_df=None)`**
+
+Trains the model using 'train_file'
+
+Args:  
+>train_df: ath to JSON file containing training data. The model will be trained on this file.
+            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+
+>output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+
+>show_running_loss (Optional): Set to False to prevent training loss being printed.
+
+>args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+
+>eval_file (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+
+Returns:  
+>None
+
+**`eval_model(self, eval_df, output_dir=None, verbose=False)`**
+
+Evaluates the model on eval_file. Saves results to output_dir.
+
+Args:  
+>eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.
+
+>output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+
+>verbose: If verbose, results will be printed to the console on completion of evaluation.  
+
+Returns:  
+>result: Dictionary containing evaluation results. (correct, similar, incorrect)
+
+>text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text. 
+
+
+**`predict(self, to_predict)`**
+
+Performs predictions on a list of text.
+
+Args:
+>to_predict: A python list of python dicts containing contexts and questions to be sent to the model for prediction.
+```
+E.g: predict([
+    {
+        'context': "Some context as a demo",
+        'qas': [
+            {'id': '0', 'question': 'What is the context here?'},
+            {'id': '1', 'question': 'What is this for?'}
+        ]
+    }
+])
+```
+>n_best_size (Optional): Number of predictions to return. args['n_best_size'] will be used if not specified.
+
+Returns:
+>preds: A python list containg the predicted answer, and id for each question in to_predict.
+
+
+**`train(self, train_dataset, output_dir, show_running_loss=True, eval_file=None)`**
+
+Trains the model on train_dataset.
+*Utility function to be used by the train_model() method. Not intended to be used directly.*
+
+**`evaluate(self, eval_df, output_dir, , verbose=False)`**
+
+Evaluates the model on eval_df.
+*Utility function to be used by the eval_model() method. Not intended to be used directly*
+
+**`load_and_cache_examples(self, examples, evaluate=False, no_cache=False, output_examples=False)`**
+
+Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
+*Utility function for train() and eval() methods. Not intended to be used directly*
+
+### Additional attributes for Question Answering tasks
+
+QuestionAnsweringModel has a few additional attributes in its `args` dictionary, given below with their default values.
+
+```
+  'doc_stride': 384,
+  'max_query_length': 64,
+  'n_best_size': 20,
+  'max_answer_length': 100,
+  'null_score_diff_threshold': 0.0
+```
+
+#### *doc_stride: int*
+When splitting up a long document into chunks, how much stride to take between chunks.
+
+#### *max_query_length: int*
+Maximum token length for questions. Any questions longer than this will be truncated to this length.
+
+#### *n_best_size: int*
+The number of predictions given per question.
+
+#### *max_answer_length: int*
+The maximum token length of an answer that can be generated.
+
+#### *null_score_diff_threshold: float*
+If null_score - best_non_null is greater than the threshold predict null.
+
+---
+
+## Loading Saved Models
 
 To load a saved model, provide the path to the directory containing the saved model as the `model_name`.
 
 ```
-model = TransformerModel('roberta', 'outputs/')
+model = ClassificationModel('roberta', 'outputs/')
 ```
 
 ```
 model = NERModel('bert', 'outputs/')
 ```
 
+---
 
-### Default Settings
 
-The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding key: value pairs to the the init method of TransformerModel.
+## Default Settings
+
+The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding key: value pairs to the the init method of a Model class.
 
 ```
 self.args = {
@@ -472,6 +718,7 @@ self.args = {
   'process_count': cpu_count() - 2 if cpu_count() > 2 else 1
   'n_gpu': 1,
   'silent': False,
+  'use_multiprocessing': True,
 }
 ```
 
@@ -537,8 +784,12 @@ Number of GPUs to use.
 #### *silent: bool*
 Disables progress bars.
 
+#### *use_multiprocessing: bool*
+If True, multiprocessing will be used when converting data into features. Disabling can reduce memory usage, but may substantially slow down processing.
 
-### Current Pretrained Models
+---
+
+## Current Pretrained Models
 
 The table below shows the currently available model types and their models. You can use any of these by setting the `model_type` and `model_name` in the `args` dictionary. For more information about pretrained models, see [HuggingFace docs](https://huggingface.co/pytorch-transformers/pretrained_models.html).
 
@@ -570,6 +821,8 @@ The table below shows the currently available model types and their models. You 
 | RoBERTa      | roberta | roberta-base | 125M parameters <br>RoBERTa using the BERT-base architecture |
 | RoBERTa      | roberta | roberta-large | 24-layer, 1024-hidden, 16-heads, 355M parameters <br>RoBERTa using the BERT-large architecture |
 | DistilBERT   | distilbert | distilbert-base-uncased-distilled-squad | 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-uncased checkpoint. |
+
+---
 
 ## Acknowledgements
 

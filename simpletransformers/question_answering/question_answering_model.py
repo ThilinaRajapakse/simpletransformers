@@ -39,7 +39,10 @@ from simpletransformers.question_answering.question_answering_utils import (
     write_predictions,
     RawResultExtended,
     write_predictions_extended,
-    to_list
+    to_list,
+    build_examples,
+    get_best_predictions,
+    get_best_predictions_extended
 )
 
 
@@ -154,7 +157,9 @@ class QuestionAnsweringModel:
                                                     cls_token_segment_id=2 if args['model_type'] in ['xlnet'] else 0,
                                                     pad_token_segment_id=3 if args['model_type'] in ['xlnet'] else 0,
                                                     cls_token_at_end=True if args['model_type'] in ['xlnet'] else False,
-                                                    sequence_a_is_doc=True if args['model_type'] in ['xlnet'] else False)
+                                                    sequence_a_is_doc=True if args['model_type'] in ['xlnet'] else False,
+                                                    silent=args['silent']
+                                                    )
 
             if not no_cache:
                 torch.save(features, cached_features_file)
@@ -347,7 +352,7 @@ class QuestionAnsweringModel:
         return global_step, tr_loss / global_step
 
 
-    def eval_model(self, eval_file, output_dir=None, verbose=False, **kwargs):
+    def eval_model(self, eval_file, output_dir=None, verbose=False):
         """
         Evaluates the model on eval_file. Saves results to output_dir.
 
@@ -355,13 +360,10 @@ class QuestionAnsweringModel:
             eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
-            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
-                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
-            result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
-            model_outputs: List of model outputs for each row in eval_df
-            wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model
+            result: Dictionary containing evaluation results. (correct, similar, incorrect)
+            text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text. 
         """
 
         if not output_dir:
@@ -369,7 +371,7 @@ class QuestionAnsweringModel:
 
         self._move_model_to_device()
         
-        all_predictions, all_nbest_json, scores_diff_json = self.evaluate(eval_file, output_dir, **kwargs)
+        all_predictions, all_nbest_json, scores_diff_json = self.evaluate(eval_file, output_dir)
 
         with open(eval_file, 'r') as f:
             truth = json.load(f)
@@ -474,9 +476,97 @@ class QuestionAnsweringModel:
         return all_predictions, all_nbest_json, scores_diff_json
 
 
+    def predict(self, to_predict, n_best_size=None):
+        """
+        Performs predictions on a list of python dicts containing contexts and qas.
+
+        Args:
+            to_predict: A python list of python dicts containing contexts and questions to be sent to the model for prediction.
+                        E.g: predict([
+                            {
+                                'context': "Some context as a demo",
+                                'qas': [
+                                    {'id': '0', 'question': 'What is the context here?'},
+                                    {'id': '1', 'question': 'What is this for?'}
+                                ]
+                            }
+                        ])
+            n_best_size (Optional): Number of predictions to return. args['n_best_size'] will be used if not specified.
+        
+        Returns:
+            preds: A python list containg the predicted answer, and id for each question in to_predict.
+        """
+        tokenizer = self.tokenizer
+        device = self.device
+        model = self.model
+        args = self.args
+
+        if not n_best_size:
+            n_best_size = args['n_best_size']
+
+        self._move_model_to_device()
+
+        eval_examples = build_examples(to_predict)
+        eval_dataset, examples, features = self.load_and_cache_examples(eval_examples, evaluate=True, output_examples=True, no_cache=True)
+
+        eval_sampler = SequentialSampler(eval_dataset)
+        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
+
+        eval_loss = 0.0
+        nb_eval_steps = 0
+        preds = None
+        out_label_ids = None
+        model.eval()
+
+        all_results = []
+        for batch in tqdm(eval_dataloader, disable=args['silent']):
+            batch = tuple(t.to(device) for t in batch)
+
+            with torch.no_grad():
+                inputs = {'input_ids':   batch[0],
+                      'attention_mask':  batch[1],
+                }
+
+                if args['model_type'] != 'distilbert':
+                    inputs['token_type_ids'] = None if args['model_type'] == 'xlm' else batch[2]
+
+                example_indices = batch[3]
+
+                if args['model_type'] in ['xlnet', 'xlm']:
+                    inputs.update({'cls_index': batch[4],
+                                'p_mask':       batch[5]})
+
+                outputs = model(**inputs)
+
+                for i, example_index in enumerate(example_indices):
+                    eval_feature = features[example_index.item()]
+                    unique_id = int(eval_feature.unique_id)
+                    if args['model_type'] in ['xlnet', 'xlm']:
+                        # XLNet uses a more complex post-processing procedure
+                        result = RawResultExtended(unique_id            = unique_id,
+                                                start_top_log_probs  = to_list(outputs[0][i]),
+                                                start_top_index      = to_list(outputs[1][i]),
+                                                end_top_log_probs    = to_list(outputs[2][i]),
+                                                end_top_index        = to_list(outputs[3][i]),
+                                                cls_logits           = to_list(outputs[4][i]))
+                    else:
+                        result = RawResult(unique_id    = unique_id,
+                                        start_logits = to_list(outputs[0][i]),
+                                        end_logits   = to_list(outputs[1][i]))
+                    all_results.append(result)
+
+        if args['model_type'] in ['xlnet', 'xlm']:
+            answers = get_best_predictions_extended(examples, features, all_results, n_best_size, args['max_answer_length'], model.config.start_n_top, model.config.end_n_top, True, tokenizer, args['null_score_diff_threshold'])
+        else:
+            answers = get_best_predictions(examples, features, all_results, n_best_size, args['max_answer_length'], False, False, True, False)
+
+        return answers
+
+
     def calculate_results(self, truth, predictions):
         truth_dict = {}
         questions_dict = {}
+        print(truth)
         for item in truth:
             for answer in item['qas']:
                 truth_dict[answer['id']] = answer['answers'][0]['text']
