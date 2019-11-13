@@ -168,7 +168,7 @@ train_data = [['Example sentence 1 for multilabel classification.', [1, 1, 1, 1,
 train_df = pd.DataFrame(train_data, columns=['text', 'labels'])
 train_df = pd.DataFrame(train_data)
 
-eval_data = [['Example eval sentence for multilabel classification.', [1, 1, 1, 1, 0, 1]], ['Another example eval sentence.', 0], ['Example eval senntence belonging to class 2', [0, 1, 1, 0, 0, 0]]]
+eval_data = [['Example eval sentence for multilabel classification.', [1, 1, 1, 1, 0, 1]], ['Example eval senntence belonging to class 2', [0, 1, 1, 0, 0, 0]]]
 eval_df = pd.DataFrame(eval_data)
 
 # Create a MultiLabelClassificationModel
