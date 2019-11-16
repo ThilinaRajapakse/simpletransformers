@@ -21,10 +21,9 @@ jobs:
       with:
         password: ${{ secrets.TESTPYPI_PASSWORD }}
         repository_url: https://test.pypi.org/legacy/
-    - name: Build and publish to PyPI
-      if: startsWith(github.event.ref, 'refs/tags')
-      env:
-        TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
-      run: |
-        twine upload dist/*
+    - name: Publish package
+      if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_PASSWORD }}
