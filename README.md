@@ -63,11 +63,13 @@ Available hyperparameters are common for all tasks except for a few additional h
 
 _The file structure has been updated starting with version 0.6.0. This should only affect import statements. The old import paths should still be functional although it is recommended to use the updated paths given below and in the minimal start examples_.
 
-* `simpletransformers.classification` - Includes all classification models.
+* `simpletransformers.classification` - Includes all Classification models.
   * `ClassificationModel`
   * `MultiLabelClassificationModel`
-* `simpletransformers.ner` - Includes all Named Entity Recognition models
+* `simpletransformers.ner` - Includes all Named Entity Recognition models.
   * `NERModel`
+* `simpletransformers.question_answering` - Includes all Question Answering models.
+  * `QuestionAnsweringModel`
 
 ---
 
