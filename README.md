@@ -57,7 +57,7 @@ else:
 
 ## Usage
 
-Available hyperparameters are common for all tasks. See [Default Settings](#default-settings) and [Args Explained](#args-explained) sections for more information.
+Available hyperparameters are common for all tasks except for a few additional hyperparameters for the `QuestionAnsweringModel`. See [Default Settings](#default-settings) and [Args Explained](#args-explained) sections for more information.
 
 ### Structure
 
