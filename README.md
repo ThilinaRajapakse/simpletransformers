@@ -208,7 +208,7 @@ This class  is used for Text Classification tasks.
 `Class attributes`
 * `tokenizer`: The tokenizer to be used.
 * `model`: The model to be used.
-            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+* `model_name`: model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
 * `device`: The device on which the model will be trained and evaluated.
 * `results`: A python dict of past evaluation results for the TransformerModel object.
 * `args`: A python dict of arguments used for training and evaluation.
