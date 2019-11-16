@@ -221,7 +221,7 @@ This class  is used for Text Classification tasks.
 * `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 
 `class methods`  
-**`train_model(self, train_df, output_dir=None,  show_running_loss=True, args=None, eval_df=None)`**
+**`train_model(self, train_df, output_dir=None, show_running_loss=True, args=None, eval_df=None)`**
 
 Trains the model using 'train_df'
 
