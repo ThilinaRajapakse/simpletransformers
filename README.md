@@ -57,7 +57,7 @@ else:
 
 ## Usage
 
-Available hyperparameters are common for all tasks except for a few additional hyperparameters for the `QuestionAnsweringModel`. See [Default Settings](#default-settings) and [Args Explained](#args-explained) sections for more information.
+Most available hyperparameters are common for all tasks. Any special hyperparameters will be listed in the docs section for the corresponding class. See [Default Settings](#default-settings) and [Args Explained](#args-explained) sections for more information.
 
 ### Structure
 
@@ -156,8 +156,6 @@ predictions, raw_outputs = model.predict(["Some arbitary sentence"])
 
 For Multi-Label Classification, the labels should be multi-hot encoded. The number of classes can be specified (default is 2) by passing it to the `num_labels` optional parameter of `MultiLabelClassificationModel`.
 
-Currently, Bert and Roberta are supported.
-
 The default evaluation metric used is Label Ranking Average Precision ([LRAP](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.label_ranking_average_precision_score.html)) Score.
 
 ```
@@ -190,6 +188,11 @@ print(predictions)
 print(raw_outputs)
 ```
 
+##### Special Attributes
+
+* The args dict of `MultiLabelClassificationModel` has an additional `threshold` parameter with default value 0.5. The threshold is the value at which a given label flips from 0 to 1 when predicting. The `threshold` may be a single value or a list of value with the same length as the number of labels. This enables the use of seperate threshold values for each label.
+* `MultiLabelClassificationModel` takes in an additional optional argument `pos_weight`. This should be a list with the same length as the number of labels. This enables using different weights for each label when calculating loss during training and evaluation.
+
 #### Real Dataset Examples
 
 * [Yelp Reviews Dataset - Binary Classification](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c)
@@ -218,7 +221,7 @@ This class  is used for Text Classification tasks.
 * `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 
 `class methods`  
-**`train_model(self, train_df, output_dir=None, args=None, eval_df=None)`**
+**`train_model(self, train_df, output_dir=None,  show_running_loss=True, args=None, eval_df=None)`**
 
 Trains the model using 'train_df'
 
@@ -228,6 +231,8 @@ Args:
 >output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
 >args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+
+>show_running_loss (optional): Set to False to disable printing running training loss to the terminal.
 
 >eval_df (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
 

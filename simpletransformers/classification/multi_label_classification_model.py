@@ -20,7 +20,7 @@ from transformers import (
 
 
 class MultiLabelClassificationModel(ClassificationModel):
-    def __init__(self, model_type, model_name, num_labels=2, args=None, use_cuda=True):
+    def __init__(self, model_type, model_name, num_labels=2, pos_weight=None, args=None, use_cuda=True):
         """
         Initializes a MultiLabelClassification model.
 
@@ -28,6 +28,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             model_type: The type of model (bert, roberta)
             model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
             num_labels (optional): The number of labels or classes in the dataset.
+            pos_weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
         """
@@ -41,8 +42,8 @@ class MultiLabelClassificationModel(ClassificationModel):
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.tokenizer = tokenizer_class.from_pretrained(model_name)
-        self.model = model_class.from_pretrained(model_name, num_labels=num_labels)
         self.num_labels = num_labels
+        self.pos_weight = pos_weight
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -51,6 +52,11 @@ class MultiLabelClassificationModel(ClassificationModel):
                 raise ValueError("'use_cuda' set to True when cuda is unavailable. Make sure CUDA is available or set use_cuda=False.")
         else:
             self.device = "cpu"
+
+        if self.pos_weight:
+            self.model = model_class.from_pretrained(model_name, num_labels=num_labels, pos_weight=torch.Tensor(self.pos_weight).to(self.device))
+        else:
+            self.model = model_class.from_pretrained(model_name, num_labels=num_labels)
 
         self.results = {}
 

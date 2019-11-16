@@ -29,12 +29,13 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
     """
     Bert model adapted for multi-label sequence classification
     """
-    def __init__(self, config):
+    def __init__(self, config, pos_weight=None):
         super(BertForMultiLabelSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
         self.bert = BertModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, self.config.num_labels)
+        self.pos_weight = pos_weight
 
         self.init_weights()
 
@@ -53,7 +54,7 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
         outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
 
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
@@ -88,9 +89,10 @@ class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
     pretrained_model_archive_map = ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
     base_model_prefix = "roberta"
 
-    def __init__(self, config):
+    def __init__(self, config, pos_weight=None):
         super(RobertaForMultiLabelSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
+        self.pos_weight = pos_weight
 
         self.roberta = RobertaModel(config)
         self.classifier = RobertaClassificationHead(config)
@@ -107,7 +109,7 @@ class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
 
         outputs = (logits,) + outputs[2:]
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
@@ -119,9 +121,10 @@ class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
     """
     XLNet model adapted for multi-label sequence classification
     """
-    def __init__(self, config):
+    def __init__(self, config, pos_weight=None):
         super(XLNetForMultiLabelSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
+        self.pos_weight = pos_weight
 
         self.transformer = XLNetModel(config)
         self.sequence_summary = SequenceSummary(config)
@@ -147,7 +150,7 @@ class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
         outputs = (logits,) + transformer_outputs[1:]  # Keep mems, hidden states, attentions if there are in it
 
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
@@ -159,9 +162,10 @@ class XLMForMultiLabelSequenceClassification(XLMPreTrainedModel):
     """
     XLM model adapted for multi-label sequence classification
     """
-    def __init__(self, config):
+    def __init__(self, config, pos_weight=None):
         super(XLMForMultiLabelSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
+        self.pos_weight = pos_weight
 
         self.transformer = XLMModel(config)
         self.sequence_summary = SequenceSummary(config)
@@ -185,7 +189,7 @@ class XLMForMultiLabelSequenceClassification(XLMPreTrainedModel):
         outputs = (logits,) + transformer_outputs[1:]  # Keep new_mems and attention/hidden states if they are here
 
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
@@ -221,9 +225,10 @@ class DistilBertForMultiLabelSequenceClassification(DistilBertPreTrainedModel):
     """
     DistilBert model adapted for multi-label sequence classification
     """
-    def __init__(self, config):
+    def __init__(self, config, pos_weight=None):
         super(DistilBertForMultiLabelSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
+        self.pos_weight = pos_weight
 
         self.distilbert = DistilBertModel(config)
         self.pre_classifier = nn.Linear(config.dim, config.dim)
@@ -245,7 +250,7 @@ class DistilBertForMultiLabelSequenceClassification(DistilBertPreTrainedModel):
 
         outputs = (logits,) + distilbert_output[1:]
         if labels is not None:
-            loss_fct = BCEWithLogitsLoss()
+            loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
             loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
