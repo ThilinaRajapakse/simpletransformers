@@ -99,7 +99,7 @@ eval_data = [['Example eval sentence belonging to class 1', 1], ['Example eval s
 eval_df = pd.DataFrame(eval_data)
 
 # Create a ClassificationModel
-model = ClassificationModel('roberta', 'roberta-base')
+model = ClassificationModel('roberta', 'roberta-base') # You can set class weights by using the optional weight argument
 
 # Train the model
 model.train_model(train_df)
@@ -141,7 +141,8 @@ eval_data = [['Example eval sentence belonging to class 1', 1], ['Example eval s
 eval_df = pd.DataFrame(eval_data)
 
 # Create a ClassificationModel
-model = ClassificationModel('bert', 'bert-base-cased', num_labels=3, args={'reprocess_input_data': True, 'overwrite_output_dir': True})
+model = ClassificationModel('bert', 'bert-base-cased', num_labels=3, args={'reprocess_input_data': True, 'overwrite_output_dir': True}) 
+# You can set class weights by using the optional weight argument
 
 # Train the model
 model.train_model(train_df)
@@ -173,6 +174,7 @@ eval_df = pd.DataFrame(eval_data)
 
 # Create a MultiLabelClassificationModel
 model = MultiLabelClassificationModel('roberta', 'roberta-base', num_labels=6, args={'reprocess_input_data': True, 'overwrite_output_dir': True, 'num_train_epochs': 5})
+# You can set class weights by using the optional weight argument
 print(train_df.head())
 
 # Train the model
@@ -217,6 +219,7 @@ This class  is used for Text Classification tasks.
 * `model_type`: (required) str - The type of model to use. Currently, BERT, XLNet, XLM, and RoBERTa models are available.
 * `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
 * `num_labels` (optional): The number of labels or classes in the dataset.
+* `weight` (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
 * `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
 * `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 

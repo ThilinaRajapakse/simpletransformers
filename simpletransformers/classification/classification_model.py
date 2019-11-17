@@ -30,11 +30,11 @@ from torch.utils.data import (
 from transformers import AdamW, WarmupLinearSchedule
 from transformers import (
     WEIGHTS_NAME,
-    BertConfig, BertForSequenceClassification, BertTokenizer,
-    XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer,
-    XLMConfig, XLMForSequenceClassification, XLMTokenizer,
-    RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,
-    DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer
+    BertConfig, BertTokenizer,
+    XLNetConfig, XLNetTokenizer,
+    XLMConfig, XLMTokenizer,
+    RobertaConfig, RobertaTokenizer,
+    DistilBertConfig, DistilBertTokenizer
 )
 
 from simpletransformers.classification.classification_utils import (
@@ -42,9 +42,15 @@ from simpletransformers.classification.classification_utils import (
     convert_examples_to_features
 )
 
+from simpletransformers.classification.transformer_models.bert_model import BertForSequenceClassification
+from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
+from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
+from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
+from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
+
 
 class ClassificationModel:
-    def __init__(self, model_type, model_name, num_labels=2, args=None, use_cuda=True):
+    def __init__(self, model_type, model_name, num_labels=2, weight=None, args=None, use_cuda=True):
         """
         Initializes a ClassificationModel model.
 
@@ -52,6 +58,7 @@ class ClassificationModel:
             model_type: The type of model (bert, xlnet, xlm, roberta, distilbert)
             model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
             num_labels (optional): The number of labels or classes in the dataset.
+            weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
         """
@@ -66,8 +73,8 @@ class ClassificationModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.tokenizer = tokenizer_class.from_pretrained(model_name)
-        self.model = model_class.from_pretrained(model_name, num_labels=num_labels)
         self.num_labels = num_labels
+        self.weight = weight
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -76,6 +83,11 @@ class ClassificationModel:
                 raise ValueError("'use_cuda' set to True when cuda is unavailable. Make sure CUDA is available or set use_cuda=False.")
         else:
             self.device = "cpu"
+
+        if self.weight:
+            self.model = model_class.from_pretrained(model_name, num_labels=num_labels, weight=torch.Tensor(self.weight).to(self.device))
+        else:
+            self.model = model_class.from_pretrained(model_name, num_labels=num_labels)
 
         self.results = {}
 
