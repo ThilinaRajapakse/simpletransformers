@@ -27,6 +27,7 @@ Table of contents
        * [Data Format](#data-format)
        * [Minimal Start](#minimal-example)
        * [QuestionAnsweringModel](#questionansweringmodel)
+       * [Real Dataset Examples](#real-dataset-examples-2)
      * [Loading Saved Models](#loading-saved-models)
      * [Default Settings](#default-settings)
      * [Current Pretrained Models](#current-pretrained-models)
@@ -557,6 +558,10 @@ to_predict = [{'context': 'This is the context used for demonstrating prediction
 
 print(model.predict(to_predict))
 ```
+
+#### Real Dataset Examples
+
+* [SQuAD 2.0 - Question Answering](https://medium.com/@chaturangarajapakshe/question-answering-with-bert-xlnet-xlm-and-distilbert-using-simple-transformers-4d8785ee762a?sk=e8e6f9a39f20b5aaf08bbcf8b0a0e1c2)
 
 ### QuestionAnsweringModel
 
