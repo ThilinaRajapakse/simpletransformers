@@ -184,16 +184,16 @@ class QuestionAnsweringModel:
             return dataset, examples, features
         return dataset
 
-    def train_model(self, train_file, output_dir=False, show_running_loss=True, args=None, eval_file=None):
+    def train_model(self, train_data, output_dir=False, show_running_loss=True, args=None, eval_data=None):
         """
-        Trains the model using 'train_file'
+        Trains the model using 'train_data'
 
         Args:
-            train_file: Path to JSON file containing training data. The model will be trained on this file.
+            train_data: Path to JSON file containing training data OR list of Python dicts in the correct format. The model will be trained on this data.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
-            eval_file (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+            eval_data (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
         Returns:
             None
         """
@@ -204,8 +204,8 @@ class QuestionAnsweringModel:
         if self.args['silent']:
             show_running_loss = False
 
-        if self.args['evaluate_during_training'] and eval_file is None:
-            raise ValueError("evaluate_during_training is enabled but eval_file is not specified. Pass eval_file to model.train_model() if using evaluate_during_training.")
+        if self.args['evaluate_during_training'] and eval_data is None:
+            raise ValueError("evaluate_during_training is enabled but eval_data is not specified. Pass eval_data to model.train_model() if using evaluate_during_training.")
 
         if not output_dir:
             output_dir = self.args['output_dir']
@@ -215,11 +215,14 @@ class QuestionAnsweringModel:
 
         self._move_model_to_device()
 
-        with open(train_file, 'r') as f:
-            train_examples = json.load(f)
+        if isinstance(train_data, str):
+            with open(train_data, 'r') as f:
+                train_examples = json.load(f)
+        else:
+            train_examples = train_data
 
         train_dataset = self.load_and_cache_examples(train_examples)
-        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_file=eval_file)
+        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_data=eval_data)
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -232,7 +235,7 @@ class QuestionAnsweringModel:
         print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
 
-    def train(self, train_dataset, output_dir, show_running_loss=True, eval_file=None):
+    def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None):
         """
         Trains the model on train_dataset.
 
@@ -329,7 +332,7 @@ class QuestionAnsweringModel:
                         # Log metrics
                         if args['evaluate_during_training']:
                         # Only evaluate when single GPU otherwise metrics may not average well
-                            results, _, _ = self.eval_model(eval_file, verbose=True)
+                            results, _, _ = self.eval_model(eval_data, verbose=True)
                             for key, value in results.items():
                                 tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
@@ -352,12 +355,12 @@ class QuestionAnsweringModel:
         return global_step, tr_loss / global_step
 
 
-    def eval_model(self, eval_file, output_dir=None, verbose=False):
+    def eval_model(self, eval_data, output_dir=None, verbose=False):
         """
-        Evaluates the model on eval_file. Saves results to output_dir.
+        Evaluates the model on eval_data. Saves results to output_dir.
 
         Args:
-            eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.
+            eval_data: Path to JSON file containing evaluation data OR list of Python dicts in the correct format. The model will be evaluated on this data.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
 
@@ -371,10 +374,13 @@ class QuestionAnsweringModel:
 
         self._move_model_to_device()
         
-        all_predictions, all_nbest_json, scores_diff_json = self.evaluate(eval_file, output_dir)
+        all_predictions, all_nbest_json, scores_diff_json = self.evaluate(eval_data, output_dir)
 
-        with open(eval_file, 'r') as f:
-            truth = json.load(f)
+        if isinstance(eval_data, str):
+            with open(eval_data, 'r') as f:
+                truth = json.load(f)
+        else:
+            truth = eval_data
 
         result, texts = self.calculate_results(truth, all_predictions)
 
@@ -386,9 +392,9 @@ class QuestionAnsweringModel:
         return result, texts
 
     
-    def evaluate(self, eval_file, output_dir):
+    def evaluate(self, eval_data, output_dir):
         """
-        Evaluates the model on eval_file.
+        Evaluates the model on eval_data.
 
         Utility function to be used by the eval_model() method. Not intended to be used directly.
         """
@@ -400,9 +406,11 @@ class QuestionAnsweringModel:
 
         results = {}
 
-
-        with open(eval_file, 'r') as f:
-            eval_examples = json.load(f)
+        if isinstance(eval_data, str):
+            with open(eval_data, 'r') as f:
+                eval_examples = json.load(f)
+        else:
+            eval_examples = eval_data
 
         eval_dataset, examples, features = self.load_and_cache_examples(eval_examples, evaluate=True, output_examples=True)
 
@@ -464,7 +472,7 @@ class QuestionAnsweringModel:
         # XLNet uses a more complex post-processing procedure
             all_predictions, all_nbest_json, scores_diff_json = write_predictions_extended(examples, features, all_results, args['n_best_size'],
                             args['max_answer_length'], output_prediction_file,
-                            output_nbest_file, output_null_log_odds_file, eval_file,
+                            output_nbest_file, output_null_log_odds_file, eval_data,
                             model.config.start_n_top, model.config.end_n_top,
                             True, tokenizer, not args['silent'])
         else:

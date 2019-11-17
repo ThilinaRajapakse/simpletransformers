@@ -452,9 +452,9 @@ Supported model types:
 
 ### Data format
 
-For question answering tasks, the input data should be in JSON files.
+For question answering tasks, the input data can be in JSON files or in a Python list of dicts in the correct format.
 
-The file should contain a single list (JSON array) of dictionaries. A dictionary represents a single context and its associated questions.
+The file should contain a single list of dictionaries. A dictionary represents a single context and its associated questions.
 
 Each such dictionary contains two attributes, the `"context"` and `"qas"`.
 * `context`: The paragraph or text from which the question is asked.
@@ -535,8 +535,11 @@ with open('data/train.json', 'w') as f:
 # Create the QuestionAnsweringModel
 model = QuestionAnsweringModel('distilbert', 'distilbert-base-uncased-distilled-squad', args={'reprocess_input_data': True, 'overwrite_output_dir': True})
 
-# Train the model
+# Train the model with JSON file
 model.train_model('data/train.json')
+
+# The list can also be used directly
+# model.train_model(train_data)
 
 # Evaluate the model. (Being lazy and evaluating on the train data itself)
 result, text = model.eval_model('data/train.json')

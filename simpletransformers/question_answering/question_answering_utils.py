@@ -874,8 +874,11 @@ def write_predictions_extended(all_examples, all_features, all_results, n_best_s
         with open(output_null_log_odds_file, "w") as writer:
             writer.write(json.dumps(scores_diff_json, indent=4) + "\n")
 
-    with open(orig_data_file, "r", encoding='utf-8') as reader:
-        orig_data = json.load(reader)
+    if isinstance(orig_data_file, str):
+        with open(orig_data_file, "r", encoding='utf-8') as reader:
+            orig_data = json.load(reader)
+    else:
+        orig_data = orig_data_file
 
     qid_to_has_ans = make_qid_to_has_ans(orig_data)
     has_ans_qids = [k for k, v in qid_to_has_ans.items() if v]
