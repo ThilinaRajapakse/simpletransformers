@@ -141,7 +141,7 @@ class QuestionAnsweringModel:
         examples = get_examples(examples, is_training=not evaluate)
 
         mode = "dev" if evaluate else "train"
-        cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_binary".format(mode, args["model_type"], args["max_seq_length"]))
+        cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], len(examples)))
 
         if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
             features = torch.load(cached_features_file)

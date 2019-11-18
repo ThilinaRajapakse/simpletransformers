@@ -54,7 +54,7 @@ class NERModel:
             self.labels = labels
         else:
             self.labels = ["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"]
-        num_labels = len(self.labels)
+        self.num_labels = len(self.labels)
 
         if roberta_available:
             MODEL_CLASSES = {
@@ -69,7 +69,7 @@ class NERModel:
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
 
         self.tokenizer = tokenizer_class.from_pretrained(model_name)
-        self.model = model_class.from_pretrained(model_name, num_labels=num_labels)
+        self.model = model_class.from_pretrained(model_name, num_labels=self.num_labels)
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -496,7 +496,6 @@ class NERModel:
         args = self.args
 
         mode = "dev" if evaluate else "train"
-        cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_binary".format(mode, args["model_type"], args["max_seq_length"]))
 
         if not to_predict:
             if isinstance(data, str):
@@ -506,6 +505,8 @@ class NERModel:
         else:
             examples = to_predict
             no_cache = True
+
+        cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples)))
 
 
         if not os.path.isdir(self.args["cache_dir"]):
