@@ -593,7 +593,7 @@ class QuestionAnsweringModel:
                 correct_text[q_id] = answer
             elif predictions[q_id].strip() in answer.strip() or answer.strip() in predictions[q_id].strip():
                 similar += 1
-                similar_text[q_id] = answer
+                similar_text[q_id] = {'truth': answer, 'predicted': predictions[q_id], 'question': questions_dict[q_id]}
             else:
                 incorrect += 1
                 incorrect_text[q_id] = {'truth': answer, 'predicted': predictions[q_id], 'question': questions_dict[q_id]}
