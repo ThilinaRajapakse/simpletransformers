@@ -408,7 +408,7 @@ class NERModel:
             to_predict: A python list of text (str) to be sent to the model for prediction.
 
         Returns:
-            preds: A Python dict with each word mapped to its NER tag.
+            preds: A Python list of lists with dicts containg each word mapped to its NER tag.
             model_outputs: A python list of the raw model outputs for each text.
         """
 
@@ -471,7 +471,7 @@ class NERModel:
                     out_label_list[i].append(label_map[out_label_ids[i][j]])
                     preds_list[i].append(label_map[preds[i][j]])
 
-        preds = [{word: preds_list[i][j] for j, word in enumerate(sentence.split()[:len(preds_list[i])])} for i, sentence in enumerate(to_predict)]
+        preds = [[{word: preds_list[i][j]} for j, word in enumerate(sentence.split()[:len(preds_list[i])])] for i, sentence in enumerate(to_predict)]
 
         return preds, model_outputs
 

@@ -424,7 +424,7 @@ Args:
 >to_predict: A python list of text (str) to be sent to the model for prediction.
 
 Returns:
->preds: A Python dict with each word mapped to its NER tag. 
+>preds: A Python list of lists with dicts containg each word mapped to its NER tag.
 >model_outputs: A python list of the raw model outputs for each text.
 
 
