@@ -17,7 +17,7 @@ from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
 from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
 from pprint import pprint
 
-from transformers import AdamW, WarmupLinearSchedule
+from transformers import AdamW, get_linear_schedule_with_warmup
 from tensorboardX import SummaryWriter
 
 logger = logging.getLogger(__name__)

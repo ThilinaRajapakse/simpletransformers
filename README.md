@@ -230,47 +230,47 @@ This class  is used for Text Classification tasks.
 Trains the model using 'train_df'
 
 Args:  
->train_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
+* `train_df`: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
 
->output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+* `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
->args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+>`args` (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
 
->show_running_loss (optional): Set to False to disable printing running training loss to the terminal.
+* show_running_loss (optional): Set to False to disable printing running training loss to the terminal.
 
->eval_df (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
+* `eval_df` (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
 
 Returns:  
->None
+* None
 
 **`eval_model(self, eval_df, output_dir=None, verbose=False)`**
 
 Evaluates the model on eval_df. Saves results to output_dir.
 
 Args:  
->eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
+* eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
 
->output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
 
->verbose: If verbose, results will be printed to the console on completion of evaluation.  
+* verbose: If verbose, results will be printed to the console on completion of evaluation.  
 
 Returns:  
->result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
+* result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
 
 >model_outputs: List of model outputs for each row in eval_df  
 
->wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
+* wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
 
 **`predict(self, to_predict)`**
 
 Performs predictions on a list of text.
 
 Args:
->to_predict: A python list of text (str) to be sent to the model for prediction.
+* to_predict: A python list of text (str) to be sent to the model for prediction.
 
 Returns:
->preds: A python list of the predictions (0 or 1) for each text.  
->model_outputs: A python list of the raw model outputs for each text.
+* preds: A python list of the predictions (0 or 1) for each text.  
+* model_outputs: A python list of the raw model outputs for each text.
 
 
 **`train(self, train_dataset, output_dir)`**
@@ -293,16 +293,16 @@ Converts a list of InputExample objects to a TensorDataset containing InputFeatu
 Computes the evaluation metrics for the model predictions.
 
 Args:
->preds: Model predictions  
+* preds: Model predictions  
 
->labels: Ground truth labels  
+* labels: Ground truth labels  
 
->eval_examples: List of examples on which evaluation was performed  
+* eval_examples: List of examples on which evaluation was performed  
 
 Returns:
->result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
+* result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
 
->wrong: List of InputExample objects corresponding to each incorrect prediction by the model  
+* wrong: List of InputExample objects corresponding to each incorrect prediction by the model  
 
 ---
 
@@ -381,51 +381,51 @@ This class  is used for Named Entity Recognition.
 Trains the model using 'train_data'
 
 Args:  
->train_data: train_data should be the path to a .txt file containing the training data OR a pandas DataFrame with 3 columns.
+* train_data: train_data should be the path to a .txt file containing the training data OR a pandas DataFrame with 3 columns.
 If a text file is used the data should be in the CoNLL format. i.e. One word per line, with sentences seperated by an empty line. 
 The first word of the line should be a word, and the last should be a Name Entity Tag.
 If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
 
->output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
->show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
+* show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
 
->args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+* args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
 
->eval_df (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
+* eval_df (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
 
 
 Returns:  
->None
+* None
 
 **`eval_model(self, eval_data, output_dir=None, verbose=True)`**
 
 Evaluates the model on eval_data. Saves results to output_dir.
 
 Args:  
->eval_data: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
+* eval_data: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
 
->output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
 
->verbose: If verbose, results will be printed to the console on completion of evaluation.  
+* verbose: If verbose, results will be printed to the console on completion of evaluation.  
 
 Returns:  
->result: Dictionary containing evaluation results. (eval_loss, precision, recall, f1_score)
+* result: Dictionary containing evaluation results. (eval_loss, precision, recall, f1_score)
 
->model_outputs: List of raw model outputs
+* model_outputs: List of raw model outputs
 
->preds_list: List of predicted tags
+* preds_list: List of predicted tags
 
 **`predict(self, to_predict)`**
 
 Performs predictions on a list of text.
 
 Args:
->to_predict: A python list of text (str) to be sent to the model for prediction.
+* to_predict: A python list of text (str) to be sent to the model for prediction.
 
 Returns:
->preds: A Python list of lists with dicts containg each word mapped to its NER tag.
->model_outputs: A python list of the raw model outputs for each text.
+* preds: A Python list of lists with dicts containg each word mapped to its NER tag.
+* model_outputs: A python list of the raw model outputs for each text.
 
 
 **`train(self, train_dataset, output_dir)`**
@@ -588,35 +588,35 @@ This class  is used for Question Answering tasks.
 Trains the model using 'train_file'
 
 Args:  
->train_df: ath to JSON file containing training data. The model will be trained on this file.
+* train_df: ath to JSON file containing training data. The model will be trained on this file.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
->output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+* output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
->show_running_loss (Optional): Set to False to prevent training loss being printed.
+* show_running_loss (Optional): Set to False to prevent training loss being printed.
 
->args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+* args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
 
->eval_file (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+* eval_file (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
 
 Returns:  
->None
+* None
 
 **`eval_model(self, eval_df, output_dir=None, verbose=False)`**
 
 Evaluates the model on eval_file. Saves results to output_dir.
 
 Args:  
->eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.
+* eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.
 
->output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
 
->verbose: If verbose, results will be printed to the console on completion of evaluation.  
+* verbose: If verbose, results will be printed to the console on completion of evaluation.  
 
 Returns:  
->result: Dictionary containing evaluation results. (correct, similar, incorrect)
+* result: Dictionary containing evaluation results. (correct, similar, incorrect)
 
->text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text. 
+* text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text. 
 
 
 **`predict(self, to_predict)`**
@@ -624,7 +624,7 @@ Returns:
 Performs predictions on a list of text.
 
 Args:
->to_predict: A python list of python dicts containing contexts and questions to be sent to the model for prediction.
+* to_predict: A python list of python dicts containing contexts and questions to be sent to the model for prediction.
 ```
 E.g: predict([
     {
@@ -636,10 +636,10 @@ E.g: predict([
     }
 ])
 ```
->n_best_size (Optional): Number of predictions to return. args['n_best_size'] will be used if not specified.
+* n_best_size (Optional): Number of predictions to return. args['n_best_size'] will be used if not specified.
 
 Returns:
->preds: A python list containg the predicted answer, and id for each question in to_predict.
+* preds: A python list containg the predicted answer, and id for each question in to_predict.
 
 
 **`train(self, train_dataset, output_dir, show_running_loss=True, eval_file=None)`**
