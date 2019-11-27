@@ -7,7 +7,8 @@ from simpletransformers.custom_models.models import (BertForMultiLabelSequenceCl
                                                     RobertaForMultiLabelSequenceClassification, 
                                                     XLNetForMultiLabelSequenceClassification,
                                                     XLMForMultiLabelSequenceClassification,
-                                                    DistilBertForMultiLabelSequenceClassification
+                                                    DistilBertForMultiLabelSequenceClassification,
+                                                    AlbertForMultiLabelSequenceClassification
                                                     )
 from transformers import (
     WEIGHTS_NAME,
@@ -15,7 +16,8 @@ from transformers import (
     XLNetConfig, XLNetTokenizer,
     XLMConfig, XLMTokenizer,
     RobertaConfig, RobertaTokenizer,
-    DistilBertConfig, DistilBertTokenizer
+    DistilBertConfig, DistilBertTokenizer,
+    AlbertConfig, AlbertTokenizer
 )
 
 
@@ -33,11 +35,12 @@ class MultiLabelClassificationModel(ClassificationModel):
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
         """
         MODEL_CLASSES = {
-            'bert': (BertConfig, BertForMultiLabelSequenceClassification, BertTokenizer),
-            'roberta': (RobertaConfig, RobertaForMultiLabelSequenceClassification, RobertaTokenizer),
-            'xlnet': (XLNetConfig, XLNetForMultiLabelSequenceClassification, XLNetTokenizer),
-            'xlm': (XLMConfig, XLMForMultiLabelSequenceClassification, XLMTokenizer),
+            'bert':       (BertConfig, BertForMultiLabelSequenceClassification, BertTokenizer),
+            'roberta':    (RobertaConfig, RobertaForMultiLabelSequenceClassification, RobertaTokenizer),
+            'xlnet':      (XLNetConfig, XLNetForMultiLabelSequenceClassification, XLNetTokenizer),
+            'xlm':        (XLMConfig, XLMForMultiLabelSequenceClassification, XLMTokenizer),
             'distilbert': (DistilBertConfig, DistilBertForMultiLabelSequenceClassification, DistilBertTokenizer),
+            'albert':     (AlbertConfig, AlbertForMultiLabelSequenceClassification, AlbertTokenizer)
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]

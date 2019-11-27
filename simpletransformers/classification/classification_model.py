@@ -34,7 +34,8 @@ from transformers import (
     XLNetConfig, XLNetTokenizer,
     XLMConfig, XLMTokenizer,
     RobertaConfig, RobertaTokenizer,
-    DistilBertConfig, DistilBertTokenizer
+    DistilBertConfig, DistilBertTokenizer,
+    AlbertConfig, AlbertTokenizer
 )
 
 from simpletransformers.classification.classification_utils import (
@@ -47,6 +48,7 @@ from simpletransformers.classification.transformer_models.roberta_model import R
 from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
 from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
 from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
+from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
 
 
 class ClassificationModel:
@@ -69,6 +71,7 @@ class ClassificationModel:
             'xlm':        (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
             'roberta':    (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
             'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
+            'albert':     (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer)
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]

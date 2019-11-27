@@ -84,6 +84,7 @@ Supported model types:
 * XLNet
 * XLM
 * DistilBert
+* Albert
 
 #### Minimal Start for Binary Classification
 
