@@ -24,13 +24,15 @@ from torch.utils.data import (
 )
 
 from transformers import AdamW, get_linear_schedule_with_warmup
-from transformers import (WEIGHTS_NAME, BertConfig,
-                                  BertForQuestionAnswering, BertTokenizer,
-                                  XLMConfig, XLMForQuestionAnswering,
-                                  XLMTokenizer, XLNetConfig,
-                                  XLNetForQuestionAnswering,
-                                  XLNetTokenizer,
-                                  DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer)
+from transformers import (
+    WEIGHTS_NAME, 
+    BertConfig,
+    BertForQuestionAnswering, BertTokenizer,
+    XLMConfig, XLMForQuestionAnswering, XLMTokenizer,
+    XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer,
+    DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,
+    AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer
+)
 
 from simpletransformers.question_answering.question_answering_utils import (
     get_examples,
@@ -62,7 +64,8 @@ class QuestionAnsweringModel:
             'bert': (BertConfig, BertForQuestionAnswering, BertTokenizer),
             'xlnet': (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
             'xlm': (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
-            'distilbert': (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer)
+            'distilbert': (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
+            'albert': (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]

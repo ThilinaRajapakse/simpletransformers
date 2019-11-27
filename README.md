@@ -454,6 +454,7 @@ Supported model types:
 * XLNet
 * XLM
 * DistilBert
+* Albert
 
 ### Data format
 
