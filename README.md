@@ -83,8 +83,8 @@ Supported model types:
 * RoBERTa
 * XLNet
 * XLM
-* DistilBert
-* Albert
+* DistilBERT
+* ALBERT
 
 #### Minimal Start for Binary Classification
 
@@ -453,8 +453,8 @@ Supported model types:
 * BERT
 * XLNet
 * XLM
-* DistilBert
-* Albert
+* DistilBERT
+* ALBERT
 
 ### Data format
 
@@ -841,6 +841,16 @@ The table below shows the currently available model types and their models. You 
 | RoBERTa      | roberta | roberta-base | 125M parameters <br>RoBERTa using the BERT-base architecture |
 | RoBERTa      | roberta | roberta-large | 24-layer, 1024-hidden, 16-heads, 355M parameters <br>RoBERTa using the BERT-large architecture |
 | DistilBERT   | distilbert | distilbert-base-uncased-distilled-squad | 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-uncased checkpoint. |
+| ALBERT      | albert | albert-base-v1 | 12 repeating layers, 128 embedding, 768-hidden, 12-heads, 11M parameters; ALBERT base model. |
+| ALBERT      | albert | albert-large-v1 | 24 repeating layers, 128 embedding, 1024-hidden, 16-heads, 17M parameters; ALBERT large model |
+| ALBERT      | albert | albert-xlarge-v1 | 24 repeating layers, 128 embedding, 2048-hidden, 16-heads, 58M parameters; ALBERT xlarge model |
+| ALBERT      | albert | albert-xxlarge-v1 | 12 repeating layers, 128 embedding, 4096-hidden, 64-heads, 223M parameters; ALBERT xxlarge model |
+| ALBERT      | albert | albert-base-v2 | 12 repeating layers, 128 embedding, 768-hidden, 12-heads, 11M parameters; ALBERT base model with no dropout, additional training data and longer training|
+| ALBERT      | albert | albert-large-v2 | 24 repeating layers, 128 embedding, 1024-hidden, 16-heads, 17M parameters; ALBERT large model with no dropout, additional training data and longer training|
+| ALBERT      | albert | albert-xlarge-v2 | 24 repeating layers, 128 embedding, 2048-hidden, 16-heads, 58M parameters; ALBERT xlarge model with no dropout, additional training data and longer training |
+| ALBERT      | albert | albert-xxlarge-v2 | 12 repeating layer, 128 embedding, 4096-hidden, 64-heads, 223M parameters; ALBERT xxlarge model with no dropout, additional training data and longer training |
+
+
 
 ---
 
