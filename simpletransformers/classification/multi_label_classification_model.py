@@ -47,6 +47,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         self.tokenizer = tokenizer_class.from_pretrained(model_name)
         self.num_labels = num_labels
         self.pos_weight = pos_weight
+        self.sliding_window = False
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -80,6 +81,8 @@ class MultiLabelClassificationModel(ClassificationModel):
             'warmup_ratio': 0.06,
             'warmup_steps': 0,
             'max_grad_norm': 1.0,
+
+            'stride': False,
 
             'logging_steps': 50,
             'save_steps': 2000,
