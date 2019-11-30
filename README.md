@@ -26,8 +26,10 @@ Table of contents
      * [Question Answering](#question-answering)
        * [Data Format](#data-format)
        * [Minimal Start](#minimal-example)
-       * [QuestionAnsweringModel](#questionansweringmodel)
        * [Real Dataset Examples](#real-dataset-examples-2)
+       * [QuestionAnsweringModel](#questionansweringmodel)
+     * [Experimental Features](#experimental-features)
+       * [Sliding Window For Long Sequences](#sliding-window-for-long-sequences)
      * [Loading Saved Models](#loading-saved-models)
      * [Default Settings](#default-settings)
      * [Current Pretrained Models](#current-pretrained-models)
@@ -155,6 +157,8 @@ predictions, raw_outputs = model.predict(["Some arbitary sentence"])
 #### Minimal Start for Multilabel Classification
 
 For Multi-Label Classification, the labels should be multi-hot encoded. The number of classes can be specified (default is 2) by passing it to the `num_labels` optional parameter of `MultiLabelClassificationModel`.
+
+_Warning: Pandas can cause issues when saving and loading lists stored in a column. Check whether your list has been converted to a String!_
 
 The default evaluation metric used is Label Ranking Average Precision ([LRAP](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.label_ranking_average_precision_score.html)) Score.
 
@@ -684,6 +688,62 @@ The maximum token length of an answer that can be generated.
 If null_score - best_non_null is greater than the threshold predict null.
 
 ---
+
+## Experimental Features
+
+### Sliding Window For Long Sequences
+
+Normally, sequences longer than `max_seq_length` are unceremoniously truncated.
+
+This experimental feature moves a sliding window over each sequence and generates sub-sequences with length `max_seq_length`. The model output for each sub-sequence is averaged into a single output before being sent to the linear classifier.
+
+Currently avaiable on binary and multiclass classification models of the following types.
+
+* BERT
+* RoBERTa
+* AlBERT
+* XLNet
+* CamemBERT
+
+Set `sliding_window=True` for the ClassificationModel to enable this feature.
+
+```
+from simpletransformers.classification import ClassificationModel
+import pandas as pd
+import sklearn
+
+# Train and Evaluation data needs to be in a Pandas Dataframe of two columns. The first column is the text with type str, and the second column in the label with type int.
+train_data = [['Example sentence belonging to class 1' * 50, 1], ['Example sentence belonging to class 0', 0], ['Example  2 sentence belonging to class 0', 0]] + [['Example sentence belonging to class 0', 0] for i in range(12)]
+train_df = pd.DataFrame(train_data, columns=['text', 'labels'])
+
+
+eval_data = [['Example eval sentence belonging to class 1', 1], ['Example eval sentence belonging to class 0', 0]]
+eval_df = pd.DataFrame(eval_data)
+
+train_args={
+    'reprocess_input_data': True,
+    'overwrite_output_dir': True,
+    'evaluate_during_training': True,
+    'logging_steps': 5,
+    'stride': 0.8,
+    'max_seq_length': 128
+}
+
+# Create a TransformerModel
+model = ClassificationModel('camembert', 'camembert-base', sliding_window=True, args=train_args, use_cuda=False)
+print(train_df.head())
+
+# Train the model
+model.train_model(train_df, eval_df=eval_df)
+
+# Evaluate the model
+result, model_outputs, wrong_predictions = model.eval_model(eval_df, acc=sklearn.metrics.accuracy_score)
+
+predictions, raw_outputs = model.predict(["I'd like to puts some CD-ROMS on my iPad, is that possible?' — Yes, but wouldn't that block the screen?" * 25])
+print(predictions)
+print(raw_outputs)
+```
+
 
 ## Loading Saved Models
 

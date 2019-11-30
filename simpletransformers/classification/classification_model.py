@@ -62,7 +62,7 @@ class ClassificationModel:
         Initializes a ClassificationModel model.
 
         Args:
-            model_type: The type of model (bert, xlnet, xlm, roberta, distilbert)
+            model_type: The type of model (bert, xlnet, xlm, roberta, distilbert, albert, camembert)
             model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
             num_labels (optional): The number of labels or classes in the dataset.
             weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
@@ -143,7 +143,11 @@ class ClassificationModel:
 
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
-
+        
+        if model_type == 'camembert':
+            warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
+            self.args['use_multiprocessing'] = False
+            
         if self.args['stride'] and not sliding_window:
             warnings.warn("Stride argument specified but sliding_window is disabled. Stride will be ignored.")
 
@@ -660,7 +664,7 @@ class ClassificationModel:
             labels = batch[3].permute(1, 0)
 
             if self.args["model_type"] != "distilbert":
-                tokens = batch_single[2].permute(1, 0, 2) if self.args["model_type"] in ["bert", "xlnet"] else None
+                tokens = batch[2].permute(1, 0, 2) if self.args["model_type"] in ["bert", "xlnet"] else None
 
             
             for i in range(len(labels)):

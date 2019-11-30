@@ -53,16 +53,26 @@ class RobertaForSequenceClassification(BertPreTrainedModel):
             for inputs in input_ids:
                 ids = inputs['input_ids']
                 attention_mask = inputs['attention_mask']
-                outputs = self.roberta(ids, attention_mask=attention_mask)
+                token_type_ids = inputs['token_type_ids']
+                outputs = self.roberta(
+                    ids,
+                    attention_mask=attention_mask, 
+                    token_type_ids=token_type_ids,
+                    position_ids=position_ids,
+                    head_mask=head_mask,
+                    inputs_embeds=inputs_embeds
+                )
                 all_outputs.append(outputs[0])
 
             sequence_output = torch.mean(torch.stack(all_outputs), axis=0)
         else:
             outputs = self.roberta(input_ids,
-                                attention_mask=attention_mask,
-                                token_type_ids=token_type_ids,
-                                position_ids=position_ids,
-                                head_mask=head_mask)
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                position_ids=position_ids,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds
+            )
             sequence_output = outputs[0]
         logits = self.classifier(sequence_output)
 

@@ -31,7 +31,7 @@ class BertForSequenceClassification(BertPreTrainedModel):
         outputs = model(input_ids, labels=labels)
         loss, logits = outputs[:2]
     """
-    def __init__(self, config, weight=None):
+    def __init__(self, config, weight=None, sliding_window=False):
         super(BertForSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
 
@@ -39,20 +39,44 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, self.config.num_labels)
         self.weight = weight
+        self.sliding_window = sliding_window
 
         self.init_weights()
 
     def forward(self, input_ids=None, attention_mask=None, token_type_ids=None,
                 position_ids=None, head_mask=None, inputs_embeds=None, labels=None):
 
-        outputs = self.bert(input_ids,
-                            attention_mask=attention_mask,
-                            token_type_ids=token_type_ids,
-                            position_ids=position_ids,
-                            head_mask=head_mask)
-                            # Complains if input_embeds is kept
+        all_outputs = []
+        if self.sliding_window:
+            # input_ids is really the list of inputs for each "sequence window"
+            labels = input_ids[0]['labels']
+            for inputs in input_ids: 
+                ids = inputs['input_ids']
+                attention_mask = inputs['attention_mask']
+                token_type_ids = inputs['token_type_ids']
+                outputs = self.bert(
+                    ids,
+                    attention_mask=attention_mask, 
+                    token_type_ids=token_type_ids,
+                    position_ids=position_ids,
+                    head_mask=head_mask,
+                    inputs_embeds=inputs_embeds
 
-        pooled_output = outputs[1]
+                )
+                all_outputs.append(outputs[1])
+
+            pooled_output = torch.mean(torch.stack(all_outputs), axis=0)
+        else:
+            outputs = self.bert(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                position_ids=position_ids,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds
+            )
+
+            pooled_output = outputs[1]
 
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
