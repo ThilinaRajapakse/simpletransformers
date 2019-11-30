@@ -43,14 +43,10 @@ Table of contents
 `conda create -n transformers python pandas tqdm`  
 `conda activate transformers`  
 If using cuda:  
-&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cudatoolkit=10.0 -c pytorch`  
+&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cudatoolkit=10.1 -c pytorch`  
 else:  
 &nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cpuonly -c pytorch`  
-`conda install -c anaconda scipy`  
-`conda install -c anaconda scikit-learn`  
-`pip install transformers`  
-`pip install seqeval`  
-`pip install tensorboardx`  
+
 3. Install Apex if you are using fp16 training. Please follow the instructions [here](https://github.com/NVIDIA/apex). (Installing Apex from pip has caused issues for several people.)
 
 4. Install simpletransformers.  
