@@ -35,7 +35,8 @@ from transformers import (
     XLMConfig, XLMTokenizer,
     RobertaConfig, RobertaTokenizer,
     DistilBertConfig, DistilBertTokenizer,
-    AlbertConfig, AlbertTokenizer
+    AlbertConfig, AlbertTokenizer,
+    CamembertConfig, CamembertTokenizer
 )
 
 from simpletransformers.classification.classification_utils import (
@@ -49,6 +50,7 @@ from simpletransformers.classification.transformer_models.xlm_model import XLMFo
 from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
 from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
 from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
+from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
 
 
 class ClassificationModel:
@@ -71,7 +73,8 @@ class ClassificationModel:
             'xlm':        (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
             'roberta':    (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
             'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
-            'albert':     (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer)
+            'albert':     (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
+            'camembert':  (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
