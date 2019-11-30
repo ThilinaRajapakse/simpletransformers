@@ -81,7 +81,7 @@ Supported model types:
 * XLM
 * DistilBERT
 * ALBERT
-* CamemBERT @manueltonneau
+* CamemBERT @[manueltonneau](https://github.com/manueltonneau)
 
 #### Minimal Start for Binary Classification
 
