@@ -8,6 +8,7 @@ import os
 import math
 import json
 import random
+import warnings
 
 from multiprocessing import cpu_count
 
@@ -136,6 +137,10 @@ class ClassificationModel:
 
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
+
+        if model_type == 'camembert':
+            warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
+            self.args['use_multiprocessing'] = False
 
     def train_model(self, train_df, multi_label=False, output_dir=None, show_running_loss=True, args=None, eval_df=None):
         """
