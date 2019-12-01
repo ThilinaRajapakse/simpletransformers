@@ -691,6 +691,12 @@ If null_score - best_non_null is greater than the threshold predict null.
 
 ## Experimental Features
 
+To use experimental features, import from `simpletransformers.experimental.X`
+
+```
+from simpletransformers.experimental.classification import ClassificationModel
+```
+
 ### Sliding Window For Long Sequences
 
 Normally, sequences longer than `max_seq_length` are unceremoniously truncated.
@@ -708,7 +714,7 @@ Currently avaiable on binary and multiclass classification models of the followi
 Set `sliding_window=True` for the ClassificationModel to enable this feature.
 
 ```
-from simpletransformers.classification import ClassificationModel
+from simpletransformers.experimental.classification import ClassificationModel
 import pandas as pd
 import sklearn
 

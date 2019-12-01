@@ -36,7 +36,7 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
         outputs = model(input_ids, labels=labels)
         loss, logits = outputs[:2]
     """
-    def __init__(self, config, weight=None):
+    def __init__(self, config, weight=None, sliding_window=False):
         super(XLNetForSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
         self.weight = weight
@@ -44,12 +44,21 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
         self.transformer = XLNetModel(config)
         self.sequence_summary = SequenceSummary(config)
         self.logits_proj = nn.Linear(config.d_model, config.num_labels)
+        self.sliding_window = sliding_window
 
         self.init_weights()
 
     def forward(self, input_ids=None, attention_mask=None, mems=None, perm_mask=None, target_mapping=None,
                 token_type_ids=None, input_mask=None, head_mask=None, inputs_embeds=None, labels=None):
-        transformer_outputs = self.transformer(input_ids,
+        all_outputs = []
+        if self.sliding_window:
+            # input_ids is really the list of inputs for each "sequence window"
+            labels = input_ids[0]['labels']
+            for inputs in input_ids: 
+                ids = inputs['input_ids']
+                attention_mask = inputs['attention_mask']
+                token_type_ids = inputs['token_type_ids']
+                transformer_outputs = self.transformer(ids,
                                                attention_mask=attention_mask,
                                                mems=mems,
                                                perm_mask=perm_mask,
@@ -57,7 +66,19 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
                                                token_type_ids=token_type_ids,
                                                input_mask=input_mask,
                                                head_mask=head_mask)
-        output = transformer_outputs[0]
+                output = transformer_outputs[0]
+                all_outputs.append(output)
+            output = torch.mean(torch.stack(all_outputs), axis=0)
+        else:
+            transformer_outputs = self.transformer(input_ids,
+                                                attention_mask=attention_mask,
+                                                mems=mems,
+                                                perm_mask=perm_mask,
+                                                target_mapping=target_mapping,
+                                                token_type_ids=token_type_ids,
+                                                input_mask=input_mask,
+                                                head_mask=head_mask)
+            output = transformer_outputs[0]
 
         output = self.sequence_summary(output)
         logits = self.logits_proj(output)

@@ -1,11 +1,11 @@
-from transformers.modeling_albert import AlbertPreTrainedModel, AlbertModel, AlbertConfig
+from transformers.modeling_xlm import SequenceSummary, XLMModel, XLMPreTrainedModel
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
 
 
-class AlbertForSequenceClassification(AlbertPreTrainedModel):
-    """
+class XLMForSequenceClassification(XLMPreTrainedModel):
+    r"""
         **labels**: (`optional`) ``torch.LongTensor`` of shape ``(batch_size,)``:
             Labels for computing the sequence classification/regression loss.
             Indices should be in ``[0, ..., config.num_labels - 1]``.
@@ -24,42 +24,38 @@ class AlbertForSequenceClassification(AlbertPreTrainedModel):
             list of ``torch.FloatTensor`` (one for each layer) of shape ``(batch_size, num_heads, sequence_length, sequence_length)``:
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention heads.
     Examples::
-        tokenizer = AlbertTokenizer.from_pretrained('albert-base-v2')
-        model = AlbertForSequenceClassification.from_pretrained('albert-base-v2')
+        tokenizer = XLMTokenizer.from_pretrained('xlm-mlm-en-2048')
+        model = XLMForSequenceClassification.from_pretrained('xlm-mlm-en-2048')
         input_ids = torch.tensor(tokenizer.encode("Hello, my dog is cute")).unsqueeze(0)  # Batch size 1
         labels = torch.tensor([1]).unsqueeze(0)  # Batch size 1
         outputs = model(input_ids, labels=labels)
         loss, logits = outputs[:2]
     """
     def __init__(self, config, weight=None):
-        super(AlbertForSequenceClassification, self).__init__(config)
+        super(XLMForSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
-
-        self.albert = AlbertModel(config)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, self.config.num_labels)
         self.weight = weight
+
+        self.transformer = XLMModel(config)
+        self.sequence_summary = SequenceSummary(config)
 
         self.init_weights()
 
-    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None,
-                position_ids=None, head_mask=None, inputs_embeds=None, labels=None):
+    def forward(self, input_ids=None, attention_mask=None, langs=None, token_type_ids=None, position_ids=None,
+                lengths=None, cache=None, head_mask=None, inputs_embeds=None, labels=None):
+        transformer_outputs = self.transformer(input_ids,
+                                               attention_mask=attention_mask,
+                                               langs=langs,
+                                               token_type_ids=token_type_ids,
+                                               position_ids=position_ids,
+                                               lengths=lengths, 
+                                               cache=cache,
+                                               head_mask=head_mask)
 
-        outputs = self.albert(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds
-        )
+        output = transformer_outputs[0]
+        logits = self.sequence_summary(output)
 
-        pooled_output = outputs[1]
-
-        pooled_output = self.dropout(pooled_output)
-        logits = self.classifier(pooled_output)
-
-        outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
+        outputs = (logits,) + transformer_outputs[1:]  # Keep new_mems and attention/hidden states if they are here
 
         if labels is not None:
             if self.num_labels == 1:
@@ -71,4 +67,4 @@ class AlbertForSequenceClassification(AlbertPreTrainedModel):
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             outputs = (loss,) + outputs
 
-        return outputs  # (loss), logits, (hidden_states), (attentions)
+        return outputs

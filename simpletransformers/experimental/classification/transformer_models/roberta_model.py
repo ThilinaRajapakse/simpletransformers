@@ -1,14 +1,14 @@
-from transformers.modeling_albert import AlbertPreTrainedModel, AlbertModel, AlbertConfig
+from transformers.modeling_roberta import RobertaConfig, RobertaModel, RobertaClassificationHead, ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP, BertPreTrainedModel
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
 
 
-class AlbertForSequenceClassification(AlbertPreTrainedModel):
-    """
+class RobertaForSequenceClassification(BertPreTrainedModel):
+    r"""
         **labels**: (`optional`) ``torch.LongTensor`` of shape ``(batch_size,)``:
             Labels for computing the sequence classification/regression loss.
-            Indices should be in ``[0, ..., config.num_labels - 1]``.
+            Indices should be in ``[0, ..., config.num_labels]``.
             If ``config.num_labels == 1`` a regression loss is computed (Mean-Square loss),
             If ``config.num_labels > 1`` a classification loss is computed (Cross-Entropy).
     Outputs: `Tuple` comprising various elements depending on the configuration (config) and inputs:
@@ -24,43 +24,59 @@ class AlbertForSequenceClassification(AlbertPreTrainedModel):
             list of ``torch.FloatTensor`` (one for each layer) of shape ``(batch_size, num_heads, sequence_length, sequence_length)``:
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention heads.
     Examples::
-        tokenizer = AlbertTokenizer.from_pretrained('albert-base-v2')
-        model = AlbertForSequenceClassification.from_pretrained('albert-base-v2')
+        tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+        model = RobertaForSequenceClassification.from_pretrained('roberta-base')
         input_ids = torch.tensor(tokenizer.encode("Hello, my dog is cute")).unsqueeze(0)  # Batch size 1
         labels = torch.tensor([1]).unsqueeze(0)  # Batch size 1
         outputs = model(input_ids, labels=labels)
         loss, logits = outputs[:2]
     """
-    def __init__(self, config, weight=None):
-        super(AlbertForSequenceClassification, self).__init__(config)
+    config_class = RobertaConfig
+    pretrained_model_archive_map = ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+    base_model_prefix = "roberta"
+
+    def __init__(self, config, weight=None, sliding_window=False):
+        super(RobertaForSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
 
-        self.albert = AlbertModel(config)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.classifier = nn.Linear(config.hidden_size, self.config.num_labels)
+        self.roberta = RobertaModel(config)
+        self.classifier = RobertaClassificationHead(config)
         self.weight = weight
+        self.sliding_window = sliding_window
+    
+    def forward(self, input_ids, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None, inputs_embeds=None,
+                labels=None):
+        all_outputs = []
+        if self.sliding_window:
+            # input_ids is really the list of inputs for each "sequence window"
+            labels = input_ids[0]['labels']
+            for inputs in input_ids:
+                ids = inputs['input_ids']
+                attention_mask = inputs['attention_mask']
+                token_type_ids = inputs['token_type_ids']
+                outputs = self.roberta(
+                    ids,
+                    attention_mask=attention_mask, 
+                    token_type_ids=token_type_ids,
+                    position_ids=position_ids,
+                    head_mask=head_mask,
+                    inputs_embeds=inputs_embeds
+                )
+                all_outputs.append(outputs[0])
 
-        self.init_weights()
+            sequence_output = torch.mean(torch.stack(all_outputs), axis=0)
+        else:
+            outputs = self.roberta(input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids,
+                position_ids=position_ids,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds
+            )
+            sequence_output = outputs[0]
+        logits = self.classifier(sequence_output)
 
-    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None,
-                position_ids=None, head_mask=None, inputs_embeds=None, labels=None):
-
-        outputs = self.albert(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds
-        )
-
-        pooled_output = outputs[1]
-
-        pooled_output = self.dropout(pooled_output)
-        logits = self.classifier(pooled_output)
-
-        outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
-
+        outputs = (logits,) + outputs[2:]
         if labels is not None:
             if self.num_labels == 1:
                 #  We are doing regression
