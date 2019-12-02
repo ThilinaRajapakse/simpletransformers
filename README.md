@@ -891,6 +891,8 @@ The table below shows the currently available model types and their models. You 
 | BERT      | bert | bert-large-uncased-whole-word-masking-finetuned-squad | 24-layer, 1024-hidden, 16-heads, 340M parameters. <br>The bert-large-uncased-whole-word-masking model fine-tuned on SQuAD |
 | BERT      | bert | bert-large-cased-whole-word-masking-finetuned-squad | 24-layer, 1024-hidden, 16-heads, 340M parameters <br>The bert-large-cased-whole-word-masking model fine-tuned on SQuAD |
 | BERT      | bert | bert-base-cased-finetuned-mrpc | 12-layer, 768-hidden, 12-heads, 110M parameters. <br>The bert-base-cased model fine-tuned on MRPC |
+| BERT      | bert | bert-base-german-dbmdz-cased | 12-layer, 768-hidden, 12-heads, 110M parameters. Trained on cased German text by DBMDZ |
+| BERT      | bert | bert-base-german-dbmdz-uncased | 12-layer, 768-hidden, 12-heads, 110M parameters. Trained on uncased German text by DBMDZ |
 | XLNet      | xlnet | xlnet-base-cased | 12-layer, 768-hidden, 12-heads, 110M parameters. <br>XLNet English model |
 | XLNet      | xlnet | xlnet-large-cased | 24-layer, 1024-hidden, 16-heads, 340M parameters. <br>XLNet Large English model |
 | XLM      | xlm | xlm-mlm-en-2048 | 12-layer, 2048-hidden, 16-heads <br>XLM English model |
