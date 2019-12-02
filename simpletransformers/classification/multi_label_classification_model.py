@@ -22,7 +22,7 @@ from transformers import (
 
 
 class MultiLabelClassificationModel(ClassificationModel):
-    def __init__(self, model_type, model_name, num_labels=2, pos_weight=None, args=None, use_cuda=True):
+    def __init__(self, model_type, model_name, num_labels=None, pos_weight=None, args=None, use_cuda=True):
         """
         Initializes a MultiLabelClassification model.
 
@@ -44,8 +44,13 @@ class MultiLabelClassificationModel(ClassificationModel):
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        if num_labels:
+            self.config = config_class.from_pretrained(model_name, num_labels=num_labels)
+            self.num_labels = num_labels
+        else:
+            self.config = config_class.from_pretrained(model_name)
+            self.num_labels = self.config.num_labels
         self.tokenizer = tokenizer_class.from_pretrained(model_name)
-        self.num_labels = num_labels
         self.pos_weight = pos_weight
 
         if use_cuda:
@@ -57,9 +62,9 @@ class MultiLabelClassificationModel(ClassificationModel):
             self.device = "cpu"
 
         if self.pos_weight:
-            self.model = model_class.from_pretrained(model_name, num_labels=num_labels, pos_weight=torch.Tensor(self.pos_weight).to(self.device))
+            self.model = model_class.from_pretrained(model_name, config=self.config, pos_weight=torch.Tensor(self.pos_weight).to(self.device))
         else:
-            self.model = model_class.from_pretrained(model_name, num_labels=num_labels)
+            self.model = model_class.from_pretrained(model_name, config=self.config)
 
         self.results = {}
 

@@ -55,7 +55,7 @@ from simpletransformers.classification.transformer_models.camembert_model import
 
 
 class ClassificationModel:
-    def __init__(self, model_type, model_name, num_labels=2, weight=None, args=None, use_cuda=True):
+    def __init__(self, model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True):
         """
         Initializes a ClassificationModel model.
 
@@ -79,8 +79,13 @@ class ClassificationModel:
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        if num_labels:
+            self.config = config_class.from_pretrained(model_name, num_labels=num_labels)
+            self.num_labels = num_labels
+        else:
+            self.config = config_class.from_pretrained(model_name)
+            self.num_labels = self.config.num_labels
         self.tokenizer = tokenizer_class.from_pretrained(model_name)
-        self.num_labels = num_labels
         self.weight = weight
 
         if use_cuda:
@@ -92,9 +97,9 @@ class ClassificationModel:
             self.device = "cpu"
 
         if self.weight:
-            self.model = model_class.from_pretrained(model_name, num_labels=num_labels, weight=torch.Tensor(self.weight).to(self.device))
+            self.model = model_class.from_pretrained(model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device))
         else:
-            self.model = model_class.from_pretrained(model_name, num_labels=num_labels)
+            self.model = model_class.from_pretrained(model_name, config=self.config)
 
         self.results = {}
 
