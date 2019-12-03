@@ -259,11 +259,13 @@ class ClassificationModel:
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
                 loss = outputs[0]
-                if show_running_loss:
-                    print("\rRunning loss: %f" % loss, end="")
 
                 if args['n_gpu'] > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
+                    
+                if show_running_loss:
+                    print("\rRunning loss: %f" % loss, end="")
+
                 if args["gradient_accumulation_steps"] > 1:
                     loss = loss / args["gradient_accumulation_steps"]
 
