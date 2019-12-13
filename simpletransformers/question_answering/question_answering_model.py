@@ -582,7 +582,10 @@ class QuestionAnsweringModel:
         print(truth)
         for item in truth:
             for answer in item['qas']:
-                truth_dict[answer['id']] = answer['answers'][0]['text']
+                if answer['answers']:
+                    truth_dict[answer['id']] = answer['answers'][0]['text']
+                else:
+                    truth_dict[answer['id']] = ''
                 questions_dict[answer['id']] = answer['question']
 
         correct = 0

@@ -135,7 +135,7 @@ def get_examples(examples_to_process, is_training=True, version_2_with_negative=
             start_position = None
             end_position = None
             orig_answer_text = None
-            is_impossible = False
+            is_impossible = qa.get('is_impossible')
             if is_training:
                 if version_2_with_negative:
                     is_impossible = qa["is_impossible"]
