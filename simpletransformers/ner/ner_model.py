@@ -26,6 +26,7 @@ from torch.utils.data import (
 
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers import WEIGHTS_NAME, BertConfig, BertForTokenClassification, BertTokenizer
+from transformers import DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer
 try:
     from transformers import RobertaConfig, RobertaForTokenClassification, RobertaTokenizer
     roberta_available = True
@@ -59,11 +60,13 @@ class NERModel:
         if roberta_available:
             MODEL_CLASSES = {
                 'bert': (BertConfig, BertForTokenClassification, BertTokenizer),
-                'roberta': (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer)
+                'roberta': (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
+                'distilbert': (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
             }
         else:
             MODEL_CLASSES = {
                 'bert': (BertConfig, BertForTokenClassification, BertTokenizer),
+                'distilbert': (DistilBertConfig, DistilBertForTokenClassification, BertTokenizer),
             }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
@@ -229,9 +232,10 @@ class NERModel:
 
                 inputs = {"input_ids": batch[0],
                       "attention_mask": batch[1],
-                      "token_type_ids": batch[2] if args['model_type'] in ["bert", "xlnet"] else None,
-                      # XLM and RoBERTa don"t use segment_ids
                       "labels": batch[3]}
+                # XLM and RoBERTa don"t use segment_ids
+                if args['model_type'] in ["bert", "xlnet"]:
+                    inputs["token_type_ids"] = batch[2] 
 
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
@@ -353,9 +357,10 @@ class NERModel:
             with torch.no_grad():
                 inputs = {"input_ids": batch[0],
                       "attention_mask": batch[1],
-                      "token_type_ids": batch[2] if args['model_type'] in ["bert", "xlnet"] else None,
-                      # XLM and RoBERTa don"t use segment_ids
                       "labels": batch[3]}
+                # XLM and RoBERTa don"t use segment_ids
+                if args['model_type'] in ["bert", "xlnet"]:
+                    inputs["token_type_ids"] = batch[2] 
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
@@ -441,9 +446,10 @@ class NERModel:
             with torch.no_grad():
                 inputs = {"input_ids": batch[0],
                       "attention_mask": batch[1],
-                      "token_type_ids": batch[2] if args['model_type'] in ["bert", "xlnet"] else None,
-                      # XLM and RoBERTa don"t use segment_ids
                       "labels": batch[3]}
+                # XLM and RoBERTa don"t use segment_ids
+                if args['model_type'] in ["bert", "xlnet"]:
+                    inputs["token_type_ids"] = batch[2] 
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
