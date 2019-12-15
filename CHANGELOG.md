@@ -16,4 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.10.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0.10.6...0.10.7
+[0.10.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/68d359f...f562b8f5f87a6db96836c2158fc3b3c249269bdf
+
+[0.10.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0.10.6...68d359f
