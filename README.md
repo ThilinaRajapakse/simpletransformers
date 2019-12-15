@@ -314,6 +314,11 @@ This section describes how to use Simple Transformers for Named Entity Recogniti
 
 *This model can also be used for any other NLP task involving token level classification. Make sure you pass in your list of labels to the model if they are different from the defaults.*
 
+Supported model types:
+* BERT
+* RoBERTa
+* DistilBERT
+
 ```
 model = NERModel('bert', 'bert-base-cased', labels=["LABEL_1", "LABEL_2", "LABEL_3"])
 ```
