@@ -35,7 +35,7 @@ except ImportError:
 
 
 from simpletransformers.ner.ner_utils import InputExample, convert_examples_to_features, get_labels, read_examples_from_file, get_examples_from_df
-
+from transformers import CamembertConfig, CamembertForTokenClassification, CamembertTokenizer
 
 class NERModel:
     def __init__(self, model_type, model_name, labels=None, args=None, use_cuda=True):
@@ -59,11 +59,13 @@ class NERModel:
         if roberta_available:
             MODEL_CLASSES = {
                 'bert': (BertConfig, BertForTokenClassification, BertTokenizer),
-                'roberta': (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer)
+                'roberta': (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
+                'camembert': (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer)
             }
         else:
             MODEL_CLASSES = {
                 'bert': (BertConfig, BertForTokenClassification, BertTokenizer),
+                
             }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
