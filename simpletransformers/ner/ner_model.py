@@ -4,6 +4,7 @@ import os
 import math
 import json
 import random
+import warnings
 
 from multiprocessing import cpu_count
 
@@ -26,6 +27,8 @@ from torch.utils.data import (
 
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers import WEIGHTS_NAME, BertConfig, BertForTokenClassification, BertTokenizer
+from transformers import CamembertConfig, CamembertForTokenClassification, CamembertTokenizer
+
 try:
     from transformers import RobertaConfig, RobertaForTokenClassification, RobertaTokenizer
     roberta_available = True
@@ -35,7 +38,7 @@ except ImportError:
 
 
 from simpletransformers.ner.ner_utils import InputExample, convert_examples_to_features, get_labels, read_examples_from_file, get_examples_from_df
-from transformers import CamembertConfig, CamembertForTokenClassification, CamembertTokenizer
+
 
 class NERModel:
     def __init__(self, model_type, model_name, labels=None, args=None, use_cuda=True):
@@ -65,7 +68,7 @@ class NERModel:
         else:
             MODEL_CLASSES = {
                 'bert': (BertConfig, BertForTokenClassification, BertTokenizer),
-                
+                'camembert': (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer)
             }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
@@ -121,6 +124,10 @@ class NERModel:
 
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
+
+        if model_type == 'camembert':
+            warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
+            self.args['use_multiprocessing'] = False
 
         self.pad_token_label_id = CrossEntropyLoss().ignore_index
 
