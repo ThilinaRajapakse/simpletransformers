@@ -318,6 +318,7 @@ Supported model types:
 * BERT
 * RoBERTa
 * DistilBERT
+* CamemBERT
 
 ```
 model = NERModel('bert', 'bert-base-cased', labels=["LABEL_1", "LABEL_2", "LABEL_3"])
