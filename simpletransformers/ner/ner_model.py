@@ -4,6 +4,7 @@ import os
 import math
 import json
 import random
+import warnings
 
 from multiprocessing import cpu_count
 
@@ -114,6 +115,7 @@ class NERModel:
             'process_count': cpu_count() - 2 if cpu_count() > 2 else 1,
             'n_gpu': 1,
             'silent': False,
+            'use_multiprocessing': True,
         }
 
         if not use_cuda:
@@ -126,6 +128,10 @@ class NERModel:
         self.args['model_type'] = model_type
 
         self.pad_token_label_id = CrossEntropyLoss().ignore_index
+
+        if model_type == 'camembert':
+            warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
+            self.args['use_multiprocessing'] = False
 
     def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None):
         """
@@ -545,7 +551,8 @@ class NERModel:
                 pad_token_segment_id=4 if args["model_type"] in ["xlnet"] else 0,
                 pad_token_label_id=self.pad_token_label_id,
                 process_count=process_count,
-                silent=args['silent']
+                silent=args['silent'],
+                use_multiprocessing=args['use_multiprocessing']
             )
 
             if not no_cache:
