@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.11.2] - 2019-12-18
+### Fixed
+- Evaluation during training fixed for multilabel classification
+
 ## [0.11.1] - 2019-12-18
 ### Fixed
 - Broken multiprocessing support for NER tasks fixed.
@@ -27,7 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.11.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/191e2f0...HEAD
+[0.11.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bbc9d22...HEAD
+
+[0.11.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/191e2f0...bbc9d22
 
 [0.11.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/92d08ae...191e2f0
 
