@@ -14,7 +14,7 @@ model = MultiLabelClassificationModel('roberta', 'roberta-base', num_labels=6, a
 print(train_df.head())
 
 # Train the model
-model.train_model(train_df, output_dir=)
+model.train_model(train_df)
 
 # Evaluate the model
 result, model_outputs, wrong_predictions = model.eval_model(eval_df)
