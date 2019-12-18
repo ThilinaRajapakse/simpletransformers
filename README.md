@@ -73,6 +73,9 @@ _The file structure has been updated starting with version 0.6.0. This should on
 
 ---
 
+### Example scripts
+Sample scripts containing the example code below are provided in the `./examples` directory.
+
 ## Text Classification
 
 Supports Binary Classification, Multiclass Classification, and Multilabel Classification.
