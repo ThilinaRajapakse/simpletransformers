@@ -5,6 +5,8 @@
 
 This library is based on the [Transformers](https://github.com/huggingface/transformers) library by HuggingFace. Simple Transformers lets you quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate a model. Currently supports Sequence Classification, Token Classification (NER), and Question Answering.
 
+#### [Changelog](https://github.com/ThilinaRajapakse/simpletransformers/blob/master/CHANGELOG.md)
+
 
 Table of contents
 =================
@@ -302,6 +304,12 @@ Returns:
 This section describes how to use Simple Transformers for Named Entity Recognition. (If you are updating from a Simple Transformers before 0.5.0, note that `seqeval` needs to be installed to perform NER.)
 
 *This model can also be used for any other NLP task involving token level classification. Make sure you pass in your list of labels to the model if they are different from the defaults.*
+
+Supported model types:
+* BERT
+* RoBERTa
+* DistilBERT
+* CamemBERT
 
 ```
 model = NERModel('bert', 'bert-base-cased', labels=["LABEL_1", "LABEL_2", "LABEL_3"])

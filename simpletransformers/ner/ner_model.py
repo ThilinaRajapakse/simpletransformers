@@ -4,6 +4,7 @@ import os
 import math
 import json
 import random
+import warnings
 
 from multiprocessing import cpu_count
 
@@ -26,6 +27,7 @@ from torch.utils.data import (
 
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers import WEIGHTS_NAME, BertConfig, BertForTokenClassification, BertTokenizer
+from transformers import DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer
 try:
     from transformers import RobertaConfig, RobertaForTokenClassification, RobertaTokenizer
     roberta_available = True
@@ -35,7 +37,7 @@ except ImportError:
 
 
 from simpletransformers.ner.ner_utils import InputExample, convert_examples_to_features, get_labels, read_examples_from_file, get_examples_from_df
-
+from transformers import CamembertConfig, CamembertForTokenClassification, CamembertTokenizer
 
 class NERModel:
     def __init__(self, model_type, model_name, labels=None, args=None, use_cuda=True):
@@ -59,11 +61,15 @@ class NERModel:
         if roberta_available:
             MODEL_CLASSES = {
                 'bert': (BertConfig, BertForTokenClassification, BertTokenizer),
-                'roberta': (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer)
+                'roberta': (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
+                'distilbert': (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
+                'camembert': (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer)
             }
         else:
             MODEL_CLASSES = {
                 'bert': (BertConfig, BertForTokenClassification, BertTokenizer),
+                'distilbert': (DistilBertConfig, DistilBertForTokenClassification, BertTokenizer),
+                'camembert': (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer)
             }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
@@ -109,6 +115,7 @@ class NERModel:
             'process_count': cpu_count() - 2 if cpu_count() > 2 else 1,
             'n_gpu': 1,
             'silent': False,
+            'use_multiprocessing': True,
         }
 
         if not use_cuda:
@@ -121,6 +128,10 @@ class NERModel:
         self.args['model_type'] = model_type
 
         self.pad_token_label_id = CrossEntropyLoss().ignore_index
+
+        if model_type == 'camembert':
+            warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
+            self.args['use_multiprocessing'] = False
 
     def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None):
         """
@@ -229,9 +240,10 @@ class NERModel:
 
                 inputs = {"input_ids": batch[0],
                       "attention_mask": batch[1],
-                      "token_type_ids": batch[2] if args['model_type'] in ["bert", "xlnet"] else None,
-                      # XLM and RoBERTa don"t use segment_ids
                       "labels": batch[3]}
+                # XLM and RoBERTa don"t use segment_ids
+                if args['model_type'] in ["bert", "xlnet"]:
+                    inputs["token_type_ids"] = batch[2] 
 
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
@@ -353,9 +365,10 @@ class NERModel:
             with torch.no_grad():
                 inputs = {"input_ids": batch[0],
                       "attention_mask": batch[1],
-                      "token_type_ids": batch[2] if args['model_type'] in ["bert", "xlnet"] else None,
-                      # XLM and RoBERTa don"t use segment_ids
                       "labels": batch[3]}
+                # XLM and RoBERTa don"t use segment_ids
+                if args['model_type'] in ["bert", "xlnet"]:
+                    inputs["token_type_ids"] = batch[2] 
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
@@ -441,9 +454,10 @@ class NERModel:
             with torch.no_grad():
                 inputs = {"input_ids": batch[0],
                       "attention_mask": batch[1],
-                      "token_type_ids": batch[2] if args['model_type'] in ["bert", "xlnet"] else None,
-                      # XLM and RoBERTa don"t use segment_ids
                       "labels": batch[3]}
+                # XLM and RoBERTa don"t use segment_ids
+                if args['model_type'] in ["bert", "xlnet"]:
+                    inputs["token_type_ids"] = batch[2] 
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
@@ -537,7 +551,8 @@ class NERModel:
                 pad_token_segment_id=4 if args["model_type"] in ["xlnet"] else 0,
                 pad_token_label_id=self.pad_token_label_id,
                 process_count=process_count,
-                silent=args['silent']
+                silent=args['silent'],
+                use_multiprocessing=args['use_multiprocessing']
             )
 
             if not no_cache:
