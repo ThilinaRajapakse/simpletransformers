@@ -2,38 +2,35 @@
 
 # Simple Transformers
 
-
 This library is based on the [Transformers](https://github.com/huggingface/transformers) library by HuggingFace. Simple Transformers lets you quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate a model. Currently supports Sequence Classification, Token Classification (NER), and Question Answering.
 
-
-Table of contents
-=================
+# Table of contents
 
 <!--ts-->
-   * [Setup](#Setup)
-      * [With Conda](#with-conda)
-   * [Usage](#usage)
-     * [Text Classification](#text-classification)
-       * [Minimal Start for Binary Classification](#minimal-start-for-binary-classification)
-       * [Minimal Start for Multiclass Classification](#minimal-start-for-multiclass-classification)
-       * [Minimal Start for Multilabel Classification](#minimal-start-for-multilabel-classification)
-       * [Real Dataset Examples](#real-dataset-examples)
-       * [ClassificationModel](#classificationmodel)
-     * [Named Entity Recognition](#named-entity-recognition)
-       * [Minimal Start](#minimal-start)
-       * [Real Dataset Examples](#real-dataset-examples-1)
-       * [NERModel](#nermodel)
-     * [Question Answering](#question-answering)
-       * [Data Format](#data-format)
-       * [Minimal Start](#minimal-example)
-       * [Real Dataset Examples](#real-dataset-examples-2)
-       * [QuestionAnsweringModel](#questionansweringmodel)
-     * [Experimental Features](#experimental-features)
-       * [Sliding Window For Long Sequences](#sliding-window-for-long-sequences)
-     * [Loading Saved Models](#loading-saved-models)
-     * [Default Settings](#default-settings)
-     * [Current Pretrained Models](#current-pretrained-models)
-   * [Acknowledgements](#acknowledgements)
+* [Setup](#Setup)
+    * [With Conda](#with-conda)
+* [Usage](#usage)
+    * [Text Classification](#text-classification)
+    * [Minimal Start for Binary Classification](#minimal-start-for-binary-classification)
+    * [Minimal Start for Multiclass Classification](#minimal-start-for-multiclass-classification)
+    * [Minimal Start for Multilabel Classification](#minimal-start-for-multilabel-classification)
+    * [Real Dataset Examples](#real-dataset-examples)
+    * [ClassificationModel](#classificationmodel)
+    * [Named Entity Recognition](#named-entity-recognition)
+    * [Minimal Start](#minimal-start)
+    * [Real Dataset Examples](#real-dataset-examples-1)
+    * [NERModel](#nermodel)
+    * [Question Answering](#question-answering)
+    * [Data Format](#data-format)
+    * [Minimal Start](#minimal-example)
+    * [Real Dataset Examples](#real-dataset-examples-2)
+    * [QuestionAnsweringModel](#questionansweringmodel)
+    * [Experimental Features](#experimental-features)
+    * [Sliding Window For Long Sequences](#sliding-window-for-long-sequences)
+    * [Loading Saved Models](#loading-saved-models)
+    * [Default Settings](#default-settings)
+    * [Current Pretrained Models](#current-pretrained-models)
+* [Acknowledgements](#acknowledgements)
 <!--te-->
 
 ## Setup
@@ -81,6 +78,7 @@ _The file structure has been updated starting with version 0.6.0. This should on
 Supports Binary Classification, Multiclass Classification, and Multilabel Classification.
 
 Supported model types:
+
 * BERT
 * RoBERTa
 * XLNet
@@ -88,6 +86,11 @@ Supported model types:
 * DistilBERT
 * ALBERT
 * CamemBERT @[manueltonneau](https://github.com/manueltonneau)
+
+### Task Specific Notes
+
+* Set `'sliding_window': True` in `args` to prevent text being truncated. The default *stride* is `'stride': 0.8` which is `0.8 * max_seq_length`. Training text will be split using a sliding window and each window will be assigned the label from the orignal text. During evaluation and prediction, the mode of the predictions for each window will be the final prediction on each sample. The `tie_value` (default `1`) will be used in the case of a tie.  
+*Currently not available for Multilabel Classification*
 
 #### Minimal Start for Binary Classification
 

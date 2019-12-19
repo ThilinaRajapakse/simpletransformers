@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.13.0] - 2019-12-19
+### Added
+- Sliding window feature for Binary and Multiclass Classification tasks.
+
 ## [0.12.0] - 2019-12-19
 ### Added
 - Minimal examples have been added to the `examples` directory as Python scripts.
@@ -39,7 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.12.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/04c1c06...HEAD
+[0.13.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/04886b5...HEAD
+
+[0.12.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/04c1c06...04886b5
 
 [0.11.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bbc9d22...04c1c06
 

@@ -15,7 +15,7 @@ from multiprocessing import cpu_count
 import torch
 import numpy as np
 
-from scipy.stats import pearsonr
+from scipy.stats import pearsonr, mode
 from sklearn.metrics import mean_squared_error, matthews_corrcoef, confusion_matrix, label_ranking_average_precision_score
 from tensorboardX import SummaryWriter
 from tqdm.auto import trange, tqdm
@@ -132,6 +132,10 @@ class ClassificationModel:
             'n_gpu': 1,
             'use_multiprocessing': True,
             'silent': False,
+
+            'sliding_window': False,
+            'tie_value': 1,
+            'stride': 0.8
         }
 
         if not use_cuda:
@@ -364,7 +368,10 @@ class ClassificationModel:
         else:
             eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))]
 
-        eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True)
+        if args['sliding_window']:
+            eval_dataset, window_counts = self.load_and_cache_examples(eval_examples, evaluate=True)
+        else:
+            eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True)
         if not os.path.exists(eval_output_dir):
             os.makedirs(eval_output_dir)
 
@@ -402,10 +409,33 @@ class ClassificationModel:
                     out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
 
         eval_loss = eval_loss / nb_eval_steps
-        model_outputs = preds
 
-        if not multi_label:
-            preds = np.argmax(preds, axis=1)
+        if args['sliding_window']:
+            count = 0
+            window_ranges = []
+            for n_windows in window_counts:
+                window_ranges.append([count, count + n_windows])
+                count += n_windows
+
+            preds = [preds[window_range[0]: window_range[1]] for window_range in window_ranges]
+            out_label_ids = [out_label_ids[i] for i in range(len(out_label_ids)) if i in [window[0] for window in window_ranges]]
+
+            model_outputs = preds
+
+            preds = [np.argmax(pred, axis=1)[0] for pred in preds]
+            final_preds = []
+            for pred_row in preds:
+                mode_pred, counts = mode(pred_row)
+                if len(counts) > 1 and counts[0] == counts[1]:
+                        final_preds.append(args['tie_value'])
+                else:
+                    final_preds.append(mode_pred[0])
+            preds = np.array(final_preds)
+        else:
+            model_outputs = preds
+
+            if not multi_label:
+                preds = np.argmax(preds, axis=1)
 
         result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples, **kwargs)
         result['eval_loss'] = eval_loss
@@ -462,11 +492,18 @@ class ClassificationModel:
                 process_count=process_count,
                 multi_label=multi_label,
                 silent=args['silent'],
-                use_multiprocessing=args['use_multiprocessing']
+                use_multiprocessing=args['use_multiprocessing'],
+                sliding_window=args['sliding_window'],
+                flatten=not evaluate,
+                stride=args['stride']
             )
 
             if not no_cache:
                 torch.save(features, cached_features_file)
+
+        if args['sliding_window'] and evaluate:
+            window_counts = [len(sample) for sample in features]
+            features = [feature for feature_set in features for feature in feature_set]
 
         all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
         all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
@@ -479,7 +516,10 @@ class ClassificationModel:
 
         dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
-        return dataset
+        if args['sliding_window'] and evaluate:
+            return dataset, window_counts
+        else:
+            return dataset
 
     def compute_metrics(self, preds, labels, eval_examples, multi_label=False, **kwargs):
         """
@@ -504,6 +544,7 @@ class ClassificationModel:
             extra_metrics[metric] = func(labels, preds)
 
         mismatched = labels != preds
+
         wrong = [i for (i, v) in zip(eval_examples, mismatched) if v.any()]
 
         if multi_label:
@@ -549,8 +590,10 @@ class ClassificationModel:
             eval_examples = [InputExample(i, text, None, [0 for i in range(self.num_labels)]) for i, text in enumerate(to_predict)]
         else:
             eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
-
-        eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, multi_label=multi_label, no_cache=True)
+        if args['sliding_window']:
+            eval_dataset, window_counts = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
+        else:
+            eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, multi_label=multi_label, no_cache=True)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
@@ -584,15 +627,37 @@ class ClassificationModel:
                 out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
 
         eval_loss = eval_loss / nb_eval_steps
-        model_outputs = preds
-        if multi_label:
-            if isinstance(args['threshold'], list):
-                threshold_values = args['threshold']
-                preds = [[self._threshold(pred, threshold_values[i]) for i, pred in enumerate(example)] for example in preds]
-            else:
-                preds = [[self._threshold(pred, args['threshold']) for pred in example] for example in preds]
+
+        if args['sliding_window']:
+            count = 0
+            window_ranges = []
+            for n_windows in window_counts:
+                window_ranges.append([count, count + n_windows])
+                count += n_windows
+
+            preds = [preds[window_range[0]: window_range[1]] for window_range in window_ranges]
+
+            model_outputs = preds
+
+            preds = [np.argmax(pred, axis=1)[0] for pred in preds]
+            final_preds = []
+            for pred_row in preds:
+                mode_pred, counts = mode(pred_row)
+                if len(counts) > 1 and counts[0] == counts[1]:
+                        final_preds.append(args['tie_value'])
+                else:
+                    final_preds.append(mode_pred[0])
+            preds = np.array(final_preds)
         else:
-            preds = np.argmax(preds, axis=1)
+            model_outputs = preds
+            if multi_label:
+                if isinstance(args['threshold'], list):
+                    threshold_values = args['threshold']
+                    preds = [[self._threshold(pred, threshold_values[i]) for i, pred in enumerate(example)] for example in preds]
+                else:
+                    preds = [[self._threshold(pred, args['threshold']) for pred in example] for example in preds]
+            else:
+                preds = np.argmax(preds, axis=1)
 
         return preds, model_outputs
 
