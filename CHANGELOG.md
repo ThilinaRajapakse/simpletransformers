@@ -5,9 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.12.0] - 2019-12-19
+### Added
+- Minimal examples have been added to the `examples` directory as Python scripts.
+
+### Changed
+- Readme updated to include the addition of examples.
+
 ## [0.11.2] - 2019-12-18
 ### Fixed
-- Evaluation during training fixed for multilabel classification
+- Evaluation during training fixed for multilabel classification.
 
 ## [0.11.1] - 2019-12-18
 ### Fixed
@@ -15,24 +22,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.11.0] - 2019-12-15
 ### Added
-- CamemBERT can now be used with NERModel
+- CamemBERT can now be used with NERModel.
 
 ### Changed
-- Readme changed to include CamemBERT for NER
+- Readme changed to include CamemBERT for NER.
 
 ## [0.10.8] - 2019-12-15
 ### Added
-- DistilBERT can now be used with NERModel
+- DistilBERT can now be used with NERModel.
 
 ### Changed
-- Readme changed to include DistilBERT for NER
+- Readme changed to include DistilBERT for NER.
 
 ## [0.10.7] - 2019-12-15
 ### Added
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.11.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bbc9d22...HEAD
+[0.12.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/04c1c06...HEAD
+
+[0.11.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bbc9d22...04c1c06
 
 [0.11.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/191e2f0...bbc9d22
 
