@@ -101,6 +101,9 @@ class MultiLabelClassificationModel(ClassificationModel):
             'threshold': 0.5
         }
 
+        args['sliding_window'] = False
+        args['stride'] = False
+
         if not use_cuda:
             self.args['fp16'] = False
 

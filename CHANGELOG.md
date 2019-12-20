@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.1] - 2019-12-20
+### Fixed
+- Bug in Multilabel Classification due to missing entries in default args dict.
 
 ## [0.13.0] - 2019-12-19
 ### Added
@@ -43,7 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.13.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/04886b5...HEAD
+[0.13.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1ee6093...HEAD
+
+[0.13.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/04886b5...1ee6093
 
 [0.12.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/04c1c06...04886b5
 
