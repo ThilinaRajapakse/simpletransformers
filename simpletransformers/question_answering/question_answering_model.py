@@ -337,7 +337,7 @@ class QuestionAnsweringModel:
                         # Log metrics
                         if args['evaluate_during_training']:
                         # Only evaluate when single GPU otherwise metrics may not average well
-                            results, _, _ = self.eval_model(eval_data, verbose=True)
+                            results, _ = self.eval_model(eval_data, verbose=True)
                             for key, value in results.items():
                                 tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)

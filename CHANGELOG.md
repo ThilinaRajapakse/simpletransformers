@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.4] - 2019-12-21
+### Fixed
+- Fixed bug with when using `eval_during_training` with QuestionAnswering model.
 
 ## [0.13.3] - 2019-12-21
 ### Fixed
@@ -56,7 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.13.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b3283da...HEAD
+[0.13.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b6e0573...HEAD
+
+[0.13.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b3283da...b6e0573
 
 [0.13.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/897ef9f...b3283da
 
