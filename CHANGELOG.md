@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2019-12-24
+### Added
+- Added `evaluate_during_training_steps` parameter that specifies when evaluation should be performed during training.
+
+### Changed
+- A model checkpoint will be created for each evaluation during training and the evaluation results will be saved along with the model.
+
 ## [0.14.0] - 2019-12-24
 ### Added
 - Added option to specify a GPU to be used when multiple GPUs are available. E.g.: `cuda_device=1`
@@ -67,7 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.14.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/785ee04...HEAD
+[0.15.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/aa06528...HEAD
+
+[0.14.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/785ee04...aa06528
 
 [0.13.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b6e0573...785ee04
 

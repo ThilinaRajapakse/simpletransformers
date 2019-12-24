@@ -107,6 +107,7 @@ class QuestionAnsweringModel:
             'logging_steps': 50,
             'save_steps': 2000,
             'evaluate_during_training': False,
+            'evaluate_during_training_steps': 2000,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -293,6 +294,7 @@ class QuestionAnsweringModel:
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args['silent'])
+        epoch_number = 0
 
         model.train()
         for _ in train_iterator:
@@ -342,11 +344,6 @@ class QuestionAnsweringModel:
 
                     if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
                         # Log metrics
-                        if args['evaluate_during_training']:
-                        # Only evaluate when single GPU otherwise metrics may not average well
-                            results, _ = self.eval_model(eval_data, verbose=True)
-                            for key, value in results.items():
-                                tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
                         tb_writer.add_scalar("loss", (tr_loss - logging_loss)/args["logging_steps"], global_step)
                         logging_loss = tr_loss
@@ -363,6 +360,43 @@ class QuestionAnsweringModel:
                         model_to_save.save_pretrained(output_dir_current)
                         self.tokenizer.save_pretrained(output_dir_current)
 
+                    if args['evaluate_during_training'] and (args["evaluate_during_training_steps"] > 0 and global_step % args["evaluate_during_training_steps"] == 0):
+                    # Only evaluate when single GPU otherwise metrics may not average well
+                        results, _, _ = self.eval_model(eval_df, verbose=True)
+                        for key, value in results.items():
+                            tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
+
+                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
+
+                        if not os.path.exists(output_dir_current):
+                            os.makedirs(output_dir_current)
+
+                        model_to_save = model.module if hasattr(model, "module") else model
+                        model_to_save.save_pretrained(output_dir_current)
+                        self.tokenizer.save_pretrained(output_dir_current)
+
+                        output_eval_file = os.path.join(output_dir_current, "eval_results.txt")
+                        with open(output_eval_file, "w") as writer:
+                            for key in sorted(results.keys()):
+                                writer.write("{} = {}\n".format(key, str(results[key])))
+
+            epoch_number += 1
+            output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))
+
+            if not os.path.exists(output_dir_current):
+                os.makedirs(output_dir_current)
+
+            model_to_save = model.module if hasattr(model, "module") else model
+            model_to_save.save_pretrained(output_dir_current)
+            self.tokenizer.save_pretrained(output_dir_current)
+
+            if args['evaluate_during_training']:
+                results, _, _ = self.eval_model(eval_df, verbose=True)
+
+                output_eval_file = os.path.join(output_dir_current, "eval_results.txt")
+                with open(output_eval_file, "w") as writer:
+                    for key in sorted(results.keys()):
+                        writer.write("{} = {}\n".format(key, str(results[key])))
 
         return global_step, tr_loss / global_step
 

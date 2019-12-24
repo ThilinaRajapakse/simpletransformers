@@ -805,9 +805,8 @@ self.args = {
 
   'logging_steps': 50,
   'evaluate_during_training': False,
+  'evaluate_during_training_steps': 2000,
   'save_steps': 2000,
-  'eval_all_checkpoints': True,
-  'use_tensorboard': True,
 
   'overwrite_output_dir': False,
   'reprocess_input_data': False,
@@ -862,6 +861,12 @@ Maximum gradient clipping.
 
 #### *do_lower_case: bool*
 Set to True when using uncased models.
+
+#### *evaluate_during_training*
+Set to True to perform evaluation while training models. Make sure `eval_df` is passed to the training method if enabled.
+
+#### *evaluate_during_training_steps*
+Perform evaluation at every specified number of steps. A checkpoint model and the evaluation results will be saved.
 
 #### *logging_steps: int*
 Log training loss and learning at every specified number of steps.
