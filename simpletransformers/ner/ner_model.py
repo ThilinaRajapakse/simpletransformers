@@ -40,7 +40,7 @@ from simpletransformers.ner.ner_utils import InputExample, convert_examples_to_f
 from transformers import CamembertConfig, CamembertForTokenClassification, CamembertTokenizer
 
 class NERModel:
-    def __init__(self, model_type, model_name, labels=None, args=None, use_cuda=True):
+    def __init__(self, model_type, model_name, labels=None, args=None, use_cuda=True, cuda_device=-1):
         """
         Initializes a NERModel
 
@@ -50,6 +50,7 @@ class NERModel:
             labels (optional): A list of all Named Entity labels.  If not given, ["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"] will be used.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
+            cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
         """
 
         if labels:
@@ -74,12 +75,14 @@ class NERModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name)
         self.model = model_class.from_pretrained(model_name, num_labels=self.num_labels)
 
         if use_cuda:
             if torch.cuda.is_available():
-                self.device = torch.device("cuda")
+                if cuda_device == -1:
+                    self.device = torch.device("cuda")
+                else:
+                    self.device = torch.device(f"cuda:{cuda_device}")
             else:
                 raise ValueError("'use_cuda' set to True when cuda is unavailable. Make sure CUDA is available or set use_cuda=False.")
         else:
@@ -104,6 +107,7 @@ class NERModel:
             'warmup_ratio': 0.06,
             'warmup_steps': 0,
             'max_grad_norm': 1.0,
+            'do_lower_case': False,
 
             'logging_steps': 50,
             'save_steps': 2000,
@@ -123,6 +127,8 @@ class NERModel:
 
         if args:
             self.args.update(args)
+
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'])
 
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
@@ -170,10 +176,10 @@ class NERModel:
 
         train_dataset = self.load_and_cache_examples(train_data)
 
-        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df)
-
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
+
+        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df)
 
         model_to_save = self.model.module if hasattr(self.model, "module") else self.model
         model_to_save.save_pretrained(output_dir)

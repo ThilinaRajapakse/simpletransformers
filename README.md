@@ -801,6 +801,7 @@ self.args = {
   'warmup_ratio': 0.06,
   'warmup_steps': 0,
   'max_grad_norm': 1.0,
+  'do_lower_case': False,
 
   'logging_steps': 50,
   'evaluate_during_training': False,
@@ -858,6 +859,9 @@ Epsilon hyperparameter used in AdamOptimizer.
 
 #### *max_grad_norm: float*
 Maximum gradient clipping.
+
+#### *do_lower_case: bool*
+Set to True when using uncased models.
 
 #### *logging_steps: int*
 Log training loss and learning at every specified number of steps.

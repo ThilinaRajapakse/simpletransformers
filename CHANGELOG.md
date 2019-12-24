@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2019-12-24
+### Added
+- Added option to specify a GPU to be used when multiple GPUs are available. E.g.: `cuda_device=1`
+- Added `do_lower_case` argument for uncased models.
+
+### Fixed
+- Fixed possible bug with output directory not being created before evaluation is run when using `evaluate_during_training`.
+
 ## [0.13.4] - 2019-12-21
 ### Fixed
 - Fixed bug with when using `eval_during_training` with QuestionAnswering model.
@@ -59,7 +67,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.13.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b6e0573...HEAD
+[0.14.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/785ee04...HEAD
+
+[0.13.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b6e0573...785ee04
 
 [0.13.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b3283da...b6e0573
 

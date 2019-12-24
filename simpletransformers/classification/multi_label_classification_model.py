@@ -50,7 +50,6 @@ class MultiLabelClassificationModel(ClassificationModel):
         else:
             self.config = config_class.from_pretrained(model_name)
             self.num_labels = self.config.num_labels
-        self.tokenizer = tokenizer_class.from_pretrained(model_name)
         self.pos_weight = pos_weight
 
         if use_cuda:
@@ -85,6 +84,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             'warmup_ratio': 0.06,
             'warmup_steps': 0,
             'max_grad_norm': 1.0,
+            'do_lower_case': False,
 
             'logging_steps': 50,
             'save_steps': 2000,
@@ -109,6 +109,8 @@ class MultiLabelClassificationModel(ClassificationModel):
 
         if args:
             self.args.update(args)
+
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'])
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
