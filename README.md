@@ -927,6 +927,8 @@ The table below shows the currently available model types and their models. You 
 | XLM      | xlm | xlm-clm-ende-1024 | 6-layer, 1024-hidden, 8-heads <br>XLM English-German Multi-language model trained with CLM (Causal Language Modeling) |
 | RoBERTa      | roberta | roberta-base | 125M parameters <br>RoBERTa using the BERT-base architecture |
 | RoBERTa      | roberta | roberta-large | 24-layer, 1024-hidden, 16-heads, 355M parameters <br>RoBERTa using the BERT-large architecture |
+| RoBERTa      | roberta | roberta-base-openai-detector | 12-layer, 768-hidden, 12-heads, 125M parameters `roberta-base` fine-tuned by OpenAI on the outputs of the 1.5B-parameter GPT-2 model.|
+| RoBERTa      | roberta | roberta-large-openai-detector | 24-layer, 1024-hidden, 16-heads, 355M parameters `roberta-large` fine-tuned by OpenAI on the outputs of the 1.5B-parameter GPT-2 model.|
 | DistilBERT   | distilbert | distilbert-base-uncased| 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-uncased checkpoint |
 | DistilBERT   | distilbert | distilbert-base-uncased-distilled-squad | 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-uncased checkpoint, with an additional linear layer.|
 | DistilBERT German   | distilbert | distilbert-base-german-cased | 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-cased checkpoint on German data.|
