@@ -131,6 +131,7 @@ class ClassificationModel:
             'logging_steps': 50,
             'save_steps': 2000,
             'evaluate_during_training': False,
+            'tensorboard_folder': None,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -149,11 +150,11 @@ class ClassificationModel:
 
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
-        
+
         if model_type == 'camembert':
             warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
             self.args['use_multiprocessing'] = False
-            
+
         if self.args['stride'] and not sliding_window:
             warnings.warn("Stride argument specified but sliding_window is disabled. Stride will be ignored.")
 
@@ -195,7 +196,6 @@ class ClassificationModel:
         else:
             train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))]
 
-        
         train_dataset = self.load_and_cache_examples(train_examples)
         global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df)
 
@@ -209,7 +209,6 @@ class ClassificationModel:
 
         print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-    
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None):
         """
         Trains the model on train_dataset.
@@ -222,7 +221,7 @@ class ClassificationModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter()
+        tb_writer = SummaryWriter(logdir=args["tensorboard_folder"])
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
 
@@ -298,7 +297,7 @@ class ClassificationModel:
                     if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
                         # Log metrics
                         if args['evaluate_during_training']:
-                        # Only evaluate when single GPU otherwise metrics may not average well
+                            # Only evaluate when single GPU otherwise metrics may not average well
                             results, _, _ = self.eval_model(eval_df, verbose=True)
                             for key, value in results.items():
                                 tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
@@ -318,9 +317,7 @@ class ClassificationModel:
                         model_to_save.save_pretrained(output_dir_current)
                         self.tokenizer.save_pretrained(output_dir_current)
 
-
         return global_step, tr_loss / global_step
-
 
     def eval_model(self, eval_df, multi_label=False, output_dir=None, verbose=False, **kwargs):
         """
@@ -353,7 +350,6 @@ class ClassificationModel:
 
         return result, model_outputs, wrong_preds
 
-
     def evaluate(self, eval_df, output_dir, multi_label=False, prefix="", **kwargs):
         """
         Evaluates the model on eval_df.
@@ -368,7 +364,6 @@ class ClassificationModel:
         eval_output_dir = output_dir
 
         results = {}
-           
 
         if 'text' in eval_df.columns and 'labels' in eval_df.columns:
             eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df['text'], eval_df['labels']))]
@@ -398,10 +393,10 @@ class ClassificationModel:
                     outputs = model(inputs)
                 else:
                     outputs = model(**inputs)
-                
+
                 tmp_eval_loss, logits = outputs[:2]
 
-                if  multi_label:
+                if multi_label:
                     logits = logits.sigmoid()
                 eval_loss += tmp_eval_loss.mean().item()
 
@@ -440,7 +435,6 @@ class ClassificationModel:
                 writer.write("{} = {}\n".format(key, str(result[key])))
 
         return results, model_outputs, wrong
-
 
     def load_and_cache_examples(self, examples, evaluate=False, no_cache=False, multi_label=False):
         """
@@ -497,7 +491,8 @@ class ClassificationModel:
             # features = pad_sequence([torch.tensor(features_per_sequence) for features_per_sequence in features])
             all_input_ids = pad_sequence([torch.tensor([f.input_ids for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
             all_input_mask = pad_sequence([torch.tensor([f.input_mask for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
-            all_segment_ids = pad_sequence([torch.tensor([f.segment_ids for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
+            all_segment_ids = pad_sequence([torch.tensor([f.segment_ids for f in features_per_sequence], dtype=torch.long)
+                                            for features_per_sequence in features], batch_first=True)
 
             # all_input_ids = torch.tensor([f.input_ids for feature in features for f in feature], dtype=torch.long)
             # all_input_mask = torch.tensor([f.input_mask for feature in features for f in feature], dtype=torch.long)
@@ -506,7 +501,8 @@ class ClassificationModel:
             if output_mode == "classification":
                 all_label_ids = pad_sequence([torch.tensor([f.label_id for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
             elif output_mode == "regression":
-                all_label_ids = pad_sequence([torch.tensor([f.label_id for f in features_per_sequence], dtype=torch.float) for features_per_sequence in features], batch_first=True)
+                all_label_ids = pad_sequence([torch.tensor([f.label_id for f in features_per_sequence], dtype=torch.float)
+                                              for features_per_sequence in features], batch_first=True)
         else:
             all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
             all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
@@ -549,7 +545,6 @@ class ClassificationModel:
         if multi_label:
             label_ranking_score = label_ranking_average_precision_score(labels, preds)
             return {**{"LRAP": label_ranking_score}, **extra_metrics}, wrong
-
 
         mcc = matthews_corrcoef(labels, preds)
 
@@ -614,7 +609,7 @@ class ClassificationModel:
 
                 tmp_eval_loss, logits = outputs[:2]
 
-                if  multi_label:
+                if multi_label:
                     logits = logits.sigmoid()
 
                 eval_loss += tmp_eval_loss.mean().item()
@@ -651,16 +646,13 @@ class ClassificationModel:
 
         return preds, model_outputs
 
-
     def _threshold(self, x, threshold):
         if x >= threshold:
             return 1
         return 0
 
-
     def _move_model_to_device(self):
         self.model.to(self.device)
-
 
     def _get_inputs_dict(self, batch):
         if self.sliding_window:
@@ -672,7 +664,6 @@ class ClassificationModel:
             if self.args["model_type"] != "distilbert":
                 tokens = batch[2].permute(1, 0, 2) if self.args["model_type"] in ["bert", "xlnet"] else None
 
-            
             for i in range(len(labels)):
                 input_single = {
                     "input_ids":      inputs[i],
