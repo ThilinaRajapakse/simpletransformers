@@ -78,9 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.15.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/master...hammad26:feature/accuracy_metrics_training_time
+[0.15.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2c1e5e0...HEAD
 
-[0.15.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/aa06528...HEAD
+[0.15.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/aa06528...2c1e5e0
 
 [0.14.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/785ee04...aa06528
 
