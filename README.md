@@ -875,7 +875,7 @@ Log training loss and learning at every specified number of steps.
 #### *save_steps: int*
 Save a model checkpoint at every specified number of steps.
 
-### *tensorboard_folder: str*
+#### *tensorboard_folder: str*
 The directory where Tensorboard events will be stored during training. By default, Tensorboard events will be saved in a subfolder inside `runs/`  like `runs/Dec02_09-32-58_36d9e58955b0/`.
 
 #### *overwrite_output_dir: bool*
