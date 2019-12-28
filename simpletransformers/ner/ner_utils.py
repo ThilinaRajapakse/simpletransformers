@@ -87,7 +87,6 @@ def get_examples_from_df(data):
 
 
 def convert_example_to_feature(example_row):
-
     example, label_map, max_seq_length, tokenizer, cls_token_at_end, cls_token, cls_token_segment_id, sep_token, sep_token_extra, pad_on_left, pad_token, pad_token_segment_id, pad_token_label_id, sequence_a_segment_id, mask_padding_with_zero = example_row
 
     tokens = []
@@ -188,7 +187,8 @@ def convert_examples_to_features(
         mask_padding_with_zero=True,
         process_count=cpu_count() - 2,
         chunksize=500,
-        silent=False
+        silent=False,
+        use_multiprocessing=True
     ):
     """ Loads a data file into a list of `InputBatch`s
         `cls_token_at_end` define the location of the CLS token:
@@ -214,13 +214,15 @@ def convert_examples_to_features(
         pad_token_segment_id,
         pad_token_label_id,
         sequence_a_segment_id,
-        mask_padding_with_zero)
-        
-            for example in examples]
+        mask_padding_with_zero) for example in examples]
 
-    with Pool(process_count) as p:
-        features = list(tqdm(p.imap(convert_example_to_feature, examples, chunksize=chunksize), total=len(examples), disable=silent))
-
+    if use_multiprocessing:
+        with Pool(process_count) as p:
+                features = list(tqdm(p.imap(convert_example_to_feature, examples, chunksize=chunksize), total=len(examples), disable=silent))
+    else:
+        features = []
+        for example in tqdm(examples):
+            features.append(convert_example_to_feature(example))
     return features
 
 

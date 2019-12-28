@@ -50,7 +50,11 @@ class MultiLabelClassificationModel(ClassificationModel):
         else:
             self.config = config_class.from_pretrained(model_name)
             self.num_labels = self.config.num_labels
+        self.tokenizer = tokenizer_class.from_pretrained(model_name)
+        self.tokenizer = tokenizer_class.from_pretrained(model_name)
+        self.num_labels = num_labels
         self.pos_weight = pos_weight
+        self.sliding_window = False
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -84,12 +88,12 @@ class MultiLabelClassificationModel(ClassificationModel):
             'warmup_ratio': 0.06,
             'warmup_steps': 0,
             'max_grad_norm': 1.0,
-            'do_lower_case': False,
+
+            'stride': False,
 
             'logging_steps': 50,
             'save_steps': 2000,
             'evaluate_during_training': False,
-            'evaluate_during_training_steps': 2000,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -99,10 +103,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             'use_multiprocessing': True,
             'silent': False,
 
-            'threshold': 0.5,
-
-            'sliding_window': False,
-            'stride': False
+            'threshold': 0.5
         }
 
         if not use_cuda:
@@ -110,8 +111,6 @@ class MultiLabelClassificationModel(ClassificationModel):
 
         if args:
             self.args.update(args)
-
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'])
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
