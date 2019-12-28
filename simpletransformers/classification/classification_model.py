@@ -158,7 +158,7 @@ class ClassificationModel:
             warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
             self.args['use_multiprocessing'] = False
 
-    def train_model(self, train_df, multi_label=False, output_dir=None, show_running_loss=True, args=None, eval_df=None):
+    def train_model(self, train_df, multi_label=False, output_dir=None, show_running_loss=True, args=None, eval_df=None, **kwargs):
         """
         Trains the model using 'train_df'
 
@@ -169,6 +169,8 @@ class ClassificationModel:
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             eval_df (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
             None
@@ -202,7 +204,7 @@ class ClassificationModel:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df)
+        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df, **kwargs)
 
         model_to_save = self.model.module if hasattr(self.model, "module") else self.model
         model_to_save.save_pretrained(output_dir)
@@ -212,7 +214,7 @@ class ClassificationModel:
         print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     
-    def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None):
+    def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None, **kwargs):
         """
         Trains the model on train_dataset.
 
@@ -317,7 +319,7 @@ class ClassificationModel:
 
                     if args['evaluate_during_training'] and (args["evaluate_during_training_steps"] > 0 and global_step % args["evaluate_during_training_steps"] == 0):
                     # Only evaluate when single GPU otherwise metrics may not average well
-                        results, _, _ = self.eval_model(eval_df, verbose=True)
+                        results, _, _ = self.eval_model(eval_df, verbose=True, **kwargs)
                         for key, value in results.items():
                             tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
 
@@ -346,7 +348,7 @@ class ClassificationModel:
             self.tokenizer.save_pretrained(output_dir_current)
 
             if args['evaluate_during_training']:
-                results, _, _ = self.eval_model(eval_df, verbose=True)
+                results, _, _ = self.eval_model(eval_df, verbose=True, **kwargs)
 
                 output_eval_file = os.path.join(output_dir_current, "eval_results.txt")
                 with open(output_eval_file, "w") as writer:
