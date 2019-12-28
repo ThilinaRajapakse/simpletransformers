@@ -129,6 +129,7 @@ class ClassificationModel:
             'save_steps': 2000,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
+            'tensorboard_folder': None,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -198,7 +199,6 @@ class ClassificationModel:
         else:
             train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))]
 
-        
         train_dataset = self.load_and_cache_examples(train_examples)
 
         if not os.path.exists(output_dir):
@@ -213,7 +213,6 @@ class ClassificationModel:
 
         print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-    
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None, **kwargs):
         """
         Trains the model on train_dataset.
@@ -226,7 +225,7 @@ class ClassificationModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter()
+        tb_writer = SummaryWriter(logdir=args["tensorboard_folder"])
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
 
@@ -277,7 +276,7 @@ class ClassificationModel:
 
                 if args['n_gpu'] > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
-                    
+
                 if show_running_loss:
                     print("\rRunning loss: %f" % loss, end="")
 
@@ -318,7 +317,7 @@ class ClassificationModel:
                         self.tokenizer.save_pretrained(output_dir_current)
 
                     if args['evaluate_during_training'] and (args["evaluate_during_training_steps"] > 0 and global_step % args["evaluate_during_training_steps"] == 0):
-                    # Only evaluate when single GPU otherwise metrics may not average well
+                        # Only evaluate when single GPU otherwise metrics may not average well
                         results, _, _ = self.eval_model(eval_df, verbose=True, **kwargs)
                         for key, value in results.items():
                             tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
@@ -357,7 +356,6 @@ class ClassificationModel:
 
         return global_step, tr_loss / global_step
 
-
     def eval_model(self, eval_df, multi_label=False, output_dir=None, verbose=False, **kwargs):
         """
         Evaluates the model on eval_df. Saves results to output_dir.
@@ -389,7 +387,6 @@ class ClassificationModel:
 
         return result, model_outputs, wrong_preds
 
-
     def evaluate(self, eval_df, output_dir, multi_label=False, prefix="", **kwargs):
         """
         Evaluates the model on eval_df.
@@ -404,7 +401,6 @@ class ClassificationModel:
         eval_output_dir = output_dir
 
         results = {}
-           
 
         if 'text' in eval_df.columns and 'labels' in eval_df.columns:
             eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df['text'], eval_df['labels']))]
@@ -436,12 +432,11 @@ class ClassificationModel:
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
-                if  multi_label:
+                if multi_label:
                     logits = logits.sigmoid()
                 eval_loss += tmp_eval_loss.mean().item()
 
             nb_eval_steps += 1
-
 
             if preds is None:
                 preds = logits.detach().cpu().numpy()
@@ -470,7 +465,7 @@ class ClassificationModel:
             for pred_row in preds:
                 mode_pred, counts = mode(pred_row)
                 if len(counts) > 1 and counts[0] == counts[1]:
-                        final_preds.append(args['tie_value'])
+                    final_preds.append(args['tie_value'])
                 else:
                     final_preds.append(mode_pred[0])
             preds = np.array(final_preds)
@@ -490,7 +485,6 @@ class ClassificationModel:
                 writer.write("{} = {}\n".format(key, str(result[key])))
 
         return results, model_outputs, wrong
-
 
     def load_and_cache_examples(self, examples, evaluate=False, no_cache=False, multi_label=False):
         """
@@ -594,7 +588,6 @@ class ClassificationModel:
             label_ranking_score = label_ranking_average_precision_score(labels, preds)
             return {**{"LRAP": label_ranking_score}, **extra_metrics}, wrong
 
-
         mcc = matthews_corrcoef(labels, preds)
 
         if self.model.num_labels == 2:
@@ -655,7 +648,7 @@ class ClassificationModel:
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
-                if  multi_label:
+                if multi_label:
                     logits = logits.sigmoid()
 
                 eval_loss += tmp_eval_loss.mean().item()
@@ -687,7 +680,7 @@ class ClassificationModel:
             for pred_row in preds:
                 mode_pred, counts = mode(pred_row)
                 if len(counts) > 1 and counts[0] == counts[1]:
-                        final_preds.append(args['tie_value'])
+                    final_preds.append(args['tie_value'])
                 else:
                     final_preds.append(mode_pred[0])
             preds = np.array(final_preds)
@@ -704,16 +697,13 @@ class ClassificationModel:
 
         return preds, model_outputs
 
-
     def _threshold(self, x, threshold):
         if x >= threshold:
             return 1
         return 0
 
-
     def _move_model_to_device(self):
         self.model.to(self.device)
-
 
     def _get_inputs_dict(self, batch):
         inputs = {
