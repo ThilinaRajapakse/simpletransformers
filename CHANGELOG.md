@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.15.2] - 2019-12-28
 ### Added
-- Added `tensor_folder` to parameter dictionary which can be used to specify the directory in which the tensorboard files will be stored.
+- Added `tensorboard_folder` to parameter dictionary which can be used to specify the directory in which the tensorboard files will be stored.
 
 ## [0.15.1] - 2019-12-27
 ### Added
