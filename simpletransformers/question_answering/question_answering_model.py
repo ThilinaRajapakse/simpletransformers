@@ -25,7 +25,7 @@ from torch.utils.data import (
 
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers import (
-    WEIGHTS_NAME, 
+    WEIGHTS_NAME,
     BertConfig,
     BertForQuestionAnswering, BertTokenizer,
     XLMConfig, XLMForQuestionAnswering, XLMTokenizer,
@@ -108,6 +108,7 @@ class QuestionAnsweringModel:
             'save_steps': 2000,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
+            'tensorboard_folder': None,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -133,7 +134,6 @@ class QuestionAnsweringModel:
 
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
-
 
     def load_and_cache_examples(self, examples, evaluate=False, no_cache=False, output_examples=False):
         """
@@ -182,13 +182,13 @@ class QuestionAnsweringModel:
         all_example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
         if evaluate:
             dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids,
-                                                            all_example_index, all_cls_index, all_p_mask)
+                                    all_example_index, all_cls_index, all_p_mask)
         else:
             all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
             all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
             dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids,
-                                                            all_start_positions, all_end_positions,
-                                                            all_cls_index, all_p_mask)
+                                    all_start_positions, all_end_positions,
+                                    all_cls_index, all_p_mask)
 
         if output_examples:
             return dataset, examples, features
@@ -245,7 +245,6 @@ class QuestionAnsweringModel:
 
         print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None):
         """
         Trains the model on train_dataset.
@@ -258,7 +257,7 @@ class QuestionAnsweringModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter()
+        tb_writer = SummaryWriter(logdir=args["tensorboard_folder"])
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
 
@@ -303,16 +302,16 @@ class QuestionAnsweringModel:
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = {'input_ids':   batch[0],
-                      'attention_mask':  batch[1],
-                      'start_positions': batch[3],
-                      'end_positions':   batch[4]
-                    }
+                          'attention_mask':  batch[1],
+                          'start_positions': batch[3],
+                          'end_positions':   batch[4]
+                          }
 
                 if args['model_type'] != 'distilbert':
                     inputs['token_type_ids'] = None if args['model_type'] == 'xlm' else batch[2]
                 if args['model_type'] in ['xlnet', 'xlm']:
                     inputs.update({'cls_index': batch[5],
-                                'p_mask':       batch[6]})
+                                   'p_mask':       batch[6]})
 
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
@@ -361,7 +360,7 @@ class QuestionAnsweringModel:
                         self.tokenizer.save_pretrained(output_dir_current)
 
                     if args['evaluate_during_training'] and (args["evaluate_during_training_steps"] > 0 and global_step % args["evaluate_during_training_steps"] == 0):
-                    # Only evaluate when single GPU otherwise metrics may not average well
+                        # Only evaluate when single GPU otherwise metrics may not average well
                         results, _, _ = self.eval_model(eval_df, verbose=True)
                         for key, value in results.items():
                             tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
@@ -400,7 +399,6 @@ class QuestionAnsweringModel:
 
         return global_step, tr_loss / global_step
 
-
     def eval_model(self, eval_data, output_dir=None, verbose=False):
         """
         Evaluates the model on eval_data. Saves results to output_dir.
@@ -412,14 +410,14 @@ class QuestionAnsweringModel:
 
         Returns:
             result: Dictionary containing evaluation results. (correct, similar, incorrect)
-            text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text. 
+            text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text.
         """
 
         if not output_dir:
             output_dir = self.args["output_dir"]
 
         self._move_model_to_device()
-        
+
         all_predictions, all_nbest_json, scores_diff_json = self.evaluate(eval_data, output_dir)
 
         if isinstance(eval_data, str):
@@ -437,7 +435,6 @@ class QuestionAnsweringModel:
 
         return result, texts
 
-    
     def evaluate(self, eval_data, output_dir):
         """
         Evaluates the model on eval_data.
@@ -475,8 +472,8 @@ class QuestionAnsweringModel:
 
             with torch.no_grad():
                 inputs = {'input_ids':   batch[0],
-                      'attention_mask':  batch[1],
-                }
+                          'attention_mask':  batch[1],
+                          }
 
                 if args['model_type'] != 'distilbert':
                     inputs['token_type_ids'] = None if args['model_type'] == 'xlm' else batch[2]
@@ -485,7 +482,7 @@ class QuestionAnsweringModel:
 
                 if args['model_type'] in ['xlnet', 'xlm']:
                     inputs.update({'cls_index': batch[4],
-                                'p_mask':       batch[5]})
+                                   'p_mask':       batch[5]})
 
                 outputs = model(**inputs)
 
@@ -494,16 +491,16 @@ class QuestionAnsweringModel:
                     unique_id = int(eval_feature.unique_id)
                     if args['model_type'] in ['xlnet', 'xlm']:
                         # XLNet uses a more complex post-processing procedure
-                        result = RawResultExtended(unique_id            = unique_id,
-                                                start_top_log_probs  = to_list(outputs[0][i]),
-                                                start_top_index      = to_list(outputs[1][i]),
-                                                end_top_log_probs    = to_list(outputs[2][i]),
-                                                end_top_index        = to_list(outputs[3][i]),
-                                                cls_logits           = to_list(outputs[4][i]))
+                        result = RawResultExtended(unique_id=unique_id,
+                                                   start_top_log_probs=to_list(outputs[0][i]),
+                                                   start_top_index=to_list(outputs[1][i]),
+                                                   end_top_log_probs=to_list(outputs[2][i]),
+                                                   end_top_index=to_list(outputs[3][i]),
+                                                   cls_logits=to_list(outputs[4][i]))
                     else:
-                        result = RawResult(unique_id    = unique_id,
-                                        start_logits = to_list(outputs[0][i]),
-                                        end_logits   = to_list(outputs[1][i]))
+                        result = RawResult(unique_id=unique_id,
+                                           start_logits=to_list(outputs[0][i]),
+                                           end_logits=to_list(outputs[1][i]))
                     all_results.append(result)
 
         prefix = 'test'
@@ -515,20 +512,19 @@ class QuestionAnsweringModel:
         output_null_log_odds_file = os.path.join(output_dir, "null_odds_{}.json".format(prefix))
 
         if args['model_type'] in ['xlnet', 'xlm']:
-        # XLNet uses a more complex post-processing procedure
+            # XLNet uses a more complex post-processing procedure
             all_predictions, all_nbest_json, scores_diff_json = write_predictions_extended(examples, features, all_results, args['n_best_size'],
-                            args['max_answer_length'], output_prediction_file,
-                            output_nbest_file, output_null_log_odds_file, eval_data,
-                            model.config.start_n_top, model.config.end_n_top,
-                            True, tokenizer, not args['silent'])
+                                                                                           args['max_answer_length'], output_prediction_file,
+                                                                                           output_nbest_file, output_null_log_odds_file, eval_data,
+                                                                                           model.config.start_n_top, model.config.end_n_top,
+                                                                                           True, tokenizer, not args['silent'])
         else:
             all_predictions, all_nbest_json, scores_diff_json = write_predictions(examples, features, all_results, args['n_best_size'],
-                            args['max_answer_length'], False, output_prediction_file,
-                            output_nbest_file, output_null_log_odds_file, not args['silent'],
-                            True, args['null_score_diff_threshold'])
+                                                                                  args['max_answer_length'], False, output_prediction_file,
+                                                                                  output_nbest_file, output_null_log_odds_file, not args['silent'],
+                                                                                  True, args['null_score_diff_threshold'])
 
         return all_predictions, all_nbest_json, scores_diff_json
-
 
     def predict(self, to_predict, n_best_size=None):
         """
@@ -546,7 +542,7 @@ class QuestionAnsweringModel:
                             }
                         ])
             n_best_size (Optional): Number of predictions to return. args['n_best_size'] will be used if not specified.
-        
+
         Returns:
             preds: A python list containg the predicted answer, and id for each question in to_predict.
         """
@@ -578,8 +574,8 @@ class QuestionAnsweringModel:
 
             with torch.no_grad():
                 inputs = {'input_ids':   batch[0],
-                      'attention_mask':  batch[1],
-                }
+                          'attention_mask':  batch[1],
+                          }
 
                 if args['model_type'] != 'distilbert':
                     inputs['token_type_ids'] = None if args['model_type'] == 'xlm' else batch[2]
@@ -588,7 +584,7 @@ class QuestionAnsweringModel:
 
                 if args['model_type'] in ['xlnet', 'xlm']:
                     inputs.update({'cls_index': batch[4],
-                                'p_mask':       batch[5]})
+                                   'p_mask':       batch[5]})
 
                 outputs = model(**inputs)
 
@@ -597,25 +593,25 @@ class QuestionAnsweringModel:
                     unique_id = int(eval_feature.unique_id)
                     if args['model_type'] in ['xlnet', 'xlm']:
                         # XLNet uses a more complex post-processing procedure
-                        result = RawResultExtended(unique_id            = unique_id,
-                                                start_top_log_probs  = to_list(outputs[0][i]),
-                                                start_top_index      = to_list(outputs[1][i]),
-                                                end_top_log_probs    = to_list(outputs[2][i]),
-                                                end_top_index        = to_list(outputs[3][i]),
-                                                cls_logits           = to_list(outputs[4][i]))
+                        result = RawResultExtended(unique_id=unique_id,
+                                                   start_top_log_probs=to_list(outputs[0][i]),
+                                                   start_top_index=to_list(outputs[1][i]),
+                                                   end_top_log_probs=to_list(outputs[2][i]),
+                                                   end_top_index=to_list(outputs[3][i]),
+                                                   cls_logits=to_list(outputs[4][i]))
                     else:
-                        result = RawResult(unique_id    = unique_id,
-                                        start_logits = to_list(outputs[0][i]),
-                                        end_logits   = to_list(outputs[1][i]))
+                        result = RawResult(unique_id=unique_id,
+                                           start_logits=to_list(outputs[0][i]),
+                                           end_logits=to_list(outputs[1][i]))
                     all_results.append(result)
 
         if args['model_type'] in ['xlnet', 'xlm']:
-            answers = get_best_predictions_extended(examples, features, all_results, n_best_size, args['max_answer_length'], model.config.start_n_top, model.config.end_n_top, True, tokenizer, args['null_score_diff_threshold'])
+            answers = get_best_predictions_extended(examples, features, all_results, n_best_size,
+                                                    args['max_answer_length'], model.config.start_n_top, model.config.end_n_top, True, tokenizer, args['null_score_diff_threshold'])
         else:
             answers = get_best_predictions(examples, features, all_results, n_best_size, args['max_answer_length'], False, False, True, False)
 
         return answers
-
 
     def calculate_results(self, truth, predictions):
         truth_dict = {}
@@ -647,7 +643,6 @@ class QuestionAnsweringModel:
                 incorrect += 1
                 incorrect_text[q_id] = {'truth': answer, 'predicted': predictions[q_id], 'question': questions_dict[q_id]}
 
-
         result = {
             'correct': correct,
             'similar': similar,
@@ -661,7 +656,6 @@ class QuestionAnsweringModel:
         }
 
         return result, texts
-
 
     def _move_model_to_device(self):
         self.model.to(self.device)

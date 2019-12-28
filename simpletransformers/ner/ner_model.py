@@ -39,6 +39,7 @@ except ImportError:
 from simpletransformers.ner.ner_utils import InputExample, convert_examples_to_features, get_labels, read_examples_from_file, get_examples_from_df
 from transformers import CamembertConfig, CamembertForTokenClassification, CamembertTokenizer
 
+
 class NERModel:
     def __init__(self, model_type, model_name, labels=None, args=None, use_cuda=True, cuda_device=-1):
         """
@@ -113,6 +114,7 @@ class NERModel:
             'save_steps': 2000,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
+            'tensorboard_folder': None,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -146,7 +148,7 @@ class NERModel:
 
         Args:
             train_data: train_data should be the path to a .txt file containing the training data OR a pandas DataFrame with 3 columns.
-                        If a text file is given the data should be in the CoNLL format. i.e. One word per line, with sentences seperated by an empty line. 
+                        If a text file is given the data should be in the CoNLL format. i.e. One word per line, with sentences seperated by an empty line.
                         The first word of the line should be a word, and the last should be a Name Entity Tag.
                         If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
 
@@ -189,7 +191,6 @@ class NERModel:
 
         print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None):
         """
         Trains the model on train_dataset.
@@ -202,7 +203,7 @@ class NERModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter()
+        tb_writer = SummaryWriter(logdir=args["tensorboard_folder"])
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
 
@@ -247,11 +248,11 @@ class NERModel:
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = {"input_ids": batch[0],
-                      "attention_mask": batch[1],
-                      "labels": batch[3]}
+                          "attention_mask": batch[1],
+                          "labels": batch[3]}
                 # XLM and RoBERTa don"t use segment_ids
                 if args['model_type'] in ["bert", "xlnet"]:
-                    inputs["token_type_ids"] = batch[2] 
+                    inputs["token_type_ids"] = batch[2]
 
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
@@ -300,7 +301,7 @@ class NERModel:
                         self.tokenizer.save_pretrained(output_dir_current)
 
                     if args['evaluate_during_training'] and (args["evaluate_during_training_steps"] > 0 and global_step % args["evaluate_during_training_steps"] == 0):
-                    # Only evaluate when single GPU otherwise metrics may not average well
+                        # Only evaluate when single GPU otherwise metrics may not average well
                         results, _, _ = self.eval_model(eval_df, verbose=True)
                         for key, value in results.items():
                             tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
@@ -337,23 +338,21 @@ class NERModel:
                     for key in sorted(results.keys()):
                         writer.write("{} = {}\n".format(key, str(results[key])))
 
-
         return global_step, tr_loss / global_step
-
 
     def eval_model(self, eval_data, output_dir=None, verbose=True):
         """
         Evaluates the model on eval_data. Saves results to output_dir.
 
         Args:
-            eval_file: eval_data should be the path to a .txt file containing the evaluation data or a pandas DataFrame. 
-                        If a text file is used the data should be in the CoNLL format. I.e. One word per line, with sentences seperated by an empty line. 
+            eval_file: eval_data should be the path to a .txt file containing the evaluation data or a pandas DataFrame.
+                        If a text file is used the data should be in the CoNLL format. I.e. One word per line, with sentences seperated by an empty line.
                         The first word of the line should be a word, and the last should be a Name Entity Tag.
                         If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
 
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
-            
+
         Returns:
             result: Dictionary containing evaluation results. (eval_loss, precision, recall, f1_score)
             model_outputs: List of raw model outputs
@@ -404,11 +403,11 @@ class NERModel:
 
             with torch.no_grad():
                 inputs = {"input_ids": batch[0],
-                      "attention_mask": batch[1],
-                      "labels": batch[3]}
+                          "attention_mask": batch[1],
+                          "labels": batch[3]}
                 # XLM and RoBERTa don"t use segment_ids
                 if args['model_type'] in ["bert", "xlnet"]:
-                    inputs["token_type_ids"] = batch[2] 
+                    inputs["token_type_ids"] = batch[2]
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
@@ -454,7 +453,6 @@ class NERModel:
 
         return results, model_outputs, preds_list
 
-    
     def predict(self, to_predict):
         """
         Performs predictions on a list of text.
@@ -493,11 +491,11 @@ class NERModel:
 
             with torch.no_grad():
                 inputs = {"input_ids": batch[0],
-                      "attention_mask": batch[1],
-                      "labels": batch[3]}
+                          "attention_mask": batch[1],
+                          "labels": batch[3]}
                 # XLM and RoBERTa don"t use segment_ids
                 if args['model_type'] in ["bert", "xlnet"]:
-                    inputs["token_type_ids"] = batch[2] 
+                    inputs["token_type_ids"] = batch[2]
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
@@ -531,7 +529,6 @@ class NERModel:
 
         return preds, model_outputs
 
-
     def load_and_cache_examples(self, data, evaluate=False, no_cache=False, to_predict=None):
         """
         Reads data_file and generates a TensorDataset containing InputFeatures. Caches the InputFeatures.
@@ -563,7 +560,6 @@ class NERModel:
             no_cache = True
 
         cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples)))
-
 
         if not os.path.isdir(self.args["cache_dir"]):
             os.mkdir(self.args["cache_dir"])
@@ -607,7 +603,5 @@ class NERModel:
 
         return dataset
 
-
     def _move_model_to_device(self):
         self.model.to(self.device)
-        
