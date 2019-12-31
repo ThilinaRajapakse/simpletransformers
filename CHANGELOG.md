@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.3] - 2019-12-31
+### Added
+- Fixed bug in MultiLabelClassificationModel due to `tensorboard_dir` being missing in parameter dictionary.
+
+### Changed
+- Renamed `tensorboard_folder` to `tensorboard_dir` for consistency.
+
 ## [0.15.2] - 2019-12-28
 ### Added
 - Added `tensorboard_folder` to parameter dictionary which can be used to specify the directory in which the tensorboard files will be stored.
@@ -82,7 +89,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.15.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/268ced8...HEAD
+[0.15.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a65dc73...HEAD
+
+[0.15.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/268ced8...a65dc73
 
 [0.15.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2c1e5e0...268ced8
 

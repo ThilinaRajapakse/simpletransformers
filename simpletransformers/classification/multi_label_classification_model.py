@@ -90,6 +90,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             'save_steps': 2000,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
+            'tensorboard_dir': None,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
