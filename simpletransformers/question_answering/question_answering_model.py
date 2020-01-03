@@ -361,7 +361,7 @@ class QuestionAnsweringModel:
 
                     if args['evaluate_during_training'] and (args["evaluate_during_training_steps"] > 0 and global_step % args["evaluate_during_training_steps"] == 0):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results, _, _ = self.eval_model(eval_df, verbose=True)
+                        results, _ = self.eval_model(eval_data, verbose=True)
                         for key, value in results.items():
                             tb_writer.add_scalar('eval_{}'.format(key), value, global_step)
 
@@ -390,7 +390,7 @@ class QuestionAnsweringModel:
             self.tokenizer.save_pretrained(output_dir_current)
 
             if args['evaluate_during_training']:
-                results, _, _ = self.eval_model(eval_df, verbose=True)
+                results, _ = self.eval_model(eval_data, verbose=True)
 
                 output_eval_file = os.path.join(output_dir_current, "eval_results.txt")
                 with open(output_eval_file, "w") as writer:

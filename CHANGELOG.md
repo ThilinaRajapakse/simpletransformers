@@ -4,8 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.4] - 2019-12-31
+### Fixed
+- Fixed bug in `QuestonAnsweringModel` when using `evaluate_during_training`.
+
 ## [0.15.3] - 2019-12-31
-### Added
+### Fixed
 - Fixed bug in MultiLabelClassificationModel due to `tensorboard_dir` being missing in parameter dictionary.
 
 ### Changed
@@ -89,7 +93,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.15.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a65dc73...HEAD
+[0.15.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/70e2a19...HEAD
+
+[0.15.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a65dc73...70e2a19
 
 [0.15.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/268ced8...a65dc73
 
