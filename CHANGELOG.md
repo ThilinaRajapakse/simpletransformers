@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.5] - 2020-01-05
+### Added
+- Using `evaluate_during_training` now generates `training_progress_scores.csv` (which contains the evaluation results of all checkpoints) in the output directory.
+
 ## [0.15.4] - 2019-12-31
 ### Fixed
 - Fixed bug in `QuestonAnsweringModel` when using `evaluate_during_training`.

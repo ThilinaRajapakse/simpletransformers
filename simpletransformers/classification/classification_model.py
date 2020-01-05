@@ -14,6 +14,7 @@ from multiprocessing import cpu_count
 
 import torch
 import numpy as np
+import pandas as pd
 
 from scipy.stats import pearsonr, mode
 from sklearn.metrics import mean_squared_error, matthews_corrcoef, confusion_matrix, label_ranking_average_precision_score
@@ -204,7 +205,7 @@ class ClassificationModel:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df, **kwargs)
+        global_step, tr_loss = self.train(train_dataset, output_dir, multi_label=multi_label, show_running_loss=show_running_loss, eval_df=eval_df, **kwargs)
 
         model_to_save = self.model.module if hasattr(self.model, "module") else self.model
         model_to_save.save_pretrained(output_dir)
@@ -213,7 +214,7 @@ class ClassificationModel:
 
         print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-    def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None, **kwargs):
+    def train(self, train_dataset, output_dir, multi_label=False, show_running_loss=True, eval_df=None, **kwargs):
         """
         Trains the model on train_dataset.
 
@@ -262,6 +263,35 @@ class ClassificationModel:
         model.zero_grad()
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args['silent'])
         epoch_number = 0
+        if args['evaluate_during_training']:
+            extra_metrics = {key: [] for key in kwargs}
+            if multi_label:
+                training_progress_scores = {
+                    'checkpoint': [],
+                    'LRAP': [],
+                    'eval_loss': [],
+                    **extra_metrics
+                }
+            else:
+                if self.model.num_labels == 2:
+                    training_progress_scores = {
+                        'checkpoint': [],
+                        'tp': [],
+                        'tn': [],
+                        'fp': [],
+                        'fn': [],
+                        'mcc': [],
+                        'eval_loss': [],
+                        **extra_metrics
+                    }
+                else:
+                    training_progress_scores = {
+                        'checkpoint': [],
+                        'mcc': [],
+                        'eval_loss': [],
+                        **extra_metrics
+                    }
+
 
         model.train()
         for _ in train_iterator:
@@ -335,6 +365,12 @@ class ClassificationModel:
                         with open(output_eval_file, "w") as writer:
                             for key in sorted(results.keys()):
                                 writer.write("{} = {}\n".format(key, str(results[key])))
+
+                        training_progress_scores['checkpoint'].append(global_step)
+                        for key in results:
+                            training_progress_scores[key].append(results[key])
+                        report = pd.DataFrame(training_progress_scores)
+                        report.to_csv(args['output_dir'] + 'training_progress_scores.csv', index=False)
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))

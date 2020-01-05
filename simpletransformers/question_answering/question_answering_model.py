@@ -9,6 +9,7 @@ from multiprocessing import cpu_count
 
 import torch
 import numpy as np
+import pandas as pd
 
 from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error, matthews_corrcoef, confusion_matrix, label_ranking_average_precision_score
@@ -294,6 +295,13 @@ class QuestionAnsweringModel:
         model.zero_grad()
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args['silent'])
         epoch_number = 0
+        if args['evaluate_during_training']:
+            training_progress_scores = {
+                'checkpoint': [],
+                'correct': [],
+                'similar': [],
+                'incorrect': [],
+            }
 
         model.train()
         for _ in train_iterator:
@@ -378,6 +386,12 @@ class QuestionAnsweringModel:
                         with open(output_eval_file, "w") as writer:
                             for key in sorted(results.keys()):
                                 writer.write("{} = {}\n".format(key, str(results[key])))
+
+                        training_progress_scores['checkpoint'].append(global_step)
+                        for key in results:
+                            training_progress_scores[key].append(results[key])
+                        report = pd.DataFrame(training_progress_scores)
+                        report.to_csv(args['output_dir'] + 'training_progress_scores.csv', index=False)
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))
