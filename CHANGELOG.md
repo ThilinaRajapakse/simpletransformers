@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.7] - 2020-01-05
+### Added
+- Added `**kwargs` for different accuracy measures during multilabel training.
+
+
 ## [0.15.5] - 2020-01-05
 ### Added
 - Added `train_loss` to `training_progress_scores.csv` (which contains the evaluation results of all checkpoints) in the output directory.
@@ -100,6 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
+
+[0.15.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/master...hammad26:multilabel_training_evaluation
 
 [0.15.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cd24331...HEAD
 
