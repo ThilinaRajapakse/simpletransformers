@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.15.5] - 2020-01-05
 ### Added
+- Added `train_loss` to `training_progress_scores.csv` (which contains the evaluation results of all checkpoints) in the output directory.
+
+## [0.15.5] - 2020-01-05
+### Added
 - Using `evaluate_during_training` now generates `training_progress_scores.csv` (which contains the evaluation results of all checkpoints) in the output directory.
 
 ## [0.15.4] - 2019-12-31
@@ -97,7 +101,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.15.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/70e2a19...HEAD
+[0.15.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cd24331...HEAD
+
+[0.15.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/38cbea5...cd24331
+
+[0.15.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/70e2a19...38cbea5
 
 [0.15.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a65dc73...70e2a19
 

@@ -269,6 +269,7 @@ class ClassificationModel:
                 training_progress_scores = {
                     'checkpoint': [],
                     'LRAP': [],
+                    'train_loss': [],
                     'eval_loss': [],
                     **extra_metrics
                 }
@@ -281,6 +282,7 @@ class ClassificationModel:
                         'fp': [],
                         'fn': [],
                         'mcc': [],
+                        'train_loss': [],
                         'eval_loss': [],
                         **extra_metrics
                     }
@@ -288,6 +290,7 @@ class ClassificationModel:
                     training_progress_scores = {
                         'checkpoint': [],
                         'mcc': [],
+                        'train_loss': [],
                         'eval_loss': [],
                         **extra_metrics
                     }
@@ -306,6 +309,8 @@ class ClassificationModel:
 
                 if args['n_gpu'] > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
+
+                current_loss = loss.item()
 
                 if show_running_loss:
                     print("\rRunning loss: %f" % loss, end="")
@@ -367,6 +372,7 @@ class ClassificationModel:
                                 writer.write("{} = {}\n".format(key, str(results[key])))
 
                         training_progress_scores['checkpoint'].append(global_step)
+                        training_progress_scores['train_loss'].append(current_loss)
                         for key in results:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)

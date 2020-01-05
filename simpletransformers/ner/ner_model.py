@@ -246,6 +246,7 @@ class NERModel:
                 'precision': [],
                 'recall': [],
                 'f1_score': [],
+                'train_loss': [],
                 'eval_loss': [],
             }
 
@@ -268,6 +269,8 @@ class NERModel:
 
                 if args['n_gpu'] > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
+
+                current_loss = loss.item()
 
                 if show_running_loss:
                     print("\rRunning loss: %f" % loss, end="")
@@ -329,6 +332,7 @@ class NERModel:
                                 writer.write("{} = {}\n".format(key, str(results[key])))
 
                         training_progress_scores['checkpoint'].append(global_step)
+                        training_progress_scores['train_loss'].append(current_loss)
                         for key in results:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
