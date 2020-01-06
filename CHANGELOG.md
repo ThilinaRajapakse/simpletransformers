@@ -8,8 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added `**kwargs` for different accuracy measures during multilabel training.
 
-
-## [0.15.5] - 2020-01-05
+## [0.15.6] - 2020-01-05
 ### Added
 - Added `train_loss` to `training_progress_scores.csv` (which contains the evaluation results of all checkpoints) in the output directory.
 
@@ -106,9 +105,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.15.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/master...hammad26:multilabel_training_evaluation
+[0.15.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c2f620a...HEAD
 
-[0.15.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cd24331...HEAD
+[0.15.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cd24331...c2f620a
 
 [0.15.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/38cbea5...cd24331
 
