@@ -25,6 +25,7 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
     * [Minimal Start](#minimal-example)
     * [Real Dataset Examples](#real-dataset-examples-2)
     * [QuestionAnsweringModel](#questionansweringmodel)
+* [Visualization Support](#visualization-support)
 * [Experimental Features](#experimental-features)
     * [Sliding Window For Long Sequences](#sliding-window-for-long-sequences)
 * [Loading Saved Models](#loading-saved-models)
@@ -699,6 +700,20 @@ The maximum token length of an answer that can be generated.
 
 #### *null_score_diff_threshold: float*
 If null_score - best_non_null is greater than the threshold predict null.
+
+---
+
+## Visualization Support
+
+The [Weights & Biases](https://www.wandb.com/) framework is supported for visualizing model training.
+
+To use this, simply set a project name for W&B in the `wandb_project` attribute of the `args` dictionary. This will log all hyperparameter values, training losses, and evaluation metrics to the given project.
+
+```
+model = ClassificationModel('roberta', 'roberta-base', args={'wandb_project': 'project-name'})
+```
+
+For a complete example, see [here](https://medium.com/skilai/to-see-is-to-believe-visualizing-the-training-of-machine-learning-models-664ef3fe4f49).
 
 ---
 
