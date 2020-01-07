@@ -128,6 +128,7 @@ class QuestionAnsweringModel:
             'null_score_diff_threshold': 0.0,
 
             'wandb_project': False,
+            'wandb_kwargs': None,
         }
 
         if not use_cuda:
@@ -310,7 +311,7 @@ class QuestionAnsweringModel:
             }
 
         if args['wandb_project']:
-            wandb.init(project=args['wandb_project'], config={**args})
+            argwandb.init(project=args['wandb_project'], config={**args}, **args['wandb_kwargs'])
             wandb.watch(self.model)
 
         model.train()

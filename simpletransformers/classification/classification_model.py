@@ -148,6 +148,7 @@ class ClassificationModel:
             'stride': 0.8,
 
             'wandb_project': None,
+            'wandb_kwargs': None,
         }
 
         if not use_cuda:
@@ -302,7 +303,7 @@ class ClassificationModel:
                     }
 
         if args['wandb_project']:
-            wandb.init(project=args['wandb_project'], config={**args})
+            wandb.init(project=args['wandb_project'], config={**args}, **args['wandb_kwargs'])
             wandb.watch(self.model)
 
         model.train()

@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.1] - 2020-01-07
+### Added
+- Added `wandb_kwargs` to `args` which can be used to specify keyword arguments to `wandb.init()` method.
 
 ## [0.16.0] - 2020-01-07
 ### Added
@@ -111,7 +114,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.16.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1684fff...HEAD
+[0.16.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d8df83f...HEAD
+
+[0.16.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1684fff...d8df83f
 
 [0.15.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c2f620a...1684fff
 
