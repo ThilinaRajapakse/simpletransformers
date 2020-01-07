@@ -31,6 +31,8 @@ from sklearn.metrics import matthews_corrcoef, f1_score
 
 
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 csv.field_size_limit(2147483647)
 
 
@@ -299,22 +301,22 @@ def convert_examples_to_features(
 
     if use_multiprocessing:
         if sliding_window:
-            print('sliding_window enabled')
+            logger.info('sliding_window enabled')
             with Pool(process_count) as p:
                 features = list(tqdm(p.imap(convert_example_to_feature_sliding_window, examples, chunksize=500), total=len(examples), disable=silent))
             if flatten:
                 features = [feature for feature_set in features for feature in feature_set]
-            print(f'{len(features)} features created from {len(examples)} samples.')
+            logger.info(f'{len(features)} features created from {len(examples)} samples.')
         else:
             with Pool(process_count) as p:
                 features = list(tqdm(p.imap(convert_example_to_feature, examples, chunksize=500), total=len(examples), disable=silent))
     else:
         if sliding_window:
-            print('sliding_window enabled')
+            logger.info('sliding_window enabled')
             features = [convert_example_to_feature_sliding_window(example) for example in tqdm(examples, disable=silent)]
             if flatten:
                 features = [feature for feature_set in features for feature in feature_set]
-            print(f'{len(features)} features created from {len(examples)} samples.')
+            logger.info(f'{len(features)} features created from {len(examples)} samples.')
         else:
             features = [convert_example_to_feature(example) for example in tqdm(examples, disable=silent)]
 
