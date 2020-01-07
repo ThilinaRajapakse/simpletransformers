@@ -806,6 +806,7 @@ self.args = {
   'logging_steps': 50,
   'evaluate_during_training': False,
   'evaluate_during_training_steps': 2000,
+  `save_eval_checkpoints`: True
   'save_steps': 2000,
   'tensorboard_dir': None,
 
@@ -816,6 +817,8 @@ self.args = {
   'n_gpu': 1,
   'silent': False,
   'use_multiprocessing': True,
+
+  'wandb_project': None,
 }
 ```
 
@@ -868,6 +871,9 @@ Set to True to perform evaluation while training models. Make sure `eval_df` is 
 
 #### *evaluate_during_training_steps*
 Perform evaluation at every specified number of steps. A checkpoint model and the evaluation results will be saved.
+
+#### *save_eval_checkpoints*
+Save a model checkpoint for every evaluation performed.
 
 #### *logging_steps: int*
 Log training loss and learning at every specified number of steps.

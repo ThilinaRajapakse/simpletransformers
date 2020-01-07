@@ -106,7 +106,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             'sliding_window': False,
             'stride': False,
 
-            'use_wandb': False,
+            'wandb_project': None,
         }
 
         if not use_cuda:

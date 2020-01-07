@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.16.0] - 2020-01-07
+### Added
+- Added support for training visualization using the W&B framework.
+- Added `save_eval_checkpoints` attribute to `args` which controls whether or not a model checkpoint will be saved with every evaluation.
+
 ## [0.15.7] - 2020-01-05
 ### Added
 - Added `**kwargs` for different accuracy measures during multilabel training.
@@ -105,7 +111,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.15.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c2f620a...HEAD
+[0.16.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1684fff...HEAD
+
+[0.15.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c2f620a...1684fff
 
 [0.15.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cd24331...c2f620a
 
