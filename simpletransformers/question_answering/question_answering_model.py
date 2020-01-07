@@ -48,6 +48,8 @@ from simpletransformers.question_answering.question_answering_utils import (
     get_best_predictions_extended
 )
 
+import wandb
+
 
 class QuestionAnsweringModel:
     def __init__(self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1):
@@ -109,6 +111,7 @@ class QuestionAnsweringModel:
             'save_steps': 2000,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
+            'save_eval_checkpoints': True,
             'tensorboard_folder': None,
 
             'overwrite_output_dir': False,
@@ -122,7 +125,9 @@ class QuestionAnsweringModel:
             'max_query_length': 64,
             'n_best_size': 20,
             'max_answer_length': 100,
-            'null_score_diff_threshold': 0.0
+            'null_score_diff_threshold': 0.0,
+
+            'wandb_project': False,
         }
 
         if not use_cuda:
@@ -297,12 +302,16 @@ class QuestionAnsweringModel:
         epoch_number = 0
         if args['evaluate_during_training']:
             training_progress_scores = {
-                'checkpoint': [],
+                'global_step': [],
                 'correct': [],
                 'similar': [],
                 'incorrect': [],
                 'train_loss': [],
             }
+
+        if args['wandb_project']:
+            wandb.init(project=args['wandb_project'], config={**args})
+            wandb.watch(self.model)
 
         model.train()
         for _ in train_iterator:
@@ -357,6 +366,8 @@ class QuestionAnsweringModel:
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
                         tb_writer.add_scalar("loss", (tr_loss - logging_loss)/args["logging_steps"], global_step)
                         logging_loss = tr_loss
+                        if args['wandb_project']:
+                            wandb.log({'Training loss': current_loss, 'lr': scheduler.get_lr()[0], 'global_step': global_step})
 
                     if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
                         # Save model checkpoint
@@ -365,7 +376,6 @@ class QuestionAnsweringModel:
                         if not os.path.exists(output_dir_current):
                             os.makedirs(output_dir_current)
 
-                        # Take care of distributed/parallel training
                         model_to_save = model.module if hasattr(model, "module") else model
                         model_to_save.save_pretrained(output_dir_current)
                         self.tokenizer.save_pretrained(output_dir_current)
@@ -381,21 +391,25 @@ class QuestionAnsweringModel:
                         if not os.path.exists(output_dir_current):
                             os.makedirs(output_dir_current)
 
-                        model_to_save = model.module if hasattr(model, "module") else model
-                        model_to_save.save_pretrained(output_dir_current)
-                        self.tokenizer.save_pretrained(output_dir_current)
+                        if args['save_eval_checkpoints']:
+                            model_to_save = model.module if hasattr(model, "module") else model
+                            model_to_save.save_pretrained(output_dir_current)
+                            self.tokenizer.save_pretrained(output_dir_current)
 
                         output_eval_file = os.path.join(output_dir_current, "eval_results.txt")
                         with open(output_eval_file, "w") as writer:
                             for key in sorted(results.keys()):
                                 writer.write("{} = {}\n".format(key, str(results[key])))
 
-                        training_progress_scores['checkpoint'].append(global_step)
+                        training_progress_scores['global_step'].append(global_step)
                         training_progress_scores['train_loss'].append(current_loss)
                         for key in results:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(args['output_dir'] + 'training_progress_scores.csv', index=False)
+
+                        if args['wandb_project']:
+                            wandb.log(self._get_last_metrics(training_progress_scores))
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))
@@ -677,3 +691,6 @@ class QuestionAnsweringModel:
 
     def _move_model_to_device(self):
         self.model.to(self.device)
+
+    def _get_last_metrics(self, metric_values):
+        return {metric: values[-1] for metric, values in metric_values.items()}

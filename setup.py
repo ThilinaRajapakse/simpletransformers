@@ -30,6 +30,7 @@ setup(
         "scipy",
         "scikit-learn",
         "seqeval",
-        "tensorboardx"
+        "tensorboardx",
+        "wandb"
     ],
 )
