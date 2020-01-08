@@ -4,6 +4,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.2] - 2020-01-08
+### Changed
+- Changed print statements to logging.
+
+## [0.16.1] - 2020-01-07
+### Added
+- Added `wandb_kwargs` to `args` which can be used to specify keyword arguments to `wandb.init()` method.
+
+## [0.16.0] - 2020-01-07
+### Added
+- Added support for training visualization using the W&B framework.
+- Added `save_eval_checkpoints` attribute to `args` which controls whether or not a model checkpoint will be saved with every evaluation.
+
+## [0.15.7] - 2020-01-05
+### Added
+- Added `**kwargs` for different accuracy measures during multilabel training.
+
+## [0.15.6] - 2020-01-05
+### Added
+- Added `train_loss` to `training_progress_scores.csv` (which contains the evaluation results of all checkpoints) in the output directory.
+
+## [0.15.5] - 2020-01-05
+### Added
+- Using `evaluate_during_training` now generates `training_progress_scores.csv` (which contains the evaluation results of all checkpoints) in the output directory.
+
+## [0.15.4] - 2019-12-31
+### Fixed
+- Fixed bug in `QuestonAnsweringModel` when using `evaluate_during_training`.
+
+## [0.15.3] - 2019-12-31
+### Fixed
+- Fixed bug in MultiLabelClassificationModel due to `tensorboard_dir` being missing in parameter dictionary.
+
+### Changed
+- Renamed `tensorboard_folder` to `tensorboard_dir` for consistency.
+
 ## [0.15.2] - 2019-12-28
 ### Added
 - Added `tensorboard_folder` to parameter dictionary which can be used to specify the directory in which the tensorboard files will be stored.
@@ -82,7 +118,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.15.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/268ced8...HEAD
+[0.16.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d589b75...HEAD
+
+[0.16.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d8df83f...d589b75
+
+[0.16.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1684fff...d8df83f
+
+[0.15.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c2f620a...1684fff
+
+[0.15.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cd24331...c2f620a
+
+[0.15.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/38cbea5...cd24331
+
+[0.15.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/70e2a19...38cbea5
+
+[0.15.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a65dc73...70e2a19
+
+[0.15.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/268ced8...a65dc73
 
 [0.15.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2c1e5e0...268ced8
 

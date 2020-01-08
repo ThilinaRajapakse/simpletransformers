@@ -1,16 +1,19 @@
 from __future__ import absolute_import, division, print_function
 
 import os
+import logging
 import math
 import json
 import random
 import warnings
-
 from multiprocessing import cpu_count
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 import torch
 import numpy as np
-
+import pandas as pd
 
 from scipy.stats import pearsonr
 from seqeval.metrics import precision_score, recall_score, f1_score
@@ -32,12 +35,14 @@ try:
     from transformers import RobertaConfig, RobertaForTokenClassification, RobertaTokenizer
     roberta_available = True
 except ImportError:
-    print("Warning: Importing RobertaForTokenClassification unsuccessful. Please use BERT for now. See issue on https://github.com/huggingface/transformers/issues/1631.")
+    logger.warning("Warning: Importing RobertaForTokenClassification unsuccessful. Please use BERT for now. See issue on https://github.com/huggingface/transformers/issues/1631.")
     roberta_available = False
 
 
 from simpletransformers.ner.ner_utils import InputExample, convert_examples_to_features, get_labels, read_examples_from_file, get_examples_from_df
 from transformers import CamembertConfig, CamembertForTokenClassification, CamembertTokenizer
+
+import wandb
 
 
 class NERModel:
@@ -114,6 +119,7 @@ class NERModel:
             'save_steps': 2000,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
+            'save_eval_checkpoints': True,
             'tensorboard_folder': None,
 
             'overwrite_output_dir': False,
@@ -123,6 +129,9 @@ class NERModel:
             'n_gpu': 1,
             'silent': False,
             'use_multiprocessing': True,
+
+            'wandb_project': False,
+            'wandb_kwargs': None,
         }
 
         if not use_cuda:
@@ -189,7 +198,7 @@ class NERModel:
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        logger.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None):
         """
@@ -240,11 +249,24 @@ class NERModel:
         model.zero_grad()
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args['silent'])
         epoch_number = 0
+        if args['evaluate_during_training']:
+            training_progress_scores = {
+                'global_step': [],
+                'precision': [],
+                'recall': [],
+                'f1_score': [],
+                'train_loss': [],
+                'eval_loss': [],
+            }
 
+        if args['wandb_project']:
+            argwandb.init(project=args['wandb_project'], config={**args}, **args['wandb_kwargs'])
+            wandb.watch(self.model)
+
+        model.train()
         for _ in train_iterator:
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
             for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args['silent'])):
-                model.train()
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = {"input_ids": batch[0],
@@ -261,8 +283,10 @@ class NERModel:
                 if args['n_gpu'] > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
 
+                current_loss = loss.item()
+
                 if show_running_loss:
-                    print("\rRunning loss: %f" % loss, end="")
+                    logger.info("\rRunning loss: %f" % loss, end="")
 
                 if args["gradient_accumulation_steps"] > 1:
                     loss = loss / args["gradient_accumulation_steps"]
@@ -287,7 +311,11 @@ class NERModel:
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
                         tb_writer.add_scalar("loss", (tr_loss - logging_loss)/args["logging_steps"], global_step)
                         logging_loss = tr_loss
+                        if args['wandb_project']:
+                            wandb.log({'Training loss': current_loss, 'lr': scheduler.get_lr()[0], 'global_step': global_step})
 
+
+                        
                     if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
@@ -311,14 +339,25 @@ class NERModel:
                         if not os.path.exists(output_dir_current):
                             os.makedirs(output_dir_current)
 
-                        model_to_save = model.module if hasattr(model, "module") else model
-                        model_to_save.save_pretrained(output_dir_current)
-                        self.tokenizer.save_pretrained(output_dir_current)
+                        if args['save_eval_checkpoints']:
+                            model_to_save = model.module if hasattr(model, "module") else model
+                            model_to_save.save_pretrained(output_dir_current)
+                            self.tokenizer.save_pretrained(output_dir_current)
 
                         output_eval_file = os.path.join(output_dir_current, "eval_results.txt")
                         with open(output_eval_file, "w") as writer:
                             for key in sorted(results.keys()):
                                 writer.write("{} = {}\n".format(key, str(results[key])))
+
+                        training_progress_scores['global_step'].append(global_step)
+                        training_progress_scores['train_loss'].append(current_loss)
+                        for key in results:
+                            training_progress_scores[key].append(results[key])
+                        report = pd.DataFrame(training_progress_scores)
+                        report.to_csv(args['output_dir'] + 'training_progress_scores.csv', index=False)
+
+                        if args['wandb_project']:
+                            wandb.log(self._get_last_metrics(training_progress_scores))
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))
@@ -369,7 +408,7 @@ class NERModel:
         self.results.update(result)
 
         if verbose:
-            print(self.results)
+            logger.info(self.results)
 
         return result, model_outputs, preds_list
 
@@ -566,9 +605,9 @@ class NERModel:
 
         if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
             features = torch.load(cached_features_file)
-            print(f"Features loaded from cache at {cached_features_file}")
+            logger.info(f"Features loaded from cache at {cached_features_file}")
         else:
-            print(f"Converting to features started.")
+            logger.info(f"Converting to features started.")
             features = convert_examples_to_features(
                 examples,
                 self.labels,
@@ -605,3 +644,6 @@ class NERModel:
 
     def _move_model_to_device(self):
         self.model.to(self.device)
+
+    def _get_last_metrics(self, metric_values):
+        return {metric: values[-1] for metric, values in metric_values.items()}

@@ -7,6 +7,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import math
 import json
+import logging
 import random
 import warnings
 
@@ -14,6 +15,7 @@ from multiprocessing import cpu_count
 
 import torch
 import numpy as np
+import pandas as pd
 
 from scipy.stats import pearsonr, mode
 from sklearn.metrics import mean_squared_error, matthews_corrcoef, confusion_matrix, label_ranking_average_precision_score
@@ -52,6 +54,11 @@ from simpletransformers.classification.transformer_models.xlnet_model import XLN
 from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
 from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
 from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
+import wandb
 
 
 class ClassificationModel:
@@ -129,7 +136,8 @@ class ClassificationModel:
             'save_steps': 2000,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
-            'tensorboard_folder': None,
+            'save_eval_checkpoints': True,
+            'tensorboard_dir': None,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -141,7 +149,10 @@ class ClassificationModel:
 
             'sliding_window': False,
             'tie_value': 1,
-            'stride': 0.8
+            'stride': 0.8,
+
+            'wandb_project': None,
+            'wandb_kwargs': None,
         }
 
         if not use_cuda:
@@ -158,6 +169,7 @@ class ClassificationModel:
         if model_type == 'camembert':
             warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
             self.args['use_multiprocessing'] = False
+
 
     def train_model(self, train_df, multi_label=False, output_dir=None, show_running_loss=True, args=None, eval_df=None, **kwargs):
         """
@@ -204,16 +216,16 @@ class ClassificationModel:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df, **kwargs)
+        global_step, tr_loss = self.train(train_dataset, output_dir, multi_label=multi_label, show_running_loss=show_running_loss, eval_df=eval_df, **kwargs)
 
         model_to_save = self.model.module if hasattr(self.model, "module") else self.model
         model_to_save.save_pretrained(output_dir)
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        logger.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-    def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None, **kwargs):
+    def train(self, train_dataset, output_dir, multi_label=False, show_running_loss=True, eval_df=None, **kwargs):
         """
         Trains the model on train_dataset.
 
@@ -225,7 +237,7 @@ class ClassificationModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args["tensorboard_folder"])
+        tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
 
@@ -262,6 +274,41 @@ class ClassificationModel:
         model.zero_grad()
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args['silent'])
         epoch_number = 0
+        if args['evaluate_during_training']:
+            extra_metrics = {key: [] for key in kwargs}
+            if multi_label:
+                training_progress_scores = {
+                    'global_step': [],
+                    'LRAP': [],
+                    'train_loss': [],
+                    'eval_loss': [],
+                    **extra_metrics
+                }
+            else:
+                if self.model.num_labels == 2:
+                    training_progress_scores = {
+                        'global_step': [],
+                        'tp': [],
+                        'tn': [],
+                        'fp': [],
+                        'fn': [],
+                        'mcc': [],
+                        'train_loss': [],
+                        'eval_loss': [],
+                        **extra_metrics
+                    }
+                else:
+                    training_progress_scores = {
+                        'global_step': [],
+                        'mcc': [],
+                        'train_loss': [],
+                        'eval_loss': [],
+                        **extra_metrics
+                    }
+
+        if args['wandb_project']:
+            wandb.init(project=args['wandb_project'], config={**args}, **args['wandb_kwargs'])
+            wandb.watch(self.model)
 
         model.train()
         for _ in train_iterator:
@@ -277,8 +324,10 @@ class ClassificationModel:
                 if args['n_gpu'] > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
 
+                current_loss = loss.item()
+
                 if show_running_loss:
-                    print("\rRunning loss: %f" % loss, end="")
+                    logger.info("\rRunning loss: %f" % loss, end="")
 
                 if args["gradient_accumulation_steps"] > 1:
                     loss = loss / args["gradient_accumulation_steps"]
@@ -303,6 +352,8 @@ class ClassificationModel:
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
                         tb_writer.add_scalar("loss", (tr_loss - logging_loss)/args["logging_steps"], global_step)
                         logging_loss = tr_loss
+                        if args['wandb_project']:
+                            wandb.log({'Training loss': current_loss, 'lr': scheduler.get_lr()[0], 'global_step': global_step})
 
                     if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
                         # Save model checkpoint
@@ -327,14 +378,25 @@ class ClassificationModel:
                         if not os.path.exists(output_dir_current):
                             os.makedirs(output_dir_current)
 
-                        model_to_save = model.module if hasattr(model, "module") else model
-                        model_to_save.save_pretrained(output_dir_current)
-                        self.tokenizer.save_pretrained(output_dir_current)
+                        if args['save_eval_checkpoints']:
+                            model_to_save = model.module if hasattr(model, "module") else model
+                            model_to_save.save_pretrained(output_dir_current)
+                            self.tokenizer.save_pretrained(output_dir_current)
 
                         output_eval_file = os.path.join(output_dir_current, "eval_results.txt")
                         with open(output_eval_file, "w") as writer:
                             for key in sorted(results.keys()):
                                 writer.write("{} = {}\n".format(key, str(results[key])))
+
+                        training_progress_scores['global_step'].append(global_step)
+                        training_progress_scores['train_loss'].append(current_loss)
+                        for key in results:
+                            training_progress_scores[key].append(results[key])
+                        report = pd.DataFrame(training_progress_scores)
+                        report.to_csv(args['output_dir'] + 'training_progress_scores.csv', index=False)
+
+                        if args['wandb_project']:
+                            wandb.log(self._get_last_metrics(training_progress_scores))
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))
@@ -383,7 +445,7 @@ class ClassificationModel:
         self.results.update(result)
 
         if verbose:
-            print(self.results)
+            logger.info(self.results)
 
         return result, model_outputs, wrong_preds
 
@@ -507,9 +569,9 @@ class ClassificationModel:
 
         if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
             features = torch.load(cached_features_file)
-            print(f"Features loaded from cache at {cached_features_file}")
+            logger.info(f"Features loaded from cache at {cached_features_file}")
         else:
-            print(f"Converting to features started.")
+            logger.info(f"Converting to features started.")
             features = convert_examples_to_features(
                 examples,
                 args["max_seq_length"],
@@ -717,3 +779,6 @@ class ClassificationModel:
             inputs["token_type_ids"] = batch[2] if self.args["model_type"] in ["bert", "xlnet"] else None
 
         return inputs
+
+    def _get_last_metrics(self, metric_values):
+        return {metric: values[-1] for metric, values in metric_values.items()}

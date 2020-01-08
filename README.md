@@ -25,6 +25,7 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
     * [Minimal Start](#minimal-example)
     * [Real Dataset Examples](#real-dataset-examples-2)
     * [QuestionAnsweringModel](#questionansweringmodel)
+* [Visualization Support](#visualization-support)
 * [Experimental Features](#experimental-features)
     * [Sliding Window For Long Sequences](#sliding-window-for-long-sequences)
 * [Loading Saved Models](#loading-saved-models)
@@ -208,8 +209,8 @@ print(raw_outputs)
 #### Real Dataset Examples
 
 * [Yelp Reviews Dataset - Binary Classification](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c)
-* [AG News Dataset - Multiclass Classification](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a)
-* [Toxic Comments Dataset - Multilabel Classification](https://medium.com/@chaturangarajapakshe/multi-label-classification-using-bert-roberta-xlnet-xlm-and-distilbert-with-simple-transformers-b3e0cda12ce5?sk=354e688fe238bfb43e9a575216816219)
+* [AG News Dataset - Multiclass Classification](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a?source=friends_link&sk=90e1c97255b65cedf4910a99041d9dfc)
+* [Toxic Comments Dataset - Multilabel Classification](https://towardsdatascience.com/multi-label-classification-using-bert-roberta-xlnet-xlm-and-distilbert-with-simple-transformers-b3e0cda12ce5?source=friends_link&sk=354e688fe238bfb43e9a575216816219)
 
 
 #### ClassificationModel
@@ -368,7 +369,7 @@ print(predictions)
 
 #### Real Dataset Examples
 
-* [CoNLL Dataset Example](https://medium.com/@chaturangarajapakshe/simple-transformers-named-entity-recognition-with-transformer-models-c04b9242a2a0?sk=e8b98c994173cd5219f01e075727b096)
+* [CoNLL Dataset Example](https://towardsdatascience.com/simple-transformers-named-entity-recognition-with-transformer-models-c04b9242a2a0?source=friends_link&sk=e8b98c994173cd5219f01e075727b096)
 
 #### NERModel
 
@@ -577,7 +578,7 @@ print(model.predict(to_predict))
 
 #### Real Dataset Examples
 
-* [SQuAD 2.0 - Question Answering](https://medium.com/@chaturangarajapakshe/question-answering-with-bert-xlnet-xlm-and-distilbert-using-simple-transformers-4d8785ee762a?sk=e8e6f9a39f20b5aaf08bbcf8b0a0e1c2)
+* [SQuAD 2.0 - Question Answering](https://towardsdatascience.com/question-answering-with-bert-xlnet-xlm-and-distilbert-using-simple-transformers-4d8785ee762a?source=friends_link&sk=e8e6f9a39f20b5aaf08bbcf8b0a0e1c2)
 
 ### QuestionAnsweringModel
 
@@ -702,6 +703,26 @@ If null_score - best_non_null is greater than the threshold predict null.
 
 ---
 
+## Visualization Support
+
+The [Weights & Biases](https://www.wandb.com/) framework is supported for visualizing model training.
+
+To use this, simply set a project name for W&B in the `wandb_project` attribute of the `args` dictionary. This will log all hyperparameter values, training losses, and evaluation metrics to the given project.
+
+```
+model = ClassificationModel('roberta', 'roberta-base', args={'wandb_project': 'project-name'})
+```
+
+Other keyword arguments can be specified as a dictionay with the `wandb_kwargs` attribute of the `args` dictionary.
+
+```
+model = ClassificationModel('roberta', 'roberta-base', args={'wandb_project': 'project-name', 'wandb_kwargs': {'name': 'test-run'}})
+```
+
+For a complete example, see [here](https://medium.com/skilai/to-see-is-to-believe-visualizing-the-training-of-machine-learning-models-664ef3fe4f49).
+
+---
+
 ## Experimental Features
 
 To use experimental features, import from `simpletransformers.experimental.X`
@@ -806,8 +827,9 @@ self.args = {
   'logging_steps': 50,
   'evaluate_during_training': False,
   'evaluate_during_training_steps': 2000,
+  `save_eval_checkpoints`: True
   'save_steps': 2000,
-  'tensorboard_folder': None,
+  'tensorboard_dir': None,
 
   'overwrite_output_dir': False,
   'reprocess_input_data': False,
@@ -816,6 +838,8 @@ self.args = {
   'n_gpu': 1,
   'silent': False,
   'use_multiprocessing': True,
+
+  'wandb_project': None,
 }
 ```
 
@@ -869,13 +893,16 @@ Set to True to perform evaluation while training models. Make sure `eval_df` is 
 #### *evaluate_during_training_steps*
 Perform evaluation at every specified number of steps. A checkpoint model and the evaluation results will be saved.
 
+#### *save_eval_checkpoints*
+Save a model checkpoint for every evaluation performed.
+
 #### *logging_steps: int*
 Log training loss and learning at every specified number of steps.
 
 #### *save_steps: int*
 Save a model checkpoint at every specified number of steps.
 
-#### *tensorboard_folder: str*
+#### *tensorboard_dir: str*
 The directory where Tensorboard events will be stored during training. By default, Tensorboard events will be saved in a subfolder inside `runs/`  like `runs/Dec02_09-32-58_36d9e58955b0/`.
 
 #### *overwrite_output_dir: bool*

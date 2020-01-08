@@ -21,7 +21,7 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 from tensorboardX import SummaryWriter
 
 logger = logging.getLogger(__name__)
-
+logger.addHandler(logging.NullHandler())
 
 class InputExample(object):
     """
@@ -1310,7 +1310,7 @@ def get_raw_scores(dataset, preds):
                 # For unanswerable questions, only correct answer is empty string
                 gold_answers = ['']
             if qid not in preds:
-                print('Missing prediction for %s' % qid)
+                logger.warning('Missing prediction for %s' % qid)
                 continue
             a_pred = preds[qid]
             # Take max over all gold answers
