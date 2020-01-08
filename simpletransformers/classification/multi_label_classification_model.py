@@ -90,6 +90,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             'save_steps': 2000,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
+            'save_eval_checkpoints': True,
             'tensorboard_dir': None,
 
             'overwrite_output_dir': False,
@@ -103,7 +104,10 @@ class MultiLabelClassificationModel(ClassificationModel):
             'threshold': 0.5,
 
             'sliding_window': False,
-            'stride': False
+            'stride': False,
+
+            'wandb_project': None,
+            'wandb_kwargs': None,
         }
 
         if not use_cuda:
