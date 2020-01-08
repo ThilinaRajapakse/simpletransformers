@@ -209,8 +209,8 @@ print(raw_outputs)
 #### Real Dataset Examples
 
 * [Yelp Reviews Dataset - Binary Classification](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c)
-* [AG News Dataset - Multiclass Classification](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a)
-* [Toxic Comments Dataset - Multilabel Classification](https://medium.com/@chaturangarajapakshe/multi-label-classification-using-bert-roberta-xlnet-xlm-and-distilbert-with-simple-transformers-b3e0cda12ce5?sk=354e688fe238bfb43e9a575216816219)
+* [AG News Dataset - Multiclass Classification](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a?source=friends_link&sk=90e1c97255b65cedf4910a99041d9dfc)
+* [Toxic Comments Dataset - Multilabel Classification](https://towardsdatascience.com/multi-label-classification-using-bert-roberta-xlnet-xlm-and-distilbert-with-simple-transformers-b3e0cda12ce5?source=friends_link&sk=354e688fe238bfb43e9a575216816219)
 
 
 #### ClassificationModel
@@ -369,7 +369,7 @@ print(predictions)
 
 #### Real Dataset Examples
 
-* [CoNLL Dataset Example](https://medium.com/@chaturangarajapakshe/simple-transformers-named-entity-recognition-with-transformer-models-c04b9242a2a0?sk=e8b98c994173cd5219f01e075727b096)
+* [CoNLL Dataset Example](https://towardsdatascience.com/simple-transformers-named-entity-recognition-with-transformer-models-c04b9242a2a0?source=friends_link&sk=e8b98c994173cd5219f01e075727b096)
 
 #### NERModel
 
@@ -578,7 +578,7 @@ print(model.predict(to_predict))
 
 #### Real Dataset Examples
 
-* [SQuAD 2.0 - Question Answering](https://medium.com/@chaturangarajapakshe/question-answering-with-bert-xlnet-xlm-and-distilbert-using-simple-transformers-4d8785ee762a?sk=e8e6f9a39f20b5aaf08bbcf8b0a0e1c2)
+* [SQuAD 2.0 - Question Answering](https://towardsdatascience.com/question-answering-with-bert-xlnet-xlm-and-distilbert-using-simple-transformers-4d8785ee762a?source=friends_link&sk=e8e6f9a39f20b5aaf08bbcf8b0a0e1c2)
 
 ### QuestionAnsweringModel
 
