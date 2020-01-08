@@ -134,6 +134,7 @@ class ClassificationModel:
 
             'logging_steps': 50,
             'save_steps': 2000,
+            'save_model_every_epoch': False,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
             'save_eval_checkpoints': True,
@@ -401,12 +402,13 @@ class ClassificationModel:
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))
 
-            if not os.path.exists(output_dir_current):
+            if (args['save_model_every_epoch'] or args['evaluate_during_training']) and not os.path.exists(output_dir_current):
                 os.makedirs(output_dir_current)
 
-            model_to_save = model.module if hasattr(model, "module") else model
-            model_to_save.save_pretrained(output_dir_current)
-            self.tokenizer.save_pretrained(output_dir_current)
+            if args['save_model_every_epoch']:
+                model_to_save = model.module if hasattr(model, "module") else model
+                model_to_save.save_pretrained(output_dir_current)
+                self.tokenizer.save_pretrained(output_dir_current)
 
             if args['evaluate_during_training']:
                 results, _, _ = self.eval_model(eval_df, verbose=True, **kwargs)
