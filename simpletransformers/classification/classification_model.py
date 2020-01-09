@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function
 import os
 import math
 import json
-import logging
 import random
 import warnings
 
