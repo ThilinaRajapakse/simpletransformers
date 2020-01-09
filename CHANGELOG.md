@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.16.3] - 2020-01-08
+## [0.16.4] - 2020-01-09
+### Changed
+- Removed logging import.
+
+## [0.16.3] - 2020-01-09
 ### Fixed
 - Reverted to using print instead of logging as logging seems to be causing issues.
 
@@ -122,7 +126,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.16.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f5a7699...HEAD
+[0.16.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/5d1eaa9...HEAD
+
+[0.16.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f5a7699...5d1eaa9
 
 [0.16.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d589b75...f5a7699
 
