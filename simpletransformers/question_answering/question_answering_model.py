@@ -50,9 +50,6 @@ from simpletransformers.question_answering.question_answering_utils import (
 )
 import wandb
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
-
 
 class QuestionAnsweringModel:
     def __init__(self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1):
@@ -131,7 +128,6 @@ class QuestionAnsweringModel:
             'null_score_diff_threshold': 0.0,
 
             'wandb_project': False,
-            'wandb_kwargs': None,
         }
 
         if not use_cuda:
@@ -165,9 +161,9 @@ class QuestionAnsweringModel:
 
         if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
             features = torch.load(cached_features_file)
-            logger.info(f"Features loaded from cache at {cached_features_file}")
+            print(f"Features loaded from cache at {cached_features_file}")
         else:
-            logger.info(f"Converting to features started.")
+            print(f"Converting to features started.")
             features = convert_examples_to_features(examples=examples,
                                                     tokenizer=tokenizer,
                                                     max_seq_length=args['max_seq_length'],
@@ -253,7 +249,7 @@ class QuestionAnsweringModel:
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        logger.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None):
         """
@@ -314,7 +310,7 @@ class QuestionAnsweringModel:
             }
 
         if args['wandb_project']:
-            argwandb.init(project=args['wandb_project'], config={**args}, **args['wandb_kwargs'])
+            wandb.init(project=args['wandb_project'], config={**args})
             wandb.watch(self.model)
 
         model.train()
@@ -345,7 +341,7 @@ class QuestionAnsweringModel:
                 current_loss = loss.item()
 
                 if show_running_loss:
-                    logger.info("\rRunning loss: %f" % loss, end="")
+                    print("\rRunning loss: %f" % loss, end="")
 
                 if args["gradient_accumulation_steps"] > 1:
                     loss = loss / args["gradient_accumulation_steps"]
@@ -467,7 +463,7 @@ class QuestionAnsweringModel:
         self.results.update(result)
 
         if verbose:
-            logger.info(self.results)
+            print(self.results)
 
         return result, texts
 
@@ -652,7 +648,7 @@ class QuestionAnsweringModel:
     def calculate_results(self, truth, predictions):
         truth_dict = {}
         questions_dict = {}
-        logger.info(truth)
+        print(truth)
         for item in truth:
             for answer in item['qas']:
                 if answer['answers']:
