@@ -731,18 +731,19 @@ Normally, sequences longer than `max_seq_length` are unceremoniously truncated.
 
 This experimental feature moves a sliding window over each sequence and generates sub-sequences with length `max_seq_length`. The model output for each sub-sequence is averaged into a single output before being sent to the linear classifier.
 
-Currently avaiable on binary and multiclass classification models of the following types.
+Currently available on binary and multiclass classification models of the following types:
 
 * BERT
+* DistilBERT
 * RoBERTa
 * AlBERT
 * XLNet
 * CamemBERT
 
-Set `sliding_window=True` for the ClassificationModel to enable this feature.
+Set `sliding_window` to `True` for the ClassificationModel to enable this feature.
 
 ```
-from simpletransformers.experimental.classification import ClassificationModel
+from simpletransformers.classification import ClassificationModel
 import pandas as pd
 import sklearn
 
@@ -755,6 +756,7 @@ eval_data = [['Example eval sentence belonging to class 1', 1], ['Example eval s
 eval_df = pd.DataFrame(eval_data)
 
 train_args={
+    'sliding_window': True,
     'reprocess_input_data': True,
     'overwrite_output_dir': True,
     'evaluate_during_training': True,
@@ -764,7 +766,7 @@ train_args={
 }
 
 # Create a TransformerModel
-model = ClassificationModel('camembert', 'camembert-base', sliding_window=True, args=train_args, use_cuda=False)
+model = ClassificationModel('camembert', 'camembert-base', args=train_args, use_cuda=False)
 print(train_df.head())
 
 # Train the model
