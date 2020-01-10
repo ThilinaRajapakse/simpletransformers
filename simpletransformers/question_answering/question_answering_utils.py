@@ -1311,10 +1311,8 @@ def get_raw_scores(dataset, preds):
                 continue
             a_pred = preds[qid]
             # Take max over all gold answers
-            exact_scores[qid] = max(compute_exact(a, a_pred)
-                                    for a in gold_answers)
-            f1_scores[qid] = max(compute_f1(a, a_pred)
-                                 for a in gold_answers)
+            exact_scores[qid] = max(compute_exact(a, a_pred) for a in gold_answers)
+            f1_scores[qid] = max(compute_f1(a, a_pred) for a in gold_answers)
     return exact_scores, f1_scores
 
 
