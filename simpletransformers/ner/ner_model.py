@@ -1,7 +1,6 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import logging
 import math
 import json
 import random
@@ -131,7 +130,6 @@ class NERModel:
             'use_multiprocessing': True,
 
             'wandb_project': False,
-            'wandb_kwargs': None,
         }
 
         if not use_cuda:
@@ -198,7 +196,7 @@ class NERModel:
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        logger.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None):
         """
@@ -260,7 +258,7 @@ class NERModel:
             }
 
         if args['wandb_project']:
-            argwandb.init(project=args['wandb_project'], config={**args}, **args['wandb_kwargs'])
+            wandb.init(project=args['wandb_project'], config={**args})
             wandb.watch(self.model)
 
         model.train()
@@ -286,7 +284,7 @@ class NERModel:
                 current_loss = loss.item()
 
                 if show_running_loss:
-                    logger.info("\rRunning loss: %f" % loss, end="")
+                    print("\rRunning loss: %f" % loss, end="")
 
                 if args["gradient_accumulation_steps"] > 1:
                     loss = loss / args["gradient_accumulation_steps"]
@@ -408,7 +406,7 @@ class NERModel:
         self.results.update(result)
 
         if verbose:
-            logger.info(self.results)
+            print(self.results)
 
         return result, model_outputs, preds_list
 
@@ -605,9 +603,9 @@ class NERModel:
 
         if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
             features = torch.load(cached_features_file)
-            logger.info(f"Features loaded from cache at {cached_features_file}")
+            print(f"Features loaded from cache at {cached_features_file}")
         else:
-            logger.info(f"Converting to features started.")
+            print(f"Converting to features started.")
             features = convert_examples_to_features(
                 examples,
                 self.labels,

@@ -713,12 +713,6 @@ To use this, simply set a project name for W&B in the `wandb_project` attribute 
 model = ClassificationModel('roberta', 'roberta-base', args={'wandb_project': 'project-name'})
 ```
 
-Other keyword arguments can be specified as a dictionay with the `wandb_kwargs` attribute of the `args` dictionary.
-
-```
-model = ClassificationModel('roberta', 'roberta-base', args={'wandb_project': 'project-name', 'wandb_kwargs': {'name': 'test-run'}})
-```
-
 For a complete example, see [here](https://medium.com/skilai/to-see-is-to-believe-visualizing-the-training-of-machine-learning-models-664ef3fe4f49).
 
 ---

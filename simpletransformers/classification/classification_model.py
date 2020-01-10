@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function
 import os
 import math
 import json
-import logging
 import random
 import warnings
 
@@ -54,9 +53,6 @@ from simpletransformers.classification.transformer_models.xlnet_model import XLN
 from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
 from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
 from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 import wandb
 
@@ -152,7 +148,6 @@ class ClassificationModel:
             'stride': 0.8,
 
             'wandb_project': None,
-            'wandb_kwargs': None,
         }
 
         if not use_cuda:
@@ -223,7 +218,7 @@ class ClassificationModel:
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        logger.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(self, train_dataset, output_dir, multi_label=False, show_running_loss=True, eval_df=None, **kwargs):
         """
@@ -307,7 +302,7 @@ class ClassificationModel:
                     }
 
         if args['wandb_project']:
-            wandb.init(project=args['wandb_project'], config={**args}, **args['wandb_kwargs'])
+            wandb.init(project=args['wandb_project'], config={**args})
             wandb.watch(self.model)
 
         model.train()
@@ -327,7 +322,7 @@ class ClassificationModel:
                 current_loss = loss.item()
 
                 if show_running_loss:
-                    logger.info("\rRunning loss: %f" % loss, end="")
+                    print("\rRunning loss: %f" % loss, end="")
 
                 if args["gradient_accumulation_steps"] > 1:
                     loss = loss / args["gradient_accumulation_steps"]
@@ -445,7 +440,7 @@ class ClassificationModel:
         self.results.update(result)
 
         if verbose:
-            logger.info(self.results)
+            print(self.results)
 
         return result, model_outputs, wrong_preds
 
@@ -569,9 +564,9 @@ class ClassificationModel:
 
         if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
             features = torch.load(cached_features_file)
-            logger.info(f"Features loaded from cache at {cached_features_file}")
+            print(f"Features loaded from cache at {cached_features_file}")
         else:
-            logger.info(f"Converting to features started.")
+            print(f"Converting to features started.")
             features = convert_examples_to_features(
                 examples,
                 args["max_seq_length"],
