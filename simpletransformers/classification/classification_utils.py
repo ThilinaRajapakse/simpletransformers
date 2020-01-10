@@ -298,15 +298,13 @@ def convert_examples_to_features(
         if sliding_window:
             print('sliding_window enabled')
             with Pool(process_count) as p:
-                features = list(tqdm(p.imap(convert_example_to_feature_sliding_window,
-                                            examples, chunksize=500), total=len(examples), disable=silent))
+                features = list(tqdm(p.imap(convert_example_to_feature_sliding_window, examples, chunksize=500), total=len(examples), disable=silent))
             if flatten:
                 features = [feature for feature_set in features for feature in feature_set]
             print(f'{len(features)} features created from {len(examples)} samples.')
         else:
             with Pool(process_count) as p:
-                features = list(tqdm(p.imap(convert_example_to_feature, examples,
-                                            chunksize=500), total=len(examples), disable=silent))
+                features = list(tqdm(p.imap(convert_example_to_feature, examples, chunksize=500), total=len(examples), disable=silent))
     else:
         if sliding_window:
             print('sliding_window enabled')

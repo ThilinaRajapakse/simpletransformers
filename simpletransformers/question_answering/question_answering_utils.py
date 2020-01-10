@@ -140,8 +140,7 @@ def get_examples(examples_to_process, is_training=True, version_2_with_negative=
                 if version_2_with_negative:
                     is_impossible = qa["is_impossible"]
                 if (len(qa["answers"]) != 1) and (not is_impossible):
-                    raise ValueError(
-                        "For training, each question should have exactly 1 answer.")
+                    raise ValueError("For training, each question should have exactly 1 answer.")
                 if not is_impossible:
                     answer = qa["answers"][0]
                     orig_answer_text = answer["text"]
@@ -161,8 +160,7 @@ def get_examples(examples_to_process, is_training=True, version_2_with_negative=
                     cleaned_answer_text = " ".join(
                         whitespace_tokenize(orig_answer_text))
                     if actual_text.find(cleaned_answer_text) == -1:
-                        logger.warning("Could not find answer: '%s' vs. '%s'",
-                                       actual_text, cleaned_answer_text)
+                        logger.warning("Could not find answer: '%s' vs. '%s'", actual_text, cleaned_answer_text)
                         continue
                 else:
                     start_position = -1
