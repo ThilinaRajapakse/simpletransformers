@@ -144,8 +144,7 @@ class NERModel:
         self.pad_token_label_id = CrossEntropyLoss().ignore_index
 
         if model_type == 'camembert':
-            warnings.warn(
-                "use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
+            warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
             self.args['use_multiprocessing'] = False
 
     def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None):
@@ -173,15 +172,13 @@ class NERModel:
             show_running_loss = False
 
         if self.args['evaluate_during_training'] and eval_df is None:
-            raise ValueError(
-                "evaluate_during_training is enabled but eval_df is not specified. Pass eval_df to model.train_model() if using evaluate_during_training.")
+            raise ValueError("evaluate_during_training is enabled but eval_df is not specified. Pass eval_df to model.train_model() if using evaluate_during_training.")
 
         if not output_dir:
             output_dir = self.args['output_dir']
 
         if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args["overwrite_output_dir"]:
-            raise ValueError(
-                "Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(output_dir))
+            raise ValueError("Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(output_dir))
 
         self._move_model_to_device()
 
@@ -190,8 +187,7 @@ class NERModel:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        global_step, tr_loss = self.train(train_dataset, output_dir,
-                                          show_running_loss=show_running_loss, eval_df=eval_df)
+        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df)
 
         model_to_save = self.model.module if hasattr(self.model, "module") else self.model
         model_to_save.save_pretrained(output_dir)
@@ -230,15 +226,13 @@ class NERModel:
         args["warmup_steps"] = warmup_steps if args["warmup_steps"] == 0 else args["warmup_steps"]
 
         optimizer = AdamW(optimizer_grouped_parameters, lr=args["learning_rate"], eps=args["adam_epsilon"])
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=args["warmup_steps"], num_training_steps=t_total)
+        scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args["warmup_steps"], num_training_steps=t_total)
 
         if args["fp16"]:
             try:
                 from apex import amp
             except ImportError:
-                raise ImportError(
-                    "Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
             model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
 
@@ -313,8 +307,7 @@ class NERModel:
                         tb_writer.add_scalar("loss", (tr_loss - logging_loss)/args["logging_steps"], global_step)
                         logging_loss = tr_loss
                         if args['wandb_project']:
-                            wandb.log({'Training loss': current_loss, 'lr': scheduler.get_lr()
-                                       [0], 'global_step': global_step})
+                            wandb.log({'Training loss': current_loss, 'lr': scheduler.get_lr()[0], 'global_step': global_step})
 
                     if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
                         # Save model checkpoint
@@ -512,8 +505,7 @@ class NERModel:
 
         self._move_model_to_device()
 
-        predict_examples = [InputExample(i, sentence.split(), ["O" for word in sentence.split()])
-                            for i, sentence in enumerate(to_predict)]
+        predict_examples = [InputExample(i, sentence.split(), ["O" for word in sentence.split()]) for i, sentence in enumerate(to_predict)]
 
         eval_dataset = self.load_and_cache_examples(None, to_predict=predict_examples)
 
@@ -565,8 +557,7 @@ class NERModel:
                     out_label_list[i].append(label_map[out_label_ids[i][j]])
                     preds_list[i].append(label_map[preds[i][j]])
 
-        preds = [[{word: preds_list[i][j]} for j, word in enumerate(
-            sentence.split()[:len(preds_list[i])])] for i, sentence in enumerate(to_predict)]
+        preds = [[{word: preds_list[i][j]} for j, word in enumerate(sentence.split()[:len(preds_list[i])])] for i, sentence in enumerate(to_predict)]
 
         return preds, model_outputs
 
@@ -600,8 +591,7 @@ class NERModel:
             examples = to_predict
             no_cache = True
 
-        cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}_{}".format(
-            mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples)))
+        cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples)))
 
         if not os.path.isdir(self.args["cache_dir"]):
             os.mkdir(self.args["cache_dir"])
