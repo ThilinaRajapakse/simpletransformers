@@ -7,9 +7,6 @@ import random
 import warnings
 from multiprocessing import cpu_count
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
-
 import torch
 import numpy as np
 import pandas as pd
@@ -34,7 +31,7 @@ try:
     from transformers import RobertaConfig, RobertaForTokenClassification, RobertaTokenizer
     roberta_available = True
 except ImportError:
-    logger.warning("Warning: Importing RobertaForTokenClassification unsuccessful. Please use BERT for now. See issue on https://github.com/huggingface/transformers/issues/1631.")
+    print("Warning: Importing RobertaForTokenClassification unsuccessful. Please use BERT for now. See issue on https://github.com/huggingface/transformers/issues/1631.")
     roberta_available = False
 
 
@@ -234,8 +231,7 @@ class NERModel:
             try:
                 from apex import amp
             except ImportError:
-                raise ImportError(
-                    "Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
             model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
 
@@ -312,8 +308,6 @@ class NERModel:
                         if args['wandb_project']:
                             wandb.log({'Training loss': current_loss, 'lr': scheduler.get_lr()[0], 'global_step': global_step})
 
-
-                        
                     if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))

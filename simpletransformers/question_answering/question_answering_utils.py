@@ -21,7 +21,7 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 from tensorboardX import SummaryWriter
 
 logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
+
 
 class InputExample(object):
     """
@@ -140,8 +140,7 @@ def get_examples(examples_to_process, is_training=True, version_2_with_negative=
                 if version_2_with_negative:
                     is_impossible = qa["is_impossible"]
                 if (len(qa["answers"]) != 1) and (not is_impossible):
-                    raise ValueError(
-                        "For training, each question should have exactly 1 answer.")
+                    raise ValueError("For training, each question should have exactly 1 answer.")
                 if not is_impossible:
                     answer = qa["answers"][0]
                     orig_answer_text = answer["text"]
@@ -161,8 +160,7 @@ def get_examples(examples_to_process, is_training=True, version_2_with_negative=
                     cleaned_answer_text = " ".join(
                         whitespace_tokenize(orig_answer_text))
                     if actual_text.find(cleaned_answer_text) == -1:
-                        logger.warning("Could not find answer: '%s' vs. '%s'",
-                                       actual_text, cleaned_answer_text)
+                        logger.warning("Could not find answer: '%s' vs. '%s'", actual_text, cleaned_answer_text)
                         continue
                 else:
                     start_position = -1
@@ -893,8 +891,8 @@ def write_predictions_extended(all_examples, all_features, all_results, n_best_s
 
 
 def get_best_predictions(all_examples, all_features, all_results, n_best_size,
-                      max_answer_length, do_lower_case, verbose_logging,
-                      version_2_with_negative, null_score_diff_threshold):
+                         max_answer_length, do_lower_case, verbose_logging,
+                         version_2_with_negative, null_score_diff_threshold):
 
     example_index_to_features = collections.defaultdict(list)
     for feature in all_features:
@@ -1078,9 +1076,9 @@ def get_best_predictions(all_examples, all_features, all_results, n_best_size,
 
 
 def get_best_predictions_extended(all_examples, all_features, all_results, n_best_size,
-                               max_answer_length, 
-                               start_n_top, end_n_top, version_2_with_negative,
-                               tokenizer, verbose_logging):
+                                  max_answer_length,
+                                  start_n_top, end_n_top, version_2_with_negative,
+                                  tokenizer, verbose_logging):
     """ XLNet write prediction logic (more complex than Bert's).
                     Write final predictions to the json file and log-odds of null if needed.
                     Requires utils_squad_evaluate.py
@@ -1092,7 +1090,6 @@ def get_best_predictions_extended(all_examples, all_features, all_results, n_bes
 
     _NbestPrediction = collections.namedtuple(  # pylint: disable=invalid-name
         "NbestPrediction", ["text", "start_log_prob", "end_log_prob"])
-
 
     example_index_to_features = collections.defaultdict(list)
     for feature in all_features:
@@ -1314,10 +1311,8 @@ def get_raw_scores(dataset, preds):
                 continue
             a_pred = preds[qid]
             # Take max over all gold answers
-            exact_scores[qid] = max(compute_exact(a, a_pred)
-                                    for a in gold_answers)
-            f1_scores[qid] = max(compute_f1(a, a_pred)
-                                    for a in gold_answers)
+            exact_scores[qid] = max(compute_exact(a, a_pred) for a in gold_answers)
+            f1_scores[qid] = max(compute_f1(a, a_pred) for a in gold_answers)
     return exact_scores, f1_scores
 
 
@@ -1511,9 +1506,9 @@ def build_examples(to_predict):
         context = row['context']
         for qa in row['qas']:
             qa['answers'] = [{
-                     'text': ' ',
-                     'answer_start': 0
-                    }]
+                'text': ' ',
+                'answer_start': 0
+            }]
             qa['is_impossible']: False
         example = {
             'context': context,

@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import logging
 import math
 import json
 import random
@@ -56,8 +55,6 @@ from simpletransformers.experimental.classification.transformer_models.distilber
 from simpletransformers.experimental.classification.transformer_models.albert_model import AlbertForSequenceClassification
 from simpletransformers.experimental.classification.transformer_models.camembert_model import CamembertForSequenceClassification
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 class ClassificationModel:
     def __init__(self, model_type, model_name, num_labels=None, weight=None, sliding_window=False, args=None, use_cuda=True):
@@ -210,7 +207,7 @@ class ClassificationModel:
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        logger.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None):
         """
@@ -248,8 +245,7 @@ class ClassificationModel:
             try:
                 from apex import amp
             except ImportError:
-                raise ImportError(
-                    "Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
+                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
             model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
 
@@ -275,7 +271,7 @@ class ClassificationModel:
                 # model outputs are always tuple in pytorch-transformers (see doc)
                 loss = outputs[0]
                 if show_running_loss:
-                    logger.info("\rRunning loss: %f" % loss, end="")
+                    print("\rRunning loss: %f" % loss, end="")
 
                 if args['n_gpu'] > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -349,7 +345,7 @@ class ClassificationModel:
         self.results.update(result)
 
         if verbose:
-            logger.info(self.results)
+            print(self.results)
 
         return result, model_outputs, wrong_preds
 
@@ -460,9 +456,9 @@ class ClassificationModel:
 
         if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
             features = torch.load(cached_features_file)
-            logger.info(f"Features loaded from cache at {cached_features_file}")
+            print(f"Features loaded from cache at {cached_features_file}")
         else:
-            logger.info(f"Converting to features started.")
+            print(f"Converting to features started.")
             features = convert_examples_to_features(
                 examples,
                 args["max_seq_length"],
@@ -494,8 +490,7 @@ class ClassificationModel:
             # features = pad_sequence([torch.tensor(features_per_sequence) for features_per_sequence in features])
             all_input_ids = pad_sequence([torch.tensor([f.input_ids for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
             all_input_mask = pad_sequence([torch.tensor([f.input_mask for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
-            all_segment_ids = pad_sequence([torch.tensor([f.segment_ids for f in features_per_sequence], dtype=torch.long)
-                                            for features_per_sequence in features], batch_first=True)
+            all_segment_ids = pad_sequence([torch.tensor([f.segment_ids for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
 
             # all_input_ids = torch.tensor([f.input_ids for feature in features for f in feature], dtype=torch.long)
             # all_input_mask = torch.tensor([f.input_mask for feature in features for f in feature], dtype=torch.long)
@@ -504,8 +499,7 @@ class ClassificationModel:
             if output_mode == "classification":
                 all_label_ids = pad_sequence([torch.tensor([f.label_id for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
             elif output_mode == "regression":
-                all_label_ids = pad_sequence([torch.tensor([f.label_id for f in features_per_sequence], dtype=torch.float)
-                                              for features_per_sequence in features], batch_first=True)
+                all_label_ids = pad_sequence([torch.tensor([f.label_id for f in features_per_sequence], dtype=torch.float) for features_per_sequence in features], batch_first=True)
         else:
             all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
             all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
