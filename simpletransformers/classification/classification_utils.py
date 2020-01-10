@@ -291,8 +291,7 @@ def convert_examples_to_features(
         `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
     """
 
-    examples = [(example, max_seq_length, tokenizer, output_mode, cls_token_at_end, cls_token, sep_token, cls_token_segment_id,
-                 pad_on_left, pad_token_segment_id, sep_token_extra, multi_label, stride) for example in examples]
+    examples = [(example, max_seq_length, tokenizer, output_mode, cls_token_at_end, cls_token, sep_token, cls_token_segment_id, pad_on_left, pad_token_segment_id, sep_token_extra, multi_label, stride) for example in examples]
 
     if use_multiprocessing:
         if sliding_window:
@@ -308,8 +307,7 @@ def convert_examples_to_features(
     else:
         if sliding_window:
             print('sliding_window enabled')
-            features = [convert_example_to_feature_sliding_window(
-                example) for example in tqdm(examples, disable=silent)]
+            features = [convert_example_to_feature_sliding_window(example) for example in tqdm(examples, disable=silent)]
             if flatten:
                 features = [feature for feature_set in features for feature in feature_set]
             print(f'{len(features)} features created from {len(examples)} samples.')
