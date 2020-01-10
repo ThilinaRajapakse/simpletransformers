@@ -5,7 +5,6 @@
 from __future__ import absolute_import, division, print_function
 
 import os
-import logging
 import math
 import json
 import random
@@ -56,8 +55,6 @@ from simpletransformers.experimental.classification.transformer_models.distilber
 from simpletransformers.experimental.classification.transformer_models.albert_model import AlbertForSequenceClassification
 from simpletransformers.experimental.classification.transformer_models.camembert_model import CamembertForSequenceClassification
 
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 class ClassificationModel:
     def __init__(self, model_type, model_name, num_labels=None, weight=None, sliding_window=False, args=None, use_cuda=True):
@@ -100,12 +97,14 @@ class ClassificationModel:
             if torch.cuda.is_available():
                 self.device = torch.device("cuda")
             else:
-                raise ValueError("'use_cuda' set to True when cuda is unavailable. Make sure CUDA is available or set use_cuda=False.")
+                raise ValueError(
+                    "'use_cuda' set to True when cuda is unavailable. Make sure CUDA is available or set use_cuda=False.")
         else:
             self.device = "cpu"
 
         if self.weight:
-            self.model = model_class.from_pretrained(model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device), sliding_window=self.sliding_window)
+            self.model = model_class.from_pretrained(model_name, config=self.config, weight=torch.Tensor(
+                self.weight).to(self.device), sliding_window=self.sliding_window)
         else:
             self.model = model_class.from_pretrained(model_name, config=self.config, sliding_window=self.sliding_window)
 
@@ -155,7 +154,8 @@ class ClassificationModel:
         self.args['model_type'] = model_type
 
         if model_type == 'camembert':
-            warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
+            warnings.warn(
+                "use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
             self.args['use_multiprocessing'] = False
 
         if self.args['stride'] and not sliding_window:
@@ -184,23 +184,28 @@ class ClassificationModel:
             show_running_loss = False
 
         if self.args['evaluate_during_training'] and eval_df is None:
-            raise ValueError("evaluate_during_training is enabled but eval_df is not specified. Pass eval_df to model.train_model() if using evaluate_during_training.")
+            raise ValueError(
+                "evaluate_during_training is enabled but eval_df is not specified. Pass eval_df to model.train_model() if using evaluate_during_training.")
 
         if not output_dir:
             output_dir = self.args['output_dir']
 
         if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args["overwrite_output_dir"]:
-            raise ValueError("Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(output_dir))
+            raise ValueError(
+                "Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(output_dir))
 
         self._move_model_to_device()
 
         if 'text' in train_df.columns and 'labels' in train_df.columns:
-            train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df['text'], train_df['labels']))]
+            train_examples = [InputExample(i, text, None, label)
+                              for i, (text, label) in enumerate(zip(train_df['text'], train_df['labels']))]
         else:
-            train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))]
+            train_examples = [InputExample(i, text, None, label) for i, (text, label)
+                              in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))]
 
         train_dataset = self.load_and_cache_examples(train_examples)
-        global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df)
+        global_step, tr_loss = self.train(train_dataset, output_dir,
+                                          show_running_loss=show_running_loss, eval_df=eval_df)
 
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -210,7 +215,7 @@ class ClassificationModel:
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        logger.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None):
         """
@@ -242,7 +247,8 @@ class ClassificationModel:
         args["warmup_steps"] = warmup_steps if args["warmup_steps"] == 0 else args["warmup_steps"]
 
         optimizer = AdamW(optimizer_grouped_parameters, lr=args["learning_rate"], eps=args["adam_epsilon"])
-        scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args["warmup_steps"], num_training_steps=t_total)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer, num_warmup_steps=args["warmup_steps"], num_training_steps=t_total)
 
         if args["fp16"]:
             try:
@@ -275,7 +281,7 @@ class ClassificationModel:
                 # model outputs are always tuple in pytorch-transformers (see doc)
                 loss = outputs[0]
                 if show_running_loss:
-                    logger.info("\rRunning loss: %f" % loss, end="")
+                    print("\rRunning loss: %f" % loss, end="")
 
                 if args['n_gpu'] > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -349,7 +355,7 @@ class ClassificationModel:
         self.results.update(result)
 
         if verbose:
-            logger.info(self.results)
+            print(self.results)
 
         return result, model_outputs, wrong_preds
 
@@ -369,9 +375,11 @@ class ClassificationModel:
         results = {}
 
         if 'text' in eval_df.columns and 'labels' in eval_df.columns:
-            eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df['text'], eval_df['labels']))]
+            eval_examples = [InputExample(i, text, None, label)
+                             for i, (text, label) in enumerate(zip(eval_df['text'], eval_df['labels']))]
         else:
-            eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))]
+            eval_examples = [InputExample(i, text, None, label)
+                             for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))]
 
         eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True)
         if not os.path.exists(eval_output_dir):
@@ -456,13 +464,14 @@ class ClassificationModel:
             os.mkdir(self.args["cache_dir"])
 
         mode = "dev" if evaluate else "train"
-        cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples)))
+        cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}_{}".format(
+            mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples)))
 
         if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
             features = torch.load(cached_features_file)
-            logger.info(f"Features loaded from cache at {cached_features_file}")
+            print(f"Features loaded from cache at {cached_features_file}")
         else:
-            logger.info(f"Converting to features started.")
+            print(f"Converting to features started.")
             features = convert_examples_to_features(
                 examples,
                 args["max_seq_length"],
@@ -492,8 +501,10 @@ class ClassificationModel:
 
         if self.sliding_window:
             # features = pad_sequence([torch.tensor(features_per_sequence) for features_per_sequence in features])
-            all_input_ids = pad_sequence([torch.tensor([f.input_ids for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
-            all_input_mask = pad_sequence([torch.tensor([f.input_mask for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
+            all_input_ids = pad_sequence([torch.tensor([f.input_ids for f in features_per_sequence],
+                                                       dtype=torch.long) for features_per_sequence in features], batch_first=True)
+            all_input_mask = pad_sequence([torch.tensor([f.input_mask for f in features_per_sequence],
+                                                        dtype=torch.long) for features_per_sequence in features], batch_first=True)
             all_segment_ids = pad_sequence([torch.tensor([f.segment_ids for f in features_per_sequence], dtype=torch.long)
                                             for features_per_sequence in features], batch_first=True)
 
@@ -502,7 +513,8 @@ class ClassificationModel:
             # all_segment_ids = torch.tensor([f.segment_ids for feature in features for f in feature], dtype=torch.long)
 
             if output_mode == "classification":
-                all_label_ids = pad_sequence([torch.tensor([f.label_id for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
+                all_label_ids = pad_sequence([torch.tensor(
+                    [f.label_id for f in features_per_sequence], dtype=torch.long) for features_per_sequence in features], batch_first=True)
             elif output_mode == "regression":
                 all_label_ids = pad_sequence([torch.tensor([f.label_id for f in features_per_sequence], dtype=torch.float)
                                               for features_per_sequence in features], batch_first=True)
@@ -584,11 +596,13 @@ class ClassificationModel:
         self._move_model_to_device()
 
         if multi_label:
-            eval_examples = [InputExample(i, text, None, [0 for i in range(self.num_labels)]) for i, text in enumerate(to_predict)]
+            eval_examples = [InputExample(i, text, None, [0 for i in range(self.num_labels)])
+                             for i, text in enumerate(to_predict)]
         else:
             eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
 
-        eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, multi_label=multi_label, no_cache=True)
+        eval_dataset = self.load_and_cache_examples(
+            eval_examples, evaluate=True, multi_label=multi_label, no_cache=True)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
@@ -641,7 +655,8 @@ class ClassificationModel:
         if multi_label:
             if isinstance(args['threshold'], list):
                 threshold_values = args['threshold']
-                preds = [[self._threshold(pred, threshold_values[i]) for i, pred in enumerate(example)] for example in preds]
+                preds = [[self._threshold(pred, threshold_values[i])
+                          for i, pred in enumerate(example)] for example in preds]
             else:
                 preds = [[self._threshold(pred, args['threshold']) for pred in example] for example in preds]
         else:

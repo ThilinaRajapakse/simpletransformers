@@ -20,7 +20,6 @@ from __future__ import absolute_import, division, print_function
 import os
 import sys
 import csv
-import logging
 
 from io import open
 from multiprocessing import Pool, cpu_count
@@ -28,10 +27,6 @@ from multiprocessing import Pool, cpu_count
 from tqdm.auto import tqdm
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
-
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
 
 csv.field_size_limit(2147483647)
 
@@ -70,15 +65,15 @@ class InputFeatures(object):
 
 
 def convert_example_to_feature(
-        example_row,
-        pad_token=0,
-        sequence_a_segment_id=0,
-        sequence_b_segment_id=1,
-        cls_token_segment_id=1,
-        pad_token_segment_id=0,
-        mask_padding_with_zero=True,
-        sep_token_extra=False
-    ):
+    example_row,
+    pad_token=0,
+    sequence_a_segment_id=0,
+    sequence_b_segment_id=1,
+    cls_token_segment_id=1,
+    pad_token_segment_id=0,
+    mask_padding_with_zero=True,
+    sep_token_extra=False
+):
     example, max_seq_length, tokenizer, output_mode, cls_token_at_end, cls_token, sep_token, cls_token_segment_id, pad_on_left, pad_token_segment_id, sep_token_extra, multi_label, stride = example_row
 
     tokens_a = tokenizer.tokenize(example.text_a)
@@ -166,15 +161,15 @@ def convert_example_to_feature(
 
 
 def convert_example_to_feature_sliding_window(
-        example_row,
-        pad_token=0,
-        sequence_a_segment_id=0,
-        sequence_b_segment_id=1,
-        cls_token_segment_id=1,
-        pad_token_segment_id=0,
-        mask_padding_with_zero=True,
-        sep_token_extra=False,
-    ):
+    example_row,
+    pad_token=0,
+    sequence_a_segment_id=0,
+    sequence_b_segment_id=1,
+    cls_token_segment_id=1,
+    pad_token_segment_id=0,
+    mask_padding_with_zero=True,
+    sep_token_extra=False,
+):
     example, max_seq_length, tokenizer, output_mode, cls_token_at_end, cls_token, sep_token, cls_token_segment_id, pad_on_left, pad_token_segment_id, sep_token_extra, multi_label, stride = example_row
 
     if stride < 1:
@@ -190,7 +185,6 @@ def convert_example_to_feature_sliding_window(
         token_sets = [tokens_a[i:i + bucket_size] for i in range(0, len(tokens_a), stride)]
     else:
         token_sets.append(tokens_a)
-
 
     if example.text_b:
         raise ValueError("Sequence pair tasks not implemented for sliding window tokenization.")
@@ -267,29 +261,29 @@ def convert_example_to_feature_sliding_window(
 
 
 def convert_examples_to_features(
-        examples,
-        max_seq_length,
-        tokenizer,
-        output_mode,
-        cls_token_at_end=False,
-        sep_token_extra=False,
-        pad_on_left=False,
-        cls_token="[CLS]",
-        sep_token="[SEP]",
-        pad_token=0,
-        sequence_a_segment_id=0,
-        sequence_b_segment_id=1,
-        cls_token_segment_id=1,
-        pad_token_segment_id=0,
-        mask_padding_with_zero=True,
-        process_count=cpu_count() - 2,
-        multi_label=False,
-        silent=False,
-        use_multiprocessing=True,
-        sliding_window=False,
-        flatten=False,
-        stride=None
-    ):
+    examples,
+    max_seq_length,
+    tokenizer,
+    output_mode,
+    cls_token_at_end=False,
+    sep_token_extra=False,
+    pad_on_left=False,
+    cls_token="[CLS]",
+    sep_token="[SEP]",
+    pad_token=0,
+    sequence_a_segment_id=0,
+    sequence_b_segment_id=1,
+    cls_token_segment_id=1,
+    pad_token_segment_id=0,
+    mask_padding_with_zero=True,
+    process_count=cpu_count() - 2,
+    multi_label=False,
+    silent=False,
+    use_multiprocessing=True,
+    sliding_window=False,
+    flatten=False,
+    stride=None
+):
     """ Loads a data file into a list of `InputBatch`s
         `cls_token_at_end` define the location of the CLS token:
             - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
@@ -297,26 +291,30 @@ def convert_examples_to_features(
         `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
     """
 
-    examples = [(example, max_seq_length, tokenizer, output_mode, cls_token_at_end, cls_token, sep_token, cls_token_segment_id, pad_on_left, pad_token_segment_id, sep_token_extra, multi_label, stride) for example in examples]
+    examples = [(example, max_seq_length, tokenizer, output_mode, cls_token_at_end, cls_token, sep_token, cls_token_segment_id,
+                 pad_on_left, pad_token_segment_id, sep_token_extra, multi_label, stride) for example in examples]
 
     if use_multiprocessing:
         if sliding_window:
-            logger.info('sliding_window enabled')
+            print('sliding_window enabled')
             with Pool(process_count) as p:
-                features = list(tqdm(p.imap(convert_example_to_feature_sliding_window, examples, chunksize=500), total=len(examples), disable=silent))
+                features = list(tqdm(p.imap(convert_example_to_feature_sliding_window,
+                                            examples, chunksize=500), total=len(examples), disable=silent))
             if flatten:
                 features = [feature for feature_set in features for feature in feature_set]
-            logger.info(f'{len(features)} features created from {len(examples)} samples.')
+            print(f'{len(features)} features created from {len(examples)} samples.')
         else:
             with Pool(process_count) as p:
-                features = list(tqdm(p.imap(convert_example_to_feature, examples, chunksize=500), total=len(examples), disable=silent))
+                features = list(tqdm(p.imap(convert_example_to_feature, examples,
+                                            chunksize=500), total=len(examples), disable=silent))
     else:
         if sliding_window:
-            logger.info('sliding_window enabled')
-            features = [convert_example_to_feature_sliding_window(example) for example in tqdm(examples, disable=silent)]
+            print('sliding_window enabled')
+            features = [convert_example_to_feature_sliding_window(
+                example) for example in tqdm(examples, disable=silent)]
             if flatten:
                 features = [feature for feature_set in features for feature in feature_set]
-            logger.info(f'{len(features)} features created from {len(examples)} samples.')
+            print(f'{len(features)} features created from {len(examples)} samples.')
         else:
             features = [convert_example_to_feature(example) for example in tqdm(examples, disable=silent)]
 
