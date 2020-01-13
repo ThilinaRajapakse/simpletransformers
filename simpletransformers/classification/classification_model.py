@@ -151,6 +151,7 @@ class ClassificationModel:
             'stride': 0.8,
 
             'wandb_project': None,
+            'wandb_kwargs': {},
         }
 
         if not use_cuda:

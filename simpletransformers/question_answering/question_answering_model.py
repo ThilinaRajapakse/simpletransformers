@@ -127,6 +127,7 @@ class QuestionAnsweringModel:
             'null_score_diff_threshold': 0.0,
 
             'wandb_project': False,
+            'wandb_kwargs': {},
         }
 
         if not use_cuda:
