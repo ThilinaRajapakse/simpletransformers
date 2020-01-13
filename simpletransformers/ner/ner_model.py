@@ -27,13 +27,8 @@ from torch.utils.data import (
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers import WEIGHTS_NAME, BertConfig, BertForTokenClassification, BertTokenizer
 from transformers import DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer
-try:
-    from transformers import RobertaConfig, RobertaForTokenClassification, RobertaTokenizer
-    roberta_available = True
-except ImportError:
-    print("Warning: Importing RobertaForTokenClassification unsuccessful. Please use BERT for now. See issue on https://github.com/huggingface/transformers/issues/1631.")
-    roberta_available = False
-
+from transformers import RobertaConfig, RobertaForTokenClassification, RobertaTokenizer
+from transformers import XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer
 
 from simpletransformers.ner.ner_utils import InputExample, convert_examples_to_features, get_labels, read_examples_from_file, get_examples_from_df
 from transformers import CamembertConfig, CamembertForTokenClassification, CamembertTokenizer
@@ -61,19 +56,13 @@ class NERModel:
             self.labels = ["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"]
         self.num_labels = len(self.labels)
 
-        if roberta_available:
-            MODEL_CLASSES = {
-                'bert': (BertConfig, BertForTokenClassification, BertTokenizer),
-                'roberta': (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
-                'distilbert': (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
-                'camembert': (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer)
-            }
-        else:
-            MODEL_CLASSES = {
-                'bert': (BertConfig, BertForTokenClassification, BertTokenizer),
-                'distilbert': (DistilBertConfig, DistilBertForTokenClassification, BertTokenizer),
-                'camembert': (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer)
-            }
+        MODEL_CLASSES = {
+            'bert': (BertConfig, BertForTokenClassification, BertTokenizer),
+            'roberta': (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
+            'distilbert': (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
+            'camembert': (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer),
+            'xlmroberta': (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
+        }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
 

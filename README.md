@@ -87,6 +87,7 @@ Supported model types:
 * DistilBERT
 * ALBERT
 * CamemBERT @[manueltonneau](https://github.com/manueltonneau)
+* XLM-RoBERTa
 
 ### Task Specific Notes
 
@@ -327,6 +328,7 @@ Supported model types:
 * RoBERTa
 * DistilBERT
 * CamemBERT
+* XLM-RoBERTa
 
 ```
 model = NERModel('bert', 'bert-base-cased', labels=["LABEL_1", "LABEL_2", "LABEL_3"])

@@ -38,7 +38,8 @@ from transformers import (
     RobertaConfig, RobertaTokenizer,
     DistilBertConfig, DistilBertTokenizer,
     AlbertConfig, AlbertTokenizer,
-    CamembertConfig, CamembertTokenizer
+    CamembertConfig, CamembertTokenizer,
+    XLMRobertaConfig, XLMRobertaTokenizer,
 )
 
 from simpletransformers.classification.classification_utils import (
@@ -53,6 +54,7 @@ from simpletransformers.classification.transformer_models.xlnet_model import XLN
 from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
 from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
 from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
+from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
 
 import wandb
 
@@ -79,7 +81,8 @@ class ClassificationModel:
             'roberta':    (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
             'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
             'albert':     (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-            'camembert':  (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
+            'camembert':  (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
+            'xlmroberta': (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
@@ -161,8 +164,8 @@ class ClassificationModel:
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
 
-        if model_type == 'camembert':
-            warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
+        if model_type in ['camembert', 'xlmroberta']:
+            warnings.warn(f"use_multiprocessing automatically disabled as {model_type} fails when using multiprocessing for feature conversion.")
             self.args['use_multiprocessing'] = False
 
 
