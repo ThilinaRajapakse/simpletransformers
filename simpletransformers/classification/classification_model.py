@@ -58,7 +58,7 @@ import wandb
 
 
 class ClassificationModel:
-    def __init__(self, model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True, cuda_device=-1):
+    def __init__(self, model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True, cuda_device=-1, **kwargs):
         """
         Initializes a ClassificationModel model.
 
@@ -70,6 +70,7 @@ class ClassificationModel:
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
+            **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """
 
         MODEL_CLASSES = {
@@ -84,10 +85,10 @@ class ClassificationModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
-            self.config = config_class.from_pretrained(model_name, num_labels=num_labels)
+            self.config = config_class.from_pretrained(model_name, num_labels=num_labels,  **kwargs)
             self.num_labels = num_labels
         else:
-            self.config = config_class.from_pretrained(model_name)
+            self.config = config_class.from_pretrained(model_name,  **kwargs)
             self.num_labels = self.config.num_labels
         self.weight = weight
 
@@ -103,9 +104,9 @@ class ClassificationModel:
             self.device = "cpu"
 
         if self.weight:
-            self.model = model_class.from_pretrained(model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device))
+            self.model = model_class.from_pretrained(model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device),  **kwargs)
         else:
-            self.model = model_class.from_pretrained(model_name, config=self.config)
+            self.model = model_class.from_pretrained(model_name, config=self.config,  **kwargs)
 
         self.results = {}
 
@@ -156,7 +157,7 @@ class ClassificationModel:
         if args:
             self.args.update(args)
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'])
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'],  **kwargs)
 
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type

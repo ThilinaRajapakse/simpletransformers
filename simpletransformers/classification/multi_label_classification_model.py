@@ -22,7 +22,7 @@ from transformers import (
 
 
 class MultiLabelClassificationModel(ClassificationModel):
-    def __init__(self, model_type, model_name, num_labels=None, pos_weight=None, args=None, use_cuda=True):
+    def __init__(self, model_type, model_name, num_labels=None, pos_weight=None, args=None, use_cuda=True, **kwargs):
         """
         Initializes a MultiLabelClassification model.
 
@@ -33,6 +33,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             pos_weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
+            **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """
         MODEL_CLASSES = {
             'bert':       (BertConfig, BertForMultiLabelSequenceClassification, BertTokenizer),
@@ -45,10 +46,10 @@ class MultiLabelClassificationModel(ClassificationModel):
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
-            self.config = config_class.from_pretrained(model_name, num_labels=num_labels)
+            self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **kwargs)
             self.num_labels = num_labels
         else:
-            self.config = config_class.from_pretrained(model_name)
+            self.config = config_class.from_pretrained(model_name, **kwargs)
             self.num_labels = self.config.num_labels
         self.pos_weight = pos_weight
 
@@ -61,9 +62,9 @@ class MultiLabelClassificationModel(ClassificationModel):
             self.device = "cpu"
 
         if self.pos_weight:
-            self.model = model_class.from_pretrained(model_name, config=self.config, pos_weight=torch.Tensor(self.pos_weight).to(self.device))
+            self.model = model_class.from_pretrained(model_name, config=self.config, pos_weight=torch.Tensor(self.pos_weight).to(self.device), **kwargs)
         else:
-            self.model = model_class.from_pretrained(model_name, config=self.config)
+            self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
 
         self.results = {}
 
@@ -115,7 +116,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         if args:
             self.args.update(args)
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'])
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'], **kwargs)
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
