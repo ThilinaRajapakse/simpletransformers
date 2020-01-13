@@ -131,7 +131,7 @@ class ClassificationModel:
             'logging_steps': 50,
             'save_steps': 2000,
             'evaluate_during_training': False,
-            'tensorboard_folder': None,
+            'tensorboard_dir': None,
 
             'overwrite_output_dir': False,
             'reprocess_input_data': False,
@@ -221,7 +221,7 @@ class ClassificationModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args["tensorboard_folder"])
+        tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
 
