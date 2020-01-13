@@ -152,6 +152,9 @@ def convert_example_to_feature(
     # else:
     #     raise KeyError(output_mode)
 
+    if output_mode == 'regressioin':
+        label_id = float(example.label)
+
     return InputFeatures(
         input_ids=input_ids,
         input_mask=input_mask,

@@ -116,6 +116,7 @@ class NERModel:
             'use_multiprocessing': True,
 
             'wandb_project': False,
+            'wandb_kwargs': {},
         }
 
         if not use_cuda:

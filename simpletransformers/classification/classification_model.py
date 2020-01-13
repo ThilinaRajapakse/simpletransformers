@@ -150,7 +150,10 @@ class ClassificationModel:
             'tie_value': 1,
             'stride': 0.8,
 
+            'regression': False,
+
             'wandb_project': None,
+            'wandb_kwargs': {},
         }
 
         if not use_cuda:
@@ -206,7 +209,10 @@ class ClassificationModel:
 
         if 'text' in train_df.columns and 'labels' in train_df.columns:
             train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df['text'], train_df['labels']))]
+        elif 'text_a' in train_df.columns and 'text_b' in train_df.columns:
+            train_examples = [InputExample(i, text_a, text_b, label) for i, (text_a, text_b, label) in enumerate(zip(train_df['text_a'], train_df['text_b'], train_df['labels']))]
         else:
+            warnings.warn("Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels.")
             train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))]
 
         train_dataset = self.load_and_cache_examples(train_examples)
@@ -290,6 +296,13 @@ class ClassificationModel:
                         'fp': [],
                         'fn': [],
                         'mcc': [],
+                        'train_loss': [],
+                        'eval_loss': [],
+                        **extra_metrics
+                    }
+                elif self.model.num_labels == 1:
+                        training_progress_scores = {
+                        'global_step': [],
                         'train_loss': [],
                         'eval_loss': [],
                         **extra_metrics
@@ -470,7 +483,10 @@ class ClassificationModel:
 
         if 'text' in eval_df.columns and 'labels' in eval_df.columns:
             eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df['text'], eval_df['labels']))]
+        elif 'text_a' in eval_df.columns and 'text_b' in eval_df.columns:
+            eval_examples = [InputExample(i, text_a, text_b, label) for i, (text_a, text_b, label) in enumerate(zip(eval_df['text_a'], eval_df['text_b'], eval_df['labels']))]
         else:
+            warnings.warn("Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels.")
             eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))]
 
         if args['sliding_window']:
@@ -535,6 +551,9 @@ class ClassificationModel:
                 else:
                     final_preds.append(mode_pred[0])
             preds = np.array(final_preds)
+        elif args['regression'] == True:
+            preds = np.squeeze(preds)
+            model_outputs = preds
         else:
             model_outputs = preds
 
@@ -562,8 +581,8 @@ class ClassificationModel:
         process_count = self.args["process_count"]
 
         tokenizer = self.tokenizer
-        output_mode = "classification"
         args = self.args
+        output_mode = "classification" if not args['regression'] else 'regression'
 
         if not os.path.isdir(self.args["cache_dir"]):
             os.mkdir(self.args["cache_dir"])
@@ -653,7 +672,9 @@ class ClassificationModel:
         if multi_label:
             label_ranking_score = label_ranking_average_precision_score(labels, preds)
             return {**{"LRAP": label_ranking_score}, **extra_metrics}, wrong
-
+        elif self.args['regression']:
+            return {**extra_metrics}, wrong
+            
         mcc = matthews_corrcoef(labels, preds)
 
         if self.model.num_labels == 2:
@@ -665,7 +686,6 @@ class ClassificationModel:
                 "fp": fp,
                 "fn": fn
             }, **extra_metrics}, wrong
-
         else:
             return {**{"mcc": mcc}, **extra_metrics}, wrong
 
