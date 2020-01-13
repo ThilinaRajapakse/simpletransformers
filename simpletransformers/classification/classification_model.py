@@ -301,7 +301,7 @@ class ClassificationModel:
                     }
 
         if args['wandb_project']:
-            wandb.init(project=args['wandb_project'], config={**args})
+            wandb.init(project=args['wandb_project'], config={**args}, **args['wandb_kwargs'])
             wandb.watch(self.model)
 
         model.train()
@@ -409,6 +409,13 @@ class ClassificationModel:
                 with open(output_eval_file, "w") as writer:
                     for key in sorted(results.keys()):
                         writer.write("{} = {}\n".format(key, str(results[key])))
+
+                training_progress_scores['global_step'].append(global_step)
+                training_progress_scores['train_loss'].append(current_loss)
+                for key in results:
+                    training_progress_scores[key].append(results[key])
+                report = pd.DataFrame(training_progress_scores)
+                report.to_csv(args['output_dir'] + 'training_progress_scores.csv', index=False)
 
         return global_step, tr_loss / global_step
 
@@ -565,7 +572,7 @@ class ClassificationModel:
             features = torch.load(cached_features_file)
             print(f"Features loaded from cache at {cached_features_file}")
         else:
-            print(f"Converting to features started.")
+            print(f"Converting to features started. Cache is not used.")
             features = convert_examples_to_features(
                 examples,
                 args["max_seq_length"],
