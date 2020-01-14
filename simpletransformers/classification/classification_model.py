@@ -552,7 +552,7 @@ class ClassificationModel:
                 else:
                     final_preds.append(mode_pred[0])
             preds = np.array(final_preds)
-        elif args['regression'] == True:
+        elif not multi_label and args['regression'] == True:
             preds = np.squeeze(preds)
             model_outputs = preds
         else:
@@ -583,7 +583,11 @@ class ClassificationModel:
 
         tokenizer = self.tokenizer
         args = self.args
-        output_mode = "classification" if not args['regression'] else 'regression'
+        
+        if not multi_label and args['regression']:
+            output_mode = 'regression'
+        else:
+            output_mode = "classification"
 
         if not os.path.isdir(self.args["cache_dir"]):
             os.mkdir(self.args["cache_dir"])
@@ -774,7 +778,7 @@ class ClassificationModel:
                 else:
                     final_preds.append(mode_pred[0])
             preds = np.array(final_preds)
-        elif args['regression'] == True:
+        elif not multi_label and args['regression'] == True:
             preds = np.squeeze(preds)
             model_outputs = preds
         else:

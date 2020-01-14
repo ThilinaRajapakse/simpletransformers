@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.1] - 2020-01-15
+### Fixed
+- Fixed bug with missing `regression` key when using MultiLabelClassification.
+
 ## [0.18.0] - 2020-01-15
 ### Added
 - Sentence pair tasks are now supported.
@@ -154,7 +158,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.18.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9c9345f...HEAD
+[0.18.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9698fd3...HEAD
+
+[0.18.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9c9345f...9698fd3
 
 [0.17.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9a39cab...9c9345f
 
