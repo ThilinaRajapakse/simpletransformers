@@ -110,6 +110,7 @@ class QuestionAnsweringModel:
             'save_steps': 2000,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
+            'use_cached_eval_features': True,
             'save_eval_checkpoints': True,
             'tensorboard_folder': None,
 
@@ -159,7 +160,7 @@ class QuestionAnsweringModel:
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], len(examples)))
 
-        if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
+        if os.path.exists(cached_features_file) and ((not args["reprocess_input_data"] and not no_cache) or (mode == "dev" and args['use_cached_eval_features'])):
             features = torch.load(cached_features_file)
             print(f"Features loaded from cache at {cached_features_file}")
         else:
@@ -412,7 +413,7 @@ class QuestionAnsweringModel:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
             epoch_number += 1
-            output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))
+            output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
             if not os.path.exists(output_dir_current):
                 os.makedirs(output_dir_current)

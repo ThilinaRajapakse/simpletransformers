@@ -135,6 +135,7 @@ class ClassificationModel:
             'save_steps': 2000,
             'evaluate_during_training': False,
             'evaluate_during_training_steps': 2000,
+            'use_cached_eval_features': True,
             'save_eval_checkpoints': True,
             'tensorboard_dir': None,
 
@@ -409,7 +410,7 @@ class ClassificationModel:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
             epoch_number += 1
-            output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))
+            output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
             if not os.path.exists(output_dir_current):
                 os.makedirs(output_dir_current)
@@ -590,7 +591,7 @@ class ClassificationModel:
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples)))
 
-        if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
+        if os.path.exists(cached_features_file) and ((not args["reprocess_input_data"] and not no_cache) or (mode == "dev" and args['use_cached_eval_features'])):
             features = torch.load(cached_features_file)
             print(f"Features loaded from cache at {cached_features_file}")
         else:
@@ -711,7 +712,10 @@ class ClassificationModel:
         if multi_label:
             eval_examples = [InputExample(i, text, None, [0 for i in range(self.num_labels)]) for i, text in enumerate(to_predict)]
         else:
-            eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
+            if isinstance(to_predict[0], list):
+                eval_examples = [InputExample(i, text[0], text[1], 0) for i, text in enumerate(to_predict)]
+            else:
+                eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
         if args['sliding_window']:
             eval_dataset, window_counts = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
         else:
@@ -770,6 +774,9 @@ class ClassificationModel:
                 else:
                     final_preds.append(mode_pred[0])
             preds = np.array(final_preds)
+        elif args['regression'] == True:
+            preds = np.squeeze(preds)
+            model_outputs = preds
         else:
             model_outputs = preds
             if multi_label:

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.0] - 2020-01-15
+### Added
+- Sentence pair tasks are now supported.
+- Regression tasks are now supported.
+- `use_cached_eval_features` to `args`. Evaluation during training will now use cached features by default. Set to `False` if features should be reprocessed.
+
+### Changed
+- Checkpoints saved at the end of an epoch now follow the `checkpoint-{global_step}-epoch-{epoch_number} format.
+
 ## [0.17.1] - 2020-01-14
 ### Fixed
 - Fixed `wandb_kwargs` key missing in `args` bug.
@@ -145,7 +154,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.17.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9a39cab...HEAD
+[0.18.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9c9345f...HEAD
+
+[0.17.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9a39cab...9c9345f
 
 [0.17.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0e5dd18...9a39cab
 
