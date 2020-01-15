@@ -946,6 +946,7 @@ self.args = {
   'use_cached_eval_features': True,
   `save_eval_checkpoints`: True
   'save_steps': 2000,
+  'save_model_every_epoch': False,
   'tensorboard_dir': None,
 
   'overwrite_output_dir': False,
@@ -1021,6 +1022,9 @@ Log training loss and learning at every specified number of steps.
 
 #### *save_steps: int*
 Save a model checkpoint at every specified number of steps.
+
+#### *save_model_every_epoch: bool*
+Save a model at the end of every epoch.
 
 #### *tensorboard_dir: str*
 The directory where Tensorboard events will be stored during training. By default, Tensorboard events will be saved in a subfolder inside `runs/`  like `runs/Dec02_09-32-58_36d9e58955b0/`.
