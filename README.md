@@ -946,7 +946,7 @@ self.args = {
   'use_cached_eval_features': True,
   `save_eval_checkpoints`: True
   'save_steps': 2000,
-  'save_model_every_epoch': False,
+  'save_model_every_epoch': True,
   'tensorboard_dir': None,
 
   'overwrite_output_dir': False,
