@@ -10,6 +10,8 @@ from simpletransformers.custom_models.models import (BertForMultiLabelSequenceCl
                                                     DistilBertForMultiLabelSequenceClassification,
                                                     AlbertForMultiLabelSequenceClassification
                                                     )
+from simpletransformers.config.global_args import global_args
+
 from transformers import (
     WEIGHTS_NAME,
     BertConfig, BertTokenizer,
@@ -68,48 +70,14 @@ class MultiLabelClassificationModel(ClassificationModel):
         self.results = {}
 
         self.args = {
-            'output_dir': 'outputs/',
-            'cache_dir': 'cache_dir/',
-
-            'fp16': False,
-            'fp16_opt_level': 'O1',
-            'max_seq_length': 128,
-            'train_batch_size': 8,
-            'gradient_accumulation_steps': 1,
-            'eval_batch_size': 8,
-            'num_train_epochs': 1,
-            'weight_decay': 0,
-            'learning_rate': 4e-5,
-            'adam_epsilon': 1e-8,
-            'warmup_ratio': 0.06,
-            'warmup_steps': 0,
-            'max_grad_norm': 1.0,
-            'do_lower_case': False,
-
-            'logging_steps': 50,
-            'save_steps': 2000,
-            'evaluate_during_training': False,
-            'evaluate_during_training_steps': 2000,
-            'use_cached_eval_features': True,
-            'save_eval_checkpoints': True,
-            'tensorboard_dir': None,
-
-            'overwrite_output_dir': False,
-            'reprocess_input_data': False,
-
-            'process_count': cpu_count() - 2 if cpu_count() > 2 else 1,
-            'n_gpu': 1,
-            'use_multiprocessing': True,
-            'silent': False,
-
             'threshold': 0.5,
 
             'sliding_window': False,
+            'tie_value': 1,
             'stride': False,
-
-            'wandb_project': None,
-            'wandb_kwargs': {},
         }
+
+        self.args.update(global_args)
 
         if not use_cuda:
             self.args['fp16'] = False
