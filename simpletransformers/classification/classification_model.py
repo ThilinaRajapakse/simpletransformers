@@ -38,7 +38,8 @@ from transformers import (
     RobertaConfig, RobertaTokenizer,
     DistilBertConfig, DistilBertTokenizer,
     AlbertConfig, AlbertTokenizer,
-    CamembertConfig, CamembertTokenizer
+    CamembertConfig, CamembertTokenizer,
+    XLMRobertaConfig, XLMRobertaTokenizer,
 )
 
 from simpletransformers.classification.classification_utils import (
@@ -53,6 +54,9 @@ from simpletransformers.classification.transformer_models.xlnet_model import XLN
 from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
 from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
 from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
+from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
+
+from simpletransformers.config.global_args import global_args
 
 import wandb
 
@@ -79,7 +83,8 @@ class ClassificationModel:
             'roberta':    (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
             'distilbert': (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
             'albert':     (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-            'camembert':  (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer)
+            'camembert':  (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
+            'xlmroberta': (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
@@ -110,45 +115,14 @@ class ClassificationModel:
         self.results = {}
 
         self.args = {
-            'output_dir': 'outputs/',
-            'cache_dir': 'cache_dir/',
-
-            'fp16': True,
-            'fp16_opt_level': 'O1',
-            'max_seq_length': 128,
-            'train_batch_size': 8,
-            'gradient_accumulation_steps': 1,
-            'eval_batch_size': 8,
-            'num_train_epochs': 1,
-            'weight_decay': 0,
-            'learning_rate': 4e-5,
-            'adam_epsilon': 1e-8,
-            'warmup_ratio': 0.06,
-            'warmup_steps': 0,
-            'max_grad_norm': 1.0,
-            'do_lower_case': False,
-
-            'logging_steps': 50,
-            'save_steps': 2000,
-            'evaluate_during_training': False,
-            'evaluate_during_training_steps': 2000,
-            'save_eval_checkpoints': True,
-            'tensorboard_dir': None,
-
-            'overwrite_output_dir': False,
-            'reprocess_input_data': False,
-
-            'process_count': cpu_count() - 2 if cpu_count() > 2 else 1,
-            'n_gpu': 1,
-            'use_multiprocessing': True,
-            'silent': False,
-
             'sliding_window': False,
             'tie_value': 1,
             'stride': 0.8,
 
-            'wandb_project': None,
+            'regression': False,
         }
+
+        self.args.update(global_args)
 
         if not use_cuda:
             self.args['fp16'] = False
@@ -161,8 +135,8 @@ class ClassificationModel:
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
 
-        if model_type == 'camembert':
-            warnings.warn("use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion.")
+        if model_type in ['camembert', 'xlmroberta']:
+            warnings.warn(f"use_multiprocessing automatically disabled as {model_type} fails when using multiprocessing for feature conversion.")
             self.args['use_multiprocessing'] = False
 
 
@@ -203,7 +177,10 @@ class ClassificationModel:
 
         if 'text' in train_df.columns and 'labels' in train_df.columns:
             train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df['text'], train_df['labels']))]
+        elif 'text_a' in train_df.columns and 'text_b' in train_df.columns:
+            train_examples = [InputExample(i, text_a, text_b, label) for i, (text_a, text_b, label) in enumerate(zip(train_df['text_a'], train_df['text_b'], train_df['labels']))]
         else:
+            warnings.warn("Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels.")
             train_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))]
 
         train_dataset = self.load_and_cache_examples(train_examples)
@@ -291,6 +268,13 @@ class ClassificationModel:
                         'eval_loss': [],
                         **extra_metrics
                     }
+                elif self.model.num_labels == 1:
+                        training_progress_scores = {
+                        'global_step': [],
+                        'train_loss': [],
+                        'eval_loss': [],
+                        **extra_metrics
+                    }
                 else:
                     training_progress_scores = {
                         'global_step': [],
@@ -301,7 +285,7 @@ class ClassificationModel:
                     }
 
         if args['wandb_project']:
-            wandb.init(project=args['wandb_project'], config={**args})
+            wandb.init(project=args['wandb_project'], config={**args}, **args['wandb_kwargs'])
             wandb.watch(self.model)
 
         model.train()
@@ -393,14 +377,15 @@ class ClassificationModel:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
             epoch_number += 1
-            output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))
+            output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
-            if not os.path.exists(output_dir_current):
+            if (args['save_model_every_epoch'] or args['evaluate_during_training']) and not os.path.exists(output_dir_current):
                 os.makedirs(output_dir_current)
 
-            model_to_save = model.module if hasattr(model, "module") else model
-            model_to_save.save_pretrained(output_dir_current)
-            self.tokenizer.save_pretrained(output_dir_current)
+            if args['save_model_every_epoch']:
+                model_to_save = model.module if hasattr(model, "module") else model
+                model_to_save.save_pretrained(output_dir_current)
+                self.tokenizer.save_pretrained(output_dir_current)
 
             if args['evaluate_during_training']:
                 results, _, _ = self.eval_model(eval_df, verbose=True, **kwargs)
@@ -409,6 +394,13 @@ class ClassificationModel:
                 with open(output_eval_file, "w") as writer:
                     for key in sorted(results.keys()):
                         writer.write("{} = {}\n".format(key, str(results[key])))
+
+                training_progress_scores['global_step'].append(global_step)
+                training_progress_scores['train_loss'].append(current_loss)
+                for key in results:
+                    training_progress_scores[key].append(results[key])
+                report = pd.DataFrame(training_progress_scores)
+                report.to_csv(args['output_dir'] + 'training_progress_scores.csv', index=False)
 
         return global_step, tr_loss / global_step
 
@@ -460,7 +452,10 @@ class ClassificationModel:
 
         if 'text' in eval_df.columns and 'labels' in eval_df.columns:
             eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df['text'], eval_df['labels']))]
+        elif 'text_a' in eval_df.columns and 'text_b' in eval_df.columns:
+            eval_examples = [InputExample(i, text_a, text_b, label) for i, (text_a, text_b, label) in enumerate(zip(eval_df['text_a'], eval_df['text_b'], eval_df['labels']))]
         else:
+            warnings.warn("Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels.")
             eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))]
 
         if args['sliding_window']:
@@ -525,6 +520,9 @@ class ClassificationModel:
                 else:
                     final_preds.append(mode_pred[0])
             preds = np.array(final_preds)
+        elif not multi_label and args['regression'] == True:
+            preds = np.squeeze(preds)
+            model_outputs = preds
         else:
             model_outputs = preds
 
@@ -552,8 +550,12 @@ class ClassificationModel:
         process_count = self.args["process_count"]
 
         tokenizer = self.tokenizer
-        output_mode = "classification"
         args = self.args
+        
+        if not multi_label and args['regression']:
+            output_mode = 'regression'
+        else:
+            output_mode = "classification"
 
         if not os.path.isdir(self.args["cache_dir"]):
             os.mkdir(self.args["cache_dir"])
@@ -561,11 +563,11 @@ class ClassificationModel:
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples)))
 
-        if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
+        if os.path.exists(cached_features_file) and ((not args["reprocess_input_data"] and not no_cache) or (mode == "dev" and args['use_cached_eval_features'])):
             features = torch.load(cached_features_file)
             print(f"Features loaded from cache at {cached_features_file}")
         else:
-            print(f"Converting to features started.")
+            print(f"Converting to features started. Cache is not used.")
             features = convert_examples_to_features(
                 examples,
                 args["max_seq_length"],
@@ -643,7 +645,9 @@ class ClassificationModel:
         if multi_label:
             label_ranking_score = label_ranking_average_precision_score(labels, preds)
             return {**{"LRAP": label_ranking_score}, **extra_metrics}, wrong
-
+        elif self.args['regression']:
+            return {**extra_metrics}, wrong
+            
         mcc = matthews_corrcoef(labels, preds)
 
         if self.model.num_labels == 2:
@@ -655,7 +659,6 @@ class ClassificationModel:
                 "fp": fp,
                 "fn": fn
             }, **extra_metrics}, wrong
-
         else:
             return {**{"mcc": mcc}, **extra_metrics}, wrong
 
@@ -681,7 +684,10 @@ class ClassificationModel:
         if multi_label:
             eval_examples = [InputExample(i, text, None, [0 for i in range(self.num_labels)]) for i, text in enumerate(to_predict)]
         else:
-            eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
+            if isinstance(to_predict[0], list):
+                eval_examples = [InputExample(i, text[0], text[1], 0) for i, text in enumerate(to_predict)]
+            else:
+                eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
         if args['sliding_window']:
             eval_dataset, window_counts = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
         else:
@@ -740,6 +746,9 @@ class ClassificationModel:
                 else:
                     final_preds.append(mode_pred[0])
             preds = np.array(final_preds)
+        elif not multi_label and args['regression'] == True:
+            preds = np.squeeze(preds)
+            model_outputs = preds
         else:
             model_outputs = preds
             if multi_label:

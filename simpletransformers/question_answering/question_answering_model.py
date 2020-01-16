@@ -47,6 +47,8 @@ from simpletransformers.question_answering.question_answering_utils import (
     get_best_predictions,
     get_best_predictions_extended
 )
+from simpletransformers.config.global_args import global_args
+
 import wandb
 
 
@@ -88,38 +90,6 @@ class QuestionAnsweringModel:
         self.results = {}
 
         self.args = {
-            'output_dir': 'outputs/',
-            'cache_dir': 'cache_dir/',
-
-            'fp16': True,
-            'fp16_opt_level': 'O1',
-            'max_seq_length': 512,
-            'train_batch_size': 8,
-            'gradient_accumulation_steps': 1,
-            'eval_batch_size': 8,
-            'num_train_epochs': 1,
-            'weight_decay': 0,
-            'learning_rate': 4e-5,
-            'adam_epsilon': 1e-8,
-            'warmup_ratio': 0.06,
-            'warmup_steps': 0,
-            'max_grad_norm': 1.0,
-            'do_lower_case': False,
-
-            'logging_steps': 50,
-            'save_steps': 2000,
-            'evaluate_during_training': False,
-            'evaluate_during_training_steps': 2000,
-            'save_eval_checkpoints': True,
-            'tensorboard_folder': None,
-
-            'overwrite_output_dir': False,
-            'reprocess_input_data': False,
-
-            'process_count': cpu_count() - 2 if cpu_count() > 2 else 1,
-            'n_gpu': 1,
-            'silent': False,
-
             'doc_stride': 384,
             'max_query_length': 64,
             'n_best_size': 20,
@@ -127,7 +97,10 @@ class QuestionAnsweringModel:
             'null_score_diff_threshold': 0.0,
 
             'wandb_project': False,
+            'wandb_kwargs': {},
         }
+
+        self.args.update(global_args)
 
         if not use_cuda:
             self.args['fp16'] = False
@@ -158,7 +131,7 @@ class QuestionAnsweringModel:
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], len(examples)))
 
-        if os.path.exists(cached_features_file) and not args["reprocess_input_data"] and not no_cache:
+        if os.path.exists(cached_features_file) and ((not args["reprocess_input_data"] and not no_cache) or (mode == "dev" and args['use_cached_eval_features'])):
             features = torch.load(cached_features_file)
             print(f"Features loaded from cache at {cached_features_file}")
         else:
@@ -262,7 +235,7 @@ class QuestionAnsweringModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args["tensorboard_folder"])
+        tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
 
@@ -411,14 +384,15 @@ class QuestionAnsweringModel:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
             epoch_number += 1
-            output_dir_current = os.path.join(output_dir, "epoch-{}".format(epoch_number))
+            output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
-            if not os.path.exists(output_dir_current):
+            if (args['save_model_every_epoch'] or args['evaluate_during_training']) and not os.path.exists(output_dir_current):
                 os.makedirs(output_dir_current)
 
-            model_to_save = model.module if hasattr(model, "module") else model
-            model_to_save.save_pretrained(output_dir_current)
-            self.tokenizer.save_pretrained(output_dir_current)
+            if args['save_model_every_epoch']:
+                model_to_save = model.module if hasattr(model, "module") else model
+                model_to_save.save_pretrained(output_dir_current)
+                self.tokenizer.save_pretrained(output_dir_current)
 
             if args['evaluate_during_training']:
                 results, _ = self.eval_model(eval_data, verbose=True)

@@ -14,6 +14,7 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
     * [Minimal Start for Binary Classification](#minimal-start-for-binary-classification)
     * [Minimal Start for Multiclass Classification](#minimal-start-for-multiclass-classification)
     * [Minimal Start for Multilabel Classification](#minimal-start-for-multilabel-classification)
+    * [Minimal Start for Sentence Pair Classification](#minimal-start-for-sentence-pair-classification)
     * [Real Dataset Examples](#real-dataset-examples)
     * [ClassificationModel](#classificationmodel)
 * [Named Entity Recognition](#named-entity-recognition)
@@ -25,6 +26,8 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
     * [Minimal Start](#minimal-example)
     * [Real Dataset Examples](#real-dataset-examples-2)
     * [QuestionAnsweringModel](#questionansweringmodel)
+* [Regression](#regression)
+    * [Minimal Start for Regression](#minimal-start-for-regression)
 * [Visualization Support](#visualization-support)
 * [Experimental Features](#experimental-features)
     * [Sliding Window For Long Sequences](#sliding-window-for-long-sequences)
@@ -87,6 +90,7 @@ Supported model types:
 * DistilBERT
 * ALBERT
 * CamemBERT @[manueltonneau](https://github.com/manueltonneau)
+* XLM-RoBERTa
 
 ### Task Specific Notes
 
@@ -206,11 +210,69 @@ print(raw_outputs)
 * The args dict of `MultiLabelClassificationModel` has an additional `threshold` parameter with default value 0.5. The threshold is the value at which a given label flips from 0 to 1 when predicting. The `threshold` may be a single value or a list of value with the same length as the number of labels. This enables the use of seperate threshold values for each label.
 * `MultiLabelClassificationModel` takes in an additional optional argument `pos_weight`. This should be a list with the same length as the number of labels. This enables using different weights for each label when calculating loss during training and evaluation.
 
+#### Minimal Start for Sentence Pair Classification
+
+* Training and evaluation Dataframes must contain a `text_a`, `text_b`, and a `labels` column.
+* The `predict()` function expects a list of lists in the format below. A single sample input should also be a list of lists like `[[text_a, text_b]]`.
+
+```
+[
+    [sample_1_text_a, sample_1_text_b],
+    [sample_2_text_a, sample_2_text_b],
+    [sample_3_text_a, sample_3_text_b],
+    # More samples
+]
+```
+
+```
+from simpletransformers.classification import ClassificationModel
+import pandas as pd
+import sklearn
+
+
+train_data = [
+    ['Example sentence belonging to class 1', 'Yep, this is 1', 1],
+    ['Example sentence belonging to class 0', 'Yep, this is 0', 0],
+    ['Example  2 sentence belonging to class 0', 'Yep, this is 0', 0]
+]
+
+train_df = pd.DataFrame(train_data, columns=['text_a', 'text_b', 'labels'])
+
+eval_data = [
+    ['Example sentence belonging to class 1', 'Yep, this is 1', 1],
+    ['Example sentence belonging to class 0', 'Yep, this is 0', 0],
+    ['Example  2 sentence belonging to class 0', 'Yep, this is 0', 0]
+]
+
+eval_df = pd.DataFrame(eval_data, columns=['text_a', 'text_b', 'labels'])
+
+train_args={
+    'reprocess_input_data': True,
+    'overwrite_output_dir': True,
+    'num_train_epochs': 3,
+}
+
+# Create a ClassificationModel
+model = ClassificationModel('roberta', 'roberta-base', num_labels=2, use_cuda=True, cuda_device=0, args=train_args)
+print(train_df.head())
+
+# Train the model
+model.train_model(train_df, eval_df=eval_df)
+
+# Evaluate the model
+result, model_outputs, wrong_predictions = model.eval_model(eval_df, acc=sklearn.metrics.accuracy_score)
+
+predictions, raw_outputs = model.predict([["I'd like to puts some CD-ROMS on my iPad, is that possible?'", "Yes, but wouldn't that block the screen?"]])
+print(predictions)
+print(raw_outputs)
+```
+
 #### Real Dataset Examples
 
 * [Yelp Reviews Dataset - Binary Classification](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c)
 * [AG News Dataset - Multiclass Classification](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a?source=friends_link&sk=90e1c97255b65cedf4910a99041d9dfc)
 * [Toxic Comments Dataset - Multilabel Classification](https://towardsdatascience.com/multi-label-classification-using-bert-roberta-xlnet-xlm-and-distilbert-with-simple-transformers-b3e0cda12ce5?source=friends_link&sk=354e688fe238bfb43e9a575216816219)
+* [Semantic Textual Similarity Benchmark - Sentence Pair](https://medium.com/@chaturangarajapakshe/solving-sentence-pair-tasks-using-simple-transformers-2496fe79d616?source=friends_link&sk=fbf7439e9c31f7aefa1613d423a0fd40)
 
 
 #### ClassificationModel
@@ -327,6 +389,7 @@ Supported model types:
 * RoBERTa
 * DistilBERT
 * CamemBERT
+* XLM-RoBERTa
 
 ```
 model = NERModel('bert', 'bert-base-cased', labels=["LABEL_1", "LABEL_2", "LABEL_3"])
@@ -703,6 +766,63 @@ If null_score - best_non_null is greater than the threshold predict null.
 
 ---
 
+## Regression
+
+Regression tasks also use the ClassificationModel with 2 caveats.
+
+1. `num_labels` should be 1.
+2. `regression` should be `True` in `args` dict.
+
+Regression can be used with either single sentence or sentence pair tasks.
+
+#### Minimal Start for Regression
+
+```
+from simpletransformers.classification import ClassificationModel
+import pandas as pd
+
+
+train_data = [
+    ['Example sentence belonging to class 1', 'Yep, this is 1', 1.8],
+    ['Example sentence belonging to class 0', 'Yep, this is 0', 0.2],
+    ['Example  2 sentence belonging to class 0', 'Yep, this is 0', 4.5]
+]
+
+train_df = pd.DataFrame(train_data, columns=['text_a', 'text_b', 'labels'])
+
+eval_data = [
+    ['Example sentence belonging to class 1', 'Yep, this is 1', 1.9],
+    ['Example sentence belonging to class 0', 'Yep, this is 0', 0.1],
+    ['Example  2 sentence belonging to class 0', 'Yep, this is 0', 5]
+]
+
+eval_df = pd.DataFrame(eval_data, columns=['text_a', 'text_b', 'labels'])
+
+train_args={
+    'reprocess_input_data': True,
+    'overwrite_output_dir': True,
+    'num_train_epochs': 3,
+
+    'regression': True,
+}
+
+# Create a ClassificationModel
+model = ClassificationModel('roberta', 'roberta-base', num_labels=1, use_cuda=True, cuda_device=0, args=train_args)
+print(train_df.head())
+
+# Train the model
+model.train_model(train_df, eval_df=eval_df)
+
+# Evaluate the model
+result, model_outputs, wrong_predictions = model.eval_model(eval_df)
+
+predictions, raw_outputs = model.predict([["I'd like to puts some CD-ROMS on my iPad, is that possible?'", "Yes, but wouldn't that block the screen?"]])
+print(predictions)
+print(raw_outputs)
+```
+
+---
+
 ## Visualization Support
 
 The [Weights & Biases](https://www.wandb.com/) framework is supported for visualizing model training.
@@ -823,8 +943,10 @@ self.args = {
   'logging_steps': 50,
   'evaluate_during_training': False,
   'evaluate_during_training_steps': 2000,
+  'use_cached_eval_features': True,
   `save_eval_checkpoints`: True
   'save_steps': 2000,
+  'save_model_every_epoch': True,
   'tensorboard_dir': None,
 
   'overwrite_output_dir': False,
@@ -889,6 +1011,9 @@ Set to True to perform evaluation while training models. Make sure `eval_df` is 
 #### *evaluate_during_training_steps*
 Perform evaluation at every specified number of steps. A checkpoint model and the evaluation results will be saved.
 
+#### *use_cached_eval_features*
+Evaluation during training uses cached features. Setting this to `False` will cause features to be recomputed at every evaluation step.
+
 #### *save_eval_checkpoints*
 Save a model checkpoint for every evaluation performed.
 
@@ -897,6 +1022,9 @@ Log training loss and learning at every specified number of steps.
 
 #### *save_steps: int*
 Save a model checkpoint at every specified number of steps.
+
+#### *save_model_every_epoch: bool*
+Save a model at the end of every epoch.
 
 #### *tensorboard_dir: str*
 The directory where Tensorboard events will be stored during training. By default, Tensorboard events will be saved in a subfolder inside `runs/`  like `runs/Dec02_09-32-58_36d9e58955b0/`.

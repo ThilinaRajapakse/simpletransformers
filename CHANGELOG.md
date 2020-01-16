@@ -4,7 +4,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.16.3] - 2020-01-09
+## [0.18.3] - 2020-01-15
+### Fixed
+- Potential bugfix for CamemBERT models which were giving identical outputs to all inputs.
+
+## [0.18.2] - 2020-01-15
+### Added
+- Added option to turn off model saving at the end of every epoch with `save_model_every_epoch`.
+
+### Fixed
+- Fixed bug with missing `tensorboard_folder` key in certain situations.
+
+### Changed
+- Moved `args` items common to all classes to one place (`config/global_args.py`) for maintainability. Does not make any usage changes.
+
+## [0.18.1] - 2020-01-15
+### Fixed
+- Fixed bug with missing `regression` key when using MultiLabelClassification.
+
+## [0.18.0] - 2020-01-15
+### Added
+- Sentence pair tasks are now supported.
+- Regression tasks are now supported.
+- `use_cached_eval_features` to `args`. Evaluation during training will now use cached features by default. Set to `False` if features should be reprocessed.
+
+### Changed
+- Checkpoints saved at the end of an epoch now follow the `checkpoint-{global_step}-epoch-{epoch_number} format.
+
+## [0.17.1] - 2020-01-14
+### Fixed
+- Fixed `wandb_kwargs` key missing in `args` bug.
+
+## [0.17.0] - 2020-01-14
+### Added
+- Added new model XLM-RoBERTa. Can now be used with `ClassificationModel` and `NERModel`.
+
+## [0.16.6] - 2020-01-13
+### Added
+- Added evaluation scores from end-of-epoch evaluation to `training_progress_scores.csv`.
+
+### Fixed
+- Typos in `README.md`.
+
+## [0.16.5] - 2020-01-09
 ### Fixed
 - Reverted missed logging commands to print statements.
 
@@ -130,7 +172,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.16.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9504b5...HEAD
+[0.18.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/52a488e...HEAD
+
+[0.18.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1fb47f1...52a488e
+
+[0.18.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9698fd3...1fb47f1
+
+[0.18.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9c9345f...9698fd3
+
+[0.17.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9a39cab...9c9345f
+
+[0.17.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0e5dd18...9a39cab
+
+[0.16.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c6c1792...0e5dd18
+
+[0.16.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9504b5...c6c1792
 
 [0.16.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/5d1eaa9...e9504b5
 

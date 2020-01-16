@@ -1,8 +1,7 @@
-from transformers.modeling_camembert import CamembertModel, CamembertConfig, CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP
-from transformers.modeling_roberta import RobertaForSequenceClassification, RobertaClassificationHead
-import torch
-import torch.nn as nn
-from torch.nn import CrossEntropyLoss, MSELoss
+from transformers.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.configuration_camembert import CamembertConfig
+from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
+
 
 class CamembertForSequenceClassification(RobertaForSequenceClassification):
     r"""
@@ -33,35 +32,3 @@ class CamembertForSequenceClassification(RobertaForSequenceClassification):
     """
     config_class = CamembertConfig
     pretrained_model_archive_map = CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP
-    base_model_prefix = "camembert"
-
-    def __init__(self, config, weight=None):
-        super(CamembertForSequenceClassification, self).__init__(config)
-        self.num_labels = config.num_labels
-
-        self.camembert = CamembertModel(config)
-        self.classifier = RobertaClassificationHead(config)
-        self.weight = weight
-
-    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None,
-                labels=None):
-        outputs = self.camembert(input_ids,
-                               attention_mask=attention_mask,
-                               token_type_ids=token_type_ids,
-                               position_ids=position_ids,
-                               head_mask=head_mask)
-        sequence_output = outputs[0]
-        logits = self.classifier(sequence_output)
-
-        outputs = (logits,) + outputs[2:]
-        if labels is not None:
-            if self.num_labels == 1:
-                #  We are doing regression
-                loss_fct = MSELoss()
-                loss = loss_fct(logits.view(-1), labels.view(-1))
-            else:
-                loss_fct = CrossEntropyLoss(weight=self.weight)
-                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-            outputs = (loss,) + outputs
-
-        return outputs  # (loss), logits, (hidden_states), (attentions)
