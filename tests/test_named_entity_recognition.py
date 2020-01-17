@@ -54,4 +54,3 @@ def test_named_entity_recognition():
 
     # Predictions on arbitary text strings
     predictions, raw_outputs = model.predict(["Some arbitary sentence"])
-    

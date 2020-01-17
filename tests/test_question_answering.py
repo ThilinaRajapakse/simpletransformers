@@ -52,7 +52,7 @@ def test_question_answering():
         "distilbert",
         "distilbert-base-uncased-distilled-squad",
         args={"reprocess_input_data": True, "overwrite_output_dir": True},
-        use_cuda=False
+        use_cuda=False,
     )
 
     # Train the model
