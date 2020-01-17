@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.4] - 2020-01-17
+### Fixed
+- Typo in `classification_utils.py`.
+
+### Changed
+- Model checkpoint is no longer saved at the end of the last epoch as this is the same model saved in `ouput_dir` at the end of training.
+
 ## [0.18.3] - 2020-01-15
 ### Fixed
 - Potential bugfix for CamemBERT models which were giving identical outputs to all inputs.
@@ -172,7 +179,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.18.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/52a488e...HEAD
+[0.18.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0aa88e4...HEAD
+
+[0.18.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/52a488e...0aa88e4
 
 [0.18.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1fb47f1...52a488e
 
