@@ -75,7 +75,7 @@ class NERModel:
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
-        """
+        """  # noqa: ignore flake8
 
         if labels:
             self.labels = labels
@@ -125,7 +125,8 @@ class NERModel:
                     self.device = torch.device(f"cuda:{cuda_device}")
             else:
                 raise ValueError(
-                    "'use_cuda' set to True when cuda is unavailable. Make sure CUDA is available or set use_cuda=False."
+                    "'use_cuda' set to True when cuda is unavailable."
+                    " Make sure CUDA is available or set use_cuda=False."
                 )
         else:
             self.device = "cpu"
@@ -153,7 +154,8 @@ class NERModel:
 
         if model_type == "camembert":
             warnings.warn(
-                "use_multiprocessing automatically disabled as CamemBERT fails when using multiprocessing for feature conversion."
+                "use_multiprocessing automatically disabled as CamemBERT fails"
+                " when using multiprocessing for feature conversion."
             )
             self.args["use_multiprocessing"] = False
 
@@ -180,7 +182,7 @@ class NERModel:
 
         Returns:
             None
-        """
+        """  # noqa: ignore flake8
 
         if args:
             self.args.update(args)
@@ -190,7 +192,9 @@ class NERModel:
 
         if self.args["evaluate_during_training"] and eval_df is None:
             raise ValueError(
-                "evaluate_during_training is enabled but eval_df is not specified. Pass eval_df to model.train_model() if using evaluate_during_training."
+                "evaluate_during_training is enabled but eval_df is not specified."
+                "Pass eval_df to model.train_model() "
+                "if using evaluate_during_training."
             )
 
         if not output_dir:
@@ -202,9 +206,8 @@ class NERModel:
             and not self.args["overwrite_output_dir"]
         ):
             raise ValueError(
-                "Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(
-                    output_dir
-                )
+                "Output directory ({}) already exists and is not empty. "
+                "Use --overwrite_output_dir to overcome.".format(output_dir)
             )
 
         self._move_model_to_device()
@@ -238,10 +241,10 @@ class NERModel:
         """
         Trains the model on train_dataset.
 
-        Utility function to be used by the train_model() method. Not intended to be used directly.
+        Utility function to be used by the train_model() method.
+        Not intended to be used directly.
         """
 
-        tokenizer = self.tokenizer
         device = self.device
         model = self.model
         args = self.args
@@ -297,7 +300,8 @@ class NERModel:
                 from apex import amp
             except ImportError:
                 raise ImportError(
-                    "Please install apex from https://www.github.com/nvidia/apex to use fp16 training."
+                    "Please install apex from https://www.github.com/nvidia/apex"
+                    " to use fp16 training."
                 )
 
             model, optimizer = amp.initialize(
@@ -422,7 +426,8 @@ class NERModel:
                         args["evaluate_during_training_steps"] > 0
                         and global_step % args["evaluate_during_training_steps"] == 0
                     ):
-                        # Only evaluate when single GPU otherwise metrics may not average well
+                        # Only evaluate when single GPU otherwise metrics may not
+                        # average well
                         results, _, _ = self.eval_model(eval_df, verbose=True)
                         for key, value in results.items():
                             tb_writer.add_scalar(
@@ -508,7 +513,7 @@ class NERModel:
             result: Dictionary containing evaluation results. (eval_loss, precision, recall, f1_score)
             model_outputs: List of raw model outputs
             preds_list: List of predicted tags
-        """
+        """  # noqa: ignore flake8
         if not output_dir:
             output_dir = self.args["output_dir"]
 
@@ -528,10 +533,10 @@ class NERModel:
         """
         Evaluates the model on eval_dataset.
 
-        Utility function to be used by the eval_model() method. Not intended to be used directly.
+        Utility function to be used by the eval_model() method.
+        Not intended to be used directly.
         """
 
-        tokenizer = self.tokenizer
         device = self.device
         model = self.model
         args = self.args
@@ -615,14 +620,16 @@ class NERModel:
         Performs predictions on a list of text.
 
         Args:
-            to_predict: A python list of text (str) to be sent to the model for prediction.
+            to_predict: A python list of text (str) to be sent to the model
+            for prediction.
 
         Returns:
-            preds: A Python list of lists with dicts containg each word mapped to its NER tag.
-            model_outputs: A python list of the raw model outputs for each text.
+            preds: A Python list of lists with dicts containg each word
+                   mapped to its NER tag.
+            model_outputs: A python list of the raw model outputs for
+                           each text.
         """
 
-        tokenizer = self.tokenizer
         device = self.device
         model = self.model
         args = self.args
@@ -714,12 +721,11 @@ class NERModel:
             evaluate (optional): Indicates whether the examples are for evaluation or for training.
             no_cache (optional): Force feature conversion and prevent caching. I.e. Ignore cached features even if present.
 
-        """
+        """  # noqa: ignore flake8
 
         process_count = self.args["process_count"]
 
         tokenizer = self.tokenizer
-        output_mode = "classification"
         args = self.args
 
         mode = "dev" if evaluate else "train"
@@ -765,7 +771,8 @@ class NERModel:
                 cls_token=tokenizer.cls_token,
                 cls_token_segment_id=2 if args["model_type"] in ["xlnet"] else 0,
                 sep_token=tokenizer.sep_token,
-                # RoBERTa uses an extra separator b/w pairs of sentences, cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
+                # RoBERTa uses an extra separator b/w pairs of sentences,
+                # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805 # noqa: ignore flake8
                 sep_token_extra=bool(args["model_type"] in ["roberta"]),
                 # PAD on the left for XLNet
                 pad_on_left=bool(args["model_type"] in ["xlnet"]),

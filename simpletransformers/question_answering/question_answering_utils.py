@@ -221,7 +221,10 @@ def convert_examples_to_features(
     for (example_index, example) in enumerate(tqdm(examples, disable=silent)):
 
         # if example_index % 100 == 0:
-        #     logger.info('Converting %s/%s pos %s neg %s', example_index, len(examples), cnt_pos, cnt_neg)
+        #     logger.info('Converting %s/%s pos %s neg %s',
+        #                   example_index,
+        #                   len(examples),
+        #                   cnt_pos, cnt_neg)
 
         query_tokens = tokenizer.tokenize(example.question_text)
 
@@ -283,8 +286,10 @@ def convert_examples_to_features(
             token_is_max_context = {}
             segment_ids = []
 
-            # p_mask: mask with 1 for token than cannot be in the answer (0 for token which can be in an answer)
-            # Original TF implem also keep the classification token (set to 0) (not sure why...)
+            # p_mask: mask with 1 for token than cannot be in the answer
+            # (0 for token which can be in an answer)
+            # Original TF implem also keep the classification
+            # token (set to 0) (not sure why...)
             p_mask = []
 
             # CLS token at the beginning
@@ -774,7 +779,8 @@ def write_predictions_extended(
     verbose_logging,
 ):
     """ XLNet write prediction logic (more complex than Bert's).
-                    Write final predictions to the json file and log-odds of null if needed.
+                    Write final predictions to the json file and
+                    log-odds of null if needed.
                     Requires utils_squad_evaluate.py
     """
     _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
@@ -955,8 +961,6 @@ def write_predictions_extended(
         orig_data = orig_data_file
 
     qid_to_has_ans = make_qid_to_has_ans(orig_data)
-    has_ans_qids = [k for k, v in qid_to_has_ans.items() if v]
-    no_ans_qids = [k for k, v in qid_to_has_ans.items() if not v]
     exact_raw, f1_raw = get_raw_scores(orig_data, all_predictions)
     out_eval = {}
 
@@ -1186,7 +1190,8 @@ def get_best_predictions_extended(
     verbose_logging,
 ):
     """ XLNet write prediction logic (more complex than Bert's).
-                    Write final predictions to the json file and log-odds of null if needed.
+                    Write final predictions to the json file and
+                    log-odds of null if needed.
                     Requires utils_squad_evaluate.py
     """
     _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
@@ -1618,10 +1623,6 @@ def _compute_softmax(scores):
     for score in exp_scores:
         probs.append(score / total_sum)
     return probs
-
-
-def to_list(tensor):
-    return tensor.detach().cpu().tolist()
 
 
 def build_examples(to_predict):

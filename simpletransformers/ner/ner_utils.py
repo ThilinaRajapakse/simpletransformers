@@ -30,8 +30,9 @@ class InputExample(object):
         Args:
             guid: Unique id for the example.
             words: list. The words of the sequence.
-            labels: (Optional) list. The labels for each word of the sequence. This should be
-            specified for train and dev examples, but not for test examples.
+            labels: (Optional) list. The labels for each word of the sequence.
+            This should be specified for train and dev examples, but not for
+            test examples.
         """
         self.guid = guid
         self.words = words
@@ -120,7 +121,8 @@ def convert_example_to_feature(example_row):
     for word, label in zip(example.words, example.labels):
         word_tokens = tokenizer.tokenize(word)
         tokens.extend(word_tokens)
-        # Use the real label id for the first token of the word, and padding ids for the remaining tokens
+        # Use the real label id for the first token of the word, and padding
+        # ids for the remaining tokens
         label_ids.extend(
             [label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1)
         )
@@ -226,7 +228,7 @@ def convert_examples_to_features(
             - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
             - True (XLNet/GPT pattern): A + [SEP] + B + [SEP] + [CLS]
         `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
-    """
+    """  # noqa: ignore flake8
 
     label_map = {label: i for i, label in enumerate(label_list)}
 

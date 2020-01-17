@@ -74,7 +74,7 @@ class QuestionAnsweringModel:
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args['
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
-        """
+        """  # noqa: ignore flake8
 
         MODEL_CLASSES = {
             "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
@@ -99,7 +99,8 @@ class QuestionAnsweringModel:
                     self.device = torch.device(f"cuda:{cuda_device}")
             else:
                 raise ValueError(
-                    "'use_cuda' set to True when cuda is unavailable. Make sure CUDA is available or set use_cuda=False."
+                    "'use_cuda' set to True when cuda is unavailable."
+                    " Make sure CUDA is available or set use_cuda=False."
                 )
         else:
             self.device = "cpu"
@@ -135,9 +136,11 @@ class QuestionAnsweringModel:
         self, examples, evaluate=False, no_cache=False, output_examples=False
     ):
         """
-        Converts a list of examples to a TensorDataset containing InputFeatures. Caches the InputFeatures.
+        Converts a list of examples to a TensorDataset
+        containing InputFeatures. Caches the InputFeatures.
 
-        Utility function for train() and eval() methods. Not intended to be used directly.
+        Utility function for train() and eval() methods.
+        Not intended to be used directly.
         """
 
         tokenizer = self.tokenizer
@@ -240,7 +243,7 @@ class QuestionAnsweringModel:
             eval_data (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
         Returns:
             None
-        """
+        """  # noqa: ignore flake8
 
         if args:
             self.args.update(args)
@@ -250,7 +253,9 @@ class QuestionAnsweringModel:
 
         if self.args["evaluate_during_training"] and eval_data is None:
             raise ValueError(
-                "evaluate_during_training is enabled but eval_data is not specified. Pass eval_data to model.train_model() if using evaluate_during_training."
+                "evaluate_during_training is enabled but eval_data is not specified. "
+                "Pass eval_data to model.train_model()"
+                "if using evaluate_during_training."
             )
 
         if not output_dir:
@@ -262,9 +267,8 @@ class QuestionAnsweringModel:
             and not self.args["overwrite_output_dir"]
         ):
             raise ValueError(
-                "Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(
-                    output_dir
-                )
+                "Output directory ({}) already exists and is not empty."
+                " Use --overwrite_output_dir to overcome.".format(output_dir)
             )
 
         self._move_model_to_device()
@@ -304,10 +308,10 @@ class QuestionAnsweringModel:
         """
         Trains the model on train_dataset.
 
-        Utility function to be used by the train_model() method. Not intended to be used directly.
+        Utility function to be used by the train_model() method.
+        Not intended to be used directly.
         """
 
-        tokenizer = self.tokenizer
         device = self.device
         model = self.model
         args = self.args
@@ -363,7 +367,8 @@ class QuestionAnsweringModel:
                 from apex import amp
             except ImportError:
                 raise ImportError(
-                    "Please install apex from https://www.github.com/nvidia/apex to use fp16 training."
+                    "Please install apex from https://www.github.com/nvidia/apex"
+                    "to use fp16 training."
                 )
 
             model, optimizer = amp.initialize(
@@ -491,7 +496,8 @@ class QuestionAnsweringModel:
                         args["evaluate_during_training_steps"] > 0
                         and global_step % args["evaluate_during_training_steps"] == 0
                     ):
-                        # Only evaluate when single GPU otherwise metrics may not average well
+                        # Only evaluate when single GPU otherwise metrics may not
+                        # average well
                         results, _ = self.eval_model(eval_data, verbose=True)
                         for key, value in results.items():
                             tb_writer.add_scalar(
@@ -572,7 +578,7 @@ class QuestionAnsweringModel:
         Returns:
             result: Dictionary containing evaluation results. (correct, similar, incorrect)
             text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text.
-        """
+        """  # noqa: ignore flake8
 
         if not output_dir:
             output_dir = self.args["output_dir"]
@@ -602,15 +608,13 @@ class QuestionAnsweringModel:
         """
         Evaluates the model on eval_data.
 
-        Utility function to be used by the eval_model() method. Not intended to be used directly.
+        Utility function to be used by the eval_model() method.
+        Not intended to be used directly.
         """
         tokenizer = self.tokenizer
         device = self.device
         model = self.model
         args = self.args
-        eval_output_dir = output_dir
-
-        results = {}
 
         if isinstance(eval_data, str):
             with open(eval_data, "r") as f:
@@ -627,10 +631,6 @@ class QuestionAnsweringModel:
             eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"]
         )
 
-        eval_loss = 0.0
-        nb_eval_steps = 0
-        preds = None
-        out_label_ids = None
         model.eval()
 
         all_results = []
@@ -749,7 +749,7 @@ class QuestionAnsweringModel:
 
         Returns:
             preds: A python list containg the predicted answer, and id for each question in to_predict.
-        """
+        """  # noqa: ignore flake8
         tokenizer = self.tokenizer
         device = self.device
         model = self.model
@@ -770,10 +770,6 @@ class QuestionAnsweringModel:
             eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"]
         )
 
-        eval_loss = 0.0
-        nb_eval_steps = 0
-        preds = None
-        out_label_ids = None
         model.eval()
 
         all_results = []

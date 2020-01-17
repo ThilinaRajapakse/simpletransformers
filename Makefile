@@ -9,18 +9,20 @@ clean:
 	find . -name '*~' -exec rm -f  {} +
 
 formatter:
-	black simpletransformers tests --exclude simpletransformers/experimental 
+	black simpletransformers tests --exclude simpletransformers/experimental\|simpletransformers/classification/transformer_models\|simpletransformers/custom_models
 	
-lint:
-	flake8 simpletransformers tests --exclude simpletransformers/experimental
-	black --check simpletransformers tests --exclude simpletransformers/experimental
+lint: clean
+	flake8 simpletransformers tests --exclude=simpletransformers/experimental,simpletransformers/classification/transformer_models,simpletransformers/custom_models
+	black --check simpletransformers tests --exclude simpletransformers/experimental\|simpletransformers/classification/transformer_models\|simpletransformers/custom_models
+
+
 
 types:
-	pytype --keep-going simpletransformers --exclude simpletransformers/experimental
+	pytype --keep-going simpletransformers --exclude simpletransformers/experimental simpletransformers/classification/transformer_models simpletransformers/custom_models
 
 test: clean 
 	pytest tests --cov simpletransformers
 
 # if this runs through we can be sure the readme is properly shown on pypi
 check-readme:
-	python setup.py check --restructuredtext --strict
+	python setup.py check --restructuredtext 
