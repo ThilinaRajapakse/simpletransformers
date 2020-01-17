@@ -15,13 +15,11 @@ lint: clean
 	flake8 simpletransformers tests --exclude=simpletransformers/experimental,simpletransformers/classification/transformer_models,simpletransformers/custom_models
 	black --check simpletransformers tests --exclude simpletransformers/experimental\|simpletransformers/classification/transformer_models\|simpletransformers/custom_models
 
-
-
 types:
 	pytype --keep-going simpletransformers --exclude simpletransformers/experimental simpletransformers/classification/transformer_models simpletransformers/custom_models
 
 test: clean 
-	pytest tests --cov simpletransformers
+	pytest tests --cov simpletransformers/classification simpletransformers/ner simpletransformers/question_answering
 
 # if this runs through we can be sure the readme is properly shown on pypi
 check-readme:

@@ -668,8 +668,8 @@ class ClassificationModel:
             ]
         else:
             warnings.warn(
-                "Dataframe headers not specified. Falling back to using column 0 as"
-                "text and column 1 as labels."
+                "Dataframe headers not specified."
+                " Falling back to using column 0 as text and column 1 as labels."
             )
             eval_examples = [
                 InputExample(i, text, None, label)
