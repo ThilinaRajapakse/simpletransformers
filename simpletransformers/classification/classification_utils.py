@@ -152,7 +152,7 @@ def convert_example_to_feature(
     # else:
     #     raise KeyError(output_mode)
 
-    if output_mode == 'regressioin':
+    if output_mode == 'regression':
         label_id = float(example.label)
 
     return InputFeatures(
