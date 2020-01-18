@@ -737,7 +737,7 @@ class ClassificationModel:
 
             model_outputs = preds
 
-            preds = [np.argmax(pred, axis=1)[0] for pred in preds]
+            preds = [np.argmax(pred, axis=1) for pred in preds]
             final_preds = []
             for pred_row in preds:
                 mode_pred, counts = mode(pred_row)
