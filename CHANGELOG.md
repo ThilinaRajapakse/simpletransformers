@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.6] - 2020-01-18
+### Changed
+- Reverted change made in 0.18.4 (Model checkpoint is no longer saved at the end of the last epoch as this is the same model saved in `ouput_dir` at the end of training).
+Model checkpoint is now saved for all epochs again.
+
 ## [0.18.5] - 2020-01-18
 ### Fixed
 - Fixed bug when using `sliding_window`.
@@ -183,7 +188,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.18.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ebef6c4...HEAD
+[0.18.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/aa7f650...HEAD
+
+[0.18.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ebef6c4...aa7f650
 
 [0.18.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0aa88e4...ebef6c4
 
