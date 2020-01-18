@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.5] - 2020-01-18
+### Fixed
+- Fixed bug when using `sliding_window`.
+
 ## [0.18.4] - 2020-01-17
 ### Fixed
 - Typo in `classification_utils.py`.
@@ -179,7 +183,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.18.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0aa88e4...HEAD
+[0.18.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ebef6c4...HEAD
+
+[0.18.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0aa88e4...ebef6c4
 
 [0.18.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/52a488e...0aa88e4
 
