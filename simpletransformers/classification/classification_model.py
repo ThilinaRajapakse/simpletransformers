@@ -86,7 +86,6 @@ import wandb
 
 
 class ClassificationModel:
-
     def __init__(
         self,
         model_type,
@@ -111,8 +110,7 @@ class ClassificationModel:
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
             **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
-        """ # noqa: ignore flake8"
-
+        """  # noqa: ignore flake8"
 
         MODEL_CLASSES = {
             "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
@@ -143,10 +141,12 @@ class ClassificationModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
-            self.config = config_class.from_pretrained(model_name, num_labels=num_labels,  **kwargs)
+            self.config = config_class.from_pretrained(
+                model_name, num_labels=num_labels, **kwargs
+            )
             self.num_labels = num_labels
         else:
-            self.config = config_class.from_pretrained(model_name,  **kwargs)
+            self.config = config_class.from_pretrained(model_name, **kwargs)
             self.num_labels = self.config.num_labels
         self.weight = weight
 
@@ -166,9 +166,16 @@ class ClassificationModel:
 
         if self.weight:
 
-            self.model = model_class.from_pretrained(model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device),  **kwargs)
+            self.model = model_class.from_pretrained(
+                model_name,
+                config=self.config,
+                weight=torch.Tensor(self.weight).to(self.device),
+                **kwargs,
+            )
         else:
-            self.model = model_class.from_pretrained(model_name, config=self.config,  **kwargs)
+            self.model = model_class.from_pretrained(
+                model_name, config=self.config, **kwargs
+            )
 
         self.results = {}
 
@@ -187,15 +194,19 @@ class ClassificationModel:
         if args:
             self.args.update(args)
 
+        self.tokenizer = tokenizer_class.from_pretrained(
+            model_name, do_lower_case=self.args["do_lower_case"], **kwargs
+        )
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'],  **kwargs)
+        self.args["model_name"] = model_name
+        self.args["model_type"] = model_type
 
-        self.args['model_name'] = model_name
-        self.args['model_type'] = model_type
-
-        if model_type in ['camembert', 'xlmroberta']:
-            warnings.warn(f"use_multiprocessing automatically disabled as {model_type} fails when using multiprocessing for feature conversion.")
-            self.args['use_multiprocessing'] = False
+        if model_type in ["camembert", "xlmroberta"]:
+            warnings.warn(
+                f"use_multiprocessing automatically disabled as {model_type}"
+                " fails when using multiprocessing for feature conversion."
+            )
+            self.args["use_multiprocessing"] = False
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
@@ -582,7 +593,7 @@ class ClassificationModel:
             ) and not os.path.exists(output_dir_current):
                 os.makedirs(output_dir_current)
 
-            if args['save_model_every_epoch']:
+            if args["save_model_every_epoch"]:
 
                 model_to_save = model.module if hasattr(model, "module") else model
                 model_to_save.save_pretrained(output_dir_current)

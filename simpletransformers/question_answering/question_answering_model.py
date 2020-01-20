@@ -62,8 +62,9 @@ import wandb
 
 
 class QuestionAnsweringModel:
-
-    def __init__(self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs):
+    def __init__(
+        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs
+    ):
 
         """
         Initializes a QuestionAnsweringModel model.
@@ -125,9 +126,9 @@ class QuestionAnsweringModel:
         if args:
             self.args.update(args)
 
-
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'], **kwargs)
-
+        self.tokenizer = tokenizer_class.from_pretrained(
+            model_name, do_lower_case=self.args["do_lower_case"], **kwargs
+        )
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
@@ -542,7 +543,7 @@ class QuestionAnsweringModel:
             ) and not os.path.exists(output_dir_current):
                 os.makedirs(output_dir_current)
 
-            if args['save_model_every_epoch']:
+            if args["save_model_every_epoch"]:
 
                 model_to_save = model.module if hasattr(model, "module") else model
                 model_to_save.save_pretrained(output_dir_current)
