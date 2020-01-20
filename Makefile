@@ -9,14 +9,14 @@ clean:
 	find . -name '*~' -exec rm -f  {} +
 
 formatter:
-	black simpletransformers tests --exclude simpletransformers/experimental\|simpletransformers/classification/transformer_models\|simpletransformers/custom_models
+	black simpletransformers tests --exclude simpletransformers/experimental\
 	
 lint: clean
-	flake8 simpletransformers tests --exclude=simpletransformers/experimental,simpletransformers/classification/transformer_models,simpletransformers/custom_models
-	black --check simpletransformers tests --exclude simpletransformers/experimental\|simpletransformers/classification/transformer_models\|simpletransformers/custom_models
+	flake8 simpletransformers tests --exclude=simpletransformers/experimental
+	black --check simpletransformers tests --exclude simpletransformers/experimental
 
 types:
-	pytype --keep-going simpletransformers --exclude simpletransformers/experimental simpletransformers/classification/transformer_models simpletransformers/custom_models
+	pytype --keep-going simpletransformers --exclude simpletransformers/experimental 
 
 test: clean 
 	pytest tests --cov simpletransformers/classification simpletransformers/ner simpletransformers/question_answering
