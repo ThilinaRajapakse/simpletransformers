@@ -38,7 +38,7 @@ import wandb
 
 
 class NERModel:
-    def __init__(self, model_type, model_name, labels=None, args=None, use_cuda=True, cuda_device=-1):
+    def __init__(self, model_type, model_name, labels=None, args=None, use_cuda=True, cuda_device=-1, **kwargs):
         """
         Initializes a NERModel
 
@@ -67,7 +67,7 @@ class NERModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
 
-        self.model = model_class.from_pretrained(model_name, num_labels=self.num_labels)
+        self.model = model_class.from_pretrained(model_name, num_labels=self.num_labels, **kwargs)
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -92,7 +92,7 @@ class NERModel:
         if args:
             self.args.update(args)
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'])
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'], **kwargs)
 
         self.args['model_name'] = model_name
         self.args['model_type'] = model_type
