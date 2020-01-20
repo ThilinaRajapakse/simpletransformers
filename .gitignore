@@ -7,9 +7,9 @@ wandb/
 **/outputs
 **/data
 
-# Tests
+# manual_test_scripts
 
-tests/
+test_scripts/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
