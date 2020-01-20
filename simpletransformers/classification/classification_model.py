@@ -86,6 +86,7 @@ import wandb
 
 
 class ClassificationModel:
+
     def __init__(
         self,
         model_type,
@@ -95,7 +96,9 @@ class ClassificationModel:
         args=None,
         use_cuda=True,
         cuda_device=-1,
+        **kwargs,
     ):
+
         """
         Initializes a ClassificationModel model.
 
@@ -107,7 +110,9 @@ class ClassificationModel:
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
-        """  # noqa: ignore flake8"
+            **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
+        """ # noqa: ignore flake8"
+
 
         MODEL_CLASSES = {
             "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
@@ -138,12 +143,10 @@ class ClassificationModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
-            self.config = config_class.from_pretrained(
-                model_name, num_labels=num_labels
-            )
+            self.config = config_class.from_pretrained(model_name, num_labels=num_labels,  **kwargs)
             self.num_labels = num_labels
         else:
-            self.config = config_class.from_pretrained(model_name)
+            self.config = config_class.from_pretrained(model_name,  **kwargs)
             self.num_labels = self.config.num_labels
         self.weight = weight
 
@@ -162,13 +165,10 @@ class ClassificationModel:
             self.device = "cpu"
 
         if self.weight:
-            self.model = model_class.from_pretrained(
-                model_name,
-                config=self.config,
-                weight=torch.Tensor(self.weight).to(self.device),
-            )
+
+            self.model = model_class.from_pretrained(model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device),  **kwargs)
         else:
-            self.model = model_class.from_pretrained(model_name, config=self.config)
+            self.model = model_class.from_pretrained(model_name, config=self.config,  **kwargs)
 
         self.results = {}
 
@@ -187,9 +187,15 @@ class ClassificationModel:
         if args:
             self.args.update(args)
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args["do_lower_case"]
-        )
+
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args['do_lower_case'],  **kwargs)
+
+        self.args['model_name'] = model_name
+        self.args['model_type'] = model_type
+
+        if model_type in ['camembert', 'xlmroberta']:
+            warnings.warn(f"use_multiprocessing automatically disabled as {model_type} fails when using multiprocessing for feature conversion.")
+            self.args['use_multiprocessing'] = False
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
@@ -576,10 +582,8 @@ class ClassificationModel:
             ) and not os.path.exists(output_dir_current):
                 os.makedirs(output_dir_current)
 
-            if (
-                args["save_model_every_epoch"]
-                and epoch_number != args["num_train_epochs"]
-            ):
+            if args['save_model_every_epoch']:
+
                 model_to_save = model.module if hasattr(model, "module") else model
                 model_to_save.save_pretrained(output_dir_current)
                 self.tokenizer.save_pretrained(output_dir_current)
@@ -742,7 +746,7 @@ class ClassificationModel:
 
             model_outputs = preds
 
-            preds = [np.argmax(pred, axis=1)[0] for pred in preds]
+            preds = [np.argmax(pred, axis=1) for pred in preds]
             final_preds = []
             for pred_row in preds:
                 mode_pred, counts = mode(pred_row)
@@ -1015,7 +1019,7 @@ class ClassificationModel:
 
             model_outputs = preds
 
-            preds = [np.argmax(pred, axis=1)[0] for pred in preds]
+            preds = [np.argmax(pred, axis=1) for pred in preds]
             final_preds = []
             for pred_row in preds:
                 mode_pred, counts = mode(pred_row)
