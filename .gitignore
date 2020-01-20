@@ -1,3 +1,6 @@
+# Wandb
+wandb/
+
 # Outputs from examples
 **/cache_dir
 **/runs
