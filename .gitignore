@@ -8,7 +8,6 @@ wandb/
 **/data
 
 # manual_test_scripts
-
 test_scripts/
 
 # Byte-compiled / optimized / DLL files

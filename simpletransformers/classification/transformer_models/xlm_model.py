@@ -30,7 +30,8 @@ class XLMForSequenceClassification(XLMPreTrainedModel):
         labels = torch.tensor([1]).unsqueeze(0)  # Batch size 1
         outputs = model(input_ids, labels=labels)
         loss, logits = outputs[:2]
-    """
+    """  # noqa: ignore flake8"
+
     def __init__(self, config, weight=None):
         super(XLMForSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
@@ -41,21 +42,36 @@ class XLMForSequenceClassification(XLMPreTrainedModel):
 
         self.init_weights()
 
-    def forward(self, input_ids=None, attention_mask=None, langs=None, token_type_ids=None, position_ids=None,
-                lengths=None, cache=None, head_mask=None, inputs_embeds=None, labels=None):
-        transformer_outputs = self.transformer(input_ids,
-                                               attention_mask=attention_mask,
-                                               langs=langs,
-                                               token_type_ids=token_type_ids,
-                                               position_ids=position_ids,
-                                               lengths=lengths, 
-                                               cache=cache,
-                                               head_mask=head_mask)
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        langs=None,
+        token_type_ids=None,
+        position_ids=None,
+        lengths=None,
+        cache=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+    ):
+        transformer_outputs = self.transformer(
+            input_ids,
+            attention_mask=attention_mask,
+            langs=langs,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            lengths=lengths,
+            cache=cache,
+            head_mask=head_mask,
+        )
 
         output = transformer_outputs[0]
         logits = self.sequence_summary(output)
 
-        outputs = (logits,) + transformer_outputs[1:]  # Keep new_mems and attention/hidden states if they are here
+        outputs = (logits,) + transformer_outputs[
+            1:
+        ]  # Keep new_mems and attention/hidden states if they are here
 
         if labels is not None:
             if self.num_labels == 1:

@@ -1,4 +1,10 @@
-from transformers.modeling_roberta import RobertaConfig, RobertaModel, RobertaClassificationHead, ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP, BertPreTrainedModel
+from transformers.modeling_roberta import (
+    RobertaConfig,
+    RobertaModel,
+    RobertaClassificationHead,
+    ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP,
+    BertPreTrainedModel,
+)
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
@@ -30,7 +36,7 @@ class RobertaForSequenceClassification(BertPreTrainedModel):
         labels = torch.tensor([1]).unsqueeze(0)  # Batch size 1
         outputs = model(input_ids, labels=labels)
         loss, logits = outputs[:2]
-    """
+    """  # noqa: ignore flake8"
     config_class = RobertaConfig
     pretrained_model_archive_map = ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
     base_model_prefix = "roberta"
@@ -42,14 +48,24 @@ class RobertaForSequenceClassification(BertPreTrainedModel):
         self.roberta = RobertaModel(config)
         self.classifier = RobertaClassificationHead(config)
         self.weight = weight
-    
-    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None, inputs_embeds=None,
-                labels=None):
-        outputs = self.roberta(input_ids,
-                               attention_mask=attention_mask,
-                               token_type_ids=token_type_ids,
-                               position_ids=position_ids,
-                               head_mask=head_mask)
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+    ):
+        outputs = self.roberta(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+        )
         sequence_output = outputs[0]
         logits = self.classifier(sequence_output)
 
