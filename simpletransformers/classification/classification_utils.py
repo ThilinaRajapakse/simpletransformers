@@ -90,6 +90,11 @@ def convert_example_to_feature(
         stride,
     ) = example_row
 
+    max_seq_length_a, max_seq_length_b = None, None
+    if isinstance(max_seq_length, tuple):
+        max_seq_length_a, max_seq_length_b = max_seq_length
+        max_seq_length = max_seq_length_a + max_seq_length_b
+
     tokens_a = tokenizer.tokenize(example.text_a)
 
     tokens_b = None
@@ -99,7 +104,12 @@ def convert_example_to_feature(
         # length is less than the specified length.
         # Account for [CLS], [SEP], [SEP] with "- 3". " -4" for RoBERTa.
         special_tokens_count = 4 if sep_token_extra else 3
-        _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - special_tokens_count)
+        if max_seq_length_a is not None and max_seq_length_b is not None:
+            _truncate_seq_pair_specify_length(tokens_a, tokens_b,
+                                              max_length_a=max_seq_length_a - special_tokens_count,
+                                              max_length_b=max_seq_length_b)
+        else:
+            _truncate_seq_pair(tokens_a, tokens_b, max_seq_length - special_tokens_count)
     else:
         # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
         special_tokens_count = 3 if sep_token_extra else 2
@@ -418,3 +428,15 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
             tokens_a.pop()
         else:
             tokens_b.pop()
+
+
+def _truncate_seq_pair_specify_length(tokens_a, tokens_b, max_length_a, max_length_b):
+    """Truncates a sequence pair in place to the maximum length."""
+    while True:
+        if len(tokens_a) <= max_length_a:
+            break
+        tokens_a.pop()
+    while True:
+        if len(tokens_b) <= max_length_b:
+            break
+        tokens_b.pop()

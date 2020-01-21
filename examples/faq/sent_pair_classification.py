@@ -82,6 +82,7 @@ train_args={
     'reprocess_input_data': True,
     'overwrite_output_dir': True,
     'num_train_epochs': 3,
+    'max_seq_length': (5,3),
 }
 
 # Create a ClassificationModel
