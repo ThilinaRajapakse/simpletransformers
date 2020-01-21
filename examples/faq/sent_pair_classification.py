@@ -84,18 +84,18 @@ train_args={
     'num_train_epochs': 3,
 }
 
-# # Create a ClassificationModel
-# model = ClassificationModel('bert', 'bert-base-uncased', num_labels=2, use_cuda=False, cuda_device=0, args=train_args)
-# print(train_df.head())
-#
-# # Train the model
-# model.train_model(train_df, eval_df=eval_df)
-#
-# # Evaluate the model
-# result, model_outputs, wrong_predictions = model.eval_model(eval_df, acc=sklearn.metrics.accuracy_score)
-#
-# predictions, raw_outputs = model.predict([["I'd like to puts some CD-ROMS on my iPad, is that possible?'", "Yes, but wouldn't that block the screen?"]])
-# print(predictions)
-# print(raw_outputs)
+# Create a ClassificationModel
+model = ClassificationModel('bert', 'bert-base-uncased', num_labels=2, use_cuda=False, cuda_device=0, args=train_args)
+print(train_df.head())
+
+# Train the model
+model.train_model(train_df, eval_df=eval_df)
+
+# Evaluate the model
+result, model_outputs, wrong_predictions = model.eval_model(eval_df, acc=sklearn.metrics.accuracy_score)
+
+predictions, raw_outputs = model.predict([["I'd like to puts some CD-ROMS on my iPad, is that possible?'", "Yes, but wouldn't that block the screen?"]])
+print(predictions)
+print(raw_outputs)
 
 model = ClassificationModel('bert', './outputs', use_cuda=False)

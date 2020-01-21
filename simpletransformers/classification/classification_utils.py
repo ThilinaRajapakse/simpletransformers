@@ -90,7 +90,6 @@ def convert_example_to_feature(
         stride,
     ) = example_row
 
-    print(example.text_a)
     tokens_a = tokenizer.tokenize(example.text_a)
 
     tokens_b = None
