@@ -1,4 +1,5 @@
 from simpletransformers.classification import MultiLabelClassificationModel
+# from simpletransformers.experimental.classification import MultiLabelClassificationModel
 import pandas as pd
 import sys
 
@@ -15,6 +16,7 @@ eval_df = pd.DataFrame(eval_data, columns=['text', 'labels'])
 model = MultiLabelClassificationModel('bert', 'bert-base-uncased', num_labels=6, args={
     'reprocess_input_data': True, 'overwrite_output_dir': True, 'num_train_epochs': 5,
     'evaluate_during_training': True, 'evaluate_during_training_steps': 1,
+    'use_cached_eval_features': False,
     }, use_cuda=False)
 # You can set class weights by using the optional weight argument
 print(train_df.head())
@@ -24,10 +26,10 @@ print(train_df.head())
 model.train_model(train_df, eval_df=eval_df)
 
 # Evaluate the model
-result, model_outputs, wrong_predictions = model.eval_model(eval_df)
-print(result)
-print(model_outputs)
-
-predictions, raw_outputs = model.predict(['This thing is entirely different from the other thing. '])
-print(predictions)
-print(raw_outputs)
+# result, model_outputs, wrong_predictions = model.eval_model(eval_df)
+# print(result)
+# print(model_outputs)
+#
+# predictions, raw_outputs = model.predict(['This thing is entirely different from the other thing. '])
+# print(predictions)
+# print(raw_outputs)
