@@ -144,6 +144,7 @@ class QuestionAnsweringModel:
 
         tokenizer = self.tokenizer
         args = self.args
+        no_cache = args['no_cache']
 
         if not os.path.isdir(self.args["cache_dir"]):
             os.mkdir(self.args["cache_dir"])

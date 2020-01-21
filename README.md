@@ -918,7 +918,8 @@ model = NERModel('bert', 'outputs/')
 
 ## Default Settings
 
-The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding key: value pairs to the the init method of a Model class.
+The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding 
+key: value pairs to the the init method of a Model class.
 
 ```
 self.args = {
@@ -946,6 +947,7 @@ self.args = {
   'use_cached_eval_features': True,
   `save_eval_checkpoints`: True
   'save_steps': 2000,
+  'no_cache': False,
   'save_model_every_epoch': True,
   'tensorboard_dir': None,
 
@@ -958,6 +960,7 @@ self.args = {
   'use_multiprocessing': True,
 
   'wandb_project': None,
+  'wandb_kwargs': {},
 }
 ```
 
@@ -1023,6 +1026,9 @@ Log training loss and learning at every specified number of steps.
 #### *save_steps: int*
 Save a model checkpoint at every specified number of steps.
 
+#### *no_cache: bool*
+Cache features to disk.
+
 #### *save_model_every_epoch: bool*
 Save a model at the end of every epoch.
 
@@ -1046,6 +1052,13 @@ Disables progress bars.
 
 #### *use_multiprocessing: bool*
 If True, multiprocessing will be used when converting data into features. Disabling can reduce memory usage, but may substantially slow down processing.
+
+
+#### *wandb_project: str*
+Name of W&B project. This will log all hyperparameter values, training losses, and evaluation metrics to the given project.
+
+#### *wandb_kwargs: dict*
+Dictionary of keyword arguments to be passed to the W&B project.
 
 ---
 

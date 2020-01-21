@@ -4,9 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.10] - 2020-01-21
+### Added
+- Added `no_cache` option to `global_args` which disables caching (saving and loading) of features to/from disk. 
+
 ## [0.18.10] - 2020-01-20
 ### Added
-
 - Added Makefile with tests dependency installation, test code, formatter and types.
 - Added setup.cfg file with Make configuration
 - Added some tests for the functionality
@@ -209,7 +212,9 @@ Model checkpoint is now saved for all epochs again.
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.18.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ce5afd7...HEAD
+[0.18.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/65ef805...HEAD
+
+[0.18.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ce5afd7...65ef805
 
 [0.18.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/8ade0f4...ce5afd7
 

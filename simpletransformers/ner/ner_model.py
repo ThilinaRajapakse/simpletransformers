@@ -721,6 +721,7 @@ class NERModel:
         tokenizer = self.tokenizer
         args = self.args
 
+        no_cache = args['no_cache']
         mode = "dev" if evaluate else "train"
 
         if not to_predict:

@@ -802,6 +802,8 @@ class ClassificationModel:
         tokenizer = self.tokenizer
         args = self.args
 
+        no_cache = args['no_cache']
+
         if not multi_label and args["regression"]:
             output_mode = "regression"
         else:

@@ -20,6 +20,7 @@ global_args = {
     "do_lower_case": False,
     "logging_steps": 50,
     "save_steps": 2000,
+    "no_cache": False,
     "save_model_every_epoch": True,
     "evaluate_during_training": False,
     "evaluate_during_training_steps": 2000,
