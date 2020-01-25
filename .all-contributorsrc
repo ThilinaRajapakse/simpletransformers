@@ -155,6 +155,15 @@
         "code",
         "doc"
       ]
+    },
+    {
+      "login": "marctorrellas",
+      "name": "Marc Torrellas",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/22045779?v=4",
+      "profile": "http://marctorrellas.github.com",
+      "contributions": [
+        "maintenance"
+      ]
     }
   ],
   "contributorsPerLine": 7,
