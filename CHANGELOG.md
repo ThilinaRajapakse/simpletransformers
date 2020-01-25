@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.18.10] - 2020-01-21
+## [0.18.12] - 2020-01-25
+### Fixed
+- Added missing extra SEP token in RoBERTa, CamemBERT, and XLMRoBERTA in sentence pair tasks. 
+
+## [0.18.11] - 2020-01-21
 ### Added
 - Added `no_cache` option to `global_args` which disables caching (saving and loading) of features to/from disk. 
 
@@ -212,7 +216,9 @@ Model checkpoint is now saved for all epochs again.
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.18.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/65ef805...HEAD
+[0.18.12]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f8d0ad2...HEAD
+
+[0.18.11]: https://github.com/ThilinaRajapakse/simpletransformers/compare/65ef805...f8d0ad2
 
 [0.18.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ce5afd7...65ef805
 

@@ -128,7 +128,12 @@ def convert_example_to_feature(
     segment_ids = [sequence_a_segment_id] * len(tokens)
 
     if tokens_b:
+        if sep_token_extra:
+            tokens += [sep_token]
+            segment_ids += [sequence_b_segment_id]
+
         tokens += tokens_b + [sep_token]
+
         segment_ids += [sequence_b_segment_id] * (len(tokens_b) + 1)
 
     if cls_token_at_end:

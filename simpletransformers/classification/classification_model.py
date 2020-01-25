@@ -844,7 +844,7 @@ class ClassificationModel:
                 sep_token=tokenizer.sep_token,
                 # RoBERTa uses an extra separator b/w pairs of sentences,
                 # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
-                sep_token_extra=bool(args["model_type"] in ["roberta"]),
+                sep_token_extra=bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]),
                 # PAD on the left for XLNet
                 pad_on_left=bool(args["model_type"] in ["xlnet"]),
                 pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
