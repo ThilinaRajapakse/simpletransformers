@@ -40,6 +40,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "hlo-world",
+      "name": "hlo-world",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/9633055?v=4",
+      "profile": "https://github.com/hlo-world",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
