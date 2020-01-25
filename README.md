@@ -1067,53 +1067,11 @@ Dictionary of keyword arguments to be passed to the W&B project.
 
 ## Current Pretrained Models
 
-The table below shows the currently available model types and their models. You can use any of these by setting the `model_type` and `model_name` in the `args` dictionary. For more information about pretrained models, see [HuggingFace docs](https://huggingface.co/pytorch-transformers/pretrained_models.html).
+For a list of pretrained models, see [Hugging Face docs](https://huggingface.co/pytorch-transformers/pretrained_models.html).
 
-| Architecture        | Model Type           | Model Name  | Details  |
-| :------------- |:----------| :-------------| :-----------------------------|
-| BERT      | bert | bert-base-uncased | 12-layer, 768-hidden, 12-heads, 110M parameters.<br>Trained on lower-cased English text. |
-| BERT      | bert | bert-large-uncased | 24-layer, 1024-hidden, 16-heads, 340M parameters.<br>Trained on lower-cased English text. |
-| BERT      | bert | bert-base-cased | 12-layer, 768-hidden, 12-heads, 110M parameters.<br>Trained on cased English text. |
-| BERT      | bert | bert-large-cased | 24-layer, 1024-hidden, 16-heads, 340M parameters.<br>Trained on cased English text. |
-| BERT      | bert | bert-base-multilingual-uncased | (Original, not recommended) 12-layer, 768-hidden, 12-heads, 110M parameters. <br>Trained on lower-cased text in the top 102 languages with the largest Wikipedias |
-| BERT      | bert | bert-base-multilingual-cased | (New, recommended) 12-layer, 768-hidden, 12-heads, 110M parameters.<br>Trained on cased text in the top 104 languages with the largest Wikipedias |
-| BERT      | bert | bert-base-chinese | 12-layer, 768-hidden, 12-heads, 110M parameters. <br>Trained on cased Chinese Simplified and Traditional text. |
-| BERT      | bert | bert-base-german-cased | 12-layer, 768-hidden, 12-heads, 110M parameters. <br>Trained on cased German text by Deepset.ai |
-| BERT      | bert | bert-large-uncased-whole-word-masking | 24-layer, 1024-hidden, 16-heads, 340M parameters. <br>Trained on lower-cased English text using Whole-Word-Masking |
-| BERT      | bert | bert-large-cased-whole-word-masking | 24-layer, 1024-hidden, 16-heads, 340M parameters. <br>Trained on cased English text using Whole-Word-Masking |
-| BERT      | bert | bert-large-uncased-whole-word-masking-finetuned-squad | 24-layer, 1024-hidden, 16-heads, 340M parameters. <br>The bert-large-uncased-whole-word-masking model fine-tuned on SQuAD |
-| BERT      | bert | bert-large-cased-whole-word-masking-finetuned-squad | 24-layer, 1024-hidden, 16-heads, 340M parameters <br>The bert-large-cased-whole-word-masking model fine-tuned on SQuAD |
-| BERT      | bert | bert-base-cased-finetuned-mrpc | 12-layer, 768-hidden, 12-heads, 110M parameters. <br>The bert-base-cased model fine-tuned on MRPC |
-| BERT      | bert | bert-base-german-dbmdz-cased | 12-layer, 768-hidden, 12-heads, 110M parameters. Trained on cased German text by DBMDZ |
-| BERT      | bert | bert-base-german-dbmdz-uncased | 12-layer, 768-hidden, 12-heads, 110M parameters. Trained on uncased German text by DBMDZ |
-| XLNet      | xlnet | xlnet-base-cased | 12-layer, 768-hidden, 12-heads, 110M parameters. <br>XLNet English model |
-| XLNet      | xlnet | xlnet-large-cased | 24-layer, 1024-hidden, 16-heads, 340M parameters. <br>XLNet Large English model |
-| XLM      | xlm | xlm-mlm-en-2048 | 12-layer, 2048-hidden, 16-heads <br>XLM English model |
-| XLM      | xlm | xlm-mlm-ende-1024 | 6-layer, 1024-hidden, 8-heads <br>XLM English-German Multi-language model |
-| XLM      | xlm | xlm-mlm-enfr-1024 | 6-layer, 1024-hidden, 8-heads <br>XLM English-French Multi-language model |
-| XLM      | xlm | xlm-mlm-enro-1024 | 6-layer, 1024-hidden, 8-heads <br>XLM English-Romanian Multi-language model |
-| XLM      | xlm | xlm-mlm-xnli15-1024 | 12-layer, 1024-hidden, 8-heads <br>XLM Model pre-trained with MLM on the 15 XNLI languages |
-| XLM      | xlm | xlm-mlm-tlm-xnli15-1024 | 12-layer, 1024-hidden, 8-heads <br>XLM Model pre-trained with MLM + TLM on the 15 XNLI languages |
-| XLM      | xlm | xlm-clm-enfr-1024 | 12-layer, 1024-hidden, 8-heads <br>XLM English model trained with CLM (Causal Language Modeling) |
-| XLM      | xlm | xlm-clm-ende-1024 | 6-layer, 1024-hidden, 8-heads <br>XLM English-German Multi-language model trained with CLM (Causal Language Modeling) |
-| RoBERTa      | roberta | roberta-base | 125M parameters <br>RoBERTa using the BERT-base architecture |
-| RoBERTa      | roberta | roberta-large | 24-layer, 1024-hidden, 16-heads, 355M parameters <br>RoBERTa using the BERT-large architecture |
-| RoBERTa      | roberta | roberta-base-openai-detector | 12-layer, 768-hidden, 12-heads, 125M parameters `roberta-base` fine-tuned by OpenAI on the outputs of the 1.5B-parameter GPT-2 model.|
-| RoBERTa      | roberta | roberta-large-openai-detector | 24-layer, 1024-hidden, 16-heads, 355M parameters `roberta-large` fine-tuned by OpenAI on the outputs of the 1.5B-parameter GPT-2 model.|
-| DistilBERT   | distilbert | distilbert-base-uncased| 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-uncased checkpoint |
-| DistilBERT   | distilbert | distilbert-base-uncased-distilled-squad | 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-uncased checkpoint, with an additional linear layer.|
-| DistilBERT German   | distilbert | distilbert-base-german-cased | 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-cased checkpoint on German data.|
-| DistilBERT Multilingual   | distilbert | distilbert-base-multilingual-cased | 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-cased checkpoint on multilingual data.|
-| ALBERT      | albert | albert-base-v1 | 12 repeating layers, 128 embedding, 768-hidden, 12-heads, 11M parameters; ALBERT base model. |
-| ALBERT      | albert | albert-large-v1 | 24 repeating layers, 128 embedding, 1024-hidden, 16-heads, 17M parameters; ALBERT large model |
-| ALBERT      | albert | albert-xlarge-v1 | 24 repeating layers, 128 embedding, 2048-hidden, 16-heads, 58M parameters; ALBERT xlarge model |
-| ALBERT      | albert | albert-xxlarge-v1 | 12 repeating layers, 128 embedding, 4096-hidden, 64-heads, 223M parameters; ALBERT xxlarge model |
-| ALBERT      | albert | albert-base-v2 | 12 repeating layers, 128 embedding, 768-hidden, 12-heads, 11M parameters; ALBERT base model with no dropout, additional training data and longer training|
-| ALBERT      | albert | albert-large-v2 | 24 repeating layers, 128 embedding, 1024-hidden, 16-heads, 17M parameters; ALBERT large model with no dropout, additional training data and longer training|
-| ALBERT      | albert | albert-xlarge-v2 | 24 repeating layers, 128 embedding, 2048-hidden, 16-heads, 58M parameters; ALBERT xlarge model with no dropout, additional training data and longer training |
-| ALBERT      | albert | albert-xxlarge-v2 | 12 repeating layer, 128 embedding, 4096-hidden, 64-heads, 223M parameters; ALBERT xxlarge model with no dropout, additional training data and longer training |
-| CamemBERT     | camembert | camembert-base | 12-layer, 768-hidden, 12-heads, 110M parameters CamemBERT using the RoBERTa architecture |
-
+The `model_types` available for each task can be found under their respective section. Any pretrained model of that type
+found in the Hugging Face docs should work. To use any of them set the correct `model_type` and `model_name` in the `args` 
+dictionary.
 
 ---
 
