@@ -67,6 +67,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "mananeau",
+      "name": "Manuel ",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/29440170?v=4",
+      "profile": "https://github.com/mananeau",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
