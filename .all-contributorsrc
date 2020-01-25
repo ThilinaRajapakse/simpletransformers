@@ -124,6 +124,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "khellan",
+      "name": "Knut O. Hellan",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/51441?v=4",
+      "profile": "http://knuthellan.com/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
