@@ -115,6 +115,15 @@
         "code",
         "doc"
       ]
+    },
+    {
+      "login": "todd-cook",
+      "name": "Todd Cook",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/665389?v=4",
+      "profile": "https://github.com/todd-cook",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
