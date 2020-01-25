@@ -95,6 +95,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "merc85garcia",
+      "name": "Mercedes Garcia",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/14233427?v=4",
+      "profile": "http://www-lium.univ-lemans.fr/~garcia",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
