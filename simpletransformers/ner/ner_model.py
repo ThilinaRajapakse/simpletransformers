@@ -319,15 +319,7 @@ class NERModel:
         )
         epoch_number = 0
         if args["evaluate_during_training"]:
-            training_progress_scores = {
-                "global_step": [],
-                "precision": [],
-                "recall": [],
-                "f1_score": [],
-                "train_loss": [],
-                "eval_loss": [],
-            }
-
+            training_progress_scores = self._create_training_progress_scores()
         if args["wandb_project"]:
             wandb.init(project=args["wandb_project"], config={**args})
             wandb.watch(self.model)
@@ -340,14 +332,7 @@ class NERModel:
             ):
                 batch = tuple(t.to(device) for t in batch)
 
-                inputs = {
-                    "input_ids": batch[0],
-                    "attention_mask": batch[1],
-                    "labels": batch[3],
-                }
-                # XLM and RoBERTa don"t use segment_ids
-                if args["model_type"] in ["bert", "xlnet"]:
-                    inputs["token_type_ids"] = batch[2]
+                inputs = self._get_inputs_dict(batch)
 
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
@@ -801,3 +786,27 @@ class NERModel:
 
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
+
+    def _get_inputs_dict(self, batch):
+        inputs = {
+            "input_ids": batch[0],
+            "attention_mask": batch[1],
+            "labels": batch[3],
+        }
+        # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
+        if self.args["model_type"] in ["bert", "xlnet", "albert"]:
+            inputs["token_type_ids"] = batch[2]
+
+        return inputs
+
+    def _create_training_progress_scores(self):
+        training_progress_scores = {
+            "global_step": [],
+            "precision": [],
+            "recall": [],
+            "f1_score": [],
+            "train_loss": [],
+            "eval_loss": [],
+        }
+
+        return training_progress_scores

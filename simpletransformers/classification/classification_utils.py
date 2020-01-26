@@ -359,7 +359,6 @@ def convert_examples_to_features(
 
     if use_multiprocessing:
         if sliding_window:
-            print("sliding_window enabled")
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
@@ -376,7 +375,6 @@ def convert_examples_to_features(
                 features = [
                     feature for feature_set in features for feature in feature_set
                 ]
-            print(f"{len(features)} features created from {len(examples)} samples.")
         else:
             with Pool(process_count) as p:
                 features = list(
@@ -388,7 +386,6 @@ def convert_examples_to_features(
                 )
     else:
         if sliding_window:
-            print("sliding_window enabled")
             features = [
                 convert_example_to_feature_sliding_window(example)
                 for example in tqdm(examples, disable=silent)
@@ -397,7 +394,6 @@ def convert_examples_to_features(
                 features = [
                     feature for feature_set in features for feature in feature_set
                 ]
-            print(f"{len(features)} features created from {len(examples)} samples.")
         else:
             features = [
                 convert_example_to_feature(example)

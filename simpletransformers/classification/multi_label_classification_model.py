@@ -152,6 +152,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         output_dir=None,
         show_running_loss=True,
         args=None,
+        verbose=True,
         **kwargs
     ):
         return super().train_model(
@@ -160,30 +161,32 @@ class MultiLabelClassificationModel(ClassificationModel):
             eval_df=eval_df,
             output_dir=output_dir,
             show_running_loss=show_running_loss,
+            verbose=True,
             args=args,
         )
 
     def eval_model(
-        self, eval_df, multi_label=True, output_dir=None, verbose=False, **kwargs
+        self, eval_df, multi_label=True, output_dir=None, verbose=False, silent=False, **kwargs
     ):
         return super().eval_model(
             eval_df,
             output_dir=output_dir,
             multi_label=multi_label,
             verbose=verbose,
+            silent=silent,
             **kwargs
         )
 
-    def evaluate(self, eval_df, output_dir, multi_label=True, prefix="", **kwargs):
+    def evaluate(self, eval_df, output_dir, multi_label=True, prefix="", verbose=True, silent=False, **kwargs):
         return super().evaluate(
-            eval_df, output_dir, multi_label=multi_label, prefix=prefix, **kwargs
+            eval_df, output_dir, multi_label=multi_label, prefix=prefix, verbose=verbose, silent=silent, **kwargs
         )
 
     def load_and_cache_examples(
-        self, examples, evaluate=False, no_cache=False, multi_label=True
+        self, examples, evaluate=False, no_cache=False, multi_label=True, verbose=True, silent=False
     ):
         return super().load_and_cache_examples(
-            examples, evaluate=evaluate, no_cache=no_cache, multi_label=multi_label
+            examples, evaluate=evaluate, no_cache=no_cache, multi_label=multi_label, verbose=verbose, silent=silent
         )
 
     def compute_metrics(self, preds, labels, eval_examples, multi_label=True, **kwargs):

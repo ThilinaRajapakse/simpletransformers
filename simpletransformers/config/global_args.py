@@ -3,6 +3,7 @@ from multiprocessing import cpu_count
 
 global_args = {
     "output_dir": "outputs/",
+    "best_model_dir": "outputs/best_model",
     "cache_dir": "cache_dir/",
     "fp16": True,
     "fp16_opt_level": "O1",
@@ -24,6 +25,7 @@ global_args = {
     "save_model_every_epoch": True,
     "evaluate_during_training": False,
     "evaluate_during_training_steps": 2000,
+    "evaluate_during_training_verbose": False,
     "use_cached_eval_features": True,
     "save_eval_checkpoints": True,
     "tensorboard_dir": None,
@@ -35,4 +37,8 @@ global_args = {
     "silent": False,
     "wandb_project": None,
     "wandb_kwargs": {},
+
+    "use_early_stopping": False,
+    "early_stopping_patience": 3,
+    "early_stopping_delta": 0,
 }

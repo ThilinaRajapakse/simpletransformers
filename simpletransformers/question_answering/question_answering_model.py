@@ -383,13 +383,7 @@ class QuestionAnsweringModel:
         )
         epoch_number = 0
         if args["evaluate_during_training"]:
-            training_progress_scores = {
-                "global_step": [],
-                "correct": [],
-                "similar": [],
-                "incorrect": [],
-                "train_loss": [],
-            }
+            training_progress_scores = self._create_training_progress_scores()
 
         if args["wandb_project"]:
             wandb.init(project=args["wandb_project"], config={**args})
@@ -403,19 +397,7 @@ class QuestionAnsweringModel:
             ):
                 batch = tuple(t.to(device) for t in batch)
 
-                inputs = {
-                    "input_ids": batch[0],
-                    "attention_mask": batch[1],
-                    "start_positions": batch[3],
-                    "end_positions": batch[4],
-                }
-
-                if args["model_type"] != "distilbert":
-                    inputs["token_type_ids"] = (
-                        None if args["model_type"] == "xlm" else batch[2]
-                    )
-                if args["model_type"] in ["xlnet", "xlm"]:
-                    inputs.update({"cls_index": batch[5], "p_mask": batch[6]})
+                inputs = self._get_inputs_dict(batch)
 
                 outputs = model(**inputs)
                 # model outputs are always tuple in pytorch-transformers (see doc)
@@ -896,3 +878,31 @@ class QuestionAnsweringModel:
 
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
+
+    def _get_inputs_dict(self, batch):
+        inputs = {
+            "input_ids": batch[0],
+            "attention_mask": batch[1],
+            "start_positions": batch[3],
+            "end_positions": batch[4],
+        }
+
+        if self.args["model_type"] != "distilbert":
+            inputs["token_type_ids"] = (
+                None if self.args["model_type"] == "xlm" else batch[2]
+            )
+        if self.args["model_type"] in ["xlnet", "xlm"]:
+            inputs.update({"cls_index": batch[5], "p_mask": batch[6]})
+
+        return inputs
+
+    def _create_training_progress_scores(self):
+        training_progress_scores = {
+            "global_step": [],
+            "correct": [],
+            "similar": [],
+            "incorrect": [],
+            "train_loss": [],
+        }
+
+        return training_progress_scores

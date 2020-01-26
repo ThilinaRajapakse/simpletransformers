@@ -947,6 +947,7 @@ self.args = {
   'logging_steps': 50,
   'evaluate_during_training': False,
   'evaluate_during_training_steps': 2000,
+  "evaluate_during_training_verbose": False,
   'use_cached_eval_features': True,
   `save_eval_checkpoints`: True
   'save_steps': 2000,
@@ -964,6 +965,10 @@ self.args = {
 
   'wandb_project': None,
   'wandb_kwargs': {},
+
+  "use_early_stopping": True,
+  "early_stopping_patience": 3,
+  "early_stopping_delta": 0,
 }
 ```
 
@@ -1017,6 +1022,9 @@ Set to True to perform evaluation while training models. Make sure `eval_df` is 
 #### *evaluate_during_training_steps*
 Perform evaluation at every specified number of steps. A checkpoint model and the evaluation results will be saved.
 
+#### *evaluate_during_training_verbose*
+Print results from evaluation during training.
+
 #### *use_cached_eval_features*
 Evaluation during training uses cached features. Setting this to `False` will cause features to be recomputed at every evaluation step.
 
@@ -1062,6 +1070,15 @@ Name of W&B project. This will log all hyperparameter values, training losses, a
 
 #### *wandb_kwargs: dict*
 Dictionary of keyword arguments to be passed to the W&B project.
+
+#### *use_early_stopping*
+Use early stopping to stop training when `eval_loss` doesn't improve (based on `early_stopping_patience`, and `early_stopping_delta`)
+
+#### *early_stopping_patience*
+Terminate training after this many evaluations without an improvement in `eval_loss` greater then `early_stopping_delta`.
+
+#### *early_stopping_delta*
+The improvement over `best_eval_loss` necessary to count as a better checkpoint
 
 ---
 
@@ -1119,3 +1136,5 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+
+*If you should be on this list but you aren't, or you are on the list but don't want to be, please don't hesitate to contact me!*
