@@ -4,6 +4,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2020-01-26
+### Added
+- Added early stopping support for Classification tasks.
+    - Set `use_early_stopping` to `True` to enable.
+- Added `evaluate_during_training_verbose` to args dict to control whether evaluation during training outputs are printed to console.
+- Added **all-contributors** to README to recognize contributors.
+
+### Changed
+- Evaluation during training no longer displays progress bars.
+- Evaluation during training no longer prints results to console by default.
+- Moved model/results saving logic to `_save_model` for readability, and maintainability.
+- Updated README.
+
+## [0.18.12] - 2020-01-25
+### Fixed
+- Added missing extra SEP token in RoBERTa, CamemBERT, and XLMRoBERTA in sentence pair tasks. 
+
+## [0.18.11] - 2020-01-21
+### Added
+- Added `no_cache` option to `global_args` which disables caching (saving and loading) of features to/from disk. 
+
+## [0.18.10] - 2020-01-20
+### Added
+- Added Makefile with tests dependency installation, test code, formatter and types.
+- Added setup.cfg file with Make configuration
+- Added some tests for the functionality
+
+### Changed
+- Files linted using flake8
+- Files formatted using black
+- Test tested with pytest
+- Unused variables deleted
+
+## [0.18.9] - 2020-01-20
+### Fixed
+- Fixed bug with importing certain pre-trained models in `MultiLabelClassificationModel`.
+
+## [0.18.8] - 2020-01-20
+### Added
+- Added `**kwargs` to the init methods of `ClassificationModel`, `MultiLabelClassificationModel`, `QuestionAnsweringModel`, and `NERModel`. These will be passed to the `from_pretrained()` method of the underlying model class.
+
+## [0.18.6] - 2020-01-18
+### Changed
+- Reverted change made in 0.18.4 (Model checkpoint is no longer saved at the end of the last epoch as this is the same model saved in `ouput_dir` at the end of training).
+Model checkpoint is now saved for all epochs again.
+
+## [0.18.5] - 2020-01-18
+### Fixed
+- Fixed bug when using `sliding_window`.
+
+## [0.18.4] - 2020-01-17
+### Fixed
+- Typo in `classification_utils.py`.
+
+### Changed
+- Model checkpoint is no longer saved at the end of the last epoch as this is the same model saved in `ouput_dir` at the end of training.
+
 ## [0.18.3] - 2020-01-15
 ### Fixed
 - Potential bugfix for CamemBERT models which were giving identical outputs to all inputs.
@@ -172,7 +229,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.18.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/52a488e...HEAD
+[0.19.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6c6f2e9...HEAD
+
+[0.18.12]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f8d0ad2...6c6f2e9
+
+[0.18.11]: https://github.com/ThilinaRajapakse/simpletransformers/compare/65ef805...f8d0ad2
+
+[0.18.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ce5afd7...65ef805
+
+[0.18.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/8ade0f4...ce5afd7
+
+[0.18.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/44afa70...8ade0f4
+
+[0.18.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/aa7f650...44afa70
+
+[0.18.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ebef6c4...aa7f650
+
+[0.18.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0aa88e4...ebef6c4
+
+[0.18.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/52a488e...0aa88e4
 
 [0.18.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1fb47f1...52a488e
 

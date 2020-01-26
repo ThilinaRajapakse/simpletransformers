@@ -1,12 +1,14 @@
+# Wandb
+wandb/
+
 # Outputs from examples
 **/cache_dir
 **/runs
 **/outputs
 **/data
 
-# Tests
-
-tests/
+# manual_test_scripts
+test_scripts/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

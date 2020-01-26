@@ -1,4 +1,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
+<!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+[![All Contributors](https://img.shields.io/badge/all_contributors-17-orange.svg?style=flat-square)](#contributors-)
+<!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
 
@@ -918,7 +921,8 @@ model = NERModel('bert', 'outputs/')
 
 ## Default Settings
 
-The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding key: value pairs to the the init method of a Model class.
+The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding 
+key: value pairs to the the init method of a Model class.
 
 ```
 self.args = {
@@ -943,9 +947,11 @@ self.args = {
   'logging_steps': 50,
   'evaluate_during_training': False,
   'evaluate_during_training_steps': 2000,
+  "evaluate_during_training_verbose": False,
   'use_cached_eval_features': True,
   `save_eval_checkpoints`: True
   'save_steps': 2000,
+  'no_cache': False,
   'save_model_every_epoch': True,
   'tensorboard_dir': None,
 
@@ -958,6 +964,11 @@ self.args = {
   'use_multiprocessing': True,
 
   'wandb_project': None,
+  'wandb_kwargs': {},
+
+  "use_early_stopping": True,
+  "early_stopping_patience": 3,
+  "early_stopping_delta": 0,
 }
 ```
 
@@ -1011,6 +1022,9 @@ Set to True to perform evaluation while training models. Make sure `eval_df` is 
 #### *evaluate_during_training_steps*
 Perform evaluation at every specified number of steps. A checkpoint model and the evaluation results will be saved.
 
+#### *evaluate_during_training_verbose*
+Print results from evaluation during training.
+
 #### *use_cached_eval_features*
 Evaluation during training uses cached features. Setting this to `False` will cause features to be recomputed at every evaluation step.
 
@@ -1022,6 +1036,9 @@ Log training loss and learning at every specified number of steps.
 
 #### *save_steps: int*
 Save a model checkpoint at every specified number of steps.
+
+#### *no_cache: bool*
+Cache features to disk.
 
 #### *save_model_every_epoch: bool*
 Save a model at the end of every epoch.
@@ -1047,57 +1064,31 @@ Disables progress bars.
 #### *use_multiprocessing: bool*
 If True, multiprocessing will be used when converting data into features. Disabling can reduce memory usage, but may substantially slow down processing.
 
+
+#### *wandb_project: str*
+Name of W&B project. This will log all hyperparameter values, training losses, and evaluation metrics to the given project.
+
+#### *wandb_kwargs: dict*
+Dictionary of keyword arguments to be passed to the W&B project.
+
+#### *use_early_stopping*
+Use early stopping to stop training when `eval_loss` doesn't improve (based on `early_stopping_patience`, and `early_stopping_delta`)
+
+#### *early_stopping_patience*
+Terminate training after this many evaluations without an improvement in `eval_loss` greater then `early_stopping_delta`.
+
+#### *early_stopping_delta*
+The improvement over `best_eval_loss` necessary to count as a better checkpoint
+
 ---
 
 ## Current Pretrained Models
 
-The table below shows the currently available model types and their models. You can use any of these by setting the `model_type` and `model_name` in the `args` dictionary. For more information about pretrained models, see [HuggingFace docs](https://huggingface.co/pytorch-transformers/pretrained_models.html).
+For a list of pretrained models, see [Hugging Face docs](https://huggingface.co/pytorch-transformers/pretrained_models.html).
 
-| Architecture        | Model Type           | Model Name  | Details  |
-| :------------- |:----------| :-------------| :-----------------------------|
-| BERT      | bert | bert-base-uncased | 12-layer, 768-hidden, 12-heads, 110M parameters.<br>Trained on lower-cased English text. |
-| BERT      | bert | bert-large-uncased | 24-layer, 1024-hidden, 16-heads, 340M parameters.<br>Trained on lower-cased English text. |
-| BERT      | bert | bert-base-cased | 12-layer, 768-hidden, 12-heads, 110M parameters.<br>Trained on cased English text. |
-| BERT      | bert | bert-large-cased | 24-layer, 1024-hidden, 16-heads, 340M parameters.<br>Trained on cased English text. |
-| BERT      | bert | bert-base-multilingual-uncased | (Original, not recommended) 12-layer, 768-hidden, 12-heads, 110M parameters. <br>Trained on lower-cased text in the top 102 languages with the largest Wikipedias |
-| BERT      | bert | bert-base-multilingual-cased | (New, recommended) 12-layer, 768-hidden, 12-heads, 110M parameters.<br>Trained on cased text in the top 104 languages with the largest Wikipedias |
-| BERT      | bert | bert-base-chinese | 12-layer, 768-hidden, 12-heads, 110M parameters. <br>Trained on cased Chinese Simplified and Traditional text. |
-| BERT      | bert | bert-base-german-cased | 12-layer, 768-hidden, 12-heads, 110M parameters. <br>Trained on cased German text by Deepset.ai |
-| BERT      | bert | bert-large-uncased-whole-word-masking | 24-layer, 1024-hidden, 16-heads, 340M parameters. <br>Trained on lower-cased English text using Whole-Word-Masking |
-| BERT      | bert | bert-large-cased-whole-word-masking | 24-layer, 1024-hidden, 16-heads, 340M parameters. <br>Trained on cased English text using Whole-Word-Masking |
-| BERT      | bert | bert-large-uncased-whole-word-masking-finetuned-squad | 24-layer, 1024-hidden, 16-heads, 340M parameters. <br>The bert-large-uncased-whole-word-masking model fine-tuned on SQuAD |
-| BERT      | bert | bert-large-cased-whole-word-masking-finetuned-squad | 24-layer, 1024-hidden, 16-heads, 340M parameters <br>The bert-large-cased-whole-word-masking model fine-tuned on SQuAD |
-| BERT      | bert | bert-base-cased-finetuned-mrpc | 12-layer, 768-hidden, 12-heads, 110M parameters. <br>The bert-base-cased model fine-tuned on MRPC |
-| BERT      | bert | bert-base-german-dbmdz-cased | 12-layer, 768-hidden, 12-heads, 110M parameters. Trained on cased German text by DBMDZ |
-| BERT      | bert | bert-base-german-dbmdz-uncased | 12-layer, 768-hidden, 12-heads, 110M parameters. Trained on uncased German text by DBMDZ |
-| XLNet      | xlnet | xlnet-base-cased | 12-layer, 768-hidden, 12-heads, 110M parameters. <br>XLNet English model |
-| XLNet      | xlnet | xlnet-large-cased | 24-layer, 1024-hidden, 16-heads, 340M parameters. <br>XLNet Large English model |
-| XLM      | xlm | xlm-mlm-en-2048 | 12-layer, 2048-hidden, 16-heads <br>XLM English model |
-| XLM      | xlm | xlm-mlm-ende-1024 | 6-layer, 1024-hidden, 8-heads <br>XLM English-German Multi-language model |
-| XLM      | xlm | xlm-mlm-enfr-1024 | 6-layer, 1024-hidden, 8-heads <br>XLM English-French Multi-language model |
-| XLM      | xlm | xlm-mlm-enro-1024 | 6-layer, 1024-hidden, 8-heads <br>XLM English-Romanian Multi-language model |
-| XLM      | xlm | xlm-mlm-xnli15-1024 | 12-layer, 1024-hidden, 8-heads <br>XLM Model pre-trained with MLM on the 15 XNLI languages |
-| XLM      | xlm | xlm-mlm-tlm-xnli15-1024 | 12-layer, 1024-hidden, 8-heads <br>XLM Model pre-trained with MLM + TLM on the 15 XNLI languages |
-| XLM      | xlm | xlm-clm-enfr-1024 | 12-layer, 1024-hidden, 8-heads <br>XLM English model trained with CLM (Causal Language Modeling) |
-| XLM      | xlm | xlm-clm-ende-1024 | 6-layer, 1024-hidden, 8-heads <br>XLM English-German Multi-language model trained with CLM (Causal Language Modeling) |
-| RoBERTa      | roberta | roberta-base | 125M parameters <br>RoBERTa using the BERT-base architecture |
-| RoBERTa      | roberta | roberta-large | 24-layer, 1024-hidden, 16-heads, 355M parameters <br>RoBERTa using the BERT-large architecture |
-| RoBERTa      | roberta | roberta-base-openai-detector | 12-layer, 768-hidden, 12-heads, 125M parameters `roberta-base` fine-tuned by OpenAI on the outputs of the 1.5B-parameter GPT-2 model.|
-| RoBERTa      | roberta | roberta-large-openai-detector | 24-layer, 1024-hidden, 16-heads, 355M parameters `roberta-large` fine-tuned by OpenAI on the outputs of the 1.5B-parameter GPT-2 model.|
-| DistilBERT   | distilbert | distilbert-base-uncased| 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-uncased checkpoint |
-| DistilBERT   | distilbert | distilbert-base-uncased-distilled-squad | 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-uncased checkpoint, with an additional linear layer.|
-| DistilBERT German   | distilbert | distilbert-base-german-cased | 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-cased checkpoint on German data.|
-| DistilBERT Multilingual   | distilbert | distilbert-base-multilingual-cased | 6-layer, 768-hidden, 12-heads, 66M parameters <br>The DistilBERT model distilled from the BERT model bert-base-cased checkpoint on multilingual data.|
-| ALBERT      | albert | albert-base-v1 | 12 repeating layers, 128 embedding, 768-hidden, 12-heads, 11M parameters; ALBERT base model. |
-| ALBERT      | albert | albert-large-v1 | 24 repeating layers, 128 embedding, 1024-hidden, 16-heads, 17M parameters; ALBERT large model |
-| ALBERT      | albert | albert-xlarge-v1 | 24 repeating layers, 128 embedding, 2048-hidden, 16-heads, 58M parameters; ALBERT xlarge model |
-| ALBERT      | albert | albert-xxlarge-v1 | 12 repeating layers, 128 embedding, 4096-hidden, 64-heads, 223M parameters; ALBERT xxlarge model |
-| ALBERT      | albert | albert-base-v2 | 12 repeating layers, 128 embedding, 768-hidden, 12-heads, 11M parameters; ALBERT base model with no dropout, additional training data and longer training|
-| ALBERT      | albert | albert-large-v2 | 24 repeating layers, 128 embedding, 1024-hidden, 16-heads, 17M parameters; ALBERT large model with no dropout, additional training data and longer training|
-| ALBERT      | albert | albert-xlarge-v2 | 24 repeating layers, 128 embedding, 2048-hidden, 16-heads, 58M parameters; ALBERT xlarge model with no dropout, additional training data and longer training |
-| ALBERT      | albert | albert-xxlarge-v2 | 12 repeating layer, 128 embedding, 4096-hidden, 64-heads, 223M parameters; ALBERT xxlarge model with no dropout, additional training data and longer training |
-| CamemBERT     | camembert | camembert-base | 12-layer, 768-hidden, 12-heads, 110M parameters CamemBERT using the RoBERTa architecture |
-
+The `model_types` available for each task can be found under their respective section. Any pretrained model of that type
+found in the Hugging Face docs should work. To use any of them set the correct `model_type` and `model_name` in the `args` 
+dictionary.
 
 ---
 
@@ -1106,3 +1097,44 @@ The table below shows the currently available model types and their models. You 
 None of this would have been possible without the hard work by the HuggingFace team in developing the [Pytorch-Transformers](https://github.com/huggingface/pytorch-transformers) library.
 
 _<div>Icon for the Social Media Preview made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>_
+
+## Contributors ✨
+
+Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/hawktang"><img src="https://avatars0.githubusercontent.com/u/2004071?v=4" width="100px;" alt=""/><br /><sub><b>hawktang</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=hawktang" title="Code">💻</a></td>
+    <td align="center"><a href="http://datawizzards.io"><img src="https://avatars0.githubusercontent.com/u/22409996?v=4" width="100px;" alt=""/><br /><sub><b>Mabu Manaileng</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=mabu-dev" title="Code">💻</a></td>
+    <td align="center"><a href="https://www.facebook.com/aliosm97"><img src="https://avatars3.githubusercontent.com/u/7662492?v=4" width="100px;" alt=""/><br /><sub><b>Ali Hamdi Ali Fadel</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=AliOsm" title="Code">💻</a></td>
+    <td align="center"><a href="http://tovly.co"><img src="https://avatars0.githubusercontent.com/u/12242351?v=4" width="100px;" alt=""/><br /><sub><b>Tovly Deutsch</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=TovlyDeutsch" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/hlo-world"><img src="https://avatars0.githubusercontent.com/u/9633055?v=4" width="100px;" alt=""/><br /><sub><b>hlo-world</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=hlo-world" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/huntertl"><img src="https://avatars1.githubusercontent.com/u/15113885?v=4" width="100px;" alt=""/><br /><sub><b>huntertl</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=huntertl" title="Code">💻</a></td>
+    <td align="center"><a href="https://whattheshot.com"><img src="https://avatars2.githubusercontent.com/u/623763?v=4" width="100px;" alt=""/><br /><sub><b>Yann Defretin</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=kinoute" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=kinoute" title="Documentation">📖</a> <a href="#question-kinoute" title="Answering Questions">💬</a> <a href="#ideas-kinoute" title="Ideas, Planning, & Feedback">🤔</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/mananeau"><img src="https://avatars0.githubusercontent.com/u/29440170?v=4" width="100px;" alt=""/><br /><sub><b>Manuel </b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=mananeau" title="Documentation">📖</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=mananeau" title="Code">💻</a></td>
+    <td align="center"><a href="http://jacobsgill.es"><img src="https://avatars2.githubusercontent.com/u/9109832?v=4" width="100px;" alt=""/><br /><sub><b>Gilles Jacobs</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=GillesJ" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/shasha79"><img src="https://avatars2.githubusercontent.com/u/5512649?v=4" width="100px;" alt=""/><br /><sub><b>shasha79</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=shasha79" title="Code">💻</a></td>
+    <td align="center"><a href="http://www-lium.univ-lemans.fr/~garcia"><img src="https://avatars2.githubusercontent.com/u/14233427?v=4" width="100px;" alt=""/><br /><sub><b>Mercedes Garcia</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=merc85garcia" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/hammad26"><img src="https://avatars1.githubusercontent.com/u/12643784?v=4" width="100px;" alt=""/><br /><sub><b>Hammad Hassan Tarar</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=hammad26" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=hammad26" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/todd-cook"><img src="https://avatars3.githubusercontent.com/u/665389?v=4" width="100px;" alt=""/><br /><sub><b>Todd Cook</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=todd-cook" title="Code">💻</a></td>
+    <td align="center"><a href="http://knuthellan.com/"><img src="https://avatars2.githubusercontent.com/u/51441?v=4" width="100px;" alt=""/><br /><sub><b>Knut O. Hellan</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=khellan" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=khellan" title="Documentation">📖</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/nagenshukla"><img src="https://avatars0.githubusercontent.com/u/39196228?v=4" width="100px;" alt=""/><br /><sub><b>nagenshukla</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=nagenshukla" title="Code">💻</a></td>
+    <td align="center"><a href="https://www.linkedin.com/in/flaviussn/"><img src="https://avatars0.githubusercontent.com/u/20523032?v=4" width="100px;" alt=""/><br /><sub><b>flaviussn</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flaviussn" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flaviussn" title="Documentation">📖</a></td>
+    <td align="center"><a href="http://marctorrellas.github.com"><img src="https://avatars1.githubusercontent.com/u/22045779?v=4" width="100px;" alt=""/><br /><sub><b>Marc Torrellas</b></sub></a><br /><a href="#maintenance-marctorrellas" title="Maintenance">🚧</a></td>
+  </tr>
+</table>
+
+<!-- markdownlint-enable -->
+<!-- prettier-ignore-end -->
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
+This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
+
+*If you should be on this list but you aren't, or you are on the list but don't want to be, please don't hesitate to contact me!*

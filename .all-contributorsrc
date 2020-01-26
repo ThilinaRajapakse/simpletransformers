@@ -1,0 +1,175 @@
+{
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "contributors": [
+    {
+      "login": "hawktang",
+      "name": "hawktang",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/2004071?v=4",
+      "profile": "https://github.com/hawktang",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "mabu-dev",
+      "name": "Mabu Manaileng",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/22409996?v=4",
+      "profile": "http://datawizzards.io",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "AliOsm",
+      "name": "Ali Hamdi Ali Fadel",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/7662492?v=4",
+      "profile": "https://www.facebook.com/aliosm97",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "TovlyDeutsch",
+      "name": "Tovly Deutsch",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/12242351?v=4",
+      "profile": "http://tovly.co",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "hlo-world",
+      "name": "hlo-world",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/9633055?v=4",
+      "profile": "https://github.com/hlo-world",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "huntertl",
+      "name": "huntertl",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/15113885?v=4",
+      "profile": "https://github.com/huntertl",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "kinoute",
+      "name": "Yann Defretin",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/623763?v=4",
+      "profile": "https://whattheshot.com",
+      "contributions": [
+        "code",
+        "doc",
+        "question",
+        "ideas"
+      ]
+    },
+    {
+      "login": "mananeau",
+      "name": "Manuel ",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/29440170?v=4",
+      "profile": "https://github.com/mananeau",
+      "contributions": [
+        "doc",
+        "code"
+      ]
+    },
+    {
+      "login": "GillesJ",
+      "name": "Gilles Jacobs",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/9109832?v=4",
+      "profile": "http://jacobsgill.es",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "shasha79",
+      "name": "shasha79",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/5512649?v=4",
+      "profile": "https://github.com/shasha79",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "merc85garcia",
+      "name": "Mercedes Garcia",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/14233427?v=4",
+      "profile": "http://www-lium.univ-lemans.fr/~garcia",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "hammad26",
+      "name": "Hammad Hassan Tarar",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/12643784?v=4",
+      "profile": "https://github.com/hammad26",
+      "contributions": [
+        "code",
+        "doc"
+      ]
+    },
+    {
+      "login": "todd-cook",
+      "name": "Todd Cook",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/665389?v=4",
+      "profile": "https://github.com/todd-cook",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "khellan",
+      "name": "Knut O. Hellan",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/51441?v=4",
+      "profile": "http://knuthellan.com/",
+      "contributions": [
+        "code",
+        "doc"
+      ]
+    },
+    {
+      "login": "nagenshukla",
+      "name": "nagenshukla",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/39196228?v=4",
+      "profile": "https://github.com/nagenshukla",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "flaviussn",
+      "name": "flaviussn",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/20523032?v=4",
+      "profile": "https://www.linkedin.com/in/flaviussn/",
+      "contributions": [
+        "code",
+        "doc"
+      ]
+    },
+    {
+      "login": "marctorrellas",
+      "name": "Marc Torrellas",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/22045779?v=4",
+      "profile": "http://marctorrellas.github.com",
+      "contributions": [
+        "maintenance"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "projectName": "simpletransformers",
+  "projectOwner": "ThilinaRajapakse",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "skipCi": true
+}
