@@ -438,28 +438,27 @@ class ClassificationModel:
                             self._save_model(args["best_model_dir"], model=model, results=results)
                             early_stopping_counter = 0
                         else:
-                            if early_stopping_counter < args["early_stopping_patience"]:
-                                early_stopping_counter += 1
-                                if verbose:
-                                    print()
-                                    print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
-                                    print(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                    print()
-                            else:
-                                if verbose:
-                                    print()
-                                    print(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                    print("Training terminated.")
-                                    print()
-                                return global_step, tr_loss / global_step
+                            if args["use_early_stopping"]:
+                                if early_stopping_counter < args["early_stopping_patience"]:
+                                    early_stopping_counter += 1
+                                    if verbose:
+                                        print()
+                                        print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
+                                        print(f"Training will stop at {args['early_stopping_patience']} steps.")
+                                        print()
+                                else:
+                                    if verbose:
+                                        print()
+                                        print(f"Patience of {args['early_stopping_patience']} steps reached.")
+                                        print("Training terminated.")
+                                        print()
+                                    return global_step, tr_loss / global_step
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
-            if (args["save_model_every_epoch"] or args["evaluate_during_training"]) and not os.path.exists(
-                output_dir_current
-            ):
-                os.makedirs(output_dir_current)
+            if (args["save_model_every_epoch"] or args["evaluate_during_training"]):
+                os.makedirs(output_dir_current, exist_ok=True)
 
             if args["save_model_every_epoch"]:
                 self._save_model(output_dir_current, model=model)
@@ -477,6 +476,30 @@ class ClassificationModel:
                     training_progress_scores[key].append(results[key])
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(args["output_dir"] + "training_progress_scores.csv", index=False)
+
+                if not best_eval_loss:
+                    best_eval_loss = results["eval_loss"]
+                    self._save_model(args["best_model_dir"], model=model, results=results)
+                elif results["eval_loss"] - best_eval_loss < args["early_stopping_delta"]:
+                    best_eval_loss = results["eval_loss"]
+                    self._save_model(args["best_model_dir"], model=model, results=results)
+                    early_stopping_counter = 0
+                else:
+                    if args["use_early_stopping"]:
+                        if early_stopping_counter < args["early_stopping_patience"]:
+                            early_stopping_counter += 1
+                            if verbose:
+                                print()
+                                print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
+                                print(f"Training will stop at {args['early_stopping_patience']} steps.")
+                                print()
+                        else:
+                            if verbose:
+                                print()
+                                print(f"Patience of {args['early_stopping_patience']} steps reached.")
+                                print("Training terminated.")
+                                print()
+                            return global_step, tr_loss / global_step
 
         return global_step, tr_loss / global_step
 

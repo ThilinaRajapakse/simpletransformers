@@ -4,10 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.1] - 2020-01-27
+### Fixed
+- Fixed issue with evaluation at the end of epochs not being considered for best model.
+
 ## [0.19.0] - 2020-01-26
 ### Added
 - Added early stopping support for Classification tasks.
     - Set `use_early_stopping` to `True` to enable.
+- The best model will now be saved to `{output_dir}/best_model/` when `evaluate_during_training` is used.
 - Added `evaluate_during_training_verbose` to args dict to control whether evaluation during training outputs are printed to console.
 - Added **all-contributors** to README to recognize contributors.
 
@@ -229,7 +234,9 @@ Model checkpoint is now saved for all epochs again.
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.19.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6c6f2e9...HEAD
+[0.19.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb67a2b...HEAD
+
+[0.19.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6c6f2e9...bb67a2b
 
 [0.18.12]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f8d0ad2...6c6f2e9
 
