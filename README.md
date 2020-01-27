@@ -102,7 +102,7 @@ Supported model types:
 
 #### Minimal Start for Binary Classification
 
-```
+```python
 from simpletransformers.classification import ClassificationModel
 import pandas as pd
 
@@ -126,7 +126,7 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 
 If you wish to add any custom metrics, simply pass them as additional keyword arguments. The keyword is the name to be given to the metric, and the value is the function that will calculate the metric. Make sure that the function expects two parameters with the first one being the true label, and the second being the predictions. (This is the default for sklearn metrics)
 
-```
+```python
 import sklearn
 
 
@@ -136,7 +136,7 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df, acc=sklearn
 
 To make predictions on arbitary data, the `predict(to_predict)` function can be used. For a list of text, it returns the model predictions and the raw model outputs.
 
-```
+```python
 predictions, raw_outputs = model.predict(['Some arbitary sentence'])
 ```
 
@@ -144,7 +144,7 @@ predictions, raw_outputs = model.predict(['Some arbitary sentence'])
 
 For multiclass classification, simply pass in the number of classes to the `num_labels` optional parameter of `ClassificationModel`.
 
-```
+```python
 from simpletransformers.classification import ClassificationModel
 import pandas as pd
 
@@ -177,7 +177,7 @@ _Warning: Pandas can cause issues when saving and loading lists stored in a colu
 
 The default evaluation metric used is Label Ranking Average Precision ([LRAP](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.label_ranking_average_precision_score.html)) Score.
 
-```
+```python
 from simpletransformers.classification import MultiLabelClassificationModel
 import pandas as pd
 
@@ -218,7 +218,7 @@ print(raw_outputs)
 * Training and evaluation Dataframes must contain a `text_a`, `text_b`, and a `labels` column.
 * The `predict()` function expects a list of lists in the format below. A single sample input should also be a list of lists like `[[text_a, text_b]]`.
 
-```
+```python
 [
     [sample_1_text_a, sample_1_text_b],
     [sample_2_text_a, sample_2_text_b],
@@ -227,7 +227,7 @@ print(raw_outputs)
 ]
 ```
 
-```
+```python
 from simpletransformers.classification import ClassificationModel
 import pandas as pd
 import sklearn
@@ -394,13 +394,13 @@ Supported model types:
 * CamemBERT
 * XLM-RoBERTa
 
-```
+```python
 model = NERModel('bert', 'bert-base-cased', labels=["LABEL_1", "LABEL_2", "LABEL_3"])
 ```
 
 #### Minimal Start
 
-```
+```python
 from simpletransformers.ner import NERModel
 import pandas as pd
 
@@ -559,7 +559,7 @@ A single answer is represented by a dictionary with the following attributes.
 
 ### Minimal Example
 
-```
+```python
 from simpletransformers.question_answering import QuestionAnsweringModel
 import json
 import os
@@ -708,7 +708,7 @@ Performs predictions on a list of text.
 
 Args:
 * to_predict: A python list of python dicts containing contexts and questions to be sent to the model for prediction.
-```
+```python
 E.g: predict([
     {
         'context': "Some context as a demo",
@@ -744,7 +744,7 @@ Converts a list of InputExample objects to a TensorDataset containing InputFeatu
 
 QuestionAnsweringModel has a few additional attributes in its `args` dictionary, given below with their default values.
 
-```
+```python
   'doc_stride': 384,
   'max_query_length': 64,
   'n_best_size': 20,
@@ -780,7 +780,7 @@ Regression can be used with either single sentence or sentence pair tasks.
 
 #### Minimal Start for Regression
 
-```
+```python
 from simpletransformers.classification import ClassificationModel
 import pandas as pd
 
@@ -832,7 +832,7 @@ The [Weights & Biases](https://www.wandb.com/) framework is supported for visual
 
 To use this, simply set a project name for W&B in the `wandb_project` attribute of the `args` dictionary. This will log all hyperparameter values, training losses, and evaluation metrics to the given project.
 
-```
+```python
 model = ClassificationModel('roberta', 'roberta-base', args={'wandb_project': 'project-name'})
 ```
 
@@ -844,7 +844,7 @@ For a complete example, see [here](https://medium.com/skilai/to-see-is-to-believ
 
 To use experimental features, import from `simpletransformers.experimental.X`
 
-```
+```python
 from simpletransformers.experimental.classification import ClassificationModel
 ```
 
@@ -865,7 +865,7 @@ Currently available on binary and multiclass classification models of the follow
 
 Set `sliding_window` to `True` for the ClassificationModel to enable this feature.
 
-```
+```python
 from simpletransformers.classification import ClassificationModel
 import pandas as pd
 import sklearn
@@ -908,11 +908,11 @@ print(raw_outputs)
 
 To load a saved model, provide the path to the directory containing the saved model as the `model_name`.
 
-```
+```python
 model = ClassificationModel('roberta', 'outputs/')
 ```
 
-```
+```python
 model = NERModel('bert', 'outputs/')
 ```
 
@@ -924,7 +924,7 @@ model = NERModel('bert', 'outputs/')
 The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding 
 key: value pairs to the the init method of a Model class.
 
-```
+```python
 self.args = {
   'output_dir': 'outputs/',
   'cache_dir': 'cache/',
