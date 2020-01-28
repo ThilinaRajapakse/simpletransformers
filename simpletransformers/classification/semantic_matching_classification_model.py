@@ -34,20 +34,6 @@ from transformers import (
     WEIGHTS_NAME,
     BertConfig,
     BertTokenizer,
-    XLNetConfig,
-    XLNetTokenizer,
-    XLMConfig,
-    XLMTokenizer,
-    RobertaConfig,
-    RobertaTokenizer,
-    DistilBertConfig,
-    DistilBertTokenizer,
-    AlbertConfig,
-    AlbertTokenizer,
-    CamembertConfig,
-    CamembertTokenizer,
-    XLMRobertaConfig,
-    XLMRobertaTokenizer,
 )
 
 from simpletransformers.classification.classification_utils import (
@@ -55,29 +41,8 @@ from simpletransformers.classification.classification_utils import (
     convert_examples_to_features,
 )
 
-from simpletransformers.classification.transformer_models.bert_model import (
-    BertForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.roberta_model import (
-    RobertaForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.xlm_model import (
-    XLMForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.xlnet_model import (
-    XLNetForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.distilbert_model import (
-    DistilBertForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.albert_model import (
-    AlbertForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.camembert_model import (
-    CamembertForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.xlm_roberta_model import (
-    XLMRobertaForSequenceClassification,
+from simpletransformers.custom_models.models_faq import (
+    BertForPairwiseMatching,
 )
 
 from simpletransformers.config.global_args import global_args
@@ -85,7 +50,7 @@ from simpletransformers.config.global_args import global_args
 import wandb
 
 
-class SentPairClassificationModel:
+class SemanticMatchingClassificationModel:
     def __init__(
         self,
         model_type,
@@ -112,30 +77,7 @@ class SentPairClassificationModel:
         """  # noqa: ignore flake8"
 
         MODEL_CLASSES = {
-            "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
-            "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
-            "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
-            "roberta": (
-                RobertaConfig,
-                RobertaForSequenceClassification,
-                RobertaTokenizer,
-            ),
-            "distilbert": (
-                DistilBertConfig,
-                DistilBertForSequenceClassification,
-                DistilBertTokenizer,
-            ),
-            "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-            "camembert": (
-                CamembertConfig,
-                CamembertForSequenceClassification,
-                CamembertTokenizer,
-            ),
-            "xlmroberta": (
-                XLMRobertaConfig,
-                XLMRobertaForSequenceClassification,
-                XLMRobertaTokenizer,
-            ),
+            "bert": (BertConfig, BertForPairwiseMatching, BertTokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
@@ -269,30 +211,13 @@ class SentPairClassificationModel:
 
         self._move_model_to_device()
 
-        if "text" in train_df.columns and "labels" in train_df.columns:
-            train_examples = [
-                InputExample(i, text, None, label)
-                for i, (text, label) in enumerate(
-                    zip(train_df["text"], train_df["labels"])
-                )
-            ]
-        elif "text_a" in train_df.columns and "text_b" in train_df.columns:
-            train_examples = [
-                InputExample(i, text_a, text_b, label)
-                for i, (text_a, text_b, label) in enumerate(
-                    zip(train_df["text_a"], train_df["text_b"], train_df["labels"])
-                )
-            ]
-        else:
-            warnings.warn(
-                "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
+        assert "text_a" in train_df.columns and "text_b" in train_df.columns
+        train_examples = [
+            (InputExample(i, text_a, None, label), InputExample(i, text_b, None, label))
+            for i, (text_a, text_b, label) in enumerate(
+                zip(train_df["text_a"], train_df["text_b"], train_df["labels"])
             )
-            train_examples = [
-                InputExample(i, text, None, label)
-                for i, (text, label) in enumerate(
-                    zip(train_df.iloc[:, 0], train_df.iloc[:, 1])
-                )
-            ]
+        ]
 
         train_dataset = self.load_and_cache_examples(train_examples)
 
@@ -332,6 +257,7 @@ class SentPairClassificationModel:
     ):
         """
         Trains the model on train_dataset.
+
         Utility function to be used by the train_model() method. Not intended to be used directly.
         """
 
@@ -619,6 +545,7 @@ class SentPairClassificationModel:
     ):
         """
         Evaluates the model on eval_df. Saves results to output_dir.
+
         Args:
             eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present,
             the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
@@ -626,6 +553,7 @@ class SentPairClassificationModel:
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+
         Returns:
             result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
             model_outputs: List of model outputs for each row in eval_df
@@ -650,6 +578,7 @@ class SentPairClassificationModel:
     def evaluate(self, eval_df, output_dir, multi_label=False, prefix="", **kwargs):
         """
         Evaluates the model on eval_df.
+
         Utility function to be used by the eval_model() method. Not intended to be used directly.
         """
 
@@ -786,6 +715,7 @@ class SentPairClassificationModel:
     ):
         """
         Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
+
         Utility function for train() and eval() methods. Not intended to be used directly.
         """
 
@@ -793,8 +723,6 @@ class SentPairClassificationModel:
 
         tokenizer = self.tokenizer
         args = self.args
-
-        no_cache = args['no_cache']
 
         if not multi_label and args["regression"]:
             output_mode = "regression"
@@ -824,61 +752,72 @@ class SentPairClassificationModel:
             print(f"Features loaded from cache at {cached_features_file}")
         else:
             print(f"Converting to features started. Cache is not used.")
-            features = convert_examples_to_features(
-                examples,
-                args["max_seq_length"],
-                tokenizer,
-                output_mode,
-                # XLNet has a CLS token at the end
-                cls_token_at_end=bool(args["model_type"] in ["xlnet"]),
-                cls_token=tokenizer.cls_token,
-                cls_token_segment_id=2 if args["model_type"] in ["xlnet"] else 0,
-                sep_token=tokenizer.sep_token,
-                # RoBERTa uses an extra separator b/w pairs of sentences,
-                # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
-                sep_token_extra=bool(args["model_type"] in ["roberta"]),
-                # PAD on the left for XLNet
-                pad_on_left=bool(args["model_type"] in ["xlnet"]),
-                pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
-                pad_token_segment_id=4 if args["model_type"] in ["xlnet"] else 0,
-                process_count=process_count,
-                multi_label=multi_label,
-                silent=args["silent"],
-                use_multiprocessing=args["use_multiprocessing"],
-                sliding_window=args["sliding_window"],
-                flatten=not evaluate,
-                stride=args["stride"],
-            )
+            examples_a, examples_b = zip(*examples)
+
+            def _convert(_examples):
+                _features = convert_examples_to_features(
+                    _examples,
+                    args["max_seq_length"],
+                    tokenizer,
+                    output_mode,
+                    # XLNet has a CLS token at the end
+                    cls_token_at_end=bool(args["model_type"] in ["xlnet"]),
+                    cls_token=tokenizer.cls_token,
+                    cls_token_segment_id=2 if args["model_type"] in ["xlnet"] else 0,
+                    sep_token=tokenizer.sep_token,
+                    # RoBERTa uses an extra separator b/w pairs of sentences,
+                    # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
+                    sep_token_extra=bool(args["model_type"] in ["roberta"]),
+                    # PAD on the left for XLNet
+                    pad_on_left=bool(args["model_type"] in ["xlnet"]),
+                    pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
+                    pad_token_segment_id=4 if args["model_type"] in ["xlnet"] else 0,
+                    process_count=process_count,
+                    multi_label=multi_label,
+                    silent=args["silent"],
+                    use_multiprocessing=args["use_multiprocessing"],
+                    sliding_window=args["sliding_window"],
+                    flatten=not evaluate,
+                    stride=args["stride"],
+                )
+
+                if args["sliding_window"] and evaluate:
+                   raise NotImplementedError
+
+                all_input_ids = torch.tensor([f.input_ids for f in _features], dtype=torch.long)
+                all_input_mask = torch.tensor(
+                    [f.input_mask for f in _features], dtype=torch.long
+                )
+                all_segment_ids = torch.tensor(
+                    [f.segment_ids for f in _features], dtype=torch.long
+                )
+
+                if output_mode == "classification":
+                    all_label_ids = torch.tensor(
+                        [f.label_id for f in _features], dtype=torch.long
+                    )
+                elif output_mode == "regression":
+                    all_label_ids = torch.tensor(
+                        [f.label_id for f in _features], dtype=torch.float
+                    )
+                return _features, (all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+
+
+            features_a, (all_input_ids_a, all_input_mask_a, all_segment_ids_a, all_label_ids_a) = _convert(examples_a)
+            features_b, (all_input_ids_b, all_input_mask_b, all_segment_ids_b, all_label_ids_b) = _convert(examples_b)
+            features = list(zip(features_a, features_b))
 
             if not no_cache:
                 torch.save(features, cached_features_file)
 
-        if args["sliding_window"] and evaluate:
-            window_counts = [len(sample) for sample in features]
-            features = [feature for feature_set in features for feature in feature_set]
-
-        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        all_input_mask = torch.tensor(
-            [f.input_mask for f in features], dtype=torch.long
-        )
-        all_segment_ids = torch.tensor(
-            [f.segment_ids for f in features], dtype=torch.long
-        )
-
-        if output_mode == "classification":
-            all_label_ids = torch.tensor(
-                [f.label_id for f in features], dtype=torch.long
-            )
-        elif output_mode == "regression":
-            all_label_ids = torch.tensor(
-                [f.label_id for f in features], dtype=torch.float
-            )
-
+        assert (all_label_ids_b == all_label_ids_a).all()
         dataset = TensorDataset(
-            all_input_ids, all_input_mask, all_segment_ids, all_label_ids
+            all_input_ids_a, all_input_mask_a, all_segment_ids_a, all_label_ids_a,
+            all_input_ids_b, all_input_mask_b, all_segment_ids_b
         )
 
         if args["sliding_window"] and evaluate:
+            raise NotImplementedError
             return dataset, window_counts
         else:
             return dataset
@@ -888,12 +827,14 @@ class SentPairClassificationModel:
     ):
         """
         Computes the evaluation metrics for the model predictions.
+
         Args:
             preds: Model predictions
             labels: Ground truth labels
             eval_examples: List of examples on which evaluation was performed
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+
         Returns:
             result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
             wrong: List of InputExample objects corresponding to each incorrect prediction by the model
@@ -932,8 +873,10 @@ class SentPairClassificationModel:
     def predict(self, to_predict, multi_label=False):
         """
         Performs predictions on a list of text.
+
         Args:
             to_predict: A python list of text (str) to be sent to the model for prediction.
+
         Returns:
             preds: A python list of the predictions (0 or 1) for each text.
             model_outputs: A python list of the raw model outputs for each text.
@@ -1063,12 +1006,14 @@ class SentPairClassificationModel:
         self.model.to(self.device)
 
     def _get_inputs_dict(self, batch):
-        inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
+        inputs = {"input_ids": (batch[0], batch[4]),
+                  "attention_mask": (batch[1], batch[5]),
+                  "labels": batch[3]}
 
         # XLM, DistilBERT and RoBERTa don't use segment_ids
         if self.args["model_type"] != "distilbert":
             inputs["token_type_ids"] = (
-                batch[2] if self.args["model_type"] in ["bert", "xlnet"] else None
+                (batch[2], batch[6]) if self.args["model_type"] in ["bert", "xlnet"] else None
             )
 
         return inputs

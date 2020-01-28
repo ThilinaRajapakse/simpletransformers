@@ -1,5 +1,5 @@
 import simpletransformers
-from simpletransformers.classification import ClassificationModel
+from simpletransformers.classification import SemanticMatchingClassificationModel
 from simpletransformers.metrics.ranking_metrics import MRR, MAP, NDCG, Prec, Recall, F1
 from simpletransformers.data.data_utils import load_url_vocab
 from simpletransformers.data.data_utils import load_url_data_email_article_pair
@@ -67,7 +67,7 @@ def train(train_df, dev_df, test_df, train_args, use_cuda=True):
         os.makedirs(train_args['cache_dir'])
 
     # Create a ClassificationModel
-    model = ClassificationModel(
+    model = SemanticMatchingClassificationModel(
         'bert', 'bert-base-uncased', num_labels=2, use_cuda=use_cuda, args=train_args)
 
     # Train the model
@@ -106,15 +106,16 @@ if __name__ == '__main__':
     #               'cache_dir': './tmp/BERT_sent_pair/cache',
     #               'train_batch_size': 32,
     #               'fp16': False,
+    #               'use_multiprocessing': False
     #               }
     # model = train(df_train, df_dev, df_test, train_args, use_cuda=False)
-
+    #
     # # Evaluate
     # dev_metrics, dev_rank_scores, dev_rank_idxes = evaluate(model, df_dev)
     # print_metrics(dev_metrics)
 
     # Load trained model
-    ckpt = 'checkpoint-63-epoch-7'
+    ckpt = 'checkpoint-9-epoch-1'
     print(f'Evaluating based on {ckpt}')
     eval_args = {'learning_rate': 5e-5,
                  'reprocess_input_data': True,
@@ -127,9 +128,10 @@ if __name__ == '__main__':
                  'train_batch_size': 32,
                  'fp16': False,
                  }
-    model = ClassificationModel('bert',
-                                f'/Users/jiezhao/Documents/GitHub/simpletransformers/tmp/BERT_sent_pair/outputs/{ckpt}',
-                                num_labels=2, use_cuda=False, args=eval_args)
+    model = SemanticMatchingClassificationModel(
+        'bert',
+        f'/Users/jiezhao/Documents/GitHub/simpletransformers/tmp/BERT_sent_pair/outputs/{ckpt}',
+        num_labels=2, use_cuda=False, args=eval_args)
 
     # Evaluate
     dev_metrics, dev_rank_scores, dev_rank_idxes = evaluate(model, df_train)
