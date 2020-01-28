@@ -589,32 +589,16 @@ class SemanticMatchingClassificationModel:
 
         results = {}
 
-        if "text" in eval_df.columns and "labels" in eval_df.columns:
-            eval_examples = [
-                InputExample(i, text, None, label)
-                for i, (text, label) in enumerate(
-                    zip(eval_df["text"], eval_df["labels"])
-                )
-            ]
-        elif "text_a" in eval_df.columns and "text_b" in eval_df.columns:
-            eval_examples = [
-                InputExample(i, text_a, text_b, label)
-                for i, (text_a, text_b, label) in enumerate(
-                    zip(eval_df["text_a"], eval_df["text_b"], eval_df["labels"])
-                )
-            ]
-        else:
-            warnings.warn(
-                "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
+        assert "text_a" in eval_df.columns and "text_b" in eval_df.columns
+        eval_examples = [
+            (InputExample(i, text_a, None, label), InputExample(i, text_b, None, label))
+            for i, (text_a, text_b, label) in enumerate(
+                zip(eval_df["text_a"], eval_df["text_b"], eval_df["labels"])
             )
-            eval_examples = [
-                InputExample(i, text, None, label)
-                for i, (text, label) in enumerate(
-                    zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1])
-                )
-            ]
+        ]
 
         if args["sliding_window"]:
+            raise NotImplementedError
             eval_dataset, window_counts = self.load_and_cache_examples(
                 eval_examples, evaluate=True
             )
@@ -888,22 +872,12 @@ class SemanticMatchingClassificationModel:
 
         self._move_model_to_device()
 
-        if multi_label:
-            eval_examples = [
-                InputExample(i, text, None, [0 for i in range(self.num_labels)])
-                for i, text in enumerate(to_predict)
-            ]
-        else:
-            if isinstance(to_predict[0], list):
-                eval_examples = [
-                    InputExample(i, text[0], text[1], 0)
-                    for i, text in enumerate(to_predict)
-                ]
-            else:
-                eval_examples = [
-                    InputExample(i, text, None, 0) for i, text in enumerate(to_predict)
-                ]
+        eval_examples = [
+            (InputExample(i, text_a, None, 0), InputExample(i, text_b, None, 0))
+            for i, (text_a, text_b) in enumerate(to_predict)
+        ]
         if args["sliding_window"]:
+            raise NotImplementedError
             eval_dataset, window_counts = self.load_and_cache_examples(
                 eval_examples, evaluate=True, no_cache=True
             )
