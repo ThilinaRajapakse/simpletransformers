@@ -147,7 +147,7 @@ class QuestionAnsweringModel:
         no_cache = args['no_cache']
 
         if not os.path.isdir(self.args["cache_dir"]):
-            os.mkdir(self.args["cache_dir"])
+            os.makedirs(self.args["cache_dir"])
 
         examples = get_examples(examples, is_training=not evaluate)
 
@@ -653,7 +653,7 @@ class QuestionAnsweringModel:
 
         prefix = "test"
         if not os.path.isdir(output_dir):
-            os.mkdir(output_dir)
+            os.makedirs(output_dir)
 
         output_prediction_file = os.path.join(
             output_dir, "predictions_{}.json".format(prefix)

@@ -449,7 +449,7 @@ class ClassificationModel:
         args = self.args
 
         if not os.path.isdir(self.args["cache_dir"]):
-            os.mkdir(self.args["cache_dir"])
+            os.makedirs(self.args["cache_dir"])
 
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples)))

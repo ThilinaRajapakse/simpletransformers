@@ -730,7 +730,7 @@ class NERModel:
         )
 
         if not os.path.isdir(self.args["cache_dir"]):
-            os.mkdir(self.args["cache_dir"])
+            os.makedirs(self.args["cache_dir"])
 
         if os.path.exists(cached_features_file) and (
             (not args["reprocess_input_data"] and not no_cache)
