@@ -199,8 +199,7 @@ class ClassificationModel:
         train_dataset = self.load_and_cache_examples(train_examples)
         global_step, tr_loss = self.train(train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df)
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        os.makedirs(output_dir,exist_ok=True)
 
         model_to_save = self.model.module if hasattr(self.model, "module") else self.model
         model_to_save.save_pretrained(output_dir)
@@ -308,8 +307,7 @@ class ClassificationModel:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        if not os.path.exists(output_dir_current):
-                            os.makedirs(output_dir_current)
+                        os.makedirs(output_dir_current,exist_ok=True)
 
                         # Take care of distributed/parallel training
                         model_to_save = model.module if hasattr(model, "module") else model
@@ -370,8 +368,7 @@ class ClassificationModel:
             eval_examples = [InputExample(i, text, None, label) for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))]
 
         eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True)
-        if not os.path.exists(eval_output_dir):
-            os.makedirs(eval_output_dir)
+        os.makedirs(eval_output_dir,exist_ok=True)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
@@ -449,7 +446,7 @@ class ClassificationModel:
         args = self.args
 
         if not os.path.isdir(self.args["cache_dir"]):
-            os.mkdir(self.args["cache_dir"])
+            os.makedirs(self.args["cache_dir"])
 
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(args["cache_dir"], "cached_{}_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples)))

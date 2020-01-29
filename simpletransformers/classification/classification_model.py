@@ -147,7 +147,9 @@ class ClassificationModel:
         if args:
             self.args.update(args)
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args["do_lower_case"], **kwargs)
+        self.tokenizer = tokenizer_class.from_pretrained(model_name,
+                                                         do_lower_case=self.args["do_lower_case"],
+                                                         **kwargs)
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
@@ -243,8 +245,7 @@ class ClassificationModel:
 
         train_dataset = self.load_and_cache_examples(train_examples, verbose=verbose)
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok = True)
 
         global_step, tr_loss = self.train(
             train_dataset,
@@ -408,7 +409,10 @@ class ClassificationModel:
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, _, _ = self.eval_model(
-                            eval_df, verbose=verbose and args["evaluate_during_training_verbose"], silent=True, **kwargs
+                            eval_df,
+                            verbose=verbose and args["evaluate_during_training_verbose"],
+                            silent=True,
+                            **kwargs
                         )
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
@@ -578,8 +582,7 @@ class ClassificationModel:
             )
         else:
             eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, verbose=verbose, silent=silent)
-        if not os.path.exists(eval_output_dir):
-            os.makedirs(eval_output_dir)
+        os.makedirs(eval_output_dir,exist_ok = True)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
@@ -678,8 +681,7 @@ class ClassificationModel:
         else:
             output_mode = "classification"
 
-        if not os.path.isdir(self.args["cache_dir"]):
-            os.mkdir(self.args["cache_dir"])
+        os.makedirs(self.args["cache_dir"], exist_ok=True)
 
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(
