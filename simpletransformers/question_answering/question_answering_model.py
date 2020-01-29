@@ -146,8 +146,7 @@ class QuestionAnsweringModel:
         args = self.args
         no_cache = args['no_cache']
 
-        if not os.path.isdir(self.args["cache_dir"]):
-            os.makedirs(self.args["cache_dir"])
+        os.makedirs(self.args["cache_dir"],exist_ok=True)
 
         examples = get_examples(examples, is_training=not evaluate)
 
@@ -280,8 +279,7 @@ class QuestionAnsweringModel:
 
         train_dataset = self.load_and_cache_examples(train_examples)
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
 
         global_step, tr_loss = self.train(
             train_dataset,
@@ -462,8 +460,7 @@ class QuestionAnsweringModel:
                             output_dir, "checkpoint-{}".format(global_step)
                         )
 
-                        if not os.path.exists(output_dir_current):
-                            os.makedirs(output_dir_current)
+                        os.makedirs(output_dir_current,exist_ok=True)
 
                         model_to_save = (
                             model.module if hasattr(model, "module") else model
@@ -486,8 +483,7 @@ class QuestionAnsweringModel:
                             output_dir, "checkpoint-{}".format(global_step)
                         )
 
-                        if not os.path.exists(output_dir_current):
-                            os.makedirs(output_dir_current)
+                        os.makedirs(output_dir_current,exist_ok=True)
 
                         if args["save_eval_checkpoints"]:
                             model_to_save = (
@@ -523,8 +519,8 @@ class QuestionAnsweringModel:
 
             if (
                 args["save_model_every_epoch"] or args["evaluate_during_training"]
-            ) and not os.path.exists(output_dir_current):
-                os.makedirs(output_dir_current)
+            ):
+                os.makedirs(output_dir_current,exist_ok=True)
 
             if args["save_model_every_epoch"]:
 
@@ -652,8 +648,7 @@ class QuestionAnsweringModel:
                     all_results.append(result)
 
         prefix = "test"
-        if not os.path.isdir(output_dir):
-            os.makedirs(output_dir)
+        os.makedirs(output_dir,exist_ok=True)
 
         output_prediction_file = os.path.join(
             output_dir, "predictions_{}.json".format(prefix)

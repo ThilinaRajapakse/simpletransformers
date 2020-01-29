@@ -245,8 +245,7 @@ class ClassificationModel:
 
         train_dataset = self.load_and_cache_examples(train_examples, verbose=verbose)
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok = True)
 
         global_step, tr_loss = self.train(
             train_dataset,
@@ -583,8 +582,7 @@ class ClassificationModel:
             )
         else:
             eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, verbose=verbose, silent=silent)
-        if not os.path.exists(eval_output_dir):
-            os.makedirs(eval_output_dir)
+        os.makedirs(eval_output_dir,exist_ok = True)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
@@ -683,8 +681,7 @@ class ClassificationModel:
         else:
             output_mode = "classification"
 
-        if not os.path.isdir(self.args["cache_dir"]):
-            os.makedirs(self.args["cache_dir"])
+        os.makedirs(self.args["cache_dir"], exist_ok=True)
 
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(

@@ -216,8 +216,7 @@ class NERModel:
 
         train_dataset = self.load_and_cache_examples(train_data)
 
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
 
         global_step, tr_loss = self.train(
             train_dataset,
@@ -398,7 +397,7 @@ class NERModel:
                         )
 
                         if not os.path.exists(output_dir_current):
-                            os.makedirs(output_dir_current)
+                            os.makedirs(output_dir_current, exist_ok = True)
 
                         # Take care of distributed/parallel training
                         model_to_save = (
@@ -422,8 +421,7 @@ class NERModel:
                             output_dir, "checkpoint-{}".format(global_step)
                         )
 
-                        if not os.path.exists(output_dir_current):
-                            os.makedirs(output_dir_current)
+                        os.makedirs(output_dir_current, exist_ok = True)
 
                         if args["save_eval_checkpoints"]:
                             model_to_save = (
@@ -459,8 +457,8 @@ class NERModel:
 
             if (
                 args["save_model_every_epoch"] or args["evaluate_during_training"]
-            ) and not os.path.exists(output_dir_current):
-                os.makedirs(output_dir_current)
+            ):
+                os.makedirs(output_dir_current,exist_ok=True)
 
             if args["save_model_every_epoch"]:
 
@@ -729,8 +727,7 @@ class NERModel:
             ),
         )
 
-        if not os.path.isdir(self.args["cache_dir"]):
-            os.makedirs(self.args["cache_dir"])
+        os.makedirs(self.args["cache_dir"],exist_ok=True)
 
         if os.path.exists(cached_features_file) and (
             (not args["reprocess_input_data"] and not no_cache)
