@@ -88,6 +88,22 @@ def load_url_vocab(url_file_path):
     return urlvocab
 
 
+def get_url_data_email_only(datafolder, urlvocab):
+    def get_split(datafolder, split):
+        df = get_csv(s3, BUCKET, os.path.join(datafolder, split))
+        df['labels'] = df['labels'].apply(json.loads)
+        df['prospect_reply_message'] = df['prospect_reply_message'].apply(lambda x: x.lower())
+        df = df.rename(columns={'prospect_reply_message': 'text', 'labels': 'url_labels'})
+        df['labels'] = df['url_labels'].apply(lambda x: urlvocab.encode_urls(x))
+        return df
+
+    df_train = get_split(datafolder, 'train.csv')
+    df_dev = get_split(datafolder, 'dev.csv')
+    df_test = get_split(datafolder, 'test.csv')
+
+    return df_train, df_dev, df_test
+
+
 def load_url_data_email_article_pair(datafolder, urlvocab):
     '''
     Getting URL prediction datasets. "text_a" field contains input emails and "text_b" field contains the article
