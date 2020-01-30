@@ -88,7 +88,7 @@ def load_url_vocab(url_file_path):
     return urlvocab
 
 
-def get_url_data_email_only(datafolder, urlvocab):
+def load_url_data_email_only(datafolder, urlvocab):
     def get_split(datafolder, split):
         df = get_csv(s3, BUCKET, os.path.join(datafolder, split))
         df['labels'] = df['labels'].apply(json.loads)
