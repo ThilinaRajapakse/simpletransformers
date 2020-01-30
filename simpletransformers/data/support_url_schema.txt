@@ -1,0 +1,21 @@
+# Define Types
+
+type Article {
+    type: string
+    url: string
+    name: sting
+    header: string
+    article: string
+    href: [Article]
+    sub: [Article]
+}
+
+# Define Directives and index
+
+type: string @index(hash) .
+url: string @index(hash) .
+name: string @index(hash) .
+header: string @index(fulltext) .
+article: string @index(fulltext) .
+href: [uid] @count @reverse .
+sub: [uid] @count @reverse .

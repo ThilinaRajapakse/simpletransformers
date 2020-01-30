@@ -94,25 +94,26 @@ if __name__ == '__main__':
     df_dev = df_dev[: urlvocab.vocab_size * 1]
     df_test = df_test[: urlvocab.vocab_size * 1]
 
-    # train_args = {'learning_rate': 5e-5,
-    #               'reprocess_input_data': True,
-    #               'overwrite_output_dir': True,
-    #               'overwrite_cache': True,
-    #               'num_train_epochs': 10,
-    #               'n_gpu': 1,
-    #               'max_seq_length': (128, 128),
-    #               'do_lower_case': True,
-    #               'output_dir': './tmp/BERT_sent_pair/outputs',
-    #               'cache_dir': './tmp/BERT_sent_pair/cache',
-    #               'train_batch_size': 32,
-    #               'fp16': False,
-    #               'use_multiprocessing': False
-    #               }
-    # model = train(df_train, df_dev, df_test, train_args, use_cuda=False)
-    #
-    # # Evaluate
-    # dev_metrics, dev_rank_scores, dev_rank_idxes = evaluate(model, df_dev)
-    # print_metrics(dev_metrics)
+    train_args = {'learning_rate': 5e-5,
+                  'reprocess_input_data': True,
+                  'overwrite_output_dir': True,
+                  'overwrite_cache': True,
+                  'num_train_epochs': 10,
+                  'n_gpu': 1,
+                  'max_seq_length': (128, 128),
+                  'do_lower_case': True,
+                  'output_dir': './tmp/BERT_sent_pair/outputs',
+                  'cache_dir': './tmp/BERT_sent_pair/cache',
+                  'train_batch_size': 32,
+                  'fp16': False,
+                  'use_multiprocessing': False,
+                  'silent': False
+                  }
+    model = train(df_train, df_dev, df_test, train_args, use_cuda=False)
+
+    # Evaluate
+    dev_metrics, dev_rank_scores, dev_rank_idxes = evaluate(model, df_dev)
+    print_metrics(dev_metrics)
 
     # Load trained model
     ckpt = 'checkpoint-9-epoch-1'

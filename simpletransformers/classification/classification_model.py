@@ -9,7 +9,8 @@ import math
 import json
 import random
 import warnings
-
+import time
+import datetime
 from multiprocessing import cpu_count
 
 import torch
@@ -81,6 +82,8 @@ from simpletransformers.classification.transformer_models.xlm_roberta_model impo
 )
 
 from simpletransformers.config.global_args import global_args
+
+from simpletransformers.metrics.eval_faq import faq_evaluate, print_metrics
 
 import wandb
 
@@ -226,6 +229,7 @@ class ClassificationModel:
         show_running_loss=True,
         args=None,
         eval_df=None,
+        test_df=None,
         **kwargs,
     ):
         """
@@ -308,6 +312,7 @@ class ClassificationModel:
             multi_label=multi_label,
             show_running_loss=show_running_loss,
             eval_df=eval_df,
+            test_df=test_df,
             **kwargs,
         )
 
@@ -331,6 +336,7 @@ class ClassificationModel:
         multi_label=False,
         show_running_loss=True,
         eval_df=None,
+        test_df=None,
         **kwargs,
     ):
         """
@@ -462,6 +468,7 @@ class ClassificationModel:
             for step, batch in enumerate(
                 tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])
             ):
+                train_start = time.time()
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
@@ -584,10 +591,12 @@ class ClassificationModel:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
             epoch_number += 1
+            train_time = datetime.timedelta(seconds=int(time.time() - train_start))
+
+            save_start = time.time()
             output_dir_current = os.path.join(
                 output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
             )
-
             if (
                 args["save_model_every_epoch"] or args["evaluate_during_training"]
             ) and not os.path.exists(output_dir_current):
@@ -598,7 +607,9 @@ class ClassificationModel:
                 model_to_save = model.module if hasattr(model, "module") else model
                 model_to_save.save_pretrained(output_dir_current)
                 self.tokenizer.save_pretrained(output_dir_current)
+            save_time = datetime.timedelta(seconds=int(time.time() - save_start))
 
+            eval_start = time.time()
             if args["evaluate_during_training"]:
                 results, _, _ = self.eval_model(eval_df, verbose=True, **kwargs)
 
@@ -615,6 +626,17 @@ class ClassificationModel:
                 report.to_csv(
                     args["output_dir"] + "training_progress_scores.csv", index=False
                 )
+            if args["faq_evaluate_during_training"]:
+                if eval_df is not None:
+                    eval_metrics, _, _ = faq_evaluate(self, eval_df, mode='classification')
+                    print_metrics(eval_metrics)
+                if test_df is not None:
+                    test_metrics, _, _ = faq_evaluate(self, test_df, mode='classification')
+                    print_metrics(test_metrics)
+
+            eval_time = datetime.timedelta(seconds=int(time.time() - eval_start))
+
+            print(f'Finished epoch {epoch_number} [train {train_time}, save {save_time}, eval {eval_time}]')
 
         return global_step, tr_loss / global_step
 

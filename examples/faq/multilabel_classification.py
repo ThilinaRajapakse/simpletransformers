@@ -13,41 +13,42 @@ eval_data = [['Example eval sentence for multilabel classification.'.lower(), [1
 eval_df = pd.DataFrame(eval_data, columns=['text', 'labels'])
 
 # # Create a MultiLabelClassificationModel
-# model = MultiLabelClassificationModel('bert', 'bert-base-uncased', num_labels=6, args={
+model = MultiLabelClassificationModel('bert', 'bert-base-uncased', num_labels=6, args={
+    'reprocess_input_data': True, 'overwrite_output_dir': True, 'num_train_epochs': 5,
+    'evaluate_during_training': False, 'evaluate_during_training_steps': 1,
+    'use_cached_eval_features': False, 'faq_evaluate_during_training': True,
+    'silent': True,
+    }, use_cuda=False)
+# You can set class weights by using the optional weight argument
+print(train_df.head())
+
+# Train the model
+# model.train_model(train_df)
+model.train_model(train_df, eval_df=eval_df, test_df=eval_df)
+
+# Evaluate the model
+# model = MultiLabelClassificationModel('bert', './outputs/checkpoint-1-epoch-1', num_labels=6, args={
 #     'reprocess_input_data': True, 'overwrite_output_dir': True, 'num_train_epochs': 5,
 #     'evaluate_during_training': True, 'evaluate_during_training_steps': 1,
 #     'use_cached_eval_features': False,
 #     }, use_cuda=False)
-# # You can set class weights by using the optional weight argument
-# print(train_df.head())
+# result, model_outputs, wrong_predictions = model.eval_model(eval_df)
+# print(result)
+# print(model_outputs)
+
+predictions, raw_outputs = model.predict(['This thing is entirely different from the other thing. '])
+print(predictions)
+print(raw_outputs)
+
+# model = MultiLabelClassificationModel('bert', './outputs/checkpoint-5-epoch-5', num_labels=6, args={
+#     'reprocess_input_data': True, 'overwrite_output_dir': True, 'num_train_epochs': 5,
+#     'evaluate_during_training': True, 'evaluate_during_training_steps': 1,
+#     'use_cached_eval_features': False,
+#     }, use_cuda=False)
+# result, model_outputs, wrong_predictions = model.eval_model(eval_df)
+# print(result)
+# print(model_outputs)
 #
-# # Train the model
-# # model.train_model(train_df)
-# model.train_model(train_df, eval_df=eval_df)
-
-# Evaluate the model
-model = MultiLabelClassificationModel('bert', './outputs/checkpoint-1-epoch-1', num_labels=6, args={
-    'reprocess_input_data': True, 'overwrite_output_dir': True, 'num_train_epochs': 5,
-    'evaluate_during_training': True, 'evaluate_during_training_steps': 1,
-    'use_cached_eval_features': False,
-    }, use_cuda=False)
-result, model_outputs, wrong_predictions = model.eval_model(eval_df)
-print(result)
-print(model_outputs)
-
-predictions, raw_outputs = model.predict(['This thing is entirely different from the other thing. '])
-print(predictions)
-print(raw_outputs)
-
-model = MultiLabelClassificationModel('bert', './outputs/checkpoint-5-epoch-5', num_labels=6, args={
-    'reprocess_input_data': True, 'overwrite_output_dir': True, 'num_train_epochs': 5,
-    'evaluate_during_training': True, 'evaluate_during_training_steps': 1,
-    'use_cached_eval_features': False,
-    }, use_cuda=False)
-result, model_outputs, wrong_predictions = model.eval_model(eval_df)
-print(result)
-print(model_outputs)
-
-predictions, raw_outputs = model.predict(['This thing is entirely different from the other thing. '])
-print(predictions)
-print(raw_outputs)
+# predictions, raw_outputs = model.predict(['This thing is entirely different from the other thing. '])
+# print(predictions)
+# print(raw_outputs)

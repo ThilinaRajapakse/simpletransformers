@@ -79,6 +79,7 @@ def load_url_vocab(url_file_path):
     # Remove some URLs from the predication candidates
     df_url = df_url[(~df_url['header'].isnull()) & (~df_url['article'].isnull())]
     df_url = df_url[df_url['header'].apply(lambda x: len(x) > 0) & df_url['article'].apply(lambda x: len(x) > 0)]
+    df_url = df_url[df_url['nav_hrefs'].apply(lambda x: len(x) > 0)]
 
     # Remove surrounding white spaces in text fields
     df_url['header'] = df_url['header'].apply(lambda x: x.strip())
