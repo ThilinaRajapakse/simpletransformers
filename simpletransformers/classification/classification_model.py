@@ -471,6 +471,7 @@ class ClassificationModel:
                                                     'test-P@5', 'test-R@5', 'test-F1@5',
                                                     'test-P@10', 'test-R@10', 'test-F1@10'])
         writer.writeheader()
+        outcsv.flush()
 
         model.train()
         for _ in train_iterator:
@@ -648,6 +649,7 @@ class ClassificationModel:
                     print_metrics(test_metrics)
                     records.update({('test-' + k): v for k, v in test_metrics.items()})
             writer.writerow(records)
+            outcsv.flush()
 
             eval_time = datetime.timedelta(seconds=int(time.time() - eval_start))
 
