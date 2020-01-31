@@ -641,11 +641,11 @@ class ClassificationModel:
                 records = {'epoch': epoch_number,
                            'ckpt': "checkpoint-{}-epoch-{}".format(global_step, epoch_number)}
                 if eval_df is not None:
-                    eval_metrics, _, _ = faq_evaluate(self, eval_df, mode='classification')
+                    eval_metrics, _, _ = faq_evaluate(self, eval_df)
                     print_metrics(eval_metrics)
                     records.update({('dev-' + k): v for k, v in eval_metrics.items()})
                 if test_df is not None:
-                    test_metrics, _, _ = faq_evaluate(self, test_df, mode='classification')
+                    test_metrics, _, _ = faq_evaluate(self, test_df)
                     print_metrics(test_metrics)
                     records.update({('test-' + k): v for k, v in test_metrics.items()})
             with open(os.path.join(output_dir, 'train_log.csv'), 'a', newline='') as outcsv:

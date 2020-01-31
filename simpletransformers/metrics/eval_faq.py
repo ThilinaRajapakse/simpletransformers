@@ -9,12 +9,14 @@ def print_metrics(metrics, f=sys.stdout):
   print('P@10 = %.4f, R@10 = %.4f, F1@10 = %.4f' % (metrics['P@10'], metrics['R@10'], metrics['F1@10']), file=f)
 
 
-def faq_evaluate(model, df_eval_input, mode='pairwise_matching'):
-    if mode == 'classification':
+def faq_evaluate(model, df_eval_input):
+    if 'text' in df_eval_input.columns:
+        # This is evaluated as a 'classification' task
         predictions, raw_outputs = model.predict(df_eval_input['text'])
         labels = np.array(list(df_eval_input['labels']))
         # predictions = np.array(predictions)
-    elif mode == 'pairwise_matching':
+    elif 'text_a' in df_eval_input.columns and 'text_b' in df_eval_input.columns:
+        # This is evaluated as a 'sentence pair' matching task
         predictions, raw_outputs = model.predict(list(map(list, zip(df_eval_input['text_a'], df_eval_input['text_b']))))
         df_eval = df_eval_input.copy()
         df_eval['predictions'] = predictions
@@ -34,7 +36,7 @@ def faq_evaluate(model, df_eval_input, mode='pairwise_matching'):
         raw_outputs = np.array(raw_outputs)
         labels = np.array(labels)
     else:
-        raise ValueError(f'Evaluation mode {mode} not defined.')
+        raise ValueError(f'FAQ evaluation mode not defined.')
 
     # Evaluation metrics
     pos_idx = [_.nonzero()[0].tolist() for _ in labels]
