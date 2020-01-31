@@ -12,7 +12,7 @@ import warnings
 import time
 import datetime
 from multiprocessing import cpu_count
-
+import csv
 import torch
 import numpy as np
 import pandas as pd
@@ -462,6 +462,16 @@ class ClassificationModel:
             )
             wandb.watch(self.model)
 
+        outcsv = open(os.path.join(output_dir, 'train_log.csv'), 'a', newline='')
+        writer = csv.DictWriter(outcsv, fieldnames=['epoch', 'ckpt',
+                                                    'dev-MRR', 'dev-MAP', 'dev-NDCG',
+                                                    'dev-P@5', 'dev-R@5', 'dev-F1@5',
+                                                    'dev-P@10', 'dev-R@10', 'dev-F1@10',
+                                                    'test-MRR', 'test-MAP', 'test-NDCG',
+                                                    'test-P@5', 'test-R@5', 'test-F1@5',
+                                                    'test-P@10', 'test-R@10', 'test-F1@10'])
+        writer.writeheader()
+
         model.train()
         for _ in train_iterator:
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
@@ -627,12 +637,17 @@ class ClassificationModel:
                     args["output_dir"] + "training_progress_scores.csv", index=False
                 )
             if args["faq_evaluate_during_training"]:
+                records = {'epoch': epoch_number,
+                           'ckpt': "checkpoint-{}-epoch-{}".format(global_step, epoch_number)}
                 if eval_df is not None:
                     eval_metrics, _, _ = faq_evaluate(self, eval_df, mode='classification')
                     print_metrics(eval_metrics)
+                    records.update({('dev-' + k): v for k, v in eval_metrics.items()})
                 if test_df is not None:
                     test_metrics, _, _ = faq_evaluate(self, test_df, mode='classification')
                     print_metrics(test_metrics)
+                    records.update({('test-' + k): v for k, v in test_metrics.items()})
+            writer.writerow(records)
 
             eval_time = datetime.timedelta(seconds=int(time.time() - eval_start))
 
