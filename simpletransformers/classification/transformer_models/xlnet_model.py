@@ -80,9 +80,7 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
         output = self.sequence_summary(output)
         logits = self.logits_proj(output)
 
-        outputs = (logits,) + transformer_outputs[
-            1:
-        ]  # Keep mems, hidden states, attentions if there are in it
+        outputs = (logits,) + transformer_outputs[1:]  # Keep mems, hidden states, attentions if there are in it
 
         if labels is not None:
             if self.num_labels == 1:

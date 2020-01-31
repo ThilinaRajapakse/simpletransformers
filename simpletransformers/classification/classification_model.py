@@ -92,11 +92,11 @@ class ClassificationModel:
             "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
             "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
-            "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,),
-            "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer,),
+            "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
+            "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
             "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-            "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer,),
-            "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer,),
+            "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
+            "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
@@ -147,9 +147,7 @@ class ClassificationModel:
         if args:
             self.args.update(args)
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name,
-                                                         do_lower_case=self.args["do_lower_case"],
-                                                         **kwargs)
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args["do_lower_case"], **kwargs)
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
@@ -245,7 +243,7 @@ class ClassificationModel:
 
         train_dataset = self.load_and_cache_examples(train_examples, verbose=verbose)
 
-        os.makedirs(output_dir, exist_ok = True)
+        os.makedirs(output_dir, exist_ok=True)
 
         global_step, tr_loss = self.train(
             train_dataset,
@@ -409,10 +407,7 @@ class ClassificationModel:
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, _, _ = self.eval_model(
-                            eval_df,
-                            verbose=verbose and args["evaluate_during_training_verbose"],
-                            silent=True,
-                            **kwargs
+                            eval_df, verbose=verbose and args["evaluate_during_training_verbose"], silent=True, **kwargs
                         )
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
@@ -461,7 +456,7 @@ class ClassificationModel:
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
-            if (args["save_model_every_epoch"] or args["evaluate_during_training"]):
+            if args["save_model_every_epoch"] or args["evaluate_during_training"]:
                 os.makedirs(output_dir_current, exist_ok=True)
 
             if args["save_model_every_epoch"]:
@@ -582,7 +577,7 @@ class ClassificationModel:
             )
         else:
             eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, verbose=verbose, silent=silent)
-        os.makedirs(eval_output_dir,exist_ok = True)
+        os.makedirs(eval_output_dir, exist_ok=True)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])

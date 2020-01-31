@@ -37,7 +37,6 @@ global_args = {
     "silent": False,
     "wandb_project": None,
     "wandb_kwargs": {},
-
     "use_early_stopping": False,
     "early_stopping_patience": 3,
     "early_stopping_delta": 0,

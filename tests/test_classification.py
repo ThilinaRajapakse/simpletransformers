@@ -38,10 +38,7 @@ def test_binary_classification(model_type, model_name):
 
     # Create a ClassificationModel
     model = ClassificationModel(
-        model_type,
-        model_name,
-        use_cuda=False,
-        args={"reprocess_input_data": True, "overwrite_output_dir": True},
+        model_type, model_name, use_cuda=False, args={"reprocess_input_data": True, "overwrite_output_dir": True},
     )
 
     # Train the model
@@ -117,9 +114,9 @@ def test_multilabel_classification(model_type, model_name):
     # Train and Evaluation data needs to be in a Pandas Dataframe containing at
     # least two columns, a 'text' and a 'labels' column. The `labels` column
     # should contain multi-hot encoded lists.
-    train_data = [
-        ["Example sentence 1 for multilabel classification.", [1, 1, 1, 1, 0, 1]]
-    ] + [["This is another example sentence. ", [0, 1, 1, 0, 0, 0]]]
+    train_data = [["Example sentence 1 for multilabel classification.", [1, 1, 1, 1, 0, 1]]] + [
+        ["This is another example sentence. ", [0, 1, 1, 0, 0, 0]]
+    ]
     train_df = pd.DataFrame(train_data, columns=["text", "labels"])
 
     eval_data = [
@@ -133,11 +130,7 @@ def test_multilabel_classification(model_type, model_name):
         model_type,
         model_name,
         num_labels=6,
-        args={
-            "reprocess_input_data": True,
-            "overwrite_output_dir": True,
-            "num_train_epochs": 1,
-        },
+        args={"reprocess_input_data": True, "overwrite_output_dir": True, "num_train_epochs": 1,},
         use_cuda=False,
     )
 
@@ -147,6 +140,4 @@ def test_multilabel_classification(model_type, model_name):
     # Evaluate the model
     result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 
-    predictions, raw_outputs = model.predict(
-        ["This thing is entirely different from the other thing. "]
-    )
+    predictions, raw_outputs = model.predict(["This thing is entirely different from the other thing. "])

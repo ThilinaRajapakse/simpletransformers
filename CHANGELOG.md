@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.2] - 2020-01-31
+### Added
+- Added early stopping support for NER and Question Answering tasks.
+
+### Fixed
+- Fixed issue with nested file paths not being created.
+- `wandb_kwargs` not being used with NER and Question Answering.
+
 ## [0.19.1] - 2020-01-27
 ### Fixed
 - Fixed issue with evaluation at the end of epochs not being considered for best model.
@@ -19,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Evaluation during training no longer displays progress bars.
 - Evaluation during training no longer prints results to console by default.
-- Moved model/results saving logic to `_save_model` for readability, and maintainability.
+- Moved model/results saving logic to `_save_model` for readability and maintainability.
 - Updated README.
 
 ## [0.18.12] - 2020-01-25
@@ -234,7 +242,9 @@ Model checkpoint is now saved for all epochs again.
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.19.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb67a2b...HEAD
+[0.19.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/489d4f7...HEAD
+
+[0.19.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb67a2b...489d4f7
 
 [0.19.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6c6f2e9...bb67a2b
 

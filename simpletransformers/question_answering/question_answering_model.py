@@ -62,9 +62,7 @@ import wandb
 
 
 class QuestionAnsweringModel:
-    def __init__(
-        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs
-    ):
+    def __init__(self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs):
 
         """
         Initializes a QuestionAnsweringModel model.
@@ -81,11 +79,7 @@ class QuestionAnsweringModel:
             "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
             "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
-            "distilbert": (
-                DistilBertConfig,
-                DistilBertForQuestionAnswering,
-                DistilBertTokenizer,
-            ),
+            "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,),
             "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
         }
 
@@ -126,16 +120,12 @@ class QuestionAnsweringModel:
         if args:
             self.args.update(args)
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args["do_lower_case"], **kwargs
-        )
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args["do_lower_case"], **kwargs)
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
 
-    def load_and_cache_examples(
-        self, examples, evaluate=False, no_cache=False, output_examples=False
-    ):
+    def load_and_cache_examples(self, examples, evaluate=False, no_cache=False, output_examples=False):
         """
         Converts a list of examples to a TensorDataset containing InputFeatures. Caches the InputFeatures.
 
@@ -144,23 +134,20 @@ class QuestionAnsweringModel:
 
         tokenizer = self.tokenizer
         args = self.args
-        no_cache = args['no_cache']
+        no_cache = args["no_cache"]
 
-        os.makedirs(self.args["cache_dir"],exist_ok=True)
+        os.makedirs(self.args["cache_dir"], exist_ok=True)
 
         examples = get_examples(examples, is_training=not evaluate)
 
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(
             args["cache_dir"],
-            "cached_{}_{}_{}_{}".format(
-                mode, args["model_type"], args["max_seq_length"], len(examples)
-            ),
+            "cached_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], len(examples)),
         )
 
         if os.path.exists(cached_features_file) and (
-            (not args["reprocess_input_data"] and not no_cache)
-            or (mode == "dev" and args["use_cached_eval_features"])
+            (not args["reprocess_input_data"] and not no_cache) or (mode == "dev" and args["use_cached_eval_features"])
         ):
             features = torch.load(cached_features_file)
             print(f"Features loaded from cache at {cached_features_file}")
@@ -184,31 +171,18 @@ class QuestionAnsweringModel:
                 torch.save(features, cached_features_file)
 
         all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        all_input_mask = torch.tensor(
-            [f.input_mask for f in features], dtype=torch.long
-        )
-        all_segment_ids = torch.tensor(
-            [f.segment_ids for f in features], dtype=torch.long
-        )
+        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
         all_cls_index = torch.tensor([f.cls_index for f in features], dtype=torch.long)
         all_p_mask = torch.tensor([f.p_mask for f in features], dtype=torch.float)
         all_example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
         if evaluate:
             dataset = TensorDataset(
-                all_input_ids,
-                all_input_mask,
-                all_segment_ids,
-                all_example_index,
-                all_cls_index,
-                all_p_mask,
+                all_input_ids, all_input_mask, all_segment_ids, all_example_index, all_cls_index, all_p_mask,
             )
         else:
-            all_start_positions = torch.tensor(
-                [f.start_position for f in features], dtype=torch.long
-            )
-            all_end_positions = torch.tensor(
-                [f.end_position for f in features], dtype=torch.long
-            )
+            all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
+            all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
             dataset = TensorDataset(
                 all_input_ids,
                 all_input_mask,
@@ -224,12 +198,7 @@ class QuestionAnsweringModel:
         return dataset
 
     def train_model(
-        self,
-        train_data,
-        output_dir=False,
-        show_running_loss=True,
-        args=None,
-        eval_data=None,
+        self, train_data, output_dir=False, show_running_loss=True, args=None, eval_data=None, verbose=True
     ):
         """
         Trains the model using 'train_data'
@@ -259,11 +228,7 @@ class QuestionAnsweringModel:
         if not output_dir:
             output_dir = self.args["output_dir"]
 
-        if (
-            os.path.exists(output_dir)
-            and os.listdir(output_dir)
-            and not self.args["overwrite_output_dir"]
-        ):
+        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args["overwrite_output_dir"]:
             raise ValueError(
                 "Output directory ({}) already exists and is not empty."
                 "Use --overwrite_output_dir to overcome.".format(output_dir)
@@ -282,26 +247,17 @@ class QuestionAnsweringModel:
         os.makedirs(output_dir, exist_ok=True)
 
         global_step, tr_loss = self.train(
-            train_dataset,
-            output_dir,
-            show_running_loss=show_running_loss,
-            eval_data=eval_data,
+            train_dataset, output_dir, show_running_loss=show_running_loss, eval_data=eval_data,
         )
 
-        model_to_save = (
-            self.model.module if hasattr(self.model, "module") else self.model
-        )
+        model_to_save = self.model.module if hasattr(self.model, "module") else self.model
         model_to_save.save_pretrained(output_dir)
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        print(
-            "Training of {} model complete. Saved to {}.".format(
-                self.args["model_type"], output_dir
-            )
-        )
+        print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-    def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None):
+    def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True):
         """
         Trains the model on train_dataset.
 
@@ -314,46 +270,26 @@ class QuestionAnsweringModel:
 
         tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
         train_sampler = RandomSampler(train_dataset)
-        train_dataloader = DataLoader(
-            train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"]
-        )
+        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
 
-        t_total = (
-            len(train_dataloader)
-            // args["gradient_accumulation_steps"]
-            * args["num_train_epochs"]
-        )
+        t_total = len(train_dataloader) // args["gradient_accumulation_steps"] * args["num_train_epochs"]
 
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
-                "params": [
-                    p
-                    for n, p in model.named_parameters()
-                    if not any(nd in n for nd in no_decay)
-                ],
+                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
                 "weight_decay": args["weight_decay"],
             },
             {
-                "params": [
-                    p
-                    for n, p in model.named_parameters()
-                    if any(nd in n for nd in no_decay)
-                ],
+                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
                 "weight_decay": 0.0,
             },
         ]
 
         warmup_steps = math.ceil(t_total * args["warmup_ratio"])
-        args["warmup_steps"] = (
-            warmup_steps if args["warmup_steps"] == 0 else args["warmup_steps"]
-        )
+        args["warmup_steps"] = warmup_steps if args["warmup_steps"] == 0 else args["warmup_steps"]
 
-        optimizer = AdamW(
-            optimizer_grouped_parameters,
-            lr=args["learning_rate"],
-            eps=args["adam_epsilon"],
-        )
+        optimizer = AdamW(optimizer_grouped_parameters, lr=args["learning_rate"], eps=args["adam_epsilon"],)
         scheduler = get_linear_schedule_with_warmup(
             optimizer, num_warmup_steps=args["warmup_steps"], num_training_steps=t_total
         )
@@ -362,13 +298,9 @@ class QuestionAnsweringModel:
             try:
                 from apex import amp
             except ImportError:
-                raise ImportError(
-                    "Please install apex from https://www.github.com/nvidia/apex to use fp16 training."
-                )
+                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
-            model, optimizer = amp.initialize(
-                model, optimizer, opt_level=args["fp16_opt_level"]
-            )
+            model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
 
         if args["n_gpu"] > 1:
             model = torch.nn.DataParallel(model)
@@ -376,23 +308,22 @@ class QuestionAnsweringModel:
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
-        train_iterator = trange(
-            int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"]
-        )
+        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
         epoch_number = 0
+        best_eval_loss = None
+        early_stopping_counter = 0
+
         if args["evaluate_during_training"]:
             training_progress_scores = self._create_training_progress_scores()
 
         if args["wandb_project"]:
-            wandb.init(project=args["wandb_project"], config={**args})
+            wandb.init(project=args["wandb_project"], config={**args}, **args["wandb_kwargs"])
             wandb.watch(self.model)
 
         model.train()
         for _ in train_iterator:
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(
-                tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])
-            ):
+            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])):
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
@@ -402,9 +333,7 @@ class QuestionAnsweringModel:
                 loss = outputs[0]
 
                 if args["n_gpu"] > 1:
-                    loss = (
-                        loss.mean()
-                    )  # mean() to average on multi-gpu parallel training
+                    loss = loss.mean()  # mean() to average on multi-gpu parallel training
 
                 current_loss = loss.item()
 
@@ -417,32 +346,32 @@ class QuestionAnsweringModel:
                 if args["fp16"]:
                     with amp.scale_loss(loss, optimizer) as scaled_loss:
                         scaled_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(
-                        amp.master_params(optimizer), args["max_grad_norm"]
-                    )
+                    # torch.nn.utils.clip_grad_norm_(
+                    #     amp.master_params(optimizer), args["max_grad_norm"]
+                    # )
                 else:
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(
-                        model.parameters(), args["max_grad_norm"]
-                    )
+                    # torch.nn.utils.clip_grad_norm_(
+                    #     model.parameters(), args["max_grad_norm"]
+                    # )
 
                 tr_loss += loss.item()
                 if (step + 1) % args["gradient_accumulation_steps"] == 0:
+                    if args["fp16"]:
+                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args["max_grad_norm"])
+                    else:
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args["max_grad_norm"])
+
                     optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1
 
-                    if (
-                        args["logging_steps"] > 0
-                        and global_step % args["logging_steps"] == 0
-                    ):
+                    if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
                         # Log metrics
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
                         tb_writer.add_scalar(
-                            "loss",
-                            (tr_loss - logging_loss) / args["logging_steps"],
-                            global_step,
+                            "loss", (tr_loss - logging_loss) / args["logging_steps"], global_step,
                         )
                         logging_loss = tr_loss
                         if args["wandb_project"]:
@@ -456,17 +385,9 @@ class QuestionAnsweringModel:
 
                     if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
                         # Save model checkpoint
-                        output_dir_current = os.path.join(
-                            output_dir, "checkpoint-{}".format(global_step)
-                        )
+                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        os.makedirs(output_dir_current,exist_ok=True)
-
-                        model_to_save = (
-                            model.module if hasattr(model, "module") else model
-                        )
-                        model_to_save.save_pretrained(output_dir_current)
-                        self.tokenizer.save_pretrained(output_dir_current)
+                        self._save_model(output_dir_current, model=model)
 
                     if args["evaluate_during_training"] and (
                         args["evaluate_during_training_steps"] > 0
@@ -475,29 +396,12 @@ class QuestionAnsweringModel:
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, _ = self.eval_model(eval_data, verbose=True)
                         for key, value in results.items():
-                            tb_writer.add_scalar(
-                                "eval_{}".format(key), value, global_step
-                            )
+                            tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
-                        output_dir_current = os.path.join(
-                            output_dir, "checkpoint-{}".format(global_step)
-                        )
-
-                        os.makedirs(output_dir_current,exist_ok=True)
+                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
                         if args["save_eval_checkpoints"]:
-                            model_to_save = (
-                                model.module if hasattr(model, "module") else model
-                            )
-                            model_to_save.save_pretrained(output_dir_current)
-                            self.tokenizer.save_pretrained(output_dir_current)
-
-                        output_eval_file = os.path.join(
-                            output_dir_current, "eval_results.txt"
-                        )
-                        with open(output_eval_file, "w") as writer:
-                            for key in sorted(results.keys()):
-                                writer.write("{} = {}\n".format(key, str(results[key])))
+                            self._save_model(output_dir_current, model=model, results=results)
 
                         training_progress_scores["global_step"].append(global_step)
                         training_progress_scores["train_loss"].append(current_loss)
@@ -505,36 +409,80 @@ class QuestionAnsweringModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            args["output_dir"] + "training_progress_scores.csv",
-                            index=False,
+                            args["output_dir"] + "training_progress_scores.csv", index=False,
                         )
 
                         if args["wandb_project"]:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
-            epoch_number += 1
-            output_dir_current = os.path.join(
-                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
-            )
+                        if not best_eval_loss:
+                            best_eval_loss = results["eval_loss"]
+                            self._save_model(args["best_model_dir"], model=model, results=results)
+                        elif results["eval_loss"] - best_eval_loss < args["early_stopping_delta"]:
+                            best_eval_loss = results["eval_loss"]
+                            self._save_model(args["best_model_dir"], model=model, results=results)
+                            early_stopping_counter = 0
+                        else:
+                            if args["use_early_stopping"]:
+                                if early_stopping_counter < args["early_stopping_patience"]:
+                                    early_stopping_counter += 1
+                                    if verbose:
+                                        print()
+                                        print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
+                                        print(f"Training will stop at {args['early_stopping_patience']} steps.")
+                                        print()
+                                else:
+                                    if verbose:
+                                        print()
+                                        print(f"Patience of {args['early_stopping_patience']} steps reached.")
+                                        print("Training terminated.")
+                                        print()
+                                    return global_step, tr_loss / global_step
 
-            if (
-                args["save_model_every_epoch"] or args["evaluate_during_training"]
-            ):
-                os.makedirs(output_dir_current,exist_ok=True)
+            epoch_number += 1
+            output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
+
+            if args["save_model_every_epoch"] or args["evaluate_during_training"]:
+                os.makedirs(output_dir_current, exist_ok=True)
 
             if args["save_model_every_epoch"]:
-
-                model_to_save = model.module if hasattr(model, "module") else model
-                model_to_save.save_pretrained(output_dir_current)
-                self.tokenizer.save_pretrained(output_dir_current)
+                self._save_model(output_dir_current, model=model)
 
             if args["evaluate_during_training"]:
                 results, _ = self.eval_model(eval_data, verbose=True)
 
-                output_eval_file = os.path.join(output_dir_current, "eval_results.txt")
-                with open(output_eval_file, "w") as writer:
-                    for key in sorted(results.keys()):
-                        writer.write("{} = {}\n".format(key, str(results[key])))
+                self._save_model(output_dir_current, results=results)
+
+                training_progress_scores["global_step"].append(global_step)
+                training_progress_scores["train_loss"].append(current_loss)
+                for key in results:
+                    training_progress_scores[key].append(results[key])
+                report = pd.DataFrame(training_progress_scores)
+                report.to_csv(args["output_dir"] + "training_progress_scores.csv", index=False)
+
+                if not best_eval_loss:
+                    best_eval_loss = results["eval_loss"]
+                    self._save_model(args["best_model_dir"], model=model, results=results)
+                elif results["eval_loss"] - best_eval_loss < args["early_stopping_delta"]:
+                    best_eval_loss = results["eval_loss"]
+                    self._save_model(args["best_model_dir"], model=model, results=results)
+                    early_stopping_counter = 0
+                else:
+                    if args["use_early_stopping"]:
+                        if early_stopping_counter < args["early_stopping_patience"]:
+                            early_stopping_counter += 1
+                            if verbose:
+                                print()
+                                print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
+                                print(f"Training will stop at {args['early_stopping_patience']} steps.")
+                                print()
+                        else:
+                            if verbose:
+                                print()
+                                print(f"Patience of {args['early_stopping_patience']} steps reached.")
+                                print("Training terminated.")
+                                print()
+                            return global_step, tr_loss / global_step
 
         return global_step, tr_loss / global_step
 
@@ -557,9 +505,7 @@ class QuestionAnsweringModel:
 
         self._move_model_to_device()
 
-        all_predictions, all_nbest_json, scores_diff_json = self.evaluate(
-            eval_data, output_dir
-        )
+        all_predictions, all_nbest_json, scores_diff_json = self.evaluate(eval_data, output_dir)
 
         if isinstance(eval_data, str):
             with open(eval_data, "r") as f:
@@ -598,9 +544,7 @@ class QuestionAnsweringModel:
         )
 
         eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(
-            eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"]
-        )
+        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
 
         model.eval()
 
@@ -615,9 +559,7 @@ class QuestionAnsweringModel:
                 }
 
                 if args["model_type"] != "distilbert":
-                    inputs["token_type_ids"] = (
-                        None if args["model_type"] == "xlm" else batch[2]
-                    )
+                    inputs["token_type_ids"] = None if args["model_type"] == "xlm" else batch[2]
 
                 example_indices = batch[3]
 
@@ -641,32 +583,20 @@ class QuestionAnsweringModel:
                         )
                     else:
                         result = RawResult(
-                            unique_id=unique_id,
-                            start_logits=to_list(outputs[0][i]),
-                            end_logits=to_list(outputs[1][i]),
+                            unique_id=unique_id, start_logits=to_list(outputs[0][i]), end_logits=to_list(outputs[1][i]),
                         )
                     all_results.append(result)
 
         prefix = "test"
-        os.makedirs(output_dir,exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
 
-        output_prediction_file = os.path.join(
-            output_dir, "predictions_{}.json".format(prefix)
-        )
-        output_nbest_file = os.path.join(
-            output_dir, "nbest_predictions_{}.json".format(prefix)
-        )
-        output_null_log_odds_file = os.path.join(
-            output_dir, "null_odds_{}.json".format(prefix)
-        )
+        output_prediction_file = os.path.join(output_dir, "predictions_{}.json".format(prefix))
+        output_nbest_file = os.path.join(output_dir, "nbest_predictions_{}.json".format(prefix))
+        output_null_log_odds_file = os.path.join(output_dir, "null_odds_{}.json".format(prefix))
 
         if args["model_type"] in ["xlnet", "xlm"]:
             # XLNet uses a more complex post-processing procedure
-            (
-                all_predictions,
-                all_nbest_json,
-                scores_diff_json,
-            ) = write_predictions_extended(
+            (all_predictions, all_nbest_json, scores_diff_json,) = write_predictions_extended(
                 examples,
                 features,
                 all_results,
@@ -736,9 +666,7 @@ class QuestionAnsweringModel:
         )
 
         eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(
-            eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"]
-        )
+        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
 
         model.eval()
 
@@ -753,9 +681,7 @@ class QuestionAnsweringModel:
                 }
 
                 if args["model_type"] != "distilbert":
-                    inputs["token_type_ids"] = (
-                        None if args["model_type"] == "xlm" else batch[2]
-                    )
+                    inputs["token_type_ids"] = None if args["model_type"] == "xlm" else batch[2]
 
                 example_indices = batch[3]
 
@@ -779,9 +705,7 @@ class QuestionAnsweringModel:
                         )
                     else:
                         result = RawResult(
-                            unique_id=unique_id,
-                            start_logits=to_list(outputs[0][i]),
-                            end_logits=to_list(outputs[1][i]),
+                            unique_id=unique_id, start_logits=to_list(outputs[0][i]), end_logits=to_list(outputs[1][i]),
                         )
                     all_results.append(result)
 
@@ -800,15 +724,7 @@ class QuestionAnsweringModel:
             )
         else:
             answers = get_best_predictions(
-                examples,
-                features,
-                all_results,
-                n_best_size,
-                args["max_answer_length"],
-                False,
-                False,
-                True,
-                False,
+                examples, features, all_results, n_best_size, args["max_answer_length"], False, False, True, False,
             )
 
         return answers
@@ -836,10 +752,7 @@ class QuestionAnsweringModel:
             if predictions[q_id].strip() == answer.strip():
                 correct += 1
                 correct_text[q_id] = answer
-            elif (
-                predictions[q_id].strip() in answer.strip()
-                or answer.strip() in predictions[q_id].strip()
-            ):
+            elif predictions[q_id].strip() in answer.strip() or answer.strip() in predictions[q_id].strip():
                 similar += 1
                 similar_text[q_id] = {
                     "truth": answer,
@@ -883,9 +796,7 @@ class QuestionAnsweringModel:
         }
 
         if self.args["model_type"] != "distilbert":
-            inputs["token_type_ids"] = (
-                None if self.args["model_type"] == "xlm" else batch[2]
-            )
+            inputs["token_type_ids"] = None if self.args["model_type"] == "xlm" else batch[2]
         if self.args["model_type"] in ["xlnet", "xlm"]:
             inputs.update({"cls_index": batch[5], "p_mask": batch[6]})
 
@@ -901,3 +812,18 @@ class QuestionAnsweringModel:
         }
 
         return training_progress_scores
+
+    def _save_model(self, output_dir, model=None, results=None):
+        os.makedirs(output_dir, exist_ok=True)
+
+        if model:
+            # Take care of distributed/parallel training
+            model_to_save = model.module if hasattr(model, "module") else model
+            model_to_save.save_pretrained(output_dir)
+            self.tokenizer.save_pretrained(output_dir)
+
+        if results:
+            output_eval_file = os.path.join(output_dir, "eval_results.txt")
+            with open(output_eval_file, "w") as writer:
+                for key in sorted(results.keys()):
+                    writer.write("{} = {}\n".format(key, str(results[key])))

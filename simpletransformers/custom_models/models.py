@@ -37,13 +37,7 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
         self.init_weights()
 
     def forward(
-        self,
-        input_ids,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        head_mask=None,
-        labels=None,
+        self, input_ids, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None, labels=None,
     ):
         outputs = self.bert(
             input_ids,
@@ -58,16 +52,12 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
 
-        outputs = (logits,) + outputs[
-            2:
-        ]  # add hidden states and attention if they are here
+        outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
 
         if labels is not None:
             loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
-            loss = loss_fct(
-                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
-            )
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
@@ -133,9 +123,7 @@ class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
         if labels is not None:
             loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
-            loss = loss_fct(
-                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
-            )
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
 
         return outputs
@@ -185,16 +173,12 @@ class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
         output = self.sequence_summary(output)
         logits = self.logits_proj(output)
 
-        outputs = (logits,) + transformer_outputs[
-            1:
-        ]  # Keep mems, hidden states, attentions if there are in it
+        outputs = (logits,) + transformer_outputs[1:]  # Keep mems, hidden states, attentions if there are in it
 
         if labels is not None:
             loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
-            loss = loss_fct(
-                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
-            )
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
 
         return outputs
@@ -242,16 +226,12 @@ class XLMForMultiLabelSequenceClassification(XLMPreTrainedModel):
         output = transformer_outputs[0]
         logits = self.sequence_summary(output)
 
-        outputs = (logits,) + transformer_outputs[
-            1:
-        ]  # Keep new_mems and attention/hidden states if they are here
+        outputs = (logits,) + transformer_outputs[1:]  # Keep new_mems and attention/hidden states if they are here
 
         if labels is not None:
             loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
-            loss = loss_fct(
-                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
-            )
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
 
         return outputs
@@ -300,16 +280,9 @@ class DistilBertForMultiLabelSequenceClassification(DistilBertPreTrainedModel):
         self.init_weights()
 
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        head_mask=None,
-        inputs_embeds=None,
-        labels=None,
+        self, input_ids=None, attention_mask=None, head_mask=None, inputs_embeds=None, labels=None,
     ):
-        distilbert_output = self.distilbert(
-            input_ids=input_ids, attention_mask=attention_mask, head_mask=head_mask
-        )
+        distilbert_output = self.distilbert(input_ids=input_ids, attention_mask=attention_mask, head_mask=head_mask)
         hidden_state = distilbert_output[0]  # (bs, seq_len, dim)
         pooled_output = hidden_state[:, 0]  # (bs, dim)
         pooled_output = self.pre_classifier(pooled_output)  # (bs, dim)
@@ -321,9 +294,7 @@ class DistilBertForMultiLabelSequenceClassification(DistilBertPreTrainedModel):
         if labels is not None:
             loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
-            loss = loss_fct(
-                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
-            )
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
 
         return outputs
@@ -371,16 +342,12 @@ class AlbertForMultiLabelSequenceClassification(AlbertPreTrainedModel):
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
 
-        outputs = (logits,) + outputs[
-            2:
-        ]  # add hidden states and attention if they are here
+        outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
 
         if labels is not None:
             loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
-            loss = loss_fct(
-                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
-            )
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
             outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
