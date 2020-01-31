@@ -105,35 +105,41 @@ if __name__ == '__main__':
                   'output_dir': './tmp/BERT_sent_pair/outputs',
                   'cache_dir': './tmp/BERT_sent_pair/cache',
                   'train_batch_size': 32,
+                  'eval_batch_size': 32,
                   'fp16': False,
                   'use_multiprocessing': False,
-                  'silent': False
+                  'silent': True,
+                  'faq_evaluate_during_training': True,
                   }
-    model = train(df_train, df_dev, df_test, train_args, use_cuda=False)
-
-    # Evaluate
-    dev_metrics, dev_rank_scores, dev_rank_idxes = evaluate(model, df_dev)
-    print_metrics(dev_metrics)
-
-    # Load trained model
-    ckpt = 'checkpoint-9-epoch-1'
-    print(f'Evaluating based on {ckpt}')
-    eval_args = {'learning_rate': 5e-5,
-                 'reprocess_input_data': True,
-                 'overwrite_output_dir': True,
-                 'overwrite_cache': True,
-                 'num_train_epochs': 10,
-                 'n_gpu': 1,
-                 'max_seq_length': (128, 128),
-                 'do_lower_case': True,
-                 'train_batch_size': 32,
-                 'fp16': False,
-                 }
     model = SemanticMatchingClassificationModel(
-        'bert',
-        f'/Users/jiezhao/Documents/GitHub/simpletransformers/tmp/BERT_sent_pair/outputs/{ckpt}',
-        num_labels=2, use_cuda=False, args=eval_args)
+        'bert', 'bert-base-uncased', num_labels=2, use_cuda=False, args=train_args)
+    model.train_model(df_train, df_dev=df_dev, test_df=df_test)
 
-    # Evaluate
-    dev_metrics, dev_rank_scores, dev_rank_idxes = evaluate(model, df_train)
-    print_metrics(dev_metrics)
+    # model = train(df_train, df_dev, df_test, train_args, use_cuda=False)
+    #
+    # # Evaluate
+    # dev_metrics, dev_rank_scores, dev_rank_idxes = evaluate(model, df_dev)
+    # print_metrics(dev_metrics)
+    #
+    # # Load trained model
+    # ckpt = 'checkpoint-9-epoch-1'
+    # print(f'Evaluating based on {ckpt}')
+    # eval_args = {'learning_rate': 5e-5,
+    #              'reprocess_input_data': True,
+    #              'overwrite_output_dir': True,
+    #              'overwrite_cache': True,
+    #              'num_train_epochs': 10,
+    #              'n_gpu': 1,
+    #              'max_seq_length': (128, 128),
+    #              'do_lower_case': True,
+    #              'train_batch_size': 32,
+    #              'fp16': False,
+    #              }
+    # model = SemanticMatchingClassificationModel(
+    #     'bert',
+    #     f'/Users/jiezhao/Documents/GitHub/simpletransformers/tmp/BERT_sent_pair/outputs/{ckpt}',
+    #     num_labels=2, use_cuda=False, args=eval_args)
+    #
+    # # Evaluate
+    # dev_metrics, dev_rank_scores, dev_rank_idxes = evaluate(model, df_train)
+    # print_metrics(dev_metrics)

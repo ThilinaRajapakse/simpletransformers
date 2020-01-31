@@ -111,7 +111,7 @@ if __name__ == '__main__':
                   'faq_evaluate_during_training': True,
                   }
     model = ClassificationModel(
-            'bert', 'bert-base-uncased', num_labels=2, use_cuda=False, args=train_args)
+        'bert', 'bert-base-uncased', num_labels=2, use_cuda=False, args=train_args)
     model.train_model(df_train, df_dev=df_dev, test_df=df_test)
 
     # model = train(df_train, df_dev, df_test, train_args, use_cuda=False)

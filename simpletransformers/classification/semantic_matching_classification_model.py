@@ -9,9 +9,10 @@ import math
 import json
 import random
 import warnings
-
+import time
+import datetime
 from multiprocessing import cpu_count
-
+import csv
 import torch
 import numpy as np
 import pandas as pd
@@ -46,6 +47,8 @@ from simpletransformers.custom_models.models_faq import (
 )
 
 from simpletransformers.config.global_args import global_args
+
+from simpletransformers.metrics.eval_faq import faq_evaluate, print_metrics
 
 import wandb
 
@@ -378,12 +381,24 @@ class SemanticMatchingClassificationModel:
             )
             wandb.watch(self.model)
 
+        outcsv = open(os.path.join(output_dir, 'train_log.csv'), 'a', newline='')
+        writer = csv.DictWriter(outcsv, fieldnames=['epoch', 'ckpt',
+                                                    'dev-MRR', 'dev-MAP', 'dev-NDCG',
+                                                    'dev-P@5', 'dev-R@5', 'dev-F1@5',
+                                                    'dev-P@10', 'dev-R@10', 'dev-F1@10',
+                                                    'test-MRR', 'test-MAP', 'test-NDCG',
+                                                    'test-P@5', 'test-R@5', 'test-F1@5',
+                                                    'test-P@10', 'test-R@10', 'test-F1@10'])
+        writer.writeheader()
+        outcsv.flush()
+
         model.train()
         for _ in train_iterator:
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
             for step, batch in enumerate(
                 tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])
             ):
+                train_start = time.time()
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
@@ -506,10 +521,12 @@ class SemanticMatchingClassificationModel:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
             epoch_number += 1
+            train_time = datetime.timedelta(seconds=int(time.time() - train_start))
+
+            save_start = time.time()
             output_dir_current = os.path.join(
                 output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
             )
-
             if (
                 args["save_model_every_epoch"] or args["evaluate_during_training"]
             ) and not os.path.exists(output_dir_current):
@@ -520,7 +537,9 @@ class SemanticMatchingClassificationModel:
                 model_to_save = model.module if hasattr(model, "module") else model
                 model_to_save.save_pretrained(output_dir_current)
                 self.tokenizer.save_pretrained(output_dir_current)
+            save_time = datetime.timedelta(seconds=int(time.time() - save_start))
 
+            eval_start = time.time()
             if args["evaluate_during_training"]:
                 results, _, _ = self.eval_model(eval_df, verbose=True, **kwargs)
 
@@ -537,6 +556,25 @@ class SemanticMatchingClassificationModel:
                 report.to_csv(
                     args["output_dir"] + "training_progress_scores.csv", index=False
                 )
+            if args["faq_evaluate_during_training"]:
+                records = {'epoch': epoch_number,
+                           'ckpt': "checkpoint-{}-epoch-{}".format(global_step, epoch_number)}
+                if eval_df is not None:
+                    eval_metrics, _, _ = faq_evaluate(self, eval_df)
+                    print_metrics(eval_metrics)
+                    records.update({('dev-' + k): v for k, v in eval_metrics.items()})
+                if test_df is not None:
+                    test_metrics, _, _ = faq_evaluate(self, test_df)
+                    print_metrics(test_metrics)
+                    records.update({('test-' + k): v for k, v in test_metrics.items()})
+            writer.writerow(records)
+            outcsv.flush()
+
+            eval_time = datetime.timedelta(seconds=int(time.time() - eval_start))
+
+            print(f'Finished epoch {epoch_number} [train {train_time}, save {save_time}, eval {eval_time}]')
+
+        outcsv.close()
 
         return global_step, tr_loss / global_step
 
