@@ -23,6 +23,7 @@ global_args = {
     "save_model_every_epoch": True,
     "evaluate_during_training": False,
     "evaluate_during_training_steps": 2000,
+    "faq_evaluate_during_training": False,
     "use_cached_eval_features": True,
     "save_eval_checkpoints": True,
     "tensorboard_dir": None,

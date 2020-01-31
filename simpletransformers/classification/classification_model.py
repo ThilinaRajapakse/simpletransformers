@@ -462,16 +462,16 @@ class ClassificationModel:
             )
             wandb.watch(self.model)
 
-        outcsv = open(os.path.join(output_dir, 'train_log.csv'), 'a', newline='')
-        writer = csv.DictWriter(outcsv, fieldnames=['epoch', 'ckpt',
-                                                    'dev-MRR', 'dev-MAP', 'dev-NDCG',
-                                                    'dev-P@5', 'dev-R@5', 'dev-F1@5',
-                                                    'dev-P@10', 'dev-R@10', 'dev-F1@10',
-                                                    'test-MRR', 'test-MAP', 'test-NDCG',
-                                                    'test-P@5', 'test-R@5', 'test-F1@5',
-                                                    'test-P@10', 'test-R@10', 'test-F1@10'])
-        writer.writeheader()
-        outcsv.flush()
+        with open(os.path.join(output_dir, 'train_log.csv'), 'a', newline='') as outcsv:
+            writer = csv.DictWriter(outcsv, fieldnames=['epoch', 'ckpt',
+                                                        'dev-MRR', 'dev-MAP', 'dev-NDCG',
+                                                        'dev-P@5', 'dev-R@5', 'dev-F1@5',
+                                                        'dev-P@10', 'dev-R@10', 'dev-F1@10',
+                                                        'test-MRR', 'test-MAP', 'test-NDCG',
+                                                        'test-P@5', 'test-R@5', 'test-F1@5',
+                                                        'test-P@10', 'test-R@10', 'test-F1@10'])
+            writer.writeheader()
+            outcsv.flush()
 
         model.train()
         for _ in train_iterator:
@@ -648,8 +648,9 @@ class ClassificationModel:
                     test_metrics, _, _ = faq_evaluate(self, test_df, mode='classification')
                     print_metrics(test_metrics)
                     records.update({('test-' + k): v for k, v in test_metrics.items()})
-            writer.writerow(records)
-            outcsv.flush()
+            with open(os.path.join(output_dir, 'train_log.csv'), 'a', newline='') as outcsv:
+                writer.writerow(records)
+                outcsv.flush()
 
             eval_time = datetime.timedelta(seconds=int(time.time() - eval_start))
 
