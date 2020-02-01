@@ -462,7 +462,7 @@ class ClassificationModel:
             )
             wandb.watch(self.model)
 
-        outcsv = open(os.path.join(output_dir, 'train_log.csv'), 'a', newline='')
+        outcsv = open(os.path.join(output_dir, 'train_log.csv'), 'w', newline='')
         writer = csv.DictWriter(outcsv, fieldnames=['epoch', 'ckpt',
                                                     'dev-MRR', 'dev-MAP', 'dev-NDCG',
                                                     'dev-P@5', 'dev-R@5', 'dev-F1@5',

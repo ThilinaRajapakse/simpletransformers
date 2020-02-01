@@ -170,6 +170,7 @@ class SemanticMatchingClassificationModel:
         show_running_loss=True,
         args=None,
         eval_df=None,
+        test_df=None,
         **kwargs,
     ):
         """
@@ -233,6 +234,7 @@ class SemanticMatchingClassificationModel:
             multi_label=multi_label,
             show_running_loss=show_running_loss,
             eval_df=eval_df,
+            test_df=test_df,
             **kwargs,
         )
 
@@ -256,6 +258,7 @@ class SemanticMatchingClassificationModel:
         multi_label=False,
         show_running_loss=True,
         eval_df=None,
+        test_df=None,
         **kwargs,
     ):
         """
@@ -381,7 +384,7 @@ class SemanticMatchingClassificationModel:
             )
             wandb.watch(self.model)
 
-        outcsv = open(os.path.join(output_dir, 'train_log.csv'), 'a', newline='')
+        outcsv = open(os.path.join(output_dir, 'train_log.csv'), 'w', newline='')
         writer = csv.DictWriter(outcsv, fieldnames=['epoch', 'ckpt',
                                                     'dev-MRR', 'dev-MAP', 'dev-NDCG',
                                                     'dev-P@5', 'dev-R@5', 'dev-F1@5',

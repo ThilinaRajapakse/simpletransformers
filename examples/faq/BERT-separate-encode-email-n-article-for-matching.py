@@ -77,22 +77,40 @@ def train(train_df, dev_df, test_df, train_args, use_cuda=True):
 
 if __name__ == '__main__':
 
-    # Load URL vocab from S3
-    file_path = os.path.join('jie-faq', 'faq', 'outreach_support_url_meta.json')
-    urlvocab = load_url_vocab(file_path)
-    print('Number of recommendation candidate URLs: %d' % urlvocab.vocab_size)
+    # # Load URL vocab from S3
+    # file_path = os.path.join('jie-faq', 'faq', 'outreach_support_url_meta.json')
+    # urlvocab = load_url_vocab(file_path)
+    # print('Number of recommendation candidate URLs: %d' % urlvocab.vocab_size)
+    #
+    # # Load dataset for training and testing from S3.
+    # datafolder = os.path.join('jie-faq', 'faq', 'outreach_msgs_w_support_url_random_split')
+    # df_train, df_dev, df_test = load_url_data_email_article_pair(datafolder, urlvocab)
+    # print(f'Dataset size: train={len(df_train)}/{urlvocab.vocab_size}={len(df_train) / urlvocab.vocab_size}, ' +
+    #       f'dev={len(df_dev)}/{urlvocab.vocab_size}={len(df_dev) / urlvocab.vocab_size}, ' +
+    #       f'test={len(df_test)}/{urlvocab.vocab_size}={len(df_test) / urlvocab.vocab_size}')
+    #
+    # # Truncate dataset
+    # df_train = df_train[: urlvocab.vocab_size * 1]
+    # df_dev = df_dev[: urlvocab.vocab_size * 1]
+    # df_test = df_test[: urlvocab.vocab_size * 1]
 
-    # Load dataset for training and testing from S3.
-    datafolder = os.path.join('jie-faq', 'faq', 'outreach_msgs_w_support_url_random_split')
-    df_train, df_dev, df_test = load_url_data_email_article_pair(datafolder, urlvocab)
-    print(f'Dataset size: train={len(df_train)}/{urlvocab.vocab_size}={len(df_train) / urlvocab.vocab_size}, ' +
-          f'dev={len(df_dev)}/{urlvocab.vocab_size}={len(df_dev) / urlvocab.vocab_size}, ' +
-          f'test={len(df_test)}/{urlvocab.vocab_size}={len(df_test) / urlvocab.vocab_size}')
+    train_data = [["I'm Example sentence 1 for multilabel classification.", "Article number one", "1", 1],
+                  ["I'm Example sentence 1 for multilabel classification.", "Article number two", "1", 0],
+                  ["I'm Example sentence 1 for multilabel classification.", "Article number three", "1", 0],
+                  ["This is another example sentence. ", "Article number one", "2", 0],
+                  ["This is another example sentence. ", "Article number two", "2", 1],
+                  ["This is another example sentence. ", "Article number three", "2", 0]]
+    df_train = pd.DataFrame(train_data, columns=['text_a', 'text_b', 'reps_response_id', 'labels'])
 
-    # Truncate dataset
-    df_train = df_train[: urlvocab.vocab_size * 1]
-    df_dev = df_dev[: urlvocab.vocab_size * 1]
-    df_test = df_test[: urlvocab.vocab_size * 1]
+    eval_data = [["Example eval sentence for multilabel classification.", "Article number one", "3", 1],
+                 ["Example eval sentence for multilabel classification.", "Article number two", "3", 0],
+                 ["Example eval sentence for multilabel classification.", "Article number three", "3", 0],
+                 ["Example eval senntence belonging to class 2", "Article number one", "4", 0],
+                 ["Example eval senntence belonging to class 2", "Article number two", "4", 1],
+                 ["Example eval senntence belonging to class 2", "Article number three", "4", 0]]
+    eval_df = pd.DataFrame(eval_data, columns=['text_a', 'text_b', 'reps_response_id', 'labels'])
+    df_dev = eval_df
+    df_test = eval_df
 
     train_args = {'learning_rate': 5e-5,
                   'reprocess_input_data': True,
@@ -113,7 +131,7 @@ if __name__ == '__main__':
                   }
     model = SemanticMatchingClassificationModel(
         'bert', 'bert-base-uncased', num_labels=2, use_cuda=False, args=train_args)
-    model.train_model(df_train, df_dev=df_dev, test_df=df_test)
+    model.train_model(df_train, eval_df=df_dev, test_df=df_test)
 
     # model = train(df_train, df_dev, df_test, train_args, use_cuda=False)
     #
