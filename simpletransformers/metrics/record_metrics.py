@@ -35,7 +35,3 @@ def write_progress_to_csv(path, filename, write_header=False, metrics=None):
     if PLATFORM != 'Darwin':
         # For Databricks, copy file to DBFS
         copyfile(filename_, os.path.join(path, filename))
-
-
-
-def write_progress_to_
