@@ -464,7 +464,7 @@ class ClassificationModel:
             wandb.watch(self.model)
 
         if args["faq_evaluate_during_training"]:
-            write_progress_to_csv(os.path.join(output_dir, 'train_log.csv'), write_header=True)
+            write_progress_to_csv(output_dir, 'train_log.csv', write_header=True)
 
         model.train()
         for _ in train_iterator:
@@ -641,7 +641,7 @@ class ClassificationModel:
                     test_metrics, _, _ = faq_evaluate(self, test_df)
                     print_metrics(test_metrics)
                     records.update({('test-' + k): v for k, v in test_metrics.items()})
-                write_progress_to_csv(os.path.join(output_dir, 'train_log.csv'), metrics=records)
+                write_progress_to_csv(output_dir, 'train_log.csv', metrics=records)
 
             eval_time = datetime.timedelta(seconds=int(time.time() - eval_start))
 
