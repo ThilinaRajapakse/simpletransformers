@@ -84,6 +84,7 @@ from simpletransformers.classification.transformer_models.xlm_roberta_model impo
 from simpletransformers.config.global_args import global_args
 
 from simpletransformers.metrics.eval_faq import faq_evaluate, print_metrics
+from simpletransformers.metrics.record_metrics import write_progress_to_csv
 
 import wandb
 
@@ -463,16 +464,7 @@ class ClassificationModel:
             wandb.watch(self.model)
 
         if args["faq_evaluate_during_training"]:
-            outcsv = open(os.path.join(output_dir, 'train_log.csv'), 'w', newline='')
-            writer = csv.DictWriter(outcsv, fieldnames=['epoch', 'ckpt',
-                                                        'dev-MRR', 'dev-MAP', 'dev-NDCG',
-                                                        'dev-P@5', 'dev-R@5', 'dev-F1@5',
-                                                        'dev-P@10', 'dev-R@10', 'dev-F1@10',
-                                                        'test-MRR', 'test-MAP', 'test-NDCG',
-                                                        'test-P@5', 'test-R@5', 'test-F1@5',
-                                                        'test-P@10', 'test-R@10', 'test-F1@10'])
-            writer.writeheader()
-            outcsv.flush()
+            write_progress_to_csv(os.path.join(output_dir, 'train_log.csv'), write_header=True)
 
         model.train()
         for _ in train_iterator:
@@ -649,14 +641,11 @@ class ClassificationModel:
                     test_metrics, _, _ = faq_evaluate(self, test_df)
                     print_metrics(test_metrics)
                     records.update({('test-' + k): v for k, v in test_metrics.items()})
-                writer.writerow(records)
-                outcsv.flush()
+                write_progress_to_csv(os.path.join(output_dir, 'train_log.csv'), metrics=records)
 
             eval_time = datetime.timedelta(seconds=int(time.time() - eval_start))
 
             print(f'Finished epoch {epoch_number} [train {train_time}, save {save_time}, eval {eval_time}]')
-
-        outcsv.close()
 
         return global_step, tr_loss / global_step
 
