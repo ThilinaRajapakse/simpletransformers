@@ -49,6 +49,7 @@ from simpletransformers.custom_models.models_faq import (
 from simpletransformers.config.global_args import global_args
 
 from simpletransformers.metrics.eval_faq import faq_evaluate, print_metrics
+from simpletransformers.metrics.record_metrics import write_progress_to_csv
 
 import wandb
 
