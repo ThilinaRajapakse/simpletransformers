@@ -104,7 +104,7 @@ def load_url_data_email_only(datafolder, urlvocab):
     return df_train, df_dev, df_test
 
 
-def load_url_data_email_article_pair(datafolder, urlvocab):
+def load_url_data_email_article_pair(datafolder, urlvocab, onlytitle=False):
     '''
     Getting URL prediction datasets. "text_a" field contains input emails and "text_b" field contains the article
     associated with the candidate URL.
@@ -140,8 +140,12 @@ def load_url_data_email_article_pair(datafolder, urlvocab):
         df_expand_label.drop('url_label', axis=1, inplace=True)
 
         # Get context information
-        df_expand_label['text_b'] = df_expand_label['url'].apply(
-            lambda x: urlvocab.get_title(x) + '. ' + urlvocab.get_text(x))
+        if onlytitle:
+            df_expand_label['text_b'] = df_expand_label['url'].apply(
+                lambda x: urlvocab.get_title(x))
+        else:
+            df_expand_label['text_b'] = df_expand_label['url'].apply(
+                lambda x: urlvocab.get_title(x) + '. ' + urlvocab.get_text(x))
         return df_expand_label
 
     df_train = get_split(datafolder, 'train.csv')
@@ -149,6 +153,55 @@ def load_url_data_email_article_pair(datafolder, urlvocab):
     df_test = get_split(datafolder, 'test.csv')
 
     return df_train, df_dev, df_test
+
+
+def load_url_data_with_neighbouring_info(datafolder, urlvocab, onlytitle=False):
+    '''
+    Getting URL prediction datasets. "text_a" field contains input emails and "text_b" field contains the article
+    associated with the candidate URL.
+    :param datafolder:
+    :param urlvocab:
+    :return:
+    '''
+    def get_split(datafolder, split):
+        df = get_csv(s3, BUCKET, os.path.join(datafolder, split))
+        df['labels'] = df['labels'].apply(json.loads)
+        df['prospect_reply_message'] = df['prospect_reply_message']
+        df = df.rename(columns={'prospect_reply_message': 'text_a', 'labels': 'url_labels'})
+
+        # Get (url, label) lists for each input example
+        df['url_label_lists'] = df['url_labels'].apply(
+            lambda x: list(zip(urlvocab.url_vocab_list, urlvocab.encode_urls(x))))
+
+        # Expand url_label lists
+        # The purpose is to transfer the problem to binary classificaiton.
+        #
+        # For example, there are five urls in total [A,B,C,D,E]
+        # For a sampple (df row) with "url_label" = [A,D]
+        # We will expand this sample into 5, where their ("url", "label") are
+        # (A,1), (B,0), (C,0), (D,1), (E,0) respectively.
+        s_q = df.apply(lambda x: pd.Series(x['url_label_lists']), axis=1).stack().reset_index(level=1, drop=True)
+        s_q.name = 'url_label'
+        df_expand_label = df.copy(deep=True)
+        df_expand_label = df_expand_label.drop('url_label_lists', axis=1).join(s_q)
+        assert len(df_expand_label) == sum(df['url_label_lists'].apply(len))
+
+        df_expand_label['url'] = df_expand_label['url_label'].apply(lambda x: x[0])
+        df_expand_label['labels'] = df_expand_label['url_label'].apply(lambda x: x[1])
+        df_expand_label.drop('url_label', axis=1, inplace=True)
+
+        # Get context information
+        if onlytitle:
+            df_expand_label['text_b'] = df_expand_label['url'].apply(
+                lambda x: urlvocab.get_title(x))
+        else:
+            df_expand_label['text_b'] = df_expand_label['url'].apply(
+                lambda x: urlvocab.get_title(x) + '. ' + urlvocab.get_text(x))
+        return df_expand_label
+
+    df_train = get_split(datafolder, 'train.csv')
+    df_dev = get_split(datafolder, 'dev.csv')
+    df_test = get_split(datafolder, 'test.csv')
 
 
 if __name__ == '__main__':
