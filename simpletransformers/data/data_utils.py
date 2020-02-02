@@ -100,7 +100,6 @@ def load_url_data_email_only(datafolder, urlvocab):
     df_train = get_split(datafolder, 'train.csv')
     df_dev = get_split(datafolder, 'dev.csv')
     df_test = get_split(datafolder, 'test.csv')
-
     return df_train, df_dev, df_test
 
 
@@ -151,7 +150,6 @@ def load_url_data_email_article_pair(datafolder, urlvocab, onlytitle=False):
     df_train = get_split(datafolder, 'train.csv')
     df_dev = get_split(datafolder, 'dev.csv')
     df_test = get_split(datafolder, 'test.csv')
-
     return df_train, df_dev, df_test
 
 
@@ -191,17 +189,25 @@ def load_url_data_with_neighbouring_info(datafolder, urlvocab, onlytitle=False):
         df_expand_label.drop('url_label', axis=1, inplace=True)
 
         # Get context information
+        # FIXME: another option is to load this URL-related data during model training
         if onlytitle:
             df_expand_label['text_b'] = df_expand_label['url'].apply(
                 lambda x: urlvocab.get_title(x))
         else:
             df_expand_label['text_b'] = df_expand_label['url'].apply(
                 lambda x: urlvocab.get_title(x) + '. ' + urlvocab.get_text(x))
+
+        # Get connectivity information as additional features
+        # FIXME: another option is to load this URL-related data during model training
+        df_expand_label['addfeatures'] = df_expand_label['url'].apply(
+            lambda x: urlvocab.url2nav(x) + urlvocab.url2outconn(x) + urlvocab.url2inconn(x))
+
         return df_expand_label
 
     df_train = get_split(datafolder, 'train.csv')
     df_dev = get_split(datafolder, 'dev.csv')
     df_test = get_split(datafolder, 'test.csv')
+    return df_train, df_dev, df_test
 
 
 if __name__ == '__main__':
