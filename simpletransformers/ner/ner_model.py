@@ -71,6 +71,13 @@ class NERModel:
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
         """  # noqa: ignore flake8"
 
+        if 'manual_seed' in args:
+            random.seed(args['manual_seed'])
+            np.random.seed(args['manual_seed'])
+            torch.manual_seed(args['manual_seed'])
+            if 'n_gpu' in args and args['n_gpu'] > 0:
+                torch.cuda.manual_seed_all(args['manual_seed'])
+
         if labels:
             self.labels = labels
         else:

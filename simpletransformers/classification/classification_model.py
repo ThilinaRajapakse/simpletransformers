@@ -99,6 +99,13 @@ class ClassificationModel:
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
         }
 
+        if 'manual_seed' in args:
+            random.seed(args['manual_seed'])
+            np.random.seed(args['manual_seed'])
+            torch.manual_seed(args['manual_seed'])
+            if 'n_gpu' in args and args['n_gpu'] > 0:
+                torch.cuda.manual_seed_all(args['manual_seed'])
+
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
             self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **kwargs)
