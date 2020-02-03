@@ -889,8 +889,6 @@ class ClassificationModelAddFeatures:
 
         self._move_model_to_device()
 
-        assert "text_a" in to_predict.columns and "text_b" in to_predict.columns and \
-               "addfeatures" in to_predict.columns
         eval_examples = [
             InputExample(i, text_a, text_b, 0, addfeatures)
             for i, (text_a, text_b, addfeatures) in enumerate(to_predict)
