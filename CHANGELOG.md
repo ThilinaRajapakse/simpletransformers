@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.4] - 2020-02-04
+### Fixed
+- Fixed error that occured when `args` is not given when creating a Model.
+
 ## [0.19.3] - 2020-02-03
 ### Added
 - Added `manual_seed` to `global_args`. Can be used when training needs to be reproducible.
@@ -246,7 +250,9 @@ Model checkpoint is now saved for all epochs again.
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.19.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb17711...HEAD
+[0.19.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/337670a...HEAD
+
+[0.19.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb17711...337670a
 
 [0.19.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/489d4f7...bb17711
 
