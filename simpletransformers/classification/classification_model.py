@@ -99,7 +99,7 @@ class ClassificationModel:
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
         }
 
-        if 'manual_seed' in args:
+        if args and 'manual_seed' in args:
             random.seed(args['manual_seed'])
             np.random.seed(args['manual_seed'])
             torch.manual_seed(args['manual_seed'])
