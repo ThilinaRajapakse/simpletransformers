@@ -78,6 +78,9 @@ _The file structure has been updated starting with version 0.6.0. This should on
 * `simpletransformers.question_answering` - Includes all Question Answering models.
   * `QuestionAnsweringModel`
 
+
+_[Back to Table of Contents](#table-of-contents)_
+
 ---
 
 ## Text Classification
@@ -275,6 +278,7 @@ print(raw_outputs)
 * [AG News Dataset - Multiclass Classification](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a?source=friends_link&sk=90e1c97255b65cedf4910a99041d9dfc)
 * [Toxic Comments Dataset - Multilabel Classification](https://towardsdatascience.com/multi-label-classification-using-bert-roberta-xlnet-xlm-and-distilbert-with-simple-transformers-b3e0cda12ce5?source=friends_link&sk=354e688fe238bfb43e9a575216816219)
 * [Semantic Textual Similarity Benchmark - Sentence Pair](https://medium.com/@chaturangarajapakshe/solving-sentence-pair-tasks-using-simple-transformers-2496fe79d616?source=friends_link&sk=fbf7439e9c31f7aefa1613d423a0fd40)
+* [AG News Dataset - BERT (base and distilled), RoBERTa (base and distilled), and XLNet compared](https://towardsdatascience.com/to-distil-or-not-to-distil-bert-roberta-and-xlnet-c777ad92f8?source=friends_link&sk=6a3c7940b18066ded94aeee95e354ed1)
 
 
 #### ClassificationModel
@@ -377,6 +381,8 @@ Returns:
 * result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
 
 * wrong: List of InputExample objects corresponding to each incorrect prediction by the model  
+
+_[Back to Table of Contents](#table-of-contents)_
 
 ---
 
@@ -523,6 +529,8 @@ Evaluates the model on eval_dataset.
 
 Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
 *Utility function for train() and eval() methods. Not intended to be used directly*
+
+_[Back to Table of Contents](#table-of-contents)_
 
 ___
 
@@ -766,6 +774,8 @@ The maximum token length of an answer that can be generated.
 #### *null_score_diff_threshold: float*
 If null_score - best_non_null is greater than the threshold predict null.
 
+_[Back to Table of Contents](#table-of-contents)_
+
 ---
 
 ## Regression
@@ -837,6 +847,8 @@ model = ClassificationModel('roberta', 'roberta-base', args={'wandb_project': 'p
 
 For a complete example, see [here](https://medium.com/skilai/to-see-is-to-believe-visualizing-the-training-of-machine-learning-models-664ef3fe4f49).
 
+_[Back to Table of Contents](#table-of-contents)_
+
 ---
 
 ## Experimental Features
@@ -902,18 +914,23 @@ print(predictions)
 print(raw_outputs)
 ```
 
+_[Back to Table of Contents](#table-of-contents)_
+
 ---
 ## Loading Saved Models
 
 To load a saved model, provide the path to the directory containing the saved model as the `model_name`.
+_Note that you will need to specify the correct (usually the same used in training) `args` when loading the model_
 
 ```python
-model = ClassificationModel('roberta', 'outputs/')
+model = ClassificationModel('roberta', 'outputs/', args={})
 ```
 
 ```python
-model = NERModel('bert', 'outputs/')
+model = NERModel('bert', 'outputs/', args={})
 ```
+
+_[Back to Table of Contents](#table-of-contents)_
 
 ---
 
@@ -1090,6 +1107,8 @@ For a list of pretrained models, see [Hugging Face docs](https://huggingface.co/
 The `model_types` available for each task can be found under their respective section. Any pretrained model of that type
 found in the Hugging Face docs should work. To use any of them set the correct `model_type` and `model_name` in the `args` 
 dictionary.
+
+_[Back to Table of Contents](#table-of-contents)_
 
 ---
 
