@@ -18,6 +18,7 @@ from simpletransformers.classification import (
         ("albert", "albert-base-v1"),
         ("camembert", "camembert-base"),
         ("xlmroberta", "xlm-roberta-base"),
+        ("flaubert", "flaubert-base-cased"),
     ],
 )
 def test_binary_classification(model_type, model_name):
@@ -59,6 +60,7 @@ def test_binary_classification(model_type, model_name):
         ("albert", "albert-base-v1"),
         ("camembert", "camembert-base"),
         ("xlmroberta", "xlm-roberta-base"),
+        ("flaubert", "flaubert-base-cased"),
     ],
 )
 def test_multiclass_classification(model_type, model_name):
@@ -130,7 +132,7 @@ def test_multilabel_classification(model_type, model_name):
         model_type,
         model_name,
         num_labels=6,
-        args={"reprocess_input_data": True, "overwrite_output_dir": True, "num_train_epochs": 1,},
+        args={"reprocess_input_data": True, "overwrite_output_dir": True, "num_train_epochs": 1},
         use_cuda=False,
     )
 

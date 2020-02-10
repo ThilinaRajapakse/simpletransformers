@@ -95,8 +95,9 @@ Supported model types:
 * XLM
 * DistilBERT
 * ALBERT
-* CamemBERT @[manueltonneau](https://github.com/manueltonneau)
+* CamemBERT
 * XLM-RoBERTa
+* FlauBERT
 
 ### Task Specific Notes
 
