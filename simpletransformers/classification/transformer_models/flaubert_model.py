@@ -1,4 +1,4 @@
-from transformers.modeling_xlm import SequenceSummary, XLMModel, XLMPreTrainedModel
+from transformers.modeling_utils import SequenceSummary
 from transformers.modeling_flaubert import FlaubertModel
 import torch
 import torch.nn as nn
