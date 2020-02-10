@@ -48,6 +48,8 @@ from transformers import (
     CamembertTokenizer,
     XLMRobertaConfig,
     XLMRobertaTokenizer,
+    FlaubertConfig,
+    FlaubertTokenizer,
 )
 
 from simpletransformers.classification.classification_utils import (
@@ -63,6 +65,7 @@ from simpletransformers.classification.transformer_models.distilbert_model impor
 from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
 from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
 from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
+from simpletransformers.classification.transformer_models.flaubert_model import FlaubertForSequenceClassification
 
 from simpletransformers.config.global_args import global_args
 
@@ -97,6 +100,7 @@ class ClassificationModel:
             "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
             "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
+            "flaubert": (FlaubertConfig, FlaubertForSequenceClassification, FlaubertTokenizer),
         }
 
         if args and 'manual_seed' in args:
