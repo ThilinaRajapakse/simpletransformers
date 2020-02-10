@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
 
 
-class FlaubertForSequenceClassification(XLMPreTrainedModel):
+class FlaubertForSequenceClassification(FlaubertModel):
     r"""
         **labels**: (`optional`) ``torch.LongTensor`` of shape ``(batch_size,)``:
             Labels for computing the sequence classification/regression loss.
