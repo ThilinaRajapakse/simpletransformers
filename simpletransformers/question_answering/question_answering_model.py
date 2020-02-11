@@ -58,7 +58,11 @@ from simpletransformers.question_answering.question_answering_utils import (
 )
 from simpletransformers.config.global_args import global_args
 
-import wandb
+try:
+    import wandb
+    wandb_available = True
+except ImportError:
+    wandb_available = False
 
 
 class QuestionAnsweringModel:
@@ -131,6 +135,10 @@ class QuestionAnsweringModel:
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
+
+        if self.args["wandb_project"] and not wandb_available:
+            warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
+            self.args["wandb_project"] = None
 
     def load_and_cache_examples(self, examples, evaluate=False, no_cache=False, output_examples=False):
         """

@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.7] - 2020-02-11
+### Changed
+- Removed `wandb` as a dependency. Installing `wandb` in now optional.
+
 ## [0.19.6] - 2020-02-11
 ### Added
 - Added support for multilabel classification with FlauBERT. @adrienrenaud
@@ -258,7 +262,9 @@ Model checkpoint is now saved for all epochs again.
 - This CHANGELOG file to hopefully serve as an evolving example of a
   standardized open source project CHANGELOG.
 
-[0.19.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9170750...HEAD
+[0.19.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f814874...HEAD
+
+[0.19.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9170750...f814874
 
 [0.19.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/337670a...9170750
 

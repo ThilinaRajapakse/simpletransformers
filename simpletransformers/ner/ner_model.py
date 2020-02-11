@@ -52,7 +52,11 @@ from transformers import (
 )
 from simpletransformers.config.global_args import global_args
 
-import wandb
+try:
+    import wandb
+    wandb_available = True
+except ImportError:
+    wandb_available = False
 
 
 class NERModel:
@@ -145,6 +149,10 @@ class NERModel:
                 " fails when using multiprocessing for feature conversion."
             )
             self.args["use_multiprocessing"] = False
+
+        if self.args["wandb_project"] and not wandb_available:
+            warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
+            self.args["wandb_project"] = None
 
     def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None, verbose=True):
         """

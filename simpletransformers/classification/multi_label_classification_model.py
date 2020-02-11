@@ -110,6 +110,10 @@ class MultiLabelClassificationModel(ClassificationModel):
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
 
+        if self.args["wandb_project"] and not wandb_available:
+            warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
+            self.args["wandb_project"] = None
+            
     def train_model(
         self,
         train_df,

@@ -56,7 +56,12 @@ else:
 3. Install Apex if you are using fp16 training. Please follow the instructions [here](https://github.com/NVIDIA/apex). (Installing Apex from pip has caused issues for several people.)
 
 4. Install simpletransformers.  
-`pip install simpletransformers`  
+`pip install simpletransformers` 
+
+#### Optional
+
+1. Install Weights and Biases (wandb) for tracking and visualizing training in a web browser.  
+`pip install wandb`
 
 ## Usage
 
