@@ -1,6 +1,7 @@
 import torch
 
 from multiprocessing import cpu_count
+import warnings
 
 from simpletransformers.classification import ClassificationModel
 from simpletransformers.custom_models.models import (
@@ -31,6 +32,12 @@ from transformers import (
     FlaubertConfig,
     FlaubertTokenizer,
 )
+
+try:
+    import wandb
+    wandb_available = True
+except ImportError:
+    wandb_available = False
 
 
 class MultiLabelClassificationModel(ClassificationModel):
@@ -113,7 +120,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         if self.args["wandb_project"] and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args["wandb_project"] = None
-            
+
     def train_model(
         self,
         train_df,
