@@ -10,34 +10,95 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
 # Table of contents
 
 <!--ts-->
-* [Setup](#Setup)
-    * [With Conda](#with-conda)
-* [Usage](#usage)
-* [Text Classification](#text-classification)
-    * [Minimal Start for Binary Classification](#minimal-start-for-binary-classification)
-    * [Minimal Start for Multiclass Classification](#minimal-start-for-multiclass-classification)
-    * [Minimal Start for Multilabel Classification](#minimal-start-for-multilabel-classification)
-    * [Minimal Start for Sentence Pair Classification](#minimal-start-for-sentence-pair-classification)
-    * [Real Dataset Examples](#real-dataset-examples)
-    * [ClassificationModel](#classificationmodel)
-* [Named Entity Recognition](#named-entity-recognition)
-    * [Minimal Start](#minimal-start)
-    * [Real Dataset Examples](#real-dataset-examples-1)
-    * [NERModel](#nermodel)
-* [Question Answering](#question-answering)
-    * [Data Format](#data-format)
-    * [Minimal Start](#minimal-example)
-    * [Real Dataset Examples](#real-dataset-examples-2)
-    * [QuestionAnsweringModel](#questionansweringmodel)
-* [Regression](#regression)
-    * [Minimal Start for Regression](#minimal-start-for-regression)
-* [Visualization Support](#visualization-support)
-* [Experimental Features](#experimental-features)
-    * [Sliding Window For Long Sequences](#sliding-window-for-long-sequences)
-* [Loading Saved Models](#loading-saved-models)
-* [Default Settings](#default-settings)
-* [Current Pretrained Models](#current-pretrained-models)
-* [Acknowledgements](#acknowledgements)
+- [Simple Transformers](#simple-transformers)
+- [Table of contents](#table-of-contents)
+  - [Setup](#setup)
+    - [With Conda](#with-conda)
+      - [Optional](#optional)
+  - [Usage](#usage)
+    - [Structure](#structure)
+  - [Text Classification](#text-classification)
+    - [Task Specific Notes](#task-specific-notes)
+      - [Minimal Start for Binary Classification](#minimal-start-for-binary-classification)
+      - [Minimal Start for Multiclass Classification](#minimal-start-for-multiclass-classification)
+      - [Minimal Start for Multilabel Classification](#minimal-start-for-multilabel-classification)
+        - [Special Attributes](#special-attributes)
+      - [Minimal Start for Sentence Pair Classification](#minimal-start-for-sentence-pair-classification)
+      - [Real Dataset Examples](#real-dataset-examples)
+      - [ClassificationModel](#classificationmodel)
+  - [Named Entity Recognition](#named-entity-recognition)
+      - [Minimal Start](#minimal-start)
+      - [Real Dataset Examples](#real-dataset-examples-1)
+      - [NERModel](#nermodel)
+  - [Question Answering](#question-answering)
+    - [Data format](#data-format)
+    - [Minimal Example](#minimal-example)
+      - [Real Dataset Examples](#real-dataset-examples-2)
+    - [QuestionAnsweringModel](#questionansweringmodel)
+    - [Additional attributes for Question Answering tasks](#additional-attributes-for-question-answering-tasks)
+      - [*doc_stride: int*](#docstride-int)
+      - [*max_query_length: int*](#maxquerylength-int)
+      - [*n_best_size: int*](#nbestsize-int)
+      - [*max_answer_length: int*](#maxanswerlength-int)
+      - [*null_score_diff_threshold: float*](#nullscorediffthreshold-float)
+  - [Multi-Modal Classification](#multi-modal-classification)
+    - [Data format](#data-format-1)
+      - [1 - Directory based](#1---directory-based)
+      - [2 - Directory and file list](#2---directory-and-file-list)
+      - [3 - Pandas DataFrame](#3---pandas-dataframe)
+    - [Using custom names for column names or fields in JSON files](#using-custom-names-for-column-names-or-fields-in-json-files)
+    - [Specifying the file type extension for image and text files](#specifying-the-file-type-extension-for-image-and-text-files)
+    - [Label formats](#label-formats)
+    - [Creating a Model](#creating-a-model)
+    - [Training a Model](#training-a-model)
+    - [Evaluating a Model](#evaluating-a-model)
+    - [Predicting from a trained Model](#predicting-from-a-trained-model)
+  - [Regression](#regression)
+      - [Minimal Start for Regression](#minimal-start-for-regression)
+  - [Visualization Support](#visualization-support)
+  - [Experimental Features](#experimental-features)
+    - [Sliding Window For Long Sequences](#sliding-window-for-long-sequences)
+  - [Loading Saved Models](#loading-saved-models)
+  - [Default Settings](#default-settings)
+    - [Args Explained](#args-explained)
+      - [*output_dir: str*](#outputdir-str)
+      - [*cache_dir: str*](#cachedir-str)
+      - [*fp16: bool*](#fp16-bool)
+      - [*fp16_opt_level: str*](#fp16optlevel-str)
+      - [*max_seq_length: int*](#maxseqlength-int)
+      - [*train_batch_size: int*](#trainbatchsize-int)
+      - [*gradient_accumulation_steps: int*](#gradientaccumulationsteps-int)
+      - [*eval_batch_size: int*](#evalbatchsize-int)
+      - [*num_train_epochs: int*](#numtrainepochs-int)
+      - [*weight_decay: float*](#weightdecay-float)
+      - [*learning_rate: float*](#learningrate-float)
+      - [*adam_epsilon: float*](#adamepsilon-float)
+      - [*max_grad_norm: float*](#maxgradnorm-float)
+      - [*do_lower_case: bool*](#dolowercase-bool)
+      - [*evaluate_during_training*](#evaluateduringtraining)
+      - [*evaluate_during_training_steps*](#evaluateduringtrainingsteps)
+      - [*evaluate_during_training_verbose*](#evaluateduringtrainingverbose)
+      - [*use_cached_eval_features*](#usecachedevalfeatures)
+      - [*save_eval_checkpoints*](#saveevalcheckpoints)
+      - [*logging_steps: int*](#loggingsteps-int)
+      - [*save_steps: int*](#savesteps-int)
+      - [*no_cache: bool*](#nocache-bool)
+      - [*save_model_every_epoch: bool*](#savemodeleveryepoch-bool)
+      - [*tensorboard_dir: str*](#tensorboarddir-str)
+      - [*overwrite_output_dir: bool*](#overwriteoutputdir-bool)
+      - [*reprocess_input_data: bool*](#reprocessinputdata-bool)
+      - [*process_count: int*](#processcount-int)
+      - [*n_gpu: int*](#ngpu-int)
+      - [*silent: bool*](#silent-bool)
+      - [*use_multiprocessing: bool*](#usemultiprocessing-bool)
+      - [*wandb_project: str*](#wandbproject-str)
+      - [*wandb_kwargs: dict*](#wandbkwargs-dict)
+      - [*use_early_stopping*](#useearlystopping)
+      - [*early_stopping_patience*](#earlystoppingpatience)
+      - [*early_stopping_delta*](#earlystoppingdelta)
+  - [Current Pretrained Models](#current-pretrained-models)
+  - [Acknowledgements](#acknowledgements)
+  - [Contributors ✨](#contributors-%e2%9c%a8)
 <!--te-->
 
 ## Setup
@@ -665,18 +726,18 @@ print(model.predict(to_predict))
 This class  is used for Question Answering tasks.
 
 `Class attributes`
-* `tokenizer`: The tokenizer to be used.
-* `model`: The model to be used.
+- `tokenizer`: The tokenizer to be used.
+- `model`: The model to be used.
             model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
-* `device`: The device on which the model will be trained and evaluated.
-* `results`: A python dict of past evaluation results for the TransformerModel object.
-* `args`: A python dict of arguments used for training and evaluation.
+- `device`: The device on which the model will be trained and evaluated.
+- `results`: A python dict of past evaluation results for the TransformerModel object.
+- `args`: A python dict of arguments used for training and evaluation.
 
 `Parameters`
-* `model_type`: (required) str - The type of model to use.
-* `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
-* `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
-* `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
+- `model_type`: (required) str - The type of model to use.
+- `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+- `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
+- `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 
 `class methods`  
 **`train_model(self, train_df, output_dir=None, args=None, eval_df=None)`**
@@ -684,43 +745,48 @@ This class  is used for Question Answering tasks.
 Trains the model using 'train_file'
 
 Args:  
-* train_df: ath to JSON file containing training data. The model will be trained on this file.
+
+- train_df: ath to JSON file containing training data. The model will be trained on this file.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-* output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+- output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-* show_running_loss (Optional): Set to False to prevent training loss being printed.
+- show_running_loss (Optional): Set to False to prevent training loss being printed.
 
-* args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+- args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
 
-* eval_file (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+- eval_file (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
 
-Returns:  
-* None
+Returns:
+
+- None
 
 **`eval_model(self, eval_df, output_dir=None, verbose=False)`**
 
 Evaluates the model on eval_file. Saves results to output_dir.
 
 Args:  
-* eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.
 
-* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+- eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.
 
-* verbose: If verbose, results will be printed to the console on completion of evaluation.  
+- output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+
+- verbose: If verbose, results will be printed to the console on completion of evaluation.  
 
 Returns:  
-* result: Dictionary containing evaluation results. (correct, similar, incorrect)
 
-* text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text. 
+- result: Dictionary containing evaluation results. (correct, similar, incorrect)
 
+- text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text.
 
 **`predict(self, to_predict)`**
 
 Performs predictions on a list of text.
 
 Args:
-* to_predict: A python list of python dicts containing contexts and questions to be sent to the model for prediction.
+
+- to_predict: A python list of python dicts containing contexts and questions to be sent to the model for prediction.
+
 ```python
 E.g: predict([
     {
@@ -732,11 +798,12 @@ E.g: predict([
     }
 ])
 ```
-* n_best_size (Optional): Number of predictions to return. args['n_best_size'] will be used if not specified.
+
+- n_best_size (Optional): Number of predictions to return. args['n_best_size'] will be used if not specified.
 
 Returns:
-* preds: A python list containg the predicted answer, and id for each question in to_predict.
 
+- preds: A python list containg the predicted answer, and id for each question in to_predict.
 
 **`train(self, train_dataset, output_dir, show_running_loss=True, eval_file=None)`**
 
@@ -766,19 +833,234 @@ QuestionAnsweringModel has a few additional attributes in its `args` dictionary,
 ```
 
 #### *doc_stride: int*
+
 When splitting up a long document into chunks, how much stride to take between chunks.
 
 #### *max_query_length: int*
+
 Maximum token length for questions. Any questions longer than this will be truncated to this length.
 
 #### *n_best_size: int*
+
 The number of predictions given per question.
 
 #### *max_answer_length: int*
+
 The maximum token length of an answer that can be generated.
 
 #### *null_score_diff_threshold: float*
+
 If null_score - best_non_null is greater than the threshold predict null.
+
+_[Back to Table of Contents](#table-of-contents)_
+
+---
+
+## Multi-Modal Classification
+
+Multi-Modal Classification fuses text and image data. This is performed using multi-modal bitransformer models
+introduced in the paper [Supervised Multimodal Bitransformers for Classifying Images and Text](https://arxiv.org/abs/1909.02950).
+
+Supported model types:
+
+- BERT
+
+### Data format
+
+There are several possible input formats you may use. The input formats are inspired by the [MM-IMDb](http://lisi1.unal.edu.co/mmimdb/) format.
+Note that several options for data preprocessing have been added for convenience and flexibility when dealing with
+complex datasets which can be found after the input format definitions.
+
+#### 1 - Directory based
+
+Each subset of data (E.g: train and test) should be in its own directory. The path to the directory can then be given
+directly to either `train_model()` or `eval_model()`.
+
+Each data sample should have a text portion and an image associated with it (and a label/labels for training and evaluation data).
+The text for each sample should be in a separate JSON file. The JSON file may contain other fields in addition to the text
+itself but they will be ignored. The image associated with each sample should be in the same directory and both the text
+and the image must have the same identifier except for the file extension (E.g: 000001.json and 000001.jpg).
+
+#### 2 - Directory and file list
+
+All data (including both train and test data) should be in the same directory. The path to this directory should be given
+to both `train_model()` and `eval_model()`. A second argument, `files_list` specifies which files should be taken from
+the directory. `files_list` can be a Python list or the path to a JSON file containing the list of files.
+
+Each data sample should have a text portion and an image associated with it (and a label/labels for training and evaluation data).
+The text for each sample should be in a separate JSON file. The JSON file may contain other fields in addition to the text
+itself but they will be ignored. The image associated with each sample should be in the same directory and both the text
+and the image must have the same identifier except for the file extension (E.g: 000001.json and 000001.jpg).
+
+#### 3 - Pandas DataFrame
+
+Data can also be given in a Pandas DataFrame. When using this format, the `image_path` argument must be specified and
+it should be a String of the path to the directory containing the images. The DataFrame should contain at least 3
+columns as detailed below.
+
+- `text` (str) - The text associated with the sample.
+- `images` (str) - The relative path to the image file from `image_path` directory.
+- `labels` (str) - The label (or list of labels for multilabel tasks) associated with the sample.
+
+### Using custom names for column names or fields in JSON files
+
+By default, Simple Transformers will look for column/field names `text`, `images`, and `labels`. However, you can define
+your own names to use in place of these names. This behaviour is controlled using the three attributes `text_label`, `labels_label`,
+ and `images_label` in the `args` dictionary.
+
+You can set your custom names when creating the model by assigning the custom name to the corresponding attribute in the
+`args` dictionary.
+
+You can also change these values at training and/or evaluation time (but not with the `predict()` method) by passing the
+names to the arguments `text_label`, `labels_label`, and `images_label`. Note that the change will persist even after
+the method call terminates. That is, the `args` dictionary of the model itself will be modified.
+
+### Specifying the file type extension for image and text files
+
+By default, Simple Transformers will assume that any paths will also include the file type extension (E.g: .json or .jpg).
+Alternatively, you can specify the extensions using the `image_type_extension` and `data_type_extension` attributes (for
+image file extensions and text file extensions respectively) in the `args` dictionary.
+
+This too can be done when creating the model or when running the `train_model()` or `eval_model()` methods. The changes
+will persist in the `args` dictionary when using these methods.
+
+The `image_type_extension` can be specified when using the `predict()` method but the change WILL NOT persist.
+
+### Label formats
+
+With Multi-Modal Classification, labels are always given as strings. You may specify a list of labels by passing in the
+list to `label_list` argument when creating the model. If `label_list` is given, `num_labels` is not required.
+
+If `label_list` is not given, `num_labels` is required and the labels should be Strings starting from `"0"` up to
+`"<num_labels>"`.
+
+### Creating a Model
+
+Create a `MultiModalClassificationModel`.
+
+```python
+from simpletransformers.classification.multi_modal_classification_model import MultiModalClassificationModel
+
+
+model = MultiModalClassificationModel("bert", "bert-base-uncased")
+```
+
+Available arguments:
+
+```python
+"""
+Args:
+    model_type: The type of model (bert, xlnet, xlm, roberta, distilbert, albert)
+    model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
+    multi_label (optional): Set to True for multi label tasks.
+    label_list (optional) : A list of all the labels (str) in the dataset.
+    num_labels (optional): The number of labels or classes in the dataset.
+    pos_weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
+    args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
+    use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
+    cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
+    **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
+"""
+```
+
+### Training a Model
+
+Use the `train_model()` method to train. You can use the `auto_weights` feature to balance out unbalanced datasets.
+
+Available arguments:
+
+```python
+"""
+Args:
+    data: Path to data directory containing text files (JSON) and image files OR a Pandas DataFrame.
+        If a DataFrame is given, it should contain the columns [text, labels, images]. When using a DataFrame,
+        image_path MUST be specified. The image column of the DataFrame should contain the relative path from
+        image_path to the image.
+        E.g:
+            For an image file 1.jpeg located in "data/train/";
+                image_path = "data/train/"
+                images = "1.jpeg"
+    files_list (optional): If given, only the files specified in this list will be taken from data directory.
+        files_list can be a Python list or the path (str) to a JSON file containing a list of files.
+    image_path (optional): Must be specified when using DataFrame as input. Path to the directory containing the
+        images.
+    text_label (optional): Column name to look for instead of the default "text"
+    labels_label (optional): Column name to look for instead of the default "labels"
+    images_label (optional): Column name to look for instead of the default "images"
+    image_type_extension (optional): If given, this will be added to the end of each value in "images".
+    data_type_extension (optional): If given, this will be added to the end of each value in "files_list".
+    auto_weights (optional): If True, weights will be used to balance the classes.
+    output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+    show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
+    args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+    eval_data (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+    **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+"""
+```
+
+### Evaluating a Model
+
+Use the `eval_model()` method to evaluate. You can load a saved model by giving the path to the model directory as
+`model_name`. Note that you need to provide the same arguments when loading a saved model as you did when creating the
+original model.
+
+```python
+model = MultiModalClassificationModel("bert", "outputs")
+results, _ = model.eval_model("data/dataset/", "data/dev.json")
+```
+
+Available arguments:
+
+```python
+"""
+Args:
+    data: Path to data directory containing text files (JSON) and image files OR a Pandas DataFrame.
+        If a DataFrame is given, it should contain the columns [text, labels, images]. When using a DataFrame,
+        image_path MUST be specified. The image column of the DataFrame should contain the relative path from
+        image_path to the image.
+        E.g:
+            For an image file 1.jpeg located in "data/train/";
+                image_path = "data/train/"
+                images = "1.jpeg"
+    files_list (optional): If given, only the files specified in this list will be taken from data directory.
+        files_list can be a Python list or the path (str) to a JSON file containing a list of files.
+    image_path (optional): Must be specified when using DataFrame as input. Path to the directory containing the
+        images.
+    text_label (optional): Column name to look for instead of the default "text"
+    labels_label (optional): Column name to look for instead of the default "labels"
+    images_label (optional): Column name to look for instead of the default "images"
+    image_type_extension (optional): If given, this will be added to the end of each value in "images".
+    data_type_extension (optional): If given, this will be added to the end of each value in "files_list".
+    output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+    verbose: If verbose, results will be printed to the console on completion of evaluation.
+    silent: If silent, tqdm progress bars will be hidden.
+    **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+
+"""
+```
+
+### Predicting from a trained Model
+
+Use the `predict()` method to make predictions. You can load a saved model by giving the path to the model directory as
+`model_name`. Note that you need to provide the same arguments when loading a saved model as you did when creating the
+original model.
+
+```python
+model = MultiModalClassificationModel("bert", "outputs")
+model.predict(
+    {
+        "text": [
+            "A lawyer is forced to defend a guilty judge, while defending other innocent clients, and trying to find punishment for the guilty and provide justice for the innocent."
+        ],
+        "labels": ["Crime"],
+        "images": ["0078718"]
+    },
+    image_path="data/dataset",
+    image_type_extension=".jpeg"
+)
+```
 
 _[Back to Table of Contents](#table-of-contents)_
 
