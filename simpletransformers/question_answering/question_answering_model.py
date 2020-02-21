@@ -4,6 +4,7 @@ import os
 import math
 import json
 import random
+import warnings
 
 from multiprocessing import cpu_count
 
@@ -149,7 +150,9 @@ class QuestionAnsweringModel:
 
         tokenizer = self.tokenizer
         args = self.args
-        no_cache = args["no_cache"]
+        
+        if not no_cache:
+            no_cache = args["no_cache"]
 
         os.makedirs(self.args["cache_dir"], exist_ok=True)
 
