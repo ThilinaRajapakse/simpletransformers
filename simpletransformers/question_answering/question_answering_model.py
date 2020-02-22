@@ -150,7 +150,7 @@ class QuestionAnsweringModel:
 
         tokenizer = self.tokenizer
         args = self.args
-        
+
         if not no_cache:
             no_cache = args["no_cache"]
 
@@ -328,7 +328,7 @@ class QuestionAnsweringModel:
         model.zero_grad()
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
         epoch_number = 0
-        best_eval_loss = None
+        best_correct_answers = None
         early_stopping_counter = 0
 
         if args["evaluate_during_training"]:
@@ -433,11 +433,11 @@ class QuestionAnsweringModel:
                         if args["wandb_project"]:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
-                        if not best_eval_loss:
-                            best_eval_loss = results["eval_loss"]
+                        if not best_correct_answers:
+                            best_correct_answers = results["correct"]
                             self._save_model(args["best_model_dir"], model=model, results=results)
-                        elif results["eval_loss"] - best_eval_loss < args["early_stopping_delta"]:
-                            best_eval_loss = results["eval_loss"]
+                        elif results["correct"] - best_correct_answers > args["early_stopping_delta"]:
+                            best_correct_answers = results["correct"]
                             self._save_model(args["best_model_dir"], model=model, results=results)
                             early_stopping_counter = 0
                         else:
@@ -446,7 +446,7 @@ class QuestionAnsweringModel:
                                     early_stopping_counter += 1
                                     if verbose:
                                         print()
-                                        print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
+                                        print(f"No improvement in correct amswers for {early_stopping_counter} steps.")
                                         print(f"Training will stop at {args['early_stopping_patience']} steps.")
                                         print()
                                 else:
@@ -478,11 +478,11 @@ class QuestionAnsweringModel:
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(args["output_dir"] + "training_progress_scores.csv", index=False)
 
-                if not best_eval_loss:
-                    best_eval_loss = results["eval_loss"]
+                if not best_correct_answers:
+                    best_correct_answers = results["correct"]
                     self._save_model(args["best_model_dir"], model=model, results=results)
-                elif results["eval_loss"] - best_eval_loss < args["early_stopping_delta"]:
-                    best_eval_loss = results["eval_loss"]
+                elif results["correct"] - best_correct_answers < args["early_stopping_delta"]:
+                    best_correct_answers = results["correct"]
                     self._save_model(args["best_model_dir"], model=model, results=results)
                     early_stopping_counter = 0
                 else:
@@ -491,7 +491,7 @@ class QuestionAnsweringModel:
                             early_stopping_counter += 1
                             if verbose:
                                 print()
-                                print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
+                                print(f"No improvement in correct answers for {early_stopping_counter} steps.")
                                 print(f"Training will stop at {args['early_stopping_patience']} steps.")
                                 print()
                         else:
