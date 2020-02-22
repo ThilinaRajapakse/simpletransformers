@@ -1252,7 +1252,7 @@ self.args = {
   "evaluate_during_training": False,
   "evaluate_during_training_steps": 2000,
   "evaluate_during_training_verbose": False,
-  "use_cached_eval_features": True,
+  "use_cached_eval_features": False,
   "save_eval_checkpoints": True
   "save_steps": 2000,
   "no_cache": False,
@@ -1260,7 +1260,7 @@ self.args = {
   "tensorboard_dir": None,
 
   "overwrite_output_dir": False,
-  "reprocess_input_data": False,
+  "reprocess_input_data": True,
   
   "process_count": cpu_count() - 2 if cpu_count() > 2 else 1
   "n_gpu": 1,
