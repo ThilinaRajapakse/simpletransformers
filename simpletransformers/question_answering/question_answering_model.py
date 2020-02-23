@@ -360,7 +360,7 @@ class QuestionAnsweringModel:
                 current_loss = loss.item()
 
                 if show_running_loss:
-                    log.info("\rRunning loss: %f" % loss, end="")
+                    print("\rRunning loss: %f" % loss, end="")
 
                 if args["gradient_accumulation_steps"] > 1:
                     loss = loss / args["gradient_accumulation_steps"]
