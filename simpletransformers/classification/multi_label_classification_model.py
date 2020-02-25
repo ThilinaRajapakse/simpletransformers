@@ -35,13 +35,24 @@ from transformers import (
 
 try:
     import wandb
+
     wandb_available = True
 except ImportError:
     wandb_available = False
 
 
 class MultiLabelClassificationModel(ClassificationModel):
-    def __init__(self, model_type, model_name, num_labels=None, pos_weight=None, args=None, use_cuda=True, **kwargs):
+    def __init__(
+        self,
+        model_type,
+        model_name,
+        num_labels=None,
+        pos_weight=None,
+        args=None,
+        use_cuda=True,
+        cuda_device=-1,
+        **kwargs,
+    ):
 
         """
         Initializes a MultiLabelClassification model.
@@ -53,6 +64,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             pos_weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
+            cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
             **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """  # noqa: ignore flake8"
 
@@ -79,7 +91,10 @@ class MultiLabelClassificationModel(ClassificationModel):
 
         if use_cuda:
             if torch.cuda.is_available():
-                self.device = torch.device("cuda")
+                if cuda_device == -1:
+                    self.device = torch.device("cuda")
+                else:
+                    self.device = torch.device(f"cuda:{cuda_device}")
             else:
                 raise ValueError(
                     "'use_cuda' set to True when cuda is unavailable."
@@ -110,6 +125,8 @@ class MultiLabelClassificationModel(ClassificationModel):
             self.args["fp16"] = False
 
         if args:
+            if args.get("sliding_window"):
+                raise ValueError("sliding_window is not implemented for multi-label classification.")
             self.args.update(args)
 
         self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args["do_lower_case"], **kwargs)
@@ -130,7 +147,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         show_running_loss=True,
         args=None,
         verbose=True,
-        **kwargs
+        **kwargs,
     ):
         return super().train_model(
             train_df,
