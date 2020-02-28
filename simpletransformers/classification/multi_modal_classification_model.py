@@ -127,7 +127,7 @@ class MultiModalClassificationModel:
             self.num_labels = num_labels
         else:
             self.transformer_config = config_class.from_pretrained(model_name, **kwargs)
-            self.num_labels = self.config.num_labels
+            self.num_labels = self.transformer_config.num_labels
 
         self.multi_label = multi_label
 

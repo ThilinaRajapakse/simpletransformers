@@ -126,10 +126,10 @@ class ConvAIModel:
             "max_history": 2,
             "lm_coef": 2.0,
             "mc_coef": 1.0,
-            "no_sample": True,
+            "no_sample": False,
             "max_length": 20,
             "min_length": 1,
-            "temperature": 0.6,
+            "temperature": 0.7,
             "top_k": 0,
             "top_p": 0.9,
         }
@@ -152,27 +152,25 @@ class ConvAIModel:
     def train_model(
         self,
         train_file=None,
-        multi_label=False,
         output_dir=None,
         show_running_loss=True,
         args=None,
-        eval_df=None,
+        eval_file=None,
         verbose=True,
         **kwargs,
     ):
         """
-        Trains the model using 'train_df'
+        Trains the model using 'train_file'
 
         Args:
             train_file: Path to a JSON file containing the training data. 
-                    If not given, train dataset from PERSONA-CHAT will be used.
+                If not given, train dataset from PERSONA-CHAT will be used.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
-            eval_df (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
-            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
-                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
-
+            eval_file (optional): Evaluation data against which evaluation will be performed when evaluate_during_training is enabled.
+                If not given when evaluate_during_training is enabled, the evaluation data from PERSONA-CHAT will be used.
+            **kwargs: 
         Returns:
             None
         """  # noqa: ignore flake8"
@@ -183,11 +181,8 @@ class ConvAIModel:
         if self.args["silent"]:
             show_running_loss = False
 
-        if self.args["evaluate_during_training"] and eval_df is None:
-            raise ValueError(
-                "evaluate_during_training is enabled but eval_df is not specified."
-                " Pass eval_df to model.train_model() if using evaluate_during_training."
-            )
+        if self.args["evaluate_during_training"] and eval_file is None:
+            warnings.warn("eval_file not specified but evaluate_during_training is True. Using personachat eval data.")
 
         if not output_dir:
             output_dir = self.args["output_dir"]
@@ -199,27 +194,6 @@ class ConvAIModel:
             )
 
         self._move_model_to_device()
-
-        # if "text" in train_df.columns and "labels" in train_df.columns:
-        #     train_examples = [
-        #         InputExample(i, text, None, label)
-        #         for i, (text, label) in enumerate(zip(train_df["text"], train_df["labels"]))
-        #     ]
-        # elif "text_a" in train_df.columns and "text_b" in train_df.columns:
-        #     train_examples = [
-        #         InputExample(i, text_a, text_b, label)
-        #         for i, (text_a, text_b, label) in enumerate(
-        #             zip(train_df["text_a"], train_df["text_b"], train_df["labels"])
-        #         )
-        #     ]
-        # else:
-        #     warnings.warn(
-        #         "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
-        #     )
-        #     train_examples = [
-        #         InputExample(i, text, None, label)
-        #         for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))
-        #     ]
 
         train_dataloader, train_sampler = self.load_and_cache_examples(
             dataset_path=train_file, verbose=verbose, no_cache=self.args["no_cache"]
@@ -235,7 +209,6 @@ class ConvAIModel:
         global_step, tr_loss = self.train(
             train_dataloader,
             output_dir,
-            multi_label=multi_label,
             show_running_loss=show_running_loss,
             eval_dataloader=eval_loader,
             verbose=verbose,
@@ -254,7 +227,6 @@ class ConvAIModel:
         self,
         train_dataloader,
         output_dir,
-        multi_label=False,
         show_running_loss=True,
         eval_dataloader=None,
         verbose=True,
@@ -314,7 +286,7 @@ class ConvAIModel:
         early_stopping_counter = 0
 
         if args["evaluate_during_training"]:
-            training_progress_scores = self._create_training_progress_scores(multi_label, **kwargs)
+            training_progress_scores = self._create_training_progress_scores(**kwargs)
 
         if args["wandb_project"]:
             wandb.init(project=args["wandb_project"], config={**args}, **args["wandb_kwargs"])
@@ -583,7 +555,7 @@ class ConvAIModel:
 
     def load_and_cache_examples(self, dataset_path=None, evaluate=False, no_cache=False, verbose=True, silent=False):
         """
-        Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
+        Loads, tokenizes, and prepares data for training and/or evaluation.
 
         Utility function for train() and eval() methods. Not intended to be used directly.
         """  # noqa: ignore flake8"
@@ -686,7 +658,7 @@ class ConvAIModel:
 
     def interact(self, personality=None):
         """
-        Performs predictions on a list of text.
+        Interact with a model in the terminal.
 
         Args:
             personality: A list of sentences that the model will use to build a personality.
