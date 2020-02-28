@@ -11,7 +11,7 @@ import random
 import warnings
 from collections import defaultdict
 from itertools import chain
-
+import statistics
 from multiprocessing import cpu_count
 
 import torch
@@ -25,6 +25,7 @@ from sklearn.metrics import (
     matthews_corrcoef,
     confusion_matrix,
     label_ranking_average_precision_score,
+    f1_score,
 )
 from tensorboardX import SummaryWriter
 from tqdm.auto import trange, tqdm
@@ -71,17 +72,15 @@ PADDED_INPUTS = ["input_ids", "lm_labels", "token_type_ids"]
 
 class ConvAIModel:
     def __init__(
-        self, model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
 
         """
         Initializes a ClassificationModel model.
 
         Args:
-            model_type: The type of model (bert, xlnet, xlm, roberta, distilbert)
+            model_type: The type of model (gpt, gpt2)
             model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
-            num_labels (optional): The number of labels or classes in the dataset.
-            weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
@@ -125,12 +124,12 @@ class ConvAIModel:
             "num_candidates": 2,
             "personality_permutations": 1,
             "max_history": 2,
-            "lm_coef": 1.0,
+            "lm_coef": 2.0,
             "mc_coef": 1.0,
             "no_sample": True,
             "max_length": 20,
             "min_length": 1,
-            "temperature": 0.7,
+            "temperature": 0.6,
             "top_k": 0,
             "top_p": 0.9,
         }
@@ -165,8 +164,8 @@ class ConvAIModel:
         Trains the model using 'train_df'
 
         Args:
-            train_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present,
-            the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
+            train_file: Path to a JSON file containing the training data. 
+                    If not given, train dataset from PERSONA-CHAT will be used.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
@@ -497,13 +496,13 @@ class ConvAIModel:
 
         return global_step, tr_loss / global_step
 
-    def eval_model(self, eval_df=None, multi_label=False, output_dir=None, verbose=True, silent=False, **kwargs):
+    def eval_model(self, eval_file=None, output_dir=None, verbose=True, silent=False, **kwargs):
         """
-        Evaluates the model on eval_df. Saves results to output_dir.
+        Evaluates the model on eval_file. Saves results to output_dir.
 
         Args:
-            eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present,
-            the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
+            eval_file: Path to a JSON file containing the evaluation data. 
+                If not given, eval dataset from PERSONA-CHAT will be used.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
@@ -511,9 +510,7 @@ class ConvAIModel:
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
-            result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
-            model_outputs: List of model outputs for each row in eval_df
-            wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model
+            result: Dictionary containing evaluation results. (f1_score, language_model_loss)
         """  # noqa: ignore flake8"
 
         if not output_dir:
@@ -521,19 +518,17 @@ class ConvAIModel:
 
         self._move_model_to_device()
 
-        result, model_outputs, wrong_preds = self.evaluate(
-            eval_df, output_dir, multi_label=multi_label, verbose=verbose, silent=silent, **kwargs
-        )
+        result = self.evaluate(eval_file, output_dir, verbose=verbose, silent=silent, **kwargs)
         self.results.update(result)
 
         if verbose:
             print(self.results)
 
-        return result, model_outputs, wrong_preds
+        return result
 
-    def evaluate(self, eval_df, output_dir, multi_label=False, prefix="", verbose=True, silent=False, **kwargs):
+    def evaluate(self, eval_file, output_dir, verbose=True, silent=False, **kwargs):
         """
-        Evaluates the model on eval_df.
+        Evaluates the model on eval_file.
 
         Utility function to be used by the eval_model() method. Not intended to be used directly.
         """
@@ -542,44 +537,18 @@ class ConvAIModel:
         args = self.args
         eval_output_dir = output_dir
 
-        # results = {}
-
-        # if "text" in eval_df.columns and "labels" in eval_df.columns:
-        #     eval_examples = [
-        #         InputExample(i, text, None, label)
-        #         for i, (text, label) in enumerate(zip(eval_df["text"], eval_df["labels"]))
-        #     ]
-        # elif "text_a" in eval_df.columns and "text_b" in eval_df.columns:
-        #     eval_examples = [
-        #         InputExample(i, text_a, text_b, label)
-        #         for i, (text_a, text_b, label) in enumerate(
-        #             zip(eval_df["text_a"], eval_df["text_b"], eval_df["labels"])
-        #         )
-        #     ]
-        # else:
-        #     warnings.warn(
-        #         "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
-        #     )
-        #     eval_examples = [
-        #         InputExample(i, text, None, label)
-        #         for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))
-        #     ]
-
-        # if args["sliding_window"]:
-        #     eval_dataset, window_counts = self.load_and_cache_examples(
-        #         eval_examples, evaluate=True, verbose=verbose, silent=silent
-        #     )
-        # else:
-
-        eval_dataloader, eval_sampler = self.load_and_cache_examples(evaluate=True, verbose=verbose, silent=silent)
+        eval_dataloader, eval_sampler = self.load_and_cache_examples(
+            eval_file, evaluate=True, verbose=verbose, silent=silent
+        )
         os.makedirs(eval_output_dir, exist_ok=True)
 
-        eval_loss = 0.0
         nb_eval_steps = 0
-        preds = None
-        out_label_ids = None
+        loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-100)
+        results = {
+            "language_model_loss": [],
+            "f1_score": [],
+        }
         model.eval()
-        from sklearn.metrics import f1_score
 
         for batch in tqdm(eval_dataloader, disable=args["silent"] or silent):
             batch = tuple(t.to(device) for t in batch)
@@ -587,11 +556,7 @@ class ConvAIModel:
             with torch.no_grad():
                 input_ids, mc_token_ids, lm_labels, mc_labels, token_type_ids = batch
 
-                lm_logits, mc_logits, *_ = model(
-                    input_ids,
-                    token_type_ids=token_type_ids,
-                    mc_token_ids=mc_token_ids,
-                )
+                lm_logits, mc_logits, *_ = model(input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,)
                 # model outputs are always tuple in pytorch-transformers (see doc)
 
                 lm_logits_flat_shifted = lm_logits[..., :-1, :].contiguous().view(-1, lm_logits.size(-1))
@@ -599,30 +564,29 @@ class ConvAIModel:
 
             nb_eval_steps += 1
 
-            print(mc_labels)
             mc_logits = [np.argmax(pred) for pred in mc_logits.cpu().numpy()]
-            print(mc_logits)
-            print(f1_score(mc_labels.cpu().numpy(), mc_logits))
+            f1_current = f1_score(mc_labels.cpu().numpy(), mc_logits, average="macro")
+            lm_loss_current = loss_fct(lm_logits_flat_shifted, lm_labels_flat_shifted)
 
-        result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples, **kwargs)
-        result["eval_loss"] = eval_loss
-        results.update(result)
+            results["language_model_loss"].append(lm_loss_current.cpu().numpy().item())
+            results["f1_score"].append(f1_current)
+
+        results["language_model_loss"] = statistics.mean(results["language_model_loss"])
+        results["f1_score"] = statistics.mean(results["f1_score"])
 
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
-            for key in sorted(result.keys()):
-                writer.write("{} = {}\n".format(key, str(result[key])))
+            for key in sorted(results.keys()):
+                writer.write("{} = {}\n".format(key, str(results[key])))
 
-        return results, model_outputs, wrong
+        return results
 
-    def load_and_cache_examples(
-        self, dataset_path=None, evaluate=False, no_cache=False, multi_label=False, verbose=True, silent=False
-    ):
+    def load_and_cache_examples(self, dataset_path=None, evaluate=False, no_cache=False, verbose=True, silent=False):
         """
         Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
 
         Utility function for train() and eval() methods. Not intended to be used directly.
-        """ # noqa: ignore flake8"
+        """  # noqa: ignore flake8"
 
         process_count = self.args["process_count"]
 
@@ -693,59 +657,42 @@ class ConvAIModel:
         # logger.info("valid dataset (Batch, Candidates, Seq length): {}".format(valid_dataset.tensors[0].shape))
         return data_loader, data_sampler
 
-    def compute_metrics(self, preds, labels, eval_examples, multi_label=False, **kwargs):
+    def compute_metrics(self, mc_preds, mc_labels, lm_logits, lm_labels, **kwargs):
         """
         Computes the evaluation metrics for the model predictions.
 
         Args:
-            preds: Model predictions
-            labels: Ground truth labels
+            mc_preds: Model next sentence predictions.
+            mc_labels: Ground truth next sentence.
+            lm_logits: Language model logits.
+            lm_labels: Language model ground truth.
             eval_examples: List of examples on which evaluation was performed
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
-            result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
-            wrong: List of InputExample objects corresponding to each incorrect prediction by the model
+            result: Dictionary containing evaluation results. (f1_score, language_model_loss)
         """  # noqa: ignore flake8"
 
-        assert len(preds) == len(labels)
-
+        loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-100)
         extra_metrics = {}
         for metric, func in kwargs.items():
-            extra_metrics[metric] = func(labels, preds)
+            extra_metrics[metric] = func(mc_labels, mc_preds)
 
-        mismatched = labels != preds
+        f1_current = f1_score(mc_labels.cpu().numpy(), mc_preds, average="macro")
+        lm_loss_current = loss_fct(lm_logits, lm_labels)
 
-        wrong = [i for (i, v) in zip(eval_examples, mismatched) if v.any()]
+        return {**{"f1_score": f1_current, "language_model_loss": lm_loss_current}, **extra_metrics}
 
-        if multi_label:
-            label_ranking_score = label_ranking_average_precision_score(labels, preds)
-            return {**{"LRAP": label_ranking_score}, **extra_metrics}, wrong
-        elif self.args["regression"]:
-            return {**extra_metrics}, wrong
-
-        mcc = matthews_corrcoef(labels, preds)
-
-        if self.model.num_labels == 2:
-            tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
-            return (
-                {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn}, **extra_metrics},
-                wrong,
-            )
-        else:
-            return {**{"mcc": mcc}, **extra_metrics}, wrong
-
-    def predict(self, to_predict=None, multi_label=False, personality=None):
+    def interact(self, personality=None):
         """
         Performs predictions on a list of text.
 
         Args:
-            to_predict: A python list of text (str) to be sent to the model for prediction.
+            personality: A list of sentences that the model will use to build a personality.
 
         Returns:
-            preds: A python list of the predictions (0 or 1) for each text.
-            model_outputs: A python list of the raw model outputs for each text.
+            None
         """
 
         model = self.model
@@ -792,44 +739,14 @@ class ConvAIModel:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def _create_training_progress_scores(self, multi_label, **kwargs):
+    def _create_training_progress_scores(self, **kwargs):
         extra_metrics = {key: [] for key in kwargs}
-        if multi_label:
-            training_progress_scores = {
-                "global_step": [],
-                "LRAP": [],
-                "train_loss": [],
-                "eval_loss": [],
-                **extra_metrics,
-            }
-        else:
-            if self.model.num_labels == 2:
-                training_progress_scores = {
-                    "global_step": [],
-                    "tp": [],
-                    "tn": [],
-                    "fp": [],
-                    "fn": [],
-                    "mcc": [],
-                    "train_loss": [],
-                    "eval_loss": [],
-                    **extra_metrics,
-                }
-            elif self.model.num_labels == 1:
-                training_progress_scores = {
-                    "global_step": [],
-                    "train_loss": [],
-                    "eval_loss": [],
-                    **extra_metrics,
-                }
-            else:
-                training_progress_scores = {
-                    "global_step": [],
-                    "mcc": [],
-                    "train_loss": [],
-                    "eval_loss": [],
-                    **extra_metrics,
-                }
+        training_progress_scores = {
+            "global_step": [],
+            "language_model_loss": [],
+            "f1_score": [],
+            **extra_metrics,
+        }
 
         return training_progress_scores
 
