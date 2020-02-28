@@ -110,7 +110,8 @@ def convert_example_to_feature(example_row):
         word_tokens = tokenizer.tokenize(word)
         tokens.extend(word_tokens)
         # Use the real label id for the first token of the word, and padding ids for the remaining tokens
-        label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
+        if word_tokens:
+            label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
 
     # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
     special_tokens_count = 3 if sep_token_extra else 2
