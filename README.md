@@ -33,7 +33,7 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
   - [Question Answering](#question-answering)
     - [Data format](#data-format)
     - [Minimal Example](#minimal-example)
-      - [Real Dataset Examples](#real-dataset-examples-2)
+    - [Real Dataset Examples](#real-dataset-examples-2)
     - [QuestionAnsweringModel](#questionansweringmodel)
     - [Additional attributes for Question Answering tasks](#additional-attributes-for-question-answering-tasks)
       - [*doc_stride: int*](#docstride-int)
@@ -44,6 +44,7 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
   - [Conversational AI](#conversational-ai)
     - [Data format](#data-format-1)
     - [Minimal Example](#minimal-example-1)
+    - [Real Dataset Example](#real-dataset-example)
     - [ConvAIModel](#convaimodel)
     - [Additional attributes for Conversational AI](#additional-attributes-for-conversational-ai)
       - [*num_candidates: int*](#numcandidates-int)
@@ -734,7 +735,7 @@ to_predict = [{'context': 'This is the context used for demonstrating prediction
 print(model.predict(to_predict))
 ```
 
-#### Real Dataset Examples
+### Real Dataset Examples
 
 * [SQuAD 2.0 - Question Answering](https://towardsdatascience.com/question-answering-with-bert-xlnet-xlm-and-distilbert-using-simple-transformers-4d8785ee762a?source=friends_link&sk=e8e6f9a39f20b5aaf08bbcf8b0a0e1c2)
 
@@ -1012,6 +1013,10 @@ model.interact()
 ```
 
 The `interact()` method can be given a list of Strings which will be used to build a personality. If a list of Strings is not given, a random personality will be chosen from PERSONA-CHAT instead.
+
+### Real Dataset Example
+
+- [Persona-Chat Conversational AI](https://medium.com/@chaturangarajapakshe/how-to-train-your-chatbot-with-simple-transformers-da25160859f4?sk=edd04e406e9a3523fcfc46102529e775)
 
 ### ConvAIModel
 
