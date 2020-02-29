@@ -196,7 +196,9 @@ class ConvAIModel:
         self._move_model_to_device()
 
         train_dataloader, train_sampler = self.load_and_cache_examples(
-            dataset_path=train_file, verbose=verbose, no_cache=self.args["no_cache"]
+            dataset_path=train_file,
+            verbose=verbose,
+            no_cache=self.args["no_cache"] or self.args["reprocess_input_data"],
         )
 
         if self.args["evaluate_during_training"]:
@@ -224,13 +226,7 @@ class ConvAIModel:
             print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(
-        self,
-        train_dataloader,
-        output_dir,
-        show_running_loss=True,
-        eval_dataloader=None,
-        verbose=True,
-        **kwargs,
+        self, train_dataloader, output_dir, show_running_loss=True, eval_dataloader=None, verbose=True, **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -510,7 +506,11 @@ class ConvAIModel:
         eval_output_dir = output_dir
 
         eval_dataloader, eval_sampler = self.load_and_cache_examples(
-            eval_file, evaluate=True, verbose=verbose, silent=silent
+            eval_file,
+            evaluate=True,
+            verbose=verbose,
+            silent=silent,
+            no_cache=self.args["no_cache"] or self.args["use_cached_eval_features"],
         )
         os.makedirs(eval_output_dir, exist_ok=True)
 
