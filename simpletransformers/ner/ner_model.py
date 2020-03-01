@@ -552,7 +552,7 @@ class NERModel:
                 cls_report = classification_report(out_label_list, preds_list)
                 writer.write("{}\n".format(cls_report))
             for key in sorted(result.keys()):
-                    writer.write("{} = {}\n".format(key, str(result[key])))
+                writer.write("{} = {}\n".format(key, str(result[key])))
 
         return results, model_outputs, preds_list
 
