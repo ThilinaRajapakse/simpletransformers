@@ -693,7 +693,7 @@ def write_predictions(
 # For XLNet (and XLM which uses the same head)
 RawResultExtended = collections.namedtuple(
     "RawResultExtended",
-    ["unique_id", "start_top_log_probs", "start_top_index", "end_top_log_probs", "end_top_index", "cls_logits",],
+    ["unique_id", "start_top_log_probs", "start_top_index", "end_top_log_probs", "end_top_index", "cls_logits"],
 )
 
 
