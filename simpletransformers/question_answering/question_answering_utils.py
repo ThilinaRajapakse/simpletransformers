@@ -600,8 +600,8 @@ def write_predictions(
         for pred in prelim_predictions:
             if len(nbest) >= n_best_size:
                 break
-            feature = features[pred.feature_index]
             if pred.start_index > 0:  # this is a non-null prediction
+                feature = features[pred.feature_index]
                 tok_tokens = feature.tokens[pred.start_index : (pred.end_index + 1)]
                 orig_doc_start = feature.token_to_orig_map[pred.start_index]
                 orig_doc_end = feature.token_to_orig_map[pred.end_index]
@@ -993,8 +993,8 @@ def get_best_predictions(
         for pred in prelim_predictions:
             if len(nbest) >= n_best_size:
                 break
-            feature = features[pred.feature_index]
             if pred.start_index > 0:  # this is a non-null prediction
+                feature = features[pred.feature_index]
                 tok_tokens = feature.tokens[pred.start_index : (pred.end_index + 1)]
                 orig_doc_start = feature.token_to_orig_map[pred.start_index]
                 orig_doc_end = feature.token_to_orig_map[pred.end_index]
