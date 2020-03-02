@@ -127,7 +127,7 @@ class NERModel:
         self.results = {}
 
         self.args = {}
-
+        self.args = {"classification_report": False}
         self.args.update(global_args)
 
         if not use_cuda:

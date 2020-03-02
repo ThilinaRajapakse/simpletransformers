@@ -26,7 +26,6 @@ global_args = {
     "evaluate_during_training": False,
     "evaluate_during_training_steps": 2000,
     "evaluate_during_training_verbose": False,
-    "classification_report": False,
     "use_cached_eval_features": False,
     "save_eval_checkpoints": True,
     "tensorboard_dir": None,
