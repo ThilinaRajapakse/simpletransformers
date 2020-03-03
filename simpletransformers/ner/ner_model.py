@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from scipy.stats import pearsonr
-from seqeval.metrics import precision_score, recall_score, f1_score
+from seqeval.metrics import precision_score, recall_score, f1_score, classification_report
 from tensorboardX import SummaryWriter
 from tqdm.auto import trange, tqdm
 
@@ -127,7 +127,7 @@ class NERModel:
         self.results = {}
 
         self.args = {}
-
+        self.args = {"classification_report": False}
         self.args.update(global_args)
 
         if not use_cuda:
@@ -548,6 +548,9 @@ class NERModel:
 
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
+            if args["classification_report"]:
+                cls_report = classification_report(out_label_list, preds_list)
+                writer.write("{}\n".format(cls_report))
             for key in sorted(result.keys()):
                 writer.write("{} = {}\n".format(key, str(result[key])))
 
