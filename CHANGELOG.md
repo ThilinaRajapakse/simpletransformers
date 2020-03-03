@@ -4,11 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.3] - 2020-03-03
+
+### Added
+
+- Added classification report for NER for per-tag scores. @seo-95
+
 ## [0.21.2] - 2020-03-01
 
 ### Fixed
 
-- Fixed bug with empty answers in `QuestionAnsweringModel`.
+- Fixed bug with empty answers in `QuestionAnsweringModel`. @jacky18008
 
 ## [0.21.1] - 2020-02-29
 
@@ -442,7 +448,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.21.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d114c50...HEAD
+[0.21.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7a9dd6f...HEAD
+
+[0.21.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d114c50...7a9dd6f
 
 [0.21.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/721c55c...d114c50
 
