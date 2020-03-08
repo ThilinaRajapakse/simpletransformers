@@ -80,6 +80,7 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
     - [Args Explained](#args-explained)
       - [*output_dir: str*](#outputdir-str)
       - [*cache_dir: str*](#cachedir-str)
+      - [*best_model_dir: str*](#bestmodeldir-str)
       - [*fp16: bool*](#fp16-bool)
       - [*fp16_opt_level: str*](#fp16optlevel-str)
       - [*max_seq_length: int*](#maxseqlength-int)
