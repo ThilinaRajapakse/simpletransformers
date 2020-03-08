@@ -427,7 +427,7 @@ class QuestionAnsweringModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            args["output_dir"] + "training_progress_scores.csv", index=False,
+                            os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False,
                         )
 
                         if args["wandb_project"]:
@@ -476,7 +476,7 @@ class QuestionAnsweringModel:
                 for key in results:
                     training_progress_scores[key].append(results[key])
                 report = pd.DataFrame(training_progress_scores)
-                report.to_csv(args["output_dir"] + "training_progress_scores.csv", index=False)
+                report.to_csv(os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False)
 
                 if not best_correct_answers:
                     best_correct_answers = results["correct"]
