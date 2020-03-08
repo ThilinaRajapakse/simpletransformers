@@ -1565,7 +1565,7 @@ key: value pairs to the the init method of a Model class.
 self.args = {
   "output_dir": "outputs/",
   "cache_dir": "cache/",
-  "best_model_dir": "best_model/",
+  "best_model_dir": "outputs/best_model/",
 
   "fp16": True,
   "fp16_opt_level": "O1",
