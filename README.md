@@ -1564,6 +1564,7 @@ key: value pairs to the the init method of a Model class.
 self.args = {
   "output_dir": "outputs/",
   "cache_dir": "cache/",
+  "best_model_dir": "best_model/",
 
   "fp16": True,
   "fp16_opt_level": "O1",
@@ -1617,6 +1618,9 @@ The directory where all outputs will be stored. This includes model checkpoints 
 
 #### *cache_dir: str*
 The directory where cached files will be saved.
+
+#### *best_model_dir: str*
+The directory where the best model (model checkpoints) will be saved if evaluate_during_training is enabled and the training loop achieves a lowest evaluation loss calculated after every evaluate_during_training_steps, or an epoch.
 
 #### *fp16: bool*
 Whether or not fp16 mode should be used. Requires NVidia Apex library.
