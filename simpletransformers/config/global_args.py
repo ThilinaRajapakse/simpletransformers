@@ -43,4 +43,5 @@ global_args = {
     "early_stopping_metric": "eval_loss",
     "early_stopping_metric_minimize": True,
     "manual_seed": None,
+    "encoding": None,
 }

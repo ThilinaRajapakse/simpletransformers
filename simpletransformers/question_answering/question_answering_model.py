@@ -255,7 +255,7 @@ class QuestionAnsweringModel:
         self._move_model_to_device()
 
         if isinstance(train_data, str):
-            with open(train_data, "r", encoding="utf-8") as f:
+            with open(train_data, "r", encoding=self.args["encoding"]) as f:
                 train_examples = json.load(f)
         else:
             train_examples = train_data
@@ -526,7 +526,7 @@ class QuestionAnsweringModel:
         all_predictions, all_nbest_json, scores_diff_json = self.evaluate(eval_data, output_dir)
 
         if isinstance(eval_data, str):
-            with open(eval_data, "r", encoding="utf-8") as f:
+            with open(eval_data, "r", encoding=self.args["encoding"]) as f:
                 truth = json.load(f)
         else:
             truth = eval_data
@@ -552,7 +552,7 @@ class QuestionAnsweringModel:
         args = self.args
 
         if isinstance(eval_data, str):
-            with open(eval_data, "r", encoding="utf-8") as f:
+            with open(eval_data, "r", encoding=self.args["encoding"]) as f:
                 eval_examples = json.load(f)
         else:
             eval_examples = eval_data
