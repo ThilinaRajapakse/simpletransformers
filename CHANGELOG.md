@@ -4,11 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.4] - 2020-03-12
+
+### Fixed
+
+- Fixed issue with cached eval features being used even when using `predict()` in `ClassificationModel` and `NERModel`.
+
 ## [0.21.3] - 2020-03-03
 
 ### Added
 
-- Added classification report for NER for per-tag scores. @seo-95
+- Added classification report for NER for per-tag scores. [@seo-95](https://github.com/seo-95)
 
 ## [0.21.2] - 2020-03-01
 
@@ -448,7 +454,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.21.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7a9dd6f...HEAD
+[0.21.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9905a4...HEAD
+
+[0.21.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7a9dd6f...e9905a4
 
 [0.21.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d114c50...7a9dd6f
 

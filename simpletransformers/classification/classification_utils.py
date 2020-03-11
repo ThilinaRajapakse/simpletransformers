@@ -429,7 +429,7 @@ class JsonlDataset(Dataset):
         images_label=None,
         image_type_extension=None,
         data_type_extension=None,
-        multi_label=False
+        multi_label=False,
     ):
 
         self.text_label = text_label if text_label else "text"
