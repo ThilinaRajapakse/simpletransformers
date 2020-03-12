@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.5] - 2020-03-12
+
+### Changed
+
+- Replaced concatenated string paths with `os.path.join()` when creating `training_progress_scores.csv`. [@sarthakTUM](https://github.com/sarthakTUM)
+
 ## [0.21.4] - 2020-03-12
 
 ### Fixed
@@ -454,7 +460,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.21.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9905a4...HEAD
+[0.21.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/27ff44e...HEAD
+
+[0.21.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9905a4...27ff44e
 
 [0.21.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7a9dd6f...e9905a4
 
