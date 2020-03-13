@@ -3,6 +3,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import math
 import json
+import logging
 import random
 import warnings
 
@@ -64,6 +65,9 @@ try:
     wandb_available = True
 except ImportError:
     wandb_available = False
+
+
+log = logging.getLogger(__name__)
 
 
 class QuestionAnsweringModel:
@@ -168,9 +172,9 @@ class QuestionAnsweringModel:
             (not args["reprocess_input_data"] and not no_cache) or (mode == "dev" and args["use_cached_eval_features"])
         ):
             features = torch.load(cached_features_file)
-            print(f"Features loaded from cache at {cached_features_file}")
+            log.info(f"Features loaded from cache at {cached_features_file}")
         else:
-            print(f"Converting to features started.")
+            log.info(f"Converting to features started.")
             features = convert_examples_to_features(
                 examples=examples,
                 tokenizer=tokenizer,
@@ -273,7 +277,7 @@ class QuestionAnsweringModel:
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        log.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True):
         """
@@ -445,16 +449,16 @@ class QuestionAnsweringModel:
                                 if early_stopping_counter < args["early_stopping_patience"]:
                                     early_stopping_counter += 1
                                     if verbose:
-                                        print()
-                                        print(f"No improvement in correct amswers for {early_stopping_counter} steps.")
-                                        print(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                        print()
+                                        log.info(
+                                            f"\nNo improvement in correct amswers for {early_stopping_counter} steps.\n" +
+                                            f"Training will stop at {args['early_stopping_patience']} steps.\n"
+                                        )
                                 else:
                                     if verbose:
-                                        print()
-                                        print(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                        print("Training terminated.")
-                                        print()
+                                        log.info(
+                                            f"\nPatience of {args['early_stopping_patience']} steps reached.\n" +
+                                            "Training terminated.\n"
+                                        )
                                     return global_step, tr_loss / global_step
 
             epoch_number += 1
@@ -490,16 +494,16 @@ class QuestionAnsweringModel:
                         if early_stopping_counter < args["early_stopping_patience"]:
                             early_stopping_counter += 1
                             if verbose:
-                                print()
-                                print(f"No improvement in correct answers for {early_stopping_counter} steps.")
-                                print(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                print()
+                                log.info(
+                                    f"\nNo improvement in correct answers for {early_stopping_counter} steps.\n" +
+                                    f"Training will stop at {args['early_stopping_patience']} steps.\n"
+                                )
                         else:
                             if verbose:
-                                print()
-                                print(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                print("Training terminated.")
-                                print()
+                                log.info(
+                                    f"\nPatience of {args['early_stopping_patience']} steps reached.\n" +
+                                    "Training terminated.\n"
+                                )
                             return global_step, tr_loss / global_step
 
         return global_step, tr_loss / global_step
@@ -536,7 +540,7 @@ class QuestionAnsweringModel:
         self.results.update(result)
 
         if verbose:
-            print(self.results)
+            log.info(self.results)
 
         return result, texts
 
@@ -750,7 +754,7 @@ class QuestionAnsweringModel:
     def calculate_results(self, truth, predictions):
         truth_dict = {}
         questions_dict = {}
-        print(truth)
+        log.info(truth)
         for item in truth:
             for answer in item["qas"]:
                 if answer["answers"]:
