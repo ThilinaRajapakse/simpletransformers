@@ -9,6 +9,7 @@ import math
 import json
 import random
 import warnings
+import logging
 from collections import defaultdict
 from itertools import chain
 import statistics
@@ -58,6 +59,8 @@ try:
     wandb_available = True
 except ImportError:
     wandb_available = False
+
+logger = logging.getLogger(__name__)
 
 SPECIAL_TOKENS = ["<bos>", "<eos>", "<speaker1>", "<speaker2>", "<pad>"]
 ATTR_TO_SPECIAL_TOKEN = {
@@ -223,7 +226,7 @@ class ConvAIModel:
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
         if verbose:
-            print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+            logger.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(
         self, train_dataloader, output_dir, show_running_loss=True, eval_dataloader=None, verbose=True, **kwargs,
@@ -403,16 +406,16 @@ class ConvAIModel:
                                 if early_stopping_counter < args["early_stopping_patience"]:
                                     early_stopping_counter += 1
                                     if verbose:
-                                        print()
-                                        print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
-                                        print(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                        print()
+                                        logger.info()
+                                        logger.info(f"No improvement in eval_loss for {early_stopping_counter} steps.")
+                                        logger.info(f"Training will stop at {args['early_stopping_patience']} steps.")
+                                        logger.info()
                                 else:
                                     if verbose:
-                                        print()
-                                        print(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                        print("Training terminated.")
-                                        print()
+                                        logger.info()
+                                        logger.info(f"Patience of {args['early_stopping_patience']} steps reached.")
+                                        logger.info("Training terminated.")
+                                        logger.info()
                                     return global_step, tr_loss / global_step
 
             epoch_number += 1
@@ -450,16 +453,16 @@ class ConvAIModel:
                         if early_stopping_counter < args["early_stopping_patience"]:
                             early_stopping_counter += 1
                             if verbose:
-                                print()
-                                print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
-                                print(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                print()
+                                logger.info()
+                                logger.info(f"No improvement in eval_loss for {early_stopping_counter} steps.")
+                                logger.info(f"Training will stop at {args['early_stopping_patience']} steps.")
+                                logger.info()
                         else:
                             if verbose:
-                                print()
-                                print(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                print("Training terminated.")
-                                print()
+                                logger.info()
+                                logger.info(f"Patience of {args['early_stopping_patience']} steps reached.")
+                                logger.info("Training terminated.")
+                                logger.info()
                             return global_step, tr_loss / global_step
 
         return global_step, tr_loss / global_step
@@ -490,7 +493,7 @@ class ConvAIModel:
         self.results.update(result)
 
         if verbose:
-            print(self.results)
+            logger.info(self.results)
 
         return result
 
@@ -580,7 +583,7 @@ class ConvAIModel:
             evaluate=evaluate,
             no_cache=no_cache,
         )
-        # print(personachat.keys())
+        # logger.info(personachat.keys())
         # datasets = {"train": defaultdict(list), "valid": defaultdict(list)}
         # for dataset_name, dataset in personachat.items():
         datasets = defaultdict(list)

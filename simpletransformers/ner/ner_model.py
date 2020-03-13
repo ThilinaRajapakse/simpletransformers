@@ -5,6 +5,7 @@ import math
 import json
 import random
 import warnings
+import logging
 from multiprocessing import cpu_count
 
 import torch
@@ -57,6 +58,8 @@ try:
     wandb_available = True
 except ImportError:
     wandb_available = False
+
+logger = logging.getLogger(__name__)
 
 
 class NERModel:
@@ -208,7 +211,7 @@ class NERModel:
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        logger.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None, verbose=True):
         """
@@ -380,16 +383,16 @@ class NERModel:
                                 if early_stopping_counter < args["early_stopping_patience"]:
                                     early_stopping_counter += 1
                                     if verbose:
-                                        print()
-                                        print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
-                                        print(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                        print()
+                                        logger.info()
+                                        logger.info(f"No improvement in eval_loss for {early_stopping_counter} steps.")
+                                        logger.info(f"Training will stop at {args['early_stopping_patience']} steps.")
+                                        logger.info()
                                 else:
                                     if verbose:
-                                        print()
-                                        print(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                        print("Training terminated.")
-                                        print()
+                                        logger.info()
+                                        logger.info(f"Patience of {args['early_stopping_patience']} steps reached.")
+                                        logger.info("Training terminated.")
+                                        logger.info()
                                     return global_step, tr_loss / global_step
 
             epoch_number += 1
@@ -425,16 +428,16 @@ class NERModel:
                         if early_stopping_counter < args["early_stopping_patience"]:
                             early_stopping_counter += 1
                             if verbose:
-                                print()
-                                print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
-                                print(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                print()
+                                logger.info()
+                                logger.info(f"No improvement in eval_loss for {early_stopping_counter} steps.")
+                                logger.info(f"Training will stop at {args['early_stopping_patience']} steps.")
+                                logger.info()
                         else:
                             if verbose:
-                                print()
-                                print(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                print("Training terminated.")
-                                print()
+                                logger.info()
+                                logger.info(f"Patience of {args['early_stopping_patience']} steps reached.")
+                                logger.info("Training terminated.")
+                                logger.info()
                             return global_step, tr_loss / global_step
 
         return global_step, tr_loss / global_step
@@ -468,7 +471,7 @@ class NERModel:
         self.results.update(result)
 
         if verbose:
-            print(self.results)
+            logger.info(self.results)
 
         return result, model_outputs, preds_list
 
@@ -685,9 +688,9 @@ class NERModel:
                 mode == "dev" and args["use_cached_eval_features"] and not no_cache)
         ):
             features = torch.load(cached_features_file)
-            print(f"Features loaded from cache at {cached_features_file}")
+            logger.info(f"Features loaded from cache at {cached_features_file}")
         else:
-            print(f"Converting to features started.")
+            logger.info(f"Converting to features started.")
             features = convert_examples_to_features(
                 examples,
                 self.labels,
