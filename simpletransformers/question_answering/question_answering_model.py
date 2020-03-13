@@ -62,12 +62,13 @@ from simpletransformers.config.global_args import global_args
 
 try:
     import wandb
+
     wandb_available = True
 except ImportError:
     wandb_available = False
 
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class QuestionAnsweringModel:
@@ -92,12 +93,12 @@ class QuestionAnsweringModel:
             "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
         }
 
-        if args and 'manual_seed' in args:
-            random.seed(args['manual_seed'])
-            np.random.seed(args['manual_seed'])
-            torch.manual_seed(args['manual_seed'])
-            if 'n_gpu' in args and args['n_gpu'] > 0:
-                torch.cuda.manual_seed_all(args['manual_seed'])
+        if args and "manual_seed" in args:
+            random.seed(args["manual_seed"])
+            np.random.seed(args["manual_seed"])
+            torch.manual_seed(args["manual_seed"])
+            if "n_gpu" in args and args["n_gpu"] > 0:
+                torch.cuda.manual_seed_all(args["manual_seed"])
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.model = model_class.from_pretrained(model_name, **kwargs)
@@ -129,6 +130,10 @@ class QuestionAnsweringModel:
         }
 
         self.args.update(global_args)
+        self.args.update({
+            "early_stopping_metric": "correct",
+            "early_stopping_metric_minimize": False,
+        })
 
         if not use_cuda:
             self.args["fp16"] = False
@@ -172,9 +177,9 @@ class QuestionAnsweringModel:
             (not args["reprocess_input_data"] and not no_cache) or (mode == "dev" and args["use_cached_eval_features"])
         ):
             features = torch.load(cached_features_file)
-            log.info(f"Features loaded from cache at {cached_features_file}")
+            logger.info(f" Features loaded from cache at {cached_features_file}")
         else:
-            log.info(f"Converting to features started.")
+            logger.info(f" Converting to features started.")
             features = convert_examples_to_features(
                 examples=examples,
                 tokenizer=tokenizer,
@@ -277,7 +282,7 @@ class QuestionAnsweringModel:
         self.tokenizer.save_pretrained(output_dir)
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
-        log.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True):
         """
@@ -332,7 +337,7 @@ class QuestionAnsweringModel:
         model.zero_grad()
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
         epoch_number = 0
-        best_correct_answers = None
+        best_eval_metric = None
         early_stopping_counter = 0
 
         if args["evaluate_during_training"]:
@@ -437,29 +442,47 @@ class QuestionAnsweringModel:
                         if args["wandb_project"]:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
-                        if not best_correct_answers:
-                            best_correct_answers = results["correct"]
+                        if not best_eval_metric:
+                            best_eval_metric = results[args["early_stopping_metric"]]
                             self._save_model(args["best_model_dir"], model=model, results=results)
-                        elif results["correct"] - best_correct_answers > args["early_stopping_delta"]:
-                            best_correct_answers = results["correct"]
-                            self._save_model(args["best_model_dir"], model=model, results=results)
-                            early_stopping_counter = 0
+                        if best_eval_metric and args["early_stopping_metric_minimize"]:
+                            if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
+                                best_eval_metric = results[args["early_stopping_metric"]]
+                                self._save_model(args["best_model_dir"], model=model, results=results)
+                                early_stopping_counter = 0
+                            else:
+                                if args["use_early_stopping"]:
+                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                        early_stopping_counter += 1
+                                        if verbose:
+                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" Current step: {early_stopping_counter}")
+                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    else:
+                                        if verbose:
+                                            logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                            logger.info(" Training terminated.")
+                                            train_iterator.close()
+                                        return global_step, tr_loss / global_step
                         else:
-                            if args["use_early_stopping"]:
-                                if early_stopping_counter < args["early_stopping_patience"]:
-                                    early_stopping_counter += 1
-                                    if verbose:
-                                        log.info(
-                                            f"\nNo improvement in correct amswers for {early_stopping_counter} steps.\n" +
-                                            f"Training will stop at {args['early_stopping_patience']} steps.\n"
-                                        )
-                                else:
-                                    if verbose:
-                                        log.info(
-                                            f"\nPatience of {args['early_stopping_patience']} steps reached.\n" +
-                                            "Training terminated.\n"
-                                        )
-                                    return global_step, tr_loss / global_step
+                            if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
+                                best_eval_metric = results[args["early_stopping_metric"]]
+                                self._save_model(args["best_model_dir"], model=model, results=results)
+                                early_stopping_counter = 0
+                            else:
+                                if args["use_early_stopping"]:
+                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                        early_stopping_counter += 1
+                                        if verbose:
+                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" Current step: {early_stopping_counter}")
+                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    else:
+                                        if verbose:
+                                            logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                            logger.info(" Training terminated.")
+                                            train_iterator.close()
+                                        return global_step, tr_loss / global_step
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
@@ -482,29 +505,19 @@ class QuestionAnsweringModel:
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False)
 
-                if not best_correct_answers:
-                    best_correct_answers = results["correct"]
+                if not best_eval_metric:
+                    best_eval_metric = results[args["early_stopping_metric"]]
                     self._save_model(args["best_model_dir"], model=model, results=results)
-                elif results["correct"] - best_correct_answers < args["early_stopping_delta"]:
-                    best_correct_answers = results["correct"]
-                    self._save_model(args["best_model_dir"], model=model, results=results)
-                    early_stopping_counter = 0
+                if best_eval_metric and args["early_stopping_metric_minimize"]:
+                    if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
+                        best_eval_metric = results[args["early_stopping_metric"]]
+                        self._save_model(args["best_model_dir"], model=model, results=results)
+                        early_stopping_counter = 0
                 else:
-                    if args["use_early_stopping"]:
-                        if early_stopping_counter < args["early_stopping_patience"]:
-                            early_stopping_counter += 1
-                            if verbose:
-                                log.info(
-                                    f"\nNo improvement in correct answers for {early_stopping_counter} steps.\n" +
-                                    f"Training will stop at {args['early_stopping_patience']} steps.\n"
-                                )
-                        else:
-                            if verbose:
-                                log.info(
-                                    f"\nPatience of {args['early_stopping_patience']} steps reached.\n" +
-                                    "Training terminated.\n"
-                                )
-                            return global_step, tr_loss / global_step
+                    if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
+                        best_eval_metric = results[args["early_stopping_metric"]]
+                        self._save_model(args["best_model_dir"], model=model, results=results)
+                        early_stopping_counter = 0
 
         return global_step, tr_loss / global_step
 
@@ -540,7 +553,7 @@ class QuestionAnsweringModel:
         self.results.update(result)
 
         if verbose:
-            log.info(self.results)
+            logger.info(self.results)
 
         return result, texts
 
@@ -754,7 +767,7 @@ class QuestionAnsweringModel:
     def calculate_results(self, truth, predictions):
         truth_dict = {}
         questions_dict = {}
-        log.info(truth)
+        logger.info(truth)
         for item in truth:
             for answer in item["qas"]:
                 if answer["answers"]:

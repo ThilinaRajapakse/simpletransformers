@@ -2,6 +2,7 @@ import torch
 
 from multiprocessing import cpu_count
 import warnings
+import logging
 
 from simpletransformers.classification import ClassificationModel
 from simpletransformers.custom_models.models import (
@@ -39,6 +40,8 @@ try:
     wandb_available = True
 except ImportError:
     wandb_available = False
+
+logger = logging.getLogger(__name__)
 
 
 class MultiLabelClassificationModel(ClassificationModel):

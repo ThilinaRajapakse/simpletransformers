@@ -41,9 +41,19 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
       - [*n_best_size: int*](#nbestsize-int)
       - [*max_answer_length: int*](#maxanswerlength-int)
       - [*null_score_diff_threshold: float*](#nullscorediffthreshold-float)
-  - [Conversational AI](#conversational-ai)
+  - [Language Model Training](#language-model-training)
     - [Data format](#data-format-1)
     - [Minimal Example](#minimal-example-1)
+    - [LanguageModelingModel](#languagemodelingmodel)
+    - [Additional attributes for Question Answering tasks](#additional-attributes-for-question-answering-tasks-1)
+      - [*line_by_line: bool*](#linebyline-bool)
+      - [*block_size: int*](#blocksize-int)
+      - [*mlm: bool*](#mlm-bool)
+      - [*mlm_probability: float*](#mlmprobability-float)
+      - [*max_steps: int*](#maxsteps-int)
+  - [Conversational AI](#conversational-ai)
+    - [Data format](#data-format-2)
+    - [Minimal Example](#minimal-example-2)
     - [Real Dataset Example](#real-dataset-example)
     - [ConvAIModel](#convaimodel)
     - [Additional attributes for Conversational AI](#additional-attributes-for-conversational-ai)
@@ -59,7 +69,7 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
       - [*top_k: float*](#topk-float)
       - [*top_p: float*](#topp-float)
   - [Multi-Modal Classification](#multi-modal-classification)
-    - [Data format](#data-format-2)
+    - [Data format](#data-format-3)
       - [1 - Directory based](#1---directory-based)
       - [2 - Directory and file list](#2---directory-and-file-list)
       - [3 - Pandas DataFrame](#3---pandas-dataframe)
@@ -114,6 +124,9 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
       - [*use_early_stopping*](#useearlystopping)
       - [*early_stopping_patience*](#earlystoppingpatience)
       - [*early_stopping_delta*](#earlystoppingdelta)
+      - [*early_stopping_metric*](#earlystoppingmetric)
+      - [*early_stopping_metric_minimize*](#earlystoppingmetricminimize)
+      - [*manual_seed*](#manualseed)
   - [Current Pretrained Models](#current-pretrained-models)
   - [Acknowledgements](#acknowledgements)
   - [Contributors ✨](#contributors-%e2%9c%a8)
@@ -193,7 +206,12 @@ Supported model types:
 ```python
 from simpletransformers.classification import ClassificationModel
 import pandas as pd
+import logging
 
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
 
 # Train and Evaluation data needs to be in a Pandas Dataframe of two columns. The first column is the text with type str, and the second column is the label with type int.
 train_data = [['Example sentence belonging to class 1', 1], ['Example sentence belonging to class 0', 0]]
@@ -235,7 +253,12 @@ For multiclass classification, simply pass in the number of classes to the `num_
 ```python
 from simpletransformers.classification import ClassificationModel
 import pandas as pd
+import logging
 
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
 
 # Train and Evaluation data needs to be in a Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column is the text with type str, and the second column in the label with type int.
 train_data = [['Example sentence belonging to class 1', 1], ['Example sentence belonging to class 0', 0], ['Example eval senntence belonging to class 2', 2]]
@@ -268,7 +291,12 @@ The default evaluation metric used is Label Ranking Average Precision ([LRAP](ht
 ```python
 from simpletransformers.classification import MultiLabelClassificationModel
 import pandas as pd
+import logging
 
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
 
 # Train and Evaluation data needs to be in a Pandas Dataframe containing at least two columns, a 'text' and a 'labels' column. The `labels` column should contain multi-hot encoded lists.
 train_data = [['Example sentence 1 for multilabel classification.', [1, 1, 1, 1, 0, 1]]] + [['This is another example sentence. ', [0, 1, 1, 0, 0, 0]]]
@@ -318,7 +346,12 @@ print(raw_outputs)
 from simpletransformers.classification import ClassificationModel
 import pandas as pd
 import sklearn
+import logging
 
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
 
 train_data = [
     ['Example sentence belonging to class 1', 'Yep, this is 1', 1],
@@ -494,7 +527,12 @@ model = NERModel('bert', 'bert-base-cased', labels=["LABEL_1", "LABEL_2", "LABEL
 ```python
 from simpletransformers.ner import NERModel
 import pandas as pd
+import logging
 
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
 
 # Creating train_df  and eval_df for demonstration
 train_data = [
@@ -619,7 +657,7 @@ Converts a list of InputExample objects to a TensorDataset containing InputFeatu
 
 _[Back to Table of Contents](#table-of-contents)_
 
-___
+---
 
 ## Question Answering
 
@@ -657,7 +695,12 @@ A single answer is represented by a dictionary with the following attributes.
 from simpletransformers.question_answering import QuestionAnsweringModel
 import json
 import os
+import logging
 
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
 
 # Create dummy data to use for training.
 train_data = [
@@ -876,6 +919,165 @@ If null_score - best_non_null is greater than the threshold predict null.
 _[Back to Table of Contents](#table-of-contents)_
 
 ---
+
+## Language Model Training
+
+Supported model types:
+
+- GPT-2
+- OpenAI-GPT
+- BERT
+- RoBERTa
+- DistilBERT
+- CamemBERT
+
+### Data format
+
+The data should simply be placed in a text file. E.g.: [WikiText-2](https://blog.einstein.ai/the-wikitext-long-term-dependency-language-modeling-dataset/)
+
+### Minimal Example
+
+The minimal example given below assumes that you have downloaded the WikiText-2 dataset.
+
+```python
+from simpletransformers.language_modeling import LanguageModelingModel
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+train_args = {
+    "reprocess_input_data": True,
+    "overwrite_output_dir": True,
+}
+
+model = LanguageModelingModel('bert', 'bert-base-cased', args=train_args)
+
+model.train_model("wikitext-2/wiki.train.tokens", eval_file="wikitext-2/wiki.test.tokens")
+
+model.eval_model("wikitext-2/wiki.test.tokens")
+
+```
+
+### LanguageModelingModel
+
+`class simpletransformers.language_modeling.LanguageModelingModel (model_type, model_name, args=None, use_cuda=True, cuda_device=-1)`  
+This class is used for Question Answering tasks.
+
+`Class attributes`
+
+- `tokenizer`: The tokenizer to be used.
+- `model`: The model to be used.
+            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+- `device`: The device on which the model will be trained and evaluated.
+- `results`: A python dict of past evaluation results for the TransformerModel object.
+- `args`: A python dict of arguments used for training and evaluation.
+- `cuda_device`: (optional) int - Default = -1. Used to specify which GPU should be used.
+
+`Parameters`
+
+- `model_type`: (required) str - The type of model to use.
+- `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+- `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
+- `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
+- cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
+
+`class methods`  
+**`train_model(self, train_file, output_dir=None, show_running_loss=True, args=None, eval_file=None, verbose=True,)`**
+
+Trains the model using 'train_file'
+
+Args:  
+
+- train_file: Path to text file containing the text to train the language model on.
+
+- output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+
+- show_running_loss (Optional): Set to False to prevent training loss being printed.
+
+- args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+
+- eval_file (optional): Path to eval file containing the text to evaluate the language model on. Is required if evaluate_during_training is enabled.
+
+Returns:
+
+- None
+
+**`eval_model(self, eval_file, output_dir=None, verbose=True, silent=False,)`**
+
+Evaluates the model on eval_file. Saves results to output_dir.
+
+Args:  
+
+- eval_file: Path to eval file containing the text to evaluate the language model on.
+
+- output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+
+- verbose: If verbose, results will be printed to the console on completion of evaluation.  
+
+- silent: If silent, tqdm progress bars will be hidden.
+
+Returns:  
+
+- result: Dictionary containing evaluation results. (correct, similar, incorrect)
+
+- text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text.
+
+**`train(self, train_dataset, output_dir, show_running_loss=True, eval_file=None)`**
+
+Trains the model on train_dataset.
+*Utility function to be used by the train_model() method. Not intended to be used directly.*
+
+**`evaluate(self, eval_dataset, output_dir, , verbose=False)`**
+
+Evaluates the model on eval_dataset.
+*Utility function to be used by the eval_model() method. Not intended to be used directly*
+
+**`load_and_cache_examples(self, examples, evaluate=False, no_cache=False, output_examples=False)`**
+
+Reads a text file from file_path and creates training features.
+*Utility function for train() and eval() methods. Not intended to be used directly*
+
+### Additional attributes for Question Answering tasks
+
+LanguageModelingModel has a few additional attributes in its `args` dictionary, given below with their default values.
+
+```python
+    "line_by_line": False,
+    "block_size": 512,
+    "mlm": True,
+    "mlm_probability": 0.15,
+    "max_steps": -1,
+```
+
+#### *line_by_line: bool*
+
+Whether distinct lines of text in the dataset are to be handled as distinct sequences.
+
+#### *block_size: int*
+
+Optional input sequence length after tokenization.
+The training dataset will be truncated in block of this size for training.
+Default to the model max input length for single sentence inputs (take into account special tokens).
+
+#### *mlm: bool*
+
+Train with masked-language modeling loss instead of language modeling
+
+#### *mlm_probability: float*
+
+Ratio of tokens to mask for masked language modeling loss
+
+#### *max_steps: int*
+
+If > 0: set total number of training steps to perform. Override num_train_epochs.
+
+_[Back to Table of Contents](#table-of-contents)_
+
+---
+
 
 ## Conversational AI
 
@@ -1607,6 +1809,8 @@ self.args = {
   "use_early_stopping": True,
   "early_stopping_patience": 3,
   "early_stopping_delta": 0,
+  "early_stopping_metric": "eval_loss",
+  "early_stopping_metric_minimize": True,
 
   "manual_seed": None,
 }
@@ -1715,13 +1919,22 @@ Name of W&B project. This will log all hyperparameter values, training losses, a
 Dictionary of keyword arguments to be passed to the W&B project.
 
 #### *use_early_stopping*
-Use early stopping to stop training when `eval_loss` doesn't improve (based on `early_stopping_patience`, and `early_stopping_delta`)
+Use early stopping to stop training when `early_stopping_metric` doesn't improve (based on `early_stopping_patience`, and `early_stopping_delta`)
 
 #### *early_stopping_patience*
 Terminate training after this many evaluations without an improvement in `eval_loss` greater then `early_stopping_delta`.
 
 #### *early_stopping_delta*
-The improvement over `best_eval_loss` necessary to count as a better checkpoint
+The improvement over `best_eval_loss` necessary to count as a better checkpoint.
+
+#### *early_stopping_metric*
+The metric that should be used with early stopping. (Should be computed during `eval_during_training`).
+
+#### *early_stopping_metric_minimize*
+Whether `early_stopping_metric` should be minimized (or maximized).
+
+#### *manual_seed*
+Set a manual seed if necessary for reproducible results.
 
 ---
 

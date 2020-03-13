@@ -226,7 +226,7 @@ class ConvAIModel:
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
         if verbose:
-            logger.info("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+            logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(
         self, train_dataloader, output_dir, show_running_loss=True, eval_dataloader=None, verbose=True, **kwargs,
@@ -281,7 +281,7 @@ class ConvAIModel:
         model.zero_grad()
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
         epoch_number = 0
-        best_eval_loss = None
+        best_eval_metric = None
         early_stopping_counter = 0
 
         if args["evaluate_during_training"]:
@@ -394,29 +394,47 @@ class ConvAIModel:
                         if args["wandb_project"]:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
-                        if not best_eval_loss:
-                            best_eval_loss = results["eval_loss"]
+                        if not best_eval_metric:
+                            best_eval_metric = results[args["early_stopping_metric"]]
                             self._save_model(args["best_model_dir"], model=model, results=results)
-                        elif results["eval_loss"] - best_eval_loss < args["early_stopping_delta"]:
-                            best_eval_loss = results["eval_loss"]
-                            self._save_model(args["best_model_dir"], model=model, results=results)
-                            early_stopping_counter = 0
+                        if best_eval_metric and args["early_stopping_metric_minimize"]:
+                            if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
+                                best_eval_metric = results[args["early_stopping_metric"]]
+                                self._save_model(args["best_model_dir"], model=model, results=results)
+                                early_stopping_counter = 0
+                            else:
+                                if args["use_early_stopping"]:
+                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                        early_stopping_counter += 1
+                                        if verbose:
+                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" Current step: {early_stopping_counter}")
+                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    else:
+                                        if verbose:
+                                            logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                            logger.info(" Training terminated.")
+                                            train_iterator.close()
+                                        return global_step, tr_loss / global_step
                         else:
-                            if args["use_early_stopping"]:
-                                if early_stopping_counter < args["early_stopping_patience"]:
-                                    early_stopping_counter += 1
-                                    if verbose:
-                                        logger.info()
-                                        logger.info(f"No improvement in eval_loss for {early_stopping_counter} steps.")
-                                        logger.info(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                        logger.info()
-                                else:
-                                    if verbose:
-                                        logger.info()
-                                        logger.info(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                        logger.info("Training terminated.")
-                                        logger.info()
-                                    return global_step, tr_loss / global_step
+                            if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
+                                best_eval_metric = results[args["early_stopping_metric"]]
+                                self._save_model(args["best_model_dir"], model=model, results=results)
+                                early_stopping_counter = 0
+                            else:
+                                if args["use_early_stopping"]:
+                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                        early_stopping_counter += 1
+                                        if verbose:
+                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" Current step: {early_stopping_counter}")
+                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    else:
+                                        if verbose:
+                                            logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                            logger.info(" Training terminated.")
+                                            train_iterator.close()
+                                        return global_step, tr_loss / global_step
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
@@ -441,29 +459,19 @@ class ConvAIModel:
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False)
 
-                if not best_eval_loss:
-                    best_eval_loss = results["eval_loss"]
+                if not best_eval_metric:
+                    best_eval_metric = results[args["early_stopping_metric"]]
                     self._save_model(args["best_model_dir"], model=model, results=results)
-                elif results["eval_loss"] - best_eval_loss < args["early_stopping_delta"]:
-                    best_eval_loss = results["eval_loss"]
-                    self._save_model(args["best_model_dir"], model=model, results=results)
-                    early_stopping_counter = 0
+                if best_eval_metric and args["early_stopping_metric_minimize"]:
+                    if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
+                        best_eval_metric = results[args["early_stopping_metric"]]
+                        self._save_model(args["best_model_dir"], model=model, results=results)
+                        early_stopping_counter = 0
                 else:
-                    if args["use_early_stopping"]:
-                        if early_stopping_counter < args["early_stopping_patience"]:
-                            early_stopping_counter += 1
-                            if verbose:
-                                logger.info()
-                                logger.info(f"No improvement in eval_loss for {early_stopping_counter} steps.")
-                                logger.info(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                logger.info()
-                        else:
-                            if verbose:
-                                logger.info()
-                                logger.info(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                logger.info("Training terminated.")
-                                logger.info()
-                            return global_step, tr_loss / global_step
+                    if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
+                        best_eval_metric = results[args["early_stopping_metric"]]
+                        self._save_model(args["best_model_dir"], model=model, results=results)
+                        early_stopping_counter = 0
 
         return global_step, tr_loss / global_step
 
@@ -604,7 +612,7 @@ class ConvAIModel:
                     datasets["n_candidates"] = num_candidates
                 persona = [persona[-1]] + persona[:-1]  # permuted personalities
 
-        # logger.info("Pad inputs and convert to Tensor")
+        # logger.info(" Pad inputs and convert to Tensor")
         # tensor_datasets = {"train": [], "valid": []}
         # for dataset_name, dataset in datasets.items():
         tensor_datasets = []
@@ -615,7 +623,7 @@ class ConvAIModel:
                 tensor = tensor.view((-1, datasets["n_candidates"]) + tensor.shape[1:])
             tensor_datasets.append(tensor)
 
-        # logger.info("Build train and validation dataloaders")
+        # logger.info(" Build train and validation dataloaders")
         # train_dataset, valid_dataset = (
         #     TensorDataset(*tensor_datasets["train"]),
         #     TensorDataset(*tensor_datasets["valid"]),
@@ -628,8 +636,8 @@ class ConvAIModel:
             data_sampler = SequentialSampler(tensor_dataset)
             data_loader = DataLoader(tensor_dataset, sampler=data_sampler, batch_size=args["eval_batch_size"])
 
-        # logger.info("Train dataset (Batch, Candidates, Seq length): {}".format(train_dataset.tensors[0].shape))
-        # logger.info("valid dataset (Batch, Candidates, Seq length): {}".format(valid_dataset.tensors[0].shape))
+        # logger.info(" Train dataset (Batch, Candidates, Seq length): {}".format(train_dataset.tensors[0].shape))
+        # logger.info(" valid dataset (Batch, Candidates, Seq length): {}".format(valid_dataset.tensors[0].shape))
         return data_loader, data_sampler
 
     def compute_metrics(self, mc_preds, mc_labels, lm_logits, lm_labels, **kwargs):

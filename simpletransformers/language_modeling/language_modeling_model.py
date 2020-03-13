@@ -71,7 +71,7 @@ logger = logging.getLogger(__name__)
 
 class LanguageModelingModel:
     def __init__(
-        self, model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
 
         """
@@ -80,8 +80,6 @@ class LanguageModelingModel:
         Args:
             model_type: The type of model (gpt2, openai-gpt, bert, roberta, distilbert, camembert)
             model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
-            num_labels (optional): The number of labels or classes in the dataset.
-            weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
@@ -105,13 +103,7 @@ class LanguageModelingModel:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
-        if num_labels:
-            self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **kwargs)
-            self.num_labels = num_labels
-        else:
-            self.config = config_class.from_pretrained(model_name, **kwargs)
-            self.num_labels = self.config.num_labels
-        self.weight = weight
+        self.config = config_class.from_pretrained(model_name, **kwargs)
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -127,13 +119,7 @@ class LanguageModelingModel:
         else:
             self.device = "cpu"
 
-        if self.weight:
-
-            self.model = model_class.from_pretrained(
-                model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device), **kwargs,
-            )
-        else:
-            self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
+        self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
 
         self.results = {}
 
@@ -173,17 +159,14 @@ class LanguageModelingModel:
         self, train_file, output_dir=None, show_running_loss=True, args=None, eval_file=None, verbose=True, **kwargs,
     ):
         """
-        Trains the model using 'train_df'
+        Trains the model using 'train_file'
 
         Args:
-            train_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present,
-            the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
+            train_file: Path to text file containing the text to train the language model on.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
-            eval_df (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
-            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
-                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+            eval_file (optional): Path to eval file containing the text to evaluate the language model on.
 
         Returns:
             None
@@ -237,7 +220,6 @@ class LanguageModelingModel:
         self,
         train_dataset,
         output_dir,
-        multi_label=False,
         show_running_loss=True,
         eval_file=None,
         verbose=True,
@@ -539,18 +521,13 @@ class LanguageModelingModel:
         Evaluates the model on eval_df. Saves results to output_dir.
 
         Args:
-            eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present,
-            the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
+            eval_file: Path to eval file containing the text to evaluate the language model on.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
-            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
-                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
-            result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
-            model_outputs: List of model outputs for each row in eval_df
-            wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model
+            result: Dictionary containing evaluation results.
         """  # noqa: ignore flake8"
 
         if not output_dir:
@@ -571,7 +548,7 @@ class LanguageModelingModel:
 
     def evaluate(self, eval_dataset, output_dir, multi_label=False, prefix="", verbose=True, silent=False, **kwargs):
         """
-        Evaluates the model on eval_df.
+        Evaluates the model on eval_dataset.
 
         Utility function to be used by the eval_model() method. Not intended to be used directly.
         """
@@ -625,7 +602,7 @@ class LanguageModelingModel:
 
     def load_and_cache_examples(self, file_path, evaluate=False, no_cache=False, verbose=True, silent=False):
         """
-        Converts a list of InputExample objects to a TensorDataset containing InputFeatures. Caches the InputFeatures.
+        Reads a text file from file_path and creates training features.
 
         Utility function for train() and eval() methods. Not intended to be used directly.
         """

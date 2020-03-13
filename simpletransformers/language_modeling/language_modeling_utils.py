@@ -80,7 +80,7 @@ def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, args) -> T
     if tokenizer.mask_token is None:
         raise ValueError(
             "This tokenizer does not have a mask token which is necessary for masked language modeling."
-            "Remove the --mlm flag if you want to use this tokenizer."
+            "Set 'mlm' to False in args if you want to use this tokenizer."
         )
 
     labels = inputs.clone()

@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] - 2020-03-14
+
+### Added
+
+- Added support for language model training (from scratch or fine-tuning).
+- Added option to choose which metric should be used for early stopping.
+
+### Changed
+
+- Switched to using the logging module over print for everything except running loss. (QuestionAnsweringModel - [@travis-harper](https://github.com/travis-harper))
+- Replaced more concatenated string paths with `os.path.join()` when creating `training_progress_scores.csv`.
+
 ## [0.21.5] - 2020-03-12
 
 ### Changed
@@ -460,7 +472,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.21.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/27ff44e...HEAD
+[0.22.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/51fc7a3...HEAD
+
+[0.21.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/27ff44e...51fc7a3
 
 [0.21.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9905a4...27ff44e
 
