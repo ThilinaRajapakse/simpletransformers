@@ -13,6 +13,7 @@ from simpletransformers.custom_models.models import (
     DistilBertForMultiLabelSequenceClassification,
     AlbertForMultiLabelSequenceClassification,
     FlaubertForMultiLabelSequenceClassification,
+    XLMRobertaForMultiLabelSequenceClassification
 )
 from simpletransformers.config.global_args import global_args
 
@@ -32,6 +33,8 @@ from transformers import (
     AlbertTokenizer,
     FlaubertConfig,
     FlaubertTokenizer,
+    XLMRobertaConfig,
+    XLMRobertaTokenizer
 )
 
 try:
@@ -79,6 +82,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             "distilbert": (DistilBertConfig, DistilBertForMultiLabelSequenceClassification, DistilBertTokenizer,),
             "albert": (AlbertConfig, AlbertForMultiLabelSequenceClassification, AlbertTokenizer,),
             "flaubert": (FlaubertConfig, FlaubertForMultiLabelSequenceClassification, FlaubertTokenizer,),
+            "xlmroberta": (XLMRobertaConfig, XLMRobertaForMultiLabelSequenceClassification, XLMRobertaTokenizer,),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]

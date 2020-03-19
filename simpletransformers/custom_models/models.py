@@ -10,6 +10,7 @@ from transformers.modeling_utils import SequenceSummary, PreTrainedModel
 from transformers import RobertaModel
 from transformers.configuration_roberta import RobertaConfig
 from transformers import FlaubertModel
+from transformers.configuration_xlm_roberta import XLMRobertaConfig
 from torch.nn import BCEWithLogitsLoss
 
 from transformers.modeling_albert import (
@@ -20,6 +21,7 @@ from transformers.modeling_albert import (
 
 from transformers.modeling_roberta import ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
 from transformers.modeling_distilbert import DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
 
 
 class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
@@ -405,3 +407,7 @@ class FlaubertForMultiLabelSequenceClassification(FlaubertModel):
             outputs = (loss,) + outputs
 
         return outputs
+    
+class XLMRobertaForMultiLabelSequenceClassification(RobertaForMultiLabelSequenceClassification):
+    config_class = XLMRobertaConfig
+    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP

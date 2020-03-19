@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.1] - 2020-03-19
+
+### Added
+
+- Added support for XLMRoberta for multi-label tasks.
+
 ## [0.22.0] - 2020-03-14
 
 ### Added
@@ -472,7 +478,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.22.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/51fc7a3...HEAD
+[0.22.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9f093b7...HEAD
+
+[0.22.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/51fc7a3...9f093b7
 
 [0.21.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/27ff44e...51fc7a3
 
