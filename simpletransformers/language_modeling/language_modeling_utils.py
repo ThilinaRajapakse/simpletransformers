@@ -2,10 +2,14 @@ import os
 import pickle
 import logging
 from typing import Tuple
+from multiprocessing import Pool
 
 import torch
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
+from tokenizers.implementations import ByteLevelBPETokenizer
+from tokenizers.processors import BertProcessing
+from tqdm.auto import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +39,35 @@ class TextDataset(Dataset):
             with open(file_path, encoding="utf-8") as f:
                 text = f.read()
 
-            tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
+            # tokenizer = ByteLevelBPETokenizer(
+            #     "outputs/vocab.json",
+            #     "outputs/merges.txt",
+            # )
+            # tokenizer._tokenizer.post_processor = BertProcessing(
+            #     ("</s>", tokenizer.token_to_id("</s>")),
+            #     ("<s>", tokenizer.token_to_id("<s>")),
+            # )
 
-            for i in range(0, len(tokenized_text) - block_size + 1, block_size):  # Truncate in block of block_size
-                self.examples.append(tokenizer.build_inputs_with_special_tokens(tokenized_text[i : i + block_size]))
+            # logger.info(" Encoding")
+            # tokenized_text = tokenizer.encode(text).ids
+            # logger.info(" Encoded")
+            # self.examples = [tokenized_text[i : i + block_size] for i in tqdm(range(0, len(tokenized_text) - block_size + 1, block_size))]
+
+            tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
+            tokenized_text_split = [tokenized_text[i : i + block_size] for i in tqdm(range(0, len(tokenized_text) - block_size + 1, block_size))]
+
+            with Pool(args["process_count"]) as p:
+                self.examples = list(
+                    tqdm(
+                        p.imap(tokenizer.build_inputs_with_special_tokens, tokenized_text_split, chunksize=500),
+                        total=len(tokenized_text_split),
+                        # disable=silent,
+                    )
+                )
+
+
+            # for i in range(0, len(tokenized_text) - block_size + 1, block_size):  # Truncate in block of block_size
+            #     self.examples.append(tokenizer.build_inputs_with_special_tokens(tokenized_text[i : i + block_size]))
             # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)
             # If your dataset is small, first you should loook for a bigger one :-) and second you
             # can change this behavior by adding (model specific) padding.
@@ -65,7 +94,19 @@ class LineByLineTextDataset(Dataset):
         with open(file_path, encoding="utf-8") as f:
             lines = [line for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())]
 
-        self.examples = tokenizer.batch_encode_plus(lines, add_special_tokens=True, max_length=block_size)["input_ids"]
+        tokenizer = ByteLevelBPETokenizer(
+            "outputs/vocab.json",
+            "outputs/merges.txt",
+        )
+        tokenizer._tokenizer.post_processor = BertProcessing(
+            ("</s>", tokenizer.token_to_id("</s>")),
+            ("<s>", tokenizer.token_to_id("<s>")),
+        )
+
+        tokenizer.enable_truncation(max_length=block_size)
+        self.examples = [t.ids for t in tokenizer.encode_batch(lines)]
+
+        # self.examples = tokenizer.batch_encode_plus(lines, add_special_tokens=True, max_length=block_size)["input_ids"]
 
     def __len__(self):
         return len(self.examples)
