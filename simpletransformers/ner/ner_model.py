@@ -688,8 +688,8 @@ class NERModel:
                 mode, args["model_type"], args["max_seq_length"], self.num_labels, len(examples),
             ),
         )
-
-        os.makedirs(self.args["cache_dir"], exist_ok=True)
+        if not no_cache:
+            os.makedirs(self.args["cache_dir"], exist_ok=True)
 
         if os.path.exists(cached_features_file) and (
             (not args["reprocess_input_data"] and not no_cache) or (
