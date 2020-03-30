@@ -43,17 +43,26 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
       - [*null_score_diff_threshold: float*](#nullscorediffthreshold-float)
   - [Language Model Training](#language-model-training)
     - [Data format](#data-format-1)
-    - [Minimal Example](#minimal-example-1)
+    - [Minimal Example For Language Model Fine Tuning](#minimal-example-for-language-model-fine-tuning)
+    - [Minimal Example For Language Model Training From Scratch](#minimal-example-for-language-model-training-from-scratch)
     - [LanguageModelingModel](#languagemodelingmodel)
-    - [Additional attributes for Question Answering tasks](#additional-attributes-for-question-answering-tasks-1)
-      - [*line_by_line: bool*](#linebyline-bool)
+    - [Additional attributes for Language Modeling tasks](#additional-attributes-for-language-modeling-tasks)
+      - [*dataset_type: str*](#datasettype-str)
+      - [*dataset_class: Subclass of Pytorch Dataset*](#datasetclass-subclass-of-pytorch-dataset)
       - [*block_size: int*](#blocksize-int)
       - [*mlm: bool*](#mlm-bool)
       - [*mlm_probability: float*](#mlmprobability-float)
       - [*max_steps: int*](#maxsteps-int)
+      - [*config_name: str*](#configname-str)
+      - [*tokenizer_name: str*](#tokenizername-str)
+      - [*vocab_size: int*](#vocabsize-int)
+      - [*min_frequencey: int*](#minfrequencey-int)
+      - [*special_tokens: list*](#specialtokens-list)
+      - [*sliding_window: bool*](#slidingwindow-bool)
+      - [*stride: float*](#stride-float)
   - [Conversational AI](#conversational-ai)
     - [Data format](#data-format-2)
-    - [Minimal Example](#minimal-example-2)
+    - [Minimal Example](#minimal-example-1)
     - [Real Dataset Example](#real-dataset-example)
     - [ConvAIModel](#convaimodel)
     - [Additional attributes for Conversational AI](#additional-attributes-for-conversational-ai)
@@ -935,7 +944,7 @@ Supported model types:
 
 The data should simply be placed in a text file. E.g.: [WikiText-2](https://blog.einstein.ai/the-wikitext-long-term-dependency-language-modeling-dataset/)
 
-### Minimal Example
+### Minimal Example For Language Model Fine Tuning
 
 The minimal example given below assumes that you have downloaded the WikiText-2 dataset.
 
@@ -954,6 +963,32 @@ train_args = {
 }
 
 model = LanguageModelingModel('bert', 'bert-base-cased', args=train_args)
+
+model.train_model("wikitext-2/wiki.train.tokens", eval_file="wikitext-2/wiki.test.tokens")
+
+model.eval_model("wikitext-2/wiki.test.tokens")
+
+```
+
+### Minimal Example For Language Model Training From Scratch
+
+You can use any text file/files for training a new language model. Setting `model_name` to `None` will indicate that the language model should be trained from scratch.
+
+```python
+from simpletransformers.language_modeling import LanguageModelingModel
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+train_args = {
+    "reprocess_input_data": True,
+    "overwrite_output_dir": True,
+}
+
+model = LanguageModelingModel('roberta', None, args=train_args)
 
 model.train_model("wikitext-2/wiki.train.tokens", eval_file="wikitext-2/wiki.test.tokens")
 
@@ -1025,6 +1060,22 @@ Returns:
 
 - text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text.
 
+**`train_tokenizer(self, train_files, tokenizer_name=None, output_dir=None, use_trained_tokenizer=True)`
+
+Train a new tokenizer on `train_files`.
+
+Args:
+
+- train_files: List of files to be used when training the tokenizer.
+
+- tokenizer_name: Name of a pretrained tokenizer or a path to a directory containing a tokenizer.
+
+- output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+
+- use_trained_tokenizer (optional): Load the trained tokenizer once training completes.
+
+Returns: None
+
 **`train(self, train_dataset, output_dir, show_running_loss=True, eval_file=None)`**
 
 Trains the model on train_dataset.
@@ -1040,21 +1091,43 @@ Evaluates the model on eval_dataset.
 Reads a text file from file_path and creates training features.
 *Utility function for train() and eval() methods. Not intended to be used directly*
 
-### Additional attributes for Question Answering tasks
+### Additional attributes for Language Modeling tasks
 
 LanguageModelingModel has a few additional attributes in its `args` dictionary, given below with their default values.
 
 ```python
-    "line_by_line": False,
+    "dataset_type": "None",
+    "dataset_class": None,
+    "custom_tokenizer": None,
     "block_size": 512,
     "mlm": True,
     "mlm_probability": 0.15,
     "max_steps": -1,
+    "config_name": None,
+    "tokenizer_name": None,
+    "vocab_size": 52000,
+    "min_frequency": 2,
+    "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
+    "sliding_window": False,
+    "stride": 0.8
 ```
 
-#### *line_by_line: bool*
+#### *dataset_type: str*
 
-Whether distinct lines of text in the dataset are to be handled as distinct sequences.
+Used to specify the Dataset type to be used. The choices are given below.
+
+- `simple` (or None) - Each line in the train files are considered to be a single, separate sample. `sliding_window` can be set to True to 
+automatically split longer sequences into samples of length `max_seq_length`. Uses multiprocessing for significantly improved performance on multicore systems.
+
+- `line_by_line` - Treats each line in the train files as a seperate sample.
+  
+- `text` - Treats each file in `train_files` as a seperate sample.
+
+*Using `simple` is recommended.*
+
+#### *dataset_class: Subclass of Pytorch Dataset*
+
+A custom dataset class to use.
 
 #### *block_size: int*
 
@@ -1073,6 +1146,34 @@ Ratio of tokens to mask for masked language modeling loss
 #### *max_steps: int*
 
 If > 0: set total number of training steps to perform. Override num_train_epochs.
+
+#### *config_name: str*
+
+Name of pretrained config or path to a directory containing a `config.json` file.
+
+#### *tokenizer_name: str*
+
+Name of pretrained tokenizer or path to a directory containing tokenizer files.
+
+#### *vocab_size: int*
+
+Size of the vocabulary for the tokenizer and model.
+
+#### *min_frequencey: int*
+
+Minimum frequency required for a word to be added to the vocabulary.
+
+#### *special_tokens: list*
+
+List of special tokens to be used when training a new tokenizer.
+
+#### *sliding_window: bool*
+
+Whether sliding window technique should be used when preparing data. *Only works with SimpleDataset.*
+
+#### *stride: float*
+
+A fraction of the `max_seq_length` to use as the stride when using a sliding window
 
 _[Back to Table of Contents](#table-of-contents)_
 

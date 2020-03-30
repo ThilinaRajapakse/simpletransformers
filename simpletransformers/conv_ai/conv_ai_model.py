@@ -459,6 +459,9 @@ class ConvAIModel:
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False)
 
+                if args["wandb_project"]:
+                    wandb.log(self._get_last_metrics(training_progress_scores))
+
                 if not best_eval_metric:
                     best_eval_metric = results[args["early_stopping_metric"]]
                     self._save_model(args["best_model_dir"], model=model, results=results)
