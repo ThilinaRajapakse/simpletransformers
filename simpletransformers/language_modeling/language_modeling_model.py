@@ -674,9 +674,21 @@ class LanguageModelingModel:
             else:
                 special_tokens_count = 3 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 2
                 if self.args["max_seq_length"] > 509:
-                    self.args["max_seq_length"] = 509 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 510
-                    self.args["block_size"] = 509 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 510
-                return SimpleDataset(tokenizer, self.args, file_path, mode, args["block_size"], special_tokens_count, sliding_window=args["sliding_window"])
+                    self.args["max_seq_length"] = (
+                        509 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 510
+                    )
+                    self.args["block_size"] = (
+                        509 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 510
+                    )
+                return SimpleDataset(
+                    tokenizer,
+                    self.args,
+                    file_path,
+                    mode,
+                    args["block_size"],
+                    special_tokens_count,
+                    sliding_window=args["sliding_window"],
+                )
 
     # def predict(self, to_predict, multi_label=False):
     #     """
@@ -794,7 +806,8 @@ class LanguageModelingModel:
 
         - tokenizer_name: Name of a pretrained tokenizer or a path to a directory containing a tokenizer.
 
-        - output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+        - output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir']
+        will be used.
 
         - use_trained_tokenizer (optional): Load the trained tokenizer once training completes.
 

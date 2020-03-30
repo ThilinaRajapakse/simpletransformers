@@ -97,12 +97,10 @@ class LineByLineTextDataset(Dataset):
             lines = [line for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())]
 
         tokenizer = ByteLevelBPETokenizer(
-            f"{args['tokenizer_name']}/vocab.json",
-            f"{args['tokenizer_name']}/merges.txt",
+            f"{args['tokenizer_name']}/vocab.json", f"{args['tokenizer_name']}/merges.txt",
         )
         tokenizer._tokenizer.post_processor = BertProcessing(
-            ("</s>", tokenizer.token_to_id("</s>")),
-            ("<s>", tokenizer.token_to_id("<s>")),
+            ("</s>", tokenizer.token_to_id("</s>")), ("<s>", tokenizer.token_to_id("<s>")),
         )
 
         tokenizer.enable_truncation(max_length=block_size)
@@ -173,7 +171,11 @@ class SimpleDataset(Dataset):
 
             if sliding_window:
                 with open(file_path, encoding="utf-8") as f:
-                    lines = [(tokenizer, line, args["max_seq_length"], special_tokens_count, args["stride"]) for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())]
+                    lines = [
+                        (tokenizer, line, args["max_seq_length"], special_tokens_count, args["stride"])
+                        for line in f.read().splitlines()
+                        if (len(line) > 0 and not line.isspace())
+                    ]
 
                 with Pool(args["process_count"]) as p:
                     self.examples = list(
@@ -187,7 +189,9 @@ class SimpleDataset(Dataset):
                 self.examples = [example for example_set in self.examples for example in example_set]
             else:
                 with open(file_path, encoding="utf-8") as f:
-                    lines = [(tokenizer, line) for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())]
+                    lines = [
+                        (tokenizer, line) for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())
+                    ]
 
                 with Pool(args["process_count"]) as p:
                     self.examples = list(

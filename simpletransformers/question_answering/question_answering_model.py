@@ -130,10 +130,9 @@ class QuestionAnsweringModel:
         }
 
         self.args.update(global_args)
-        self.args.update({
-            "early_stopping_metric": "correct",
-            "early_stopping_metric_minimize": False,
-        })
+        self.args.update(
+            {"early_stopping_metric": "correct", "early_stopping_metric_minimize": False,}
+        )
 
         if not use_cuda:
             self.args["fp16"] = False

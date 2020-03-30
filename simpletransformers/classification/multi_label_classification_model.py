@@ -13,7 +13,7 @@ from simpletransformers.custom_models.models import (
     DistilBertForMultiLabelSequenceClassification,
     AlbertForMultiLabelSequenceClassification,
     FlaubertForMultiLabelSequenceClassification,
-    XLMRobertaForMultiLabelSequenceClassification
+    XLMRobertaForMultiLabelSequenceClassification,
 )
 from simpletransformers.config.global_args import global_args
 
@@ -34,7 +34,7 @@ from transformers import (
     FlaubertConfig,
     FlaubertTokenizer,
     XLMRobertaConfig,
-    XLMRobertaTokenizer
+    XLMRobertaTokenizer,
 )
 
 try:

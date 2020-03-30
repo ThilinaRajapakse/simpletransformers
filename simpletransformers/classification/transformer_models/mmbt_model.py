@@ -30,7 +30,7 @@ class MMBTForClassification(nn.Module):
         model = MMBTForClassification(config, transformer, encoder)
         outputs = model(input_modal, input_ids, labels=labels)
         loss, logits = outputs[:2]
-    """ # noqa: ignore flake8"
+    """  # noqa: ignore flake8"
 
     def __init__(self, config, transformer, encoder):
         super().__init__()

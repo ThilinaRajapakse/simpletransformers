@@ -55,6 +55,7 @@ from simpletransformers.config.global_args import global_args
 
 try:
     import wandb
+
     wandb_available = True
 except ImportError:
     wandb_available = False
@@ -78,12 +79,12 @@ class NERModel:
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
         """  # noqa: ignore flake8"
 
-        if args and 'manual_seed' in args:
-            random.seed(args['manual_seed'])
-            np.random.seed(args['manual_seed'])
-            torch.manual_seed(args['manual_seed'])
-            if 'n_gpu' in args and args['n_gpu'] > 0:
-                torch.cuda.manual_seed_all(args['manual_seed'])
+        if args and "manual_seed" in args:
+            random.seed(args["manual_seed"])
+            np.random.seed(args["manual_seed"])
+            torch.manual_seed(args["manual_seed"])
+            if "n_gpu" in args and args["n_gpu"] > 0:
+                torch.cuda.manual_seed_all(args["manual_seed"])
 
         if labels:
             self.labels = labels
@@ -394,7 +395,9 @@ class NERModel:
                         if best_eval_metric and args["early_stopping_metric_minimize"]:
                             if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
                                 best_eval_metric = results[args["early_stopping_metric"]]
-                                self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
+                                self._save_model(
+                                    args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                                )
                                 early_stopping_counter = 0
                             else:
                                 if args["use_early_stopping"]:
@@ -413,7 +416,9 @@ class NERModel:
                         else:
                             if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
                                 best_eval_metric = results[args["early_stopping_metric"]]
-                                self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
+                                self._save_model(
+                                    args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                                )
                                 early_stopping_counter = 0
                             else:
                                 if args["use_early_stopping"]:
@@ -712,8 +717,8 @@ class NERModel:
         os.makedirs(self.args["cache_dir"], exist_ok=True)
 
         if os.path.exists(cached_features_file) and (
-            (not args["reprocess_input_data"] and not no_cache) or (
-                mode == "dev" and args["use_cached_eval_features"] and not no_cache)
+            (not args["reprocess_input_data"] and not no_cache)
+            or (mode == "dev" and args["use_cached_eval_features"] and not no_cache)
         ):
             features = torch.load(cached_features_file)
             logger.info(f" Features loaded from cache at {cached_features_file}")
