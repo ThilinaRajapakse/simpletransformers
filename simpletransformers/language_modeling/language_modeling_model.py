@@ -30,6 +30,8 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
+from tokenizers import ByteLevelBPETokenizer
+from tokenizers.processors import BertProcessing
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
@@ -57,7 +59,12 @@ from transformers import (
 )
 
 from simpletransformers.config.global_args import global_args
-from simpletransformers.language_modeling.language_modeling_utils import LineByLineTextDataset, TextDataset, mask_tokens
+from simpletransformers.language_modeling.language_modeling_utils import (
+    LineByLineTextDataset,
+    TextDataset,
+    mask_tokens,
+    SimpleDataset,
+)
 
 try:
     import wandb
@@ -68,10 +75,19 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+MODEL_CLASSES = {
+    "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
+    "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
+    "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
+    "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
+    "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
+    "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
+}
+
 
 class LanguageModelingModel:
     def __init__(
-        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_type, model_name, train_files=None, args=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
 
         """
@@ -86,24 +102,12 @@ class LanguageModelingModel:
             **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """  # noqa: ignore flake8"
 
-        MODEL_CLASSES = {
-            "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
-            "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
-            "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
-            "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
-            "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
-            "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
-        }
-
         if args and "manual_seed" in args:
             random.seed(args["manual_seed"])
             np.random.seed(args["manual_seed"])
             torch.manual_seed(args["manual_seed"])
             if "n_gpu" in args and args["n_gpu"] > 0:
                 torch.cuda.manual_seed_all(args["manual_seed"])
-
-        config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
-        self.config = config_class.from_pretrained(model_name, **kwargs)
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -119,16 +123,23 @@ class LanguageModelingModel:
         else:
             self.device = "cpu"
 
-        self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
-
         self.results = {}
 
         self.args = {
-            "line_by_line": False,
-            "block_size": 512,
+            "dataset_type": "None",
+            "dataset_class": None,
+            "custom_tokenizer": None,
+            "block_size": -1,
             "mlm": True,
             "mlm_probability": 0.15,
             "max_steps": -1,
+            "config_name": None,
+            "tokenizer_name": None,
+            "vocab_size": 52000,
+            "min_frequency": 2,
+            "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
+            "sliding_window": False,
+            "stride": 0.8,
         }
 
         self.args.update(global_args)
@@ -139,10 +150,49 @@ class LanguageModelingModel:
         if args:
             self.args.update(args)
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args["do_lower_case"], **kwargs)
-
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
+
+        config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        self.tokenizer_class = tokenizer_class
+
+        if self.args["config_name"]:
+            self.config = config_class.from_pretrained(self.args["config_name"], cache_dir=self.args["cache_dir"])
+        elif self.args["model_name"]:
+            self.config = config_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
+        else:
+            self.config = config_class()
+
+        if self.args["tokenizer_name"]:
+            self.tokenizer = tokenizer_class.from_pretrained(
+                self.args["tokenizer_name"], cache_dir=self.args["cache_dir"]
+            )
+        elif self.args["model_name"]:
+            self.tokenizer = tokenizer_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
+            self.args["tokenizer_name"] = self.args["model_name"]
+        else:
+            if not train_files:
+                raise ValueError(
+                    "model_name and tokenizer_name are not specified."
+                    "You must specify train_files to train a Tokenizer."
+                )
+            else:
+                self.train_tokenizer(train_files)
+
+        if self.args["block_size"] <= 0:
+            self.args["block_size"] = min(self.args["max_seq_length"], self.tokenizer.max_len)
+        else:
+            self.args["block_size"] = min(self.args["block_size"], self.tokenizer.max_len, self.args["max_seq_length"])
+
+        if self.args["model_name"]:
+            self.model = model_class.from_pretrained(
+                model_name, config=self.config, cache_dir=self.args["cache_dir"], **kwargs
+            )
+        else:
+            logger.info(" Training language model from scratch")
+            self.model = model_class(config=self.config)
+            model_to_resize = self.model.module if hasattr(self.model, "module") else self.model
+            model_to_resize.resize_token_embeddings(len(self.tokenizer))
 
         if model_type in ["camembert", "xlmroberta"]:
             warnings.warn(
@@ -217,13 +267,7 @@ class LanguageModelingModel:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(
-        self,
-        train_dataset,
-        output_dir,
-        show_running_loss=True,
-        eval_file=None,
-        verbose=True,
-        **kwargs,
+        self, train_dataset, output_dir, show_running_loss=True, eval_file=None, verbose=True, **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -291,6 +335,8 @@ class LanguageModelingModel:
         if args["n_gpu"] > 1:
             model = torch.nn.DataParallel(model)
 
+        logger.info(" Training started")
+
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
@@ -328,7 +374,6 @@ class LanguageModelingModel:
         for _ in train_iterator:
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
             for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])):
-
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
@@ -340,6 +385,11 @@ class LanguageModelingModel:
                 outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
                 # model outputs are always tuple in pytorch-transformers (see doc)
                 loss = outputs[0]
+                # if loss.item() < 1:
+                #     masked = (labels[0] != -100).nonzero()
+                #     print(labels[0][masked])
+                #     preds = outputs[1][0, masked, :].clone().detach().cpu().numpy()
+                #     print(np.argmax(preds, axis=2))
 
                 if args["n_gpu"] > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -497,6 +547,9 @@ class LanguageModelingModel:
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False)
 
+                if args["wandb_project"]:
+                    wandb.log(self._get_last_metrics(training_progress_scores))
+
                 if not best_eval_metric:
                     best_eval_metric = results[args["early_stopping_metric"]]
                     self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
@@ -518,15 +571,7 @@ class LanguageModelingModel:
 
     def eval_model(self, eval_file, output_dir=None, verbose=True, silent=False, **kwargs):
         """
-        Evaluates the model on eval_df. Saves results to output_dir.
-
-        Args:
-            eval_file: Path to eval file containing the text to evaluate the language model on.
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
-            verbose: If verbose, results will be printed to the console on completion of evaluation.
-            silent: If silent, tqdm progress bars will be hidden.
-
-        Returns:
+        Evaluates the model on eval_df. Saves results to outpuargs['output_dir']
             result: Dictionary containing evaluation results.
         """  # noqa: ignore flake8"
 
@@ -617,10 +662,21 @@ class LanguageModelingModel:
 
         mode = "dev" if evaluate else "train"
 
-        if args["line_by_line"]:
-            return LineByLineTextDataset(tokenizer, args, file_path, args["block_size"])
+        if args["dataset_class"]:
+            CustomDataset = args["dataset_class"]
+            return CustomDataset(tokenizer, args, file_path, mode, args["block_size"])
         else:
-            return TextDataset(tokenizer, args, file_path, mode, args["block_size"])
+            dataset_type = args["dataset_type"]
+            if dataset_type == "text":
+                return TextDataset(tokenizer, args, file_path, mode, args["block_size"])
+            elif dataset_type == "line_by_line":
+                return LineByLineTextDataset(tokenizer, args, file_path, args["block_size"])
+            else:
+                special_tokens_count = 3 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 2
+                if self.args["max_seq_length"] > 509:
+                    self.args["max_seq_length"] = 509 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 510
+                    self.args["block_size"] = 509 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 510
+                return SimpleDataset(tokenizer, self.args, file_path, mode, args["block_size"], special_tokens_count, sliding_window=args["sliding_window"])
 
     # def predict(self, to_predict, multi_label=False):
     #     """
@@ -728,6 +784,56 @@ class LanguageModelingModel:
 
     #     return preds, model_outputs
 
+    def train_tokenizer(self, train_files, tokenizer_name=None, output_dir=None, use_trained_tokenizer=True):
+        """
+        Train a new tokenizer on `train_files`.
+
+        Args:
+
+        - train_files: List of files to be used when training the tokenizer.
+
+        - tokenizer_name: Name of a pretrained tokenizer or a path to a directory containing a tokenizer.
+
+        - output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+
+        - use_trained_tokenizer (optional): Load the trained tokenizer once training completes.
+
+        Returns: None
+        """
+
+        if not isinstance(train_files, list):
+            train_files = [train_files]
+
+        if not output_dir:
+            output_dir = self.args["output_dir"]
+
+        tokenizer = ByteLevelBPETokenizer()
+
+        tokenizer.train(
+            files=train_files,
+            vocab_size=self.args["vocab_size"],
+            min_frequency=self.args["min_frequency"],
+            special_tokens=self.args["special_tokens"],
+        )
+
+        os.makedirs(output_dir, exist_ok=True)
+
+        tokenizer.save(output_dir)
+        logger.info(" Training of {} tokenizer complete. Saved to {}.".format(tokenizer_name, output_dir))
+
+        _, _, tokenizer_class = MODEL_CLASSES[self.args["model_type"]]
+        tokenizer = tokenizer_class.from_pretrained(output_dir)
+
+        if use_trained_tokenizer:
+            self.tokenizer = tokenizer
+            self.args["tokenizer_name"] = output_dir
+
+            try:
+                model_to_resize = self.model.module if hasattr(self.model, "module") else self.model
+                model_to_resize.resize_token_embeddings(len(self.tokenizer))
+            except AttributeError:
+                pass
+
     def _threshold(self, x, threshold):
         if x >= threshold:
             return 1
@@ -747,6 +853,9 @@ class LanguageModelingModel:
         }
 
         return training_progress_scores
+
+    def _get_last_metrics(self, metric_values):
+        return {metric: values[-1] for metric, values in metric_values.items()}
 
     def _save_model(self, output_dir, optimizer, scheduler, model=None, results=None):
         os.makedirs(output_dir, exist_ok=True)

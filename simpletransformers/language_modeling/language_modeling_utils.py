@@ -2,10 +2,14 @@ import os
 import pickle
 import logging
 from typing import Tuple
+from multiprocessing import Pool
 
 import torch
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer
+from tokenizers.implementations import ByteLevelBPETokenizer
+from tokenizers.processors import BertProcessing
+from tqdm.auto import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +39,37 @@ class TextDataset(Dataset):
             with open(file_path, encoding="utf-8") as f:
                 text = f.read()
 
-            tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
+            # tokenizer = ByteLevelBPETokenizer(
+            #     "outputs/vocab.json",
+            #     "outputs/merges.txt",
+            # )
+            # tokenizer._tokenizer.post_processor = BertProcessing(
+            #     ("</s>", tokenizer.token_to_id("</s>")),
+            #     ("<s>", tokenizer.token_to_id("<s>")),
+            # )
 
-            for i in range(0, len(tokenized_text) - block_size + 1, block_size):  # Truncate in block of block_size
-                self.examples.append(tokenizer.build_inputs_with_special_tokens(tokenized_text[i : i + block_size]))
+            # logger.info(" Encoding")
+            # tokenized_text = tokenizer.encode(text).ids
+            # logger.info(" Encoded")
+            # self.examples = [tokenized_text[i : i + block_size] for i in tqdm(range(0, len(tokenized_text) - block_size + 1, block_size))] # noqa
+
+            tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
+            tokenized_text_split = [
+                tokenized_text[i : i + block_size]
+                for i in tqdm(range(0, len(tokenized_text) - block_size + 1, block_size))
+            ]
+
+            with Pool(args["process_count"]) as p:
+                self.examples = list(
+                    tqdm(
+                        p.imap(tokenizer.build_inputs_with_special_tokens, tokenized_text_split, chunksize=500),
+                        total=len(tokenized_text_split),
+                        # disable=silent,
+                    )
+                )
+
+            # for i in range(0, len(tokenized_text) - block_size + 1, block_size):  # Truncate in block of block_size
+            #     self.examples.append(tokenizer.build_inputs_with_special_tokens(tokenized_text[i : i + block_size]))
             # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)
             # If your dataset is small, first you should loook for a bigger one :-) and second you
             # can change this behavior by adding (model specific) padding.
@@ -65,13 +96,123 @@ class LineByLineTextDataset(Dataset):
         with open(file_path, encoding="utf-8") as f:
             lines = [line for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())]
 
-        self.examples = tokenizer.batch_encode_plus(lines, add_special_tokens=True, max_length=block_size)["input_ids"]
+        tokenizer = ByteLevelBPETokenizer(
+            f"{args['tokenizer_name']}/vocab.json",
+            f"{args['tokenizer_name']}/merges.txt",
+        )
+        tokenizer._tokenizer.post_processor = BertProcessing(
+            ("</s>", tokenizer.token_to_id("</s>")),
+            ("<s>", tokenizer.token_to_id("<s>")),
+        )
+
+        tokenizer.enable_truncation(max_length=block_size)
+        self.examples = [t.ids for t in tokenizer.encode_batch(lines)]
+
+        # self.examples = tokenizer.batch_encode_plus(lines, add_special_tokens=True, max_length=block_size)["input_ids"] # noqa
 
     def __len__(self):
         return len(self.examples)
 
     def __getitem__(self, i):
         return torch.tensor(self.examples[i], dtype=torch.long)
+
+
+def encode(data):
+    tokenizer, line = data
+    return tokenizer.convert_tokens_to_ids(tokenizer.tokenize(line))
+
+
+def encode_sliding_window(data):
+    tokenizer, line, max_seq_length, special_tokens_count, stride = data
+
+    tokens = tokenizer.tokenize(line)
+    stride = int(max_seq_length * stride)
+    token_sets = []
+    if len(tokens) > max_seq_length - special_tokens_count:
+        token_sets = [tokens[i : i + max_seq_length - special_tokens_count] for i in range(0, len(tokens), stride)]
+    else:
+        token_sets.append(tokens)
+
+    sep_token = tokenizer.sep_token_id
+    cls_token = tokenizer.cls_token_id
+    pad_token = tokenizer.pad_token_id
+
+    features = []
+    for tokens in token_sets:
+        tokens = [cls_token] + tokens + [sep_token]
+
+        input_ids = tokenizer.convert_tokens_to_ids(tokens)
+        padding_length = max_seq_length - len(input_ids)
+        input_ids = input_ids + ([pad_token] * padding_length)
+
+        assert len(input_ids) == max_seq_length
+
+        features.append(input_ids)
+
+    return features
+
+
+class SimpleDataset(Dataset):
+    def __init__(self, tokenizer, args, file_path, mode, block_size=512, special_tokens_count=2, sliding_window=False):
+        assert os.path.isfile(file_path)
+        block_size = block_size - special_tokens_count
+        directory, filename = os.path.split(file_path)
+        cached_features_file = os.path.join(
+            args["cache_dir"], args["model_type"] + "_cached_lm_" + str(block_size) + "_" + filename
+        )
+
+        if os.path.exists(cached_features_file) and (
+            (not args["reprocess_input_data"] and not args["no_cache"])
+            or (mode == "dev" and args["use_cached_eval_features"] and not args["no_cache"])
+        ):
+            logger.info(" Loading features from cached file %s", cached_features_file)
+            with open(cached_features_file, "rb") as handle:
+                self.examples = pickle.load(handle)
+        else:
+            logger.info(" Creating features from dataset file at %s", args["cache_dir"])
+
+            if sliding_window:
+                with open(file_path, encoding="utf-8") as f:
+                    lines = [(tokenizer, line, args["max_seq_length"], special_tokens_count, args["stride"]) for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())]
+
+                with Pool(args["process_count"]) as p:
+                    self.examples = list(
+                        tqdm(
+                            p.imap(encode_sliding_window, lines, chunksize=50),
+                            total=len(lines),
+                            # disable=silent,
+                        )
+                    )
+
+                self.examples = [example for example_set in self.examples for example in example_set]
+            else:
+                with open(file_path, encoding="utf-8") as f:
+                    lines = [(tokenizer, line) for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())]
+
+                with Pool(args["process_count"]) as p:
+                    self.examples = list(
+                        tqdm(
+                            p.imap(encode, lines, chunksize=50),
+                            total=len(lines),
+                            # disable=silent,
+                        )
+                    )
+
+                self.examples = [token for tokens in self.examples for token in tokens]
+                self.examples = [
+                    tokenizer.build_inputs_with_special_tokens(self.examples[i : i + block_size])
+                    for i in tqdm(range(0, len(self.examples) - block_size + 1, block_size))
+                ]
+
+            logger.info(" Saving features into cached file %s", cached_features_file)
+            with open(cached_features_file, "wb") as handle:
+                pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, item):
+        return torch.tensor(self.examples[item], dtype=torch.long)
 
 
 def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, args) -> Tuple[torch.Tensor, torch.Tensor]:

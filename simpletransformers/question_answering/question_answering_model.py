@@ -340,6 +340,23 @@ class QuestionAnsweringModel:
         best_eval_metric = None
         early_stopping_counter = 0
 
+        if args["model_name"] and os.path.exists(args["model_name"]):
+            try:
+                # set global_step to gobal_step of last saved checkpoint from model path
+                checkpoint_suffix = args["model_name"].split("-")[-1].split("/")[0]
+                global_step = int(checkpoint_suffix)
+                epochs_trained = global_step // (len(train_dataloader) // args["gradient_accumulation_steps"])
+                steps_trained_in_current_epoch = global_step % (
+                    len(train_dataloader) // args["gradient_accumulation_steps"]
+                )
+
+                logger.info("   Continuing training from checkpoint, will skip to saved global_step")
+                logger.info("   Continuing training from epoch %d", epochs_trained)
+                logger.info("   Continuing training from global step %d", global_step)
+                logger.info("   Will skip the first %d steps in the first epoch", steps_trained_in_current_epoch)
+            except ValueError:
+                logger.info("   Starting fine-tuning.")
+
         if args["evaluate_during_training"]:
             training_progress_scores = self._create_training_progress_scores()
 
@@ -491,12 +508,12 @@ class QuestionAnsweringModel:
                 os.makedirs(output_dir_current, exist_ok=True)
 
             if args["save_model_every_epoch"]:
-                self._save_model(output_dir_current, model=model)
+                self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args["evaluate_during_training"]:
                 results, _ = self.eval_model(eval_data, verbose=True)
 
-                self._save_model(output_dir_current, results=results)
+                self._save_model(output_dir_current, optimizer, scheduler, results=results)
 
                 training_progress_scores["global_step"].append(global_step)
                 training_progress_scores["train_loss"].append(current_loss)
@@ -505,18 +522,21 @@ class QuestionAnsweringModel:
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False)
 
+                if args["wandb_project"]:
+                    wandb.log(self._get_last_metrics(training_progress_scores))
+
                 if not best_eval_metric:
                     best_eval_metric = results[args["early_stopping_metric"]]
-                    self._save_model(args["best_model_dir"], model=model, results=results)
+                    self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
                 if best_eval_metric and args["early_stopping_metric_minimize"]:
                     if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
                         best_eval_metric = results[args["early_stopping_metric"]]
-                        self._save_model(args["best_model_dir"], model=model, results=results)
+                        self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                 else:
                     if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
                         best_eval_metric = results[args["early_stopping_metric"]]
-                        self._save_model(args["best_model_dir"], model=model, results=results)
+                        self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
 
         return global_step, tr_loss / global_step
@@ -848,7 +868,7 @@ class QuestionAnsweringModel:
 
         return training_progress_scores
 
-    def _save_model(self, output_dir, model=None, results=None):
+    def _save_model(self, output_dir, optimizer, scheduler, model=None, results=None):
         os.makedirs(output_dir, exist_ok=True)
 
         if model:
@@ -856,6 +876,9 @@ class QuestionAnsweringModel:
             model_to_save = model.module if hasattr(model, "module") else model
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
+            torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
+            torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+            torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
