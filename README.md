@@ -407,7 +407,7 @@ This class  is used for Text Classification tasks.
 `Class attributes`
 * `tokenizer`: The tokenizer to be used.
 * `model`: The model to be used.
-* `model_name`: model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+* `model_name`: model_name: Default Transformer model name or path to Transformer model file (pytorch_model.bin).
 * `device`: The device on which the model will be trained and evaluated.
 * `results`: A python dict of past evaluation results for the TransformerModel object.
 * `args`: A python dict of arguments used for training and evaluation.
@@ -574,7 +574,7 @@ This class  is used for Named Entity Recognition.
 `Class attributes`
 * `tokenizer`: The tokenizer to be used.
 * `model`: The model to be used.
-            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+            model_name: Default Transformer model name or path to Transformer model file (pytorch_model.bin).
 * `device`: The device on which the model will be trained and evaluated.
 * `results`: A python dict of past evaluation results for the TransformerModel object.
 * `args`: A python dict of arguments used for training and evaluation.
@@ -791,7 +791,7 @@ This class is used for Question Answering tasks.
 `Class attributes`
 - `tokenizer`: The tokenizer to be used.
 - `model`: The model to be used.
-            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+            model_name: Default Transformer model name or path to Transformer model file (pytorch_model.bin).
 - `device`: The device on which the model will be trained and evaluated.
 - `results`: A python dict of past evaluation results for the TransformerModel object.
 - `args`: A python dict of arguments used for training and evaluation.
@@ -970,7 +970,7 @@ This class is used for Question Answering tasks.
 
 - `tokenizer`: The tokenizer to be used.
 - `model`: The model to be used.
-            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+            model_name: Default Transformer model name or path to Transformer model file (pytorch_model.bin).
 - `device`: The device on which the model will be trained and evaluated.
 - `results`: A python dict of past evaluation results for the TransformerModel object.
 - `args`: A python dict of arguments used for training and evaluation.
@@ -1230,7 +1230,7 @@ This class is used to build Conversational AI.
 
 - `tokenizer`: The tokenizer to be used.
 - `model`: The model to be used.
-            model_name: Default Transformer model name or path to Transformer model file (pytorch_nodel.bin).
+            model_name: Default Transformer model name or path to Transformer model file (pytorch_model.bin).
 - `device`: The device on which the model will be trained and evaluated.
 - `results`: A python dict of past evaluation results for the TransformerModel object.
 - `args`: A python dict of arguments used for training and evaluation.
@@ -1486,7 +1486,7 @@ Available arguments:
 """
 Args:
     model_type: The type of model (bert, xlnet, xlm, roberta, distilbert, albert)
-    model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
+    model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_model.bin).
     multi_label (optional): Set to True for multi label tasks.
     label_list (optional) : A list of all the labels (str) in the dataset.
     num_labels (optional): The number of labels or classes in the dataset.
