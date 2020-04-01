@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-21-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-22-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -2100,6 +2100,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/jacky18008"><img src="https://avatars0.githubusercontent.com/u/9031441?v=4" width="100px;" alt=""/><br /><sub><b>jacky18008</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=jacky18008" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/seo-95"><img src="https://avatars0.githubusercontent.com/u/38254541?v=4" width="100px;" alt=""/><br /><sub><b>Matteo Senese</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=seo-95" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/sarthakTUM"><img src="https://avatars2.githubusercontent.com/u/23062869?v=4" width="100px;" alt=""/><br /><sub><b>sarthakTUM</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=sarthakTUM" title="Documentation">📖</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=sarthakTUM" title="Code">💻</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="http://kozistr.tech"><img src="https://avatars2.githubusercontent.com/u/15344796?v=4" width="100px;" alt=""/><br /><sub><b>Hyeongchan Kim</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=kozistr" title="Documentation">📖</a></td>
   </tr>
 </table>
 
