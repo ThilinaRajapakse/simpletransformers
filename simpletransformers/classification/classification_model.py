@@ -830,7 +830,7 @@ class ClassificationModel:
         mcc = matthews_corrcoef(labels, preds)
 
         if self.model.num_labels == 2:
-            tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
+            tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
             return (
                 {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn}, **extra_metrics},
                 wrong,
