@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.1] - 2020-03-30
+
+### Fixed
+
+- Fixed bug in binary classification evaluation when data only contains one label.
+- Fixed typo in readme.
+
+### Changed
+
+- Cache dir is no longer created when `no_cache` is used.
+
 ## [0.23.0] - 2020-03-30
 
 ### Added
@@ -486,7 +497,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.22.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b5cf82c...HEAD
+[0.22.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/v7529ee1...HEAD
+
+[0.22.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b5cf82c...7529ee1
 
 [0.22.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/51fc7a3...b5cf82c
 

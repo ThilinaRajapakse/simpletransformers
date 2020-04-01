@@ -5,7 +5,16 @@
 
 # Simple Transformers
 
-This library is based on the [Transformers](https://github.com/huggingface/transformers) library by HuggingFace. Simple Transformers lets you quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate a model. Currently supports Sequence Classification, Token Classification (NER), Question Answering, Multi-Modal Classification, and Conversational AI.
+This library is based on the [Transformers](https://github.com/huggingface/transformers) library by HuggingFace. Simple Transformers lets you quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate a model.
+
+Supports
+- Sequence Classification
+- Token Classification (NER)
+- Question Answering
+- Language Model Fine-Tuning
+- Language Model Training
+- Multi-Modal Classification
+- Conversational AI.
 
 # Table of contents
 
@@ -2094,6 +2103,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/djstrong"><img src="https://avatars1.githubusercontent.com/u/1849959?v=4" width="100px;" alt=""/><br /><sub><b>djstrong</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=djstrong" title="Code">💻</a></td>
+    <td align="center"><a href="http://kozistr.tech"><img src="https://avatars2.githubusercontent.com/u/15344796?v=4" width="100px;" alt=""/><br /><sub><b>Hyeongchan Kim</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=kozistr" title="Documentation">📖</a></td>
   </tr>
 </table>
 
