@@ -201,6 +201,15 @@
         "doc",
         "code"
       ]
+    },
+    {
+      "login": "djstrong",
+      "name": "djstrong",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/1849959?v=4",
+      "profile": "https://github.com/djstrong",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
