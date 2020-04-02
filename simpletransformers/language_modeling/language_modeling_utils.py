@@ -121,7 +121,7 @@ def encode(data):
 
 
 def encode_sliding_window(data):
-    tokenizer, line, max_seq_length, special_tokens_count, stride = data
+    tokenizer, line, max_seq_length, special_tokens_count, stride, no_padding = data
 
     tokens = tokenizer.tokenize(line)
     stride = int(max_seq_length * stride)
@@ -131,21 +131,26 @@ def encode_sliding_window(data):
     else:
         token_sets.append(tokens)
 
-    sep_token = tokenizer.sep_token_id
-    cls_token = tokenizer.cls_token_id
-    pad_token = tokenizer.pad_token_id
-
     features = []
-    for tokens in token_sets:
-        tokens = [cls_token] + tokens + [sep_token]
+    if not no_padding:
+        sep_token = tokenizer.sep_token_id
+        cls_token = tokenizer.cls_token_id
+        pad_token = tokenizer.pad_token_id
 
-        input_ids = tokenizer.convert_tokens_to_ids(tokens)
-        padding_length = max_seq_length - len(input_ids)
-        input_ids = input_ids + ([pad_token] * padding_length)
+        for tokens in token_sets:
+            tokens = [cls_token] + tokens + [sep_token]
 
-        assert len(input_ids) == max_seq_length
+            input_ids = tokenizer.convert_tokens_to_ids(tokens)
+            padding_length = max_seq_length - len(input_ids)
+            input_ids = input_ids + ([pad_token] * padding_length)
 
-        features.append(input_ids)
+            assert len(input_ids) == max_seq_length
+
+            features.append(input_ids)
+    else:
+        for tokens in token_sets:
+            input_ids = tokenizer.convert_tokens_to_ids(tokens)
+            features.append(input_ids)
 
     return features
 
@@ -170,9 +175,10 @@ class SimpleDataset(Dataset):
             logger.info(" Creating features from dataset file at %s", args["cache_dir"])
 
             if sliding_window:
+                no_padding = True if args["model_type"] in ["gpt2", "openai-gpt"] else False
                 with open(file_path, encoding="utf-8") as f:
                     lines = [
-                        (tokenizer, line, args["max_seq_length"], special_tokens_count, args["stride"])
+                        (tokenizer, line, args["max_seq_length"], special_tokens_count, args["stride"], no_padding)
                         for line in f.read().splitlines()
                         if (len(line) > 0 and not line.isspace())
                     ]
