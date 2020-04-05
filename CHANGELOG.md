@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.3] - 2020-04-05
+
+### Fixed
+
+- Fixed bug in `QuestionAnsweringModel` where the `save_model()` method wasn't being called properly.
+- Fixed bug in calculating global step when resuming training
+
 ## [0.23.2] - 2020-04-02
 
 ### Fixed
@@ -503,7 +510,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.23.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/96bc291...HEAD
+[0.23.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3069694...HEAD
+
+[0.23.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/96bc291...3069694
 
 [0.23.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7529ee1...96bc291
 

@@ -340,16 +340,21 @@ class LanguageModelingModel:
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
-        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
+        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"], mininterval=0)
         epoch_number = 0
         best_eval_metric = None
         early_stopping_counter = 0
         steps_trained_in_current_epoch = 0
+        epochs_trained = 0
 
         if args["model_name"] and os.path.exists(args["model_name"]):
             try:
                 # set global_step to gobal_step of last saved checkpoint from model path
-                checkpoint_suffix = args["model_name"].split("-")[-1].split("/")[0]
+                checkpoint_suffix = args["model_name"].split("/")[-1].split("-")
+                if len(checkpoint_suffix) > 2:
+                    checkpoint_suffix = checkpoint_suffix[1]
+                else:
+                    checkpoint_suffix = checkpoint_suffix[-1]
                 global_step = int(checkpoint_suffix)
                 epochs_trained = global_step // (len(train_dataloader) // args["gradient_accumulation_steps"])
                 steps_trained_in_current_epoch = global_step % (
@@ -359,7 +364,7 @@ class LanguageModelingModel:
                 logger.info("   Continuing training from checkpoint, will skip to saved global_step")
                 logger.info("   Continuing training from epoch %d", epochs_trained)
                 logger.info("   Continuing training from global step %d", global_step)
-                logger.info("   Will skip the first %d steps in the first epoch", steps_trained_in_current_epoch)
+                logger.info("   Will skip the first %d steps in the current epoch", steps_trained_in_current_epoch)
             except ValueError:
                 logger.info("   Starting fine-tuning.")
 
@@ -371,7 +376,10 @@ class LanguageModelingModel:
             wandb.watch(self.model)
 
         model.train()
-        for _ in train_iterator:
+        for current_epoch in train_iterator:
+            if epochs_trained > 0:
+                epochs_trained -= 1
+                continue
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
             for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])):
                 if steps_trained_in_current_epoch > 0:

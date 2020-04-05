@@ -130,9 +130,7 @@ class QuestionAnsweringModel:
         }
 
         self.args.update(global_args)
-        self.args.update(
-            {"early_stopping_metric": "correct", "early_stopping_metric_minimize": False}
-        )
+        self.args.update({"early_stopping_metric": "correct", "early_stopping_metric_minimize": False})
 
         if not use_cuda:
             self.args["fp16"] = False
@@ -334,15 +332,21 @@ class QuestionAnsweringModel:
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
-        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
+        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"], mininterval=0)
         epoch_number = 0
         best_eval_metric = None
         early_stopping_counter = 0
+        steps_trained_in_current_epoch = 0
+        epochs_trained = 0
 
         if args["model_name"] and os.path.exists(args["model_name"]):
             try:
                 # set global_step to gobal_step of last saved checkpoint from model path
-                checkpoint_suffix = args["model_name"].split("-")[-1].split("/")[0]
+                checkpoint_suffix = args["model_name"].split("/")[-1].split("-")
+                if len(checkpoint_suffix) > 2:
+                    checkpoint_suffix = checkpoint_suffix[1]
+                else:
+                    checkpoint_suffix = checkpoint_suffix[-1]
                 global_step = int(checkpoint_suffix)
                 epochs_trained = global_step // (len(train_dataloader) // args["gradient_accumulation_steps"])
                 steps_trained_in_current_epoch = global_step % (
@@ -352,7 +356,7 @@ class QuestionAnsweringModel:
                 logger.info("   Continuing training from checkpoint, will skip to saved global_step")
                 logger.info("   Continuing training from epoch %d", epochs_trained)
                 logger.info("   Continuing training from global step %d", global_step)
-                logger.info("   Will skip the first %d steps in the first epoch", steps_trained_in_current_epoch)
+                logger.info("   Will skip the first %d steps in the current epoch", steps_trained_in_current_epoch)
             except ValueError:
                 logger.info("   Starting fine-tuning.")
 
@@ -365,8 +369,14 @@ class QuestionAnsweringModel:
 
         model.train()
         for _ in train_iterator:
+            if epochs_trained > 0:
+                epochs_trained -= 1
+                continue
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
             for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])):
+                if steps_trained_in_current_epoch > 0:
+                    steps_trained_in_current_epoch -= 1
+                    continue
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
@@ -430,7 +440,7 @@ class QuestionAnsweringModel:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        self._save_model(output_dir_current, model=model)
+                        self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
                     if args["evaluate_during_training"] and (
                         args["evaluate_during_training_steps"] > 0
@@ -444,7 +454,7 @@ class QuestionAnsweringModel:
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
                         if args["save_eval_checkpoints"]:
-                            self._save_model(output_dir_current, model=model, results=results)
+                            self._save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
 
                         training_progress_scores["global_step"].append(global_step)
                         training_progress_scores["train_loss"].append(current_loss)
@@ -460,11 +470,13 @@ class QuestionAnsweringModel:
 
                         if not best_eval_metric:
                             best_eval_metric = results[args["early_stopping_metric"]]
-                            self._save_model(args["best_model_dir"], model=model, results=results)
+                            self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
                         if best_eval_metric and args["early_stopping_metric_minimize"]:
                             if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
                                 best_eval_metric = results[args["early_stopping_metric"]]
-                                self._save_model(args["best_model_dir"], model=model, results=results)
+                                self._save_model(
+                                    args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                                )
                                 early_stopping_counter = 0
                             else:
                                 if args["use_early_stopping"]:
@@ -483,7 +495,9 @@ class QuestionAnsweringModel:
                         else:
                             if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
                                 best_eval_metric = results[args["early_stopping_metric"]]
-                                self._save_model(args["best_model_dir"], model=model, results=results)
+                                self._save_model(
+                                    args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                                )
                                 early_stopping_counter = 0
                             else:
                                 if args["use_early_stopping"]:
