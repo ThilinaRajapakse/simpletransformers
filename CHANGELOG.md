@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed bug in `QuestionAnsweringModel` where the `save_model()` method wasn't being called properly.
-- Fixed bug in calculating global step when resuming training
+- Fixed bug in calculating global step when resuming training.
 
 ## [0.23.2] - 2020-04-02
 

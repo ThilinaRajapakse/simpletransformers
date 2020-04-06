@@ -53,6 +53,7 @@ Supports
   - [Language Model Training](#language-model-training)
     - [Data format](#data-format-1)
     - [Minimal Example For Language Model Fine Tuning](#minimal-example-for-language-model-fine-tuning)
+      - [Example (Medium Article)](#example-medium-article)
     - [Minimal Example For Language Model Training From Scratch](#minimal-example-for-language-model-training-from-scratch)
     - [LanguageModelingModel](#languagemodelingmodel)
     - [Additional attributes for Language Modeling tasks](#additional-attributes-for-language-modeling-tasks)
@@ -978,6 +979,10 @@ model.train_model("wikitext-2/wiki.train.tokens", eval_file="wikitext-2/wiki.tes
 model.eval_model("wikitext-2/wiki.test.tokens")
 
 ```
+
+#### Example (Medium Article)
+
+- [Language Model Fine-tuning](https://medium.com/skilai/language-model-fine-tuning-for-pre-trained-transformers-b7262774a7ee?source=friends_link&sk=1f9f834447db7e748ae333c6490064fa)
 
 ### Minimal Example For Language Model Training From Scratch
 
