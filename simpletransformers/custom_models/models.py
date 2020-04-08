@@ -407,7 +407,56 @@ class FlaubertForMultiLabelSequenceClassification(FlaubertModel):
             outputs = (loss,) + outputs
 
         return outputs
-    
+
+
 class XLMRobertaForMultiLabelSequenceClassification(RobertaForMultiLabelSequenceClassification):
     config_class = XLMRobertaConfig
     pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+
+
+class ElectraForLanguageModelingModel(PreTrainedModel):
+    def __init__(self, config, generator_model, discriminator_model, **kwargs):
+        super(ElectraForLanguageModelingModel, self).__init__(config, **kwargs)
+        self.generator = generator_model
+        self.discriminator = discriminator_model
+        self.vocab_size = generator_model.config.vocab_size
+
+    def forward(self, inputs, labels, attention_mask, token_type_ids):
+        d_inputs = inputs.clone()
+
+        # run masked LM.
+        g_out = self.generator(inputs,
+                               masked_lm_labels=labels,
+                               attention_mask=attention_mask,
+                               token_type_ids=token_type_ids)
+
+        # get samples from masked LM.
+        sample_probs = torch.softmax(g_out[1], dim=-1, dtype=torch.float32)
+        sample_probs = sample_probs.view(-1, self.vocab_size)
+
+        sampled_tokens = torch.multinomial(sample_probs, 1).view(-1)
+        sampled_tokens = sampled_tokens.view(d_inputs.shape[0], -1)
+
+        # labels have a -100 value to mask out loss from unchanged tokens.
+        mask = labels.ne(-100)
+
+        # replace the masked out tokens of the input with the generator predictions.
+        d_inputs[mask] = sampled_tokens[mask]
+
+        # turn mask into new target labels.  1 (True) for corrupted, 0 otherwise.
+        # if the prediction was correct, mark it as uncorrupted.
+        correct_preds = sampled_tokens == labels
+        d_labels = mask.long()
+        d_labels[correct_preds] = 0
+
+        # run token classification, predict whether each token was corrupted.
+        d_out = self.discriminator(d_inputs,
+                                   labels=d_labels,
+                                   attention_mask=attention_mask,
+                                   token_type_ids=token_type_ids)
+
+        g_loss = g_out[0]
+        d_loss = d_out[0]
+        g_scores = g_out[1]
+        d_scores = d_out[1]
+        return g_loss, d_loss, g_scores, d_scores, d_labels
