@@ -192,6 +192,7 @@ class LanguageModelingModel:
                 )
             else:
                 self.train_tokenizer(train_files)
+                new_tokenizer = True
 
         if self.args["config_name"]:
             self.config = config_class.from_pretrained(self.args["config_name"], cache_dir=self.args["cache_dir"])
@@ -199,6 +200,10 @@ class LanguageModelingModel:
             self.config = config_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
         else:
             self.config = config_class(**self.args["config"], **kwargs)
+        if self.args["vocab_size"]:
+            self.config.vocab_size = self.args["vocab_size"]
+        if new_tokenizer:
+            self.config.vocab_size = len(self.tokenizer)
 
         if self.args["model_type"] == "electra":
             if generator_name:
@@ -209,6 +214,8 @@ class LanguageModelingModel:
                 )
             else:
                 self.generator_config = ElectraConfig(**self.args["generator_config"], **kwargs)
+                if new_tokenizer:
+                    self.generator_config.vocab_size = len(self.tokenizer)
 
             if discriminator_name:
                 self.discriminator_config = ElectraConfig.from_pretrained(discriminator_name)
@@ -218,6 +225,8 @@ class LanguageModelingModel:
                 )
             else:
                 self.discriminator_config = ElectraConfig(**self.args["discriminator_config"], **kwargs)
+                if new_tokenizer:
+                    self.discriminator_config.vocab_size = len(self.tokenizer)
 
         if self.args["block_size"] <= 0:
             self.args["block_size"] = min(self.args["max_seq_length"], self.tokenizer.max_len)
@@ -234,13 +243,15 @@ class LanguageModelingModel:
                     discriminator_config=self.discriminator_config,
                     **kwargs,
                 )
-                self.model.load_state_dict(torch.load(os.path.join(self.args["model_name"], "pytorch_model.bin")))
+                self.model.generator_model = ElectraForMaskedLM.from_pretrained(
+                    generator_name, config=self.generator_config, **kwargs
+                )
+                self.model.discriminator_model = ElectraForPreTraining.from_pretrained(
+                    discriminator_name, config=self.discriminator_config, **kwargs
+                )
             else:
                 self.model = model_class.from_pretrained(
-                    model_name,
-                    config=self.config,
-                    cache_dir=self.args["cache_dir"],
-                    **kwargs,
+                    model_name, config=self.config, cache_dir=self.args["cache_dir"], **kwargs,
                 )
         else:
             logger.info(" Training language model from scratch")
@@ -254,6 +265,19 @@ class LanguageModelingModel:
                     generator_config=self.generator_config,
                     discriminator_config=self.discriminator_config,
                 )
+                model_to_resize = (
+                    self.model.generator_model.module
+                    if hasattr(self.model.generator_model, "module")
+                    else self.model.generator_model
+                )
+                model_to_resize.resize_token_embeddings(len(self.tokenizer))
+
+                model_to_resize = (
+                    self.model.discriminator_model.module
+                    if hasattr(self.model.discriminator_model, "module")
+                    else self.model.discriminator_model
+                )
+                model_to_resize.resize_token_embeddings(len(self.tokenizer))
             else:
                 self.model = model_class(config=self.config)
                 model_to_resize = self.model.module if hasattr(self.model, "module") else self.model
