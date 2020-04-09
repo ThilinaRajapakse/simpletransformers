@@ -55,6 +55,7 @@ Supports
     - [Minimal Example For Language Model Fine Tuning](#minimal-example-for-language-model-fine-tuning)
       - [Example (Medium Article)](#example-medium-article)
     - [Minimal Example For Language Model Training From Scratch](#minimal-example-for-language-model-training-from-scratch)
+    - [Minimal Example For Language Model Training With ELECTRA](#minimal-example-for-language-model-training-with-electra)
     - [LanguageModelingModel](#languagemodelingmodel)
     - [Additional attributes for Language Modeling tasks](#additional-attributes-for-language-modeling-tasks)
       - [*dataset_type: str*](#datasettype-str)
@@ -65,11 +66,13 @@ Supports
       - [*max_steps: int*](#maxsteps-int)
       - [*config_name: str*](#configname-str)
       - [*tokenizer_name: str*](#tokenizername-str)
-      - [*vocab_size: int*](#vocabsize-int)
       - [*min_frequencey: int*](#minfrequencey-int)
       - [*special_tokens: list*](#specialtokens-list)
       - [*sliding_window: bool*](#slidingwindow-bool)
       - [*stride: float*](#stride-float)
+    - [*config: dict*](#config-dict)
+    - [*generator_config: dict*](#generatorconfig-dict)
+    - [*discriminator_config: dict*](#discriminatorconfig-dict)
   - [Conversational AI](#conversational-ai)
     - [Data format](#data-format-2)
     - [Minimal Example](#minimal-example-1)
@@ -949,6 +952,7 @@ Supported model types:
 - RoBERTa
 - DistilBERT
 - CamemBERT
+- ELECTRA
 
 ### Data format
 
@@ -1010,9 +1014,49 @@ model.eval_model("wikitext-2/wiki.test.tokens")
 
 ```
 
+### Minimal Example For Language Model Training With ELECTRA
+
+[ELECTRA](https://openreview.net/pdf?id=r1xMH1BtvB) is a new approach to pretraining Transformer Language Models. This method is comparatively less compute-intensive.
+
+You can use the `save_discriminator()` and `save_generator()` methods to extract the pretrained models. The two models will be saved to `<output_dir>/discriminator_model` and `<output_dir>/generator_model` by default.
+
+```python
+from simpletransformers.language_modeling import LanguageModelingModel
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+train_args = {
+    "reprocess_input_data": True,
+    "overwrite_output_dir": True,
+}
+
+model = LanguageModelingModel('electra', None, args=train_args)
+
+# Mixing standard ELECTRA architectures example
+# model = LanguageModelingModel(
+#     "electra",
+#     None,
+#     generator_name="google/electra-small-generator",
+#     discriminator_name="google/electra-large-discriminator",
+#     args=train_args,
+#     train_files="wikitext-2/wiki.train.tokens",
+# )
+
+model.train_model("wikitext-2/wiki.train.tokens", eval_file="wikitext-2/wiki.test.tokens")
+
+model.eval_model("wikitext-2/wiki.test.tokens")
+
+```
+
+*A more comprehensive guide will be added here soon*
+
 ### LanguageModelingModel
 
-`class simpletransformers.language_modeling.LanguageModelingModel (model_type, model_name, args=None, use_cuda=True, cuda_device=-1)`  
+`class simpletransformers.language_modeling.LanguageModelingModel (model_type, model_name, generator_name=None, discriminator_name=None, args=None, use_cuda=True, cuda_device=-1)`  
 This class is used for Question Answering tasks.
 
 `Class attributes`
@@ -1028,10 +1072,13 @@ This class is used for Question Answering tasks.
 `Parameters`
 
 - `model_type`: (required) str - The type of model to use.
-- `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+- `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models. Set to `None` for language model training from scratch.
+- `generator_name`: (optional) A pretrained model name or path to a directory containing an ELECTRA generator model.
+- `discriminator_name`: (optional) A pretrained model name or path to a directory containing an ELECTRA discriminator model.
 - `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
+- `train_files`: (optional) List of files to be used when training the tokenizer.
 - `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
-- cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
+- `cuda_device`: (optional) Specific GPU that should be used. Will use the first available GPU by default.
 
 `class methods`  
 **`train_model(self, train_file, output_dir=None, show_running_loss=True, args=None, eval_file=None, verbose=True,)`**
@@ -1119,11 +1166,13 @@ LanguageModelingModel has a few additional attributes in its `args` dictionary, 
     "max_steps": -1,
     "config_name": None,
     "tokenizer_name": None,
-    "vocab_size": 52000,
     "min_frequency": 2,
     "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
     "sliding_window": False,
     "stride": 0.8
+    "config": {},
+    "generator_config": {},
+    "discriminator_config": {},
 ```
 
 #### *dataset_type: str*
@@ -1169,10 +1218,6 @@ Name of pretrained config or path to a directory containing a `config.json` file
 
 Name of pretrained tokenizer or path to a directory containing tokenizer files.
 
-#### *vocab_size: int*
-
-Size of the vocabulary for the tokenizer and model.
-
 #### *min_frequencey: int*
 
 Minimum frequency required for a word to be added to the vocabulary.
@@ -1188,6 +1233,18 @@ Whether sliding window technique should be used when preparing data. *Only works
 #### *stride: float*
 
 A fraction of the `max_seq_length` to use as the stride when using a sliding window
+
+### *config: dict*
+
+Key-values given here will override the default values used in a model `Config`.
+
+### *generator_config: dict*
+
+Key-values given here will override the default values used in an Electra generator model `Config`.
+
+### *discriminator_config: dict*
+
+Key-values given here will override the default values used in an Electra discriminator model `Config`.
 
 _[Back to Table of Contents](#table-of-contents)_
 

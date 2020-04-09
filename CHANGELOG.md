@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.0] - 2020-04-09
+
+### Added
+
+- Added ELECTRA pretraining support.
+- Added better support for configuring model architectures when training language models from scratch.
+  - Any options which should be overriden from the default config can now be specified in the `args` dict. (`config` key)
+
+### Changed
+
+- Default entry for `vocab_size` removed from `args` for `LanguageModelingModel` as it differs for different model types.
+  - `vocab_size` must now be specified whenever a new tokenizer is to be trained.
+
+### Fixed
+
+- Fixed bugs when training BERT (with word piece tokenization) language models from scratch.
+- Fixed incorrect special tokens being used with BERT models when training a new tokenizer.
+- Fixed potential bugs with BERT tokenizer training.
+
 ## [0.23.3] - 2020-04-05
 
 ### Fixed

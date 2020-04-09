@@ -111,7 +111,10 @@ class LanguageModelingModel:
         Args:
             model_type: The type of model (gpt2, openai-gpt, bert, roberta, distilbert, camembert)
             model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
+            generator_name (optional): A pretrained model name or path to a directory containing an ELECTRA generator model.
+            discriminator_name (optional): A pretrained model name or path to a directory containing an ELECTRA discriminator model.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
+            train_files (optional): List of files to be used when training the tokenizer.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
             **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
@@ -150,7 +153,6 @@ class LanguageModelingModel:
             "max_steps": -1,
             "config_name": None,
             "tokenizer_name": None,
-            "vocab_size": 52000,
             "min_frequency": 2,
             "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
             "sliding_window": False,
@@ -192,14 +194,14 @@ class LanguageModelingModel:
 
         if self.args["config_name"]:
             self.config = config_class.from_pretrained(
-                self.args["config_name"], cache_dir=self.args["cache_dir"], vocab_size=self.args["vocab_size"]
+                self.args["config_name"], cache_dir=self.args["cache_dir"]
             )
         elif self.args["model_name"]:
             self.config = config_class.from_pretrained(
-                model_name, cache_dir=self.args["cache_dir"], vocab_size=self.args["vocab_size"], **kwargs
+                model_name, cache_dir=self.args["cache_dir"], **kwargs
             )
         else:
-            self.config = config_class(vocab_size=self.args["vocab_size"], **self.args["config"], **kwargs)
+            self.config = config_class(**self.args["config"], **kwargs)
 
         if self.args["model_type"] == "electra":
             if generator_name:
@@ -207,12 +209,11 @@ class LanguageModelingModel:
             elif self.args["model_name"]:
                 self.generator_config = ElectraConfig.from_pretrained(
                     os.path.join(self.args["model_name"], "generator_config"),
-                    vocab_size=self.args["vocab_size"],
                     **kwargs,
                 )
             else:
                 self.generator_config = ElectraConfig(
-                    vocab_size=self.args["vocab_size"], **self.args["generator_config"], **kwargs
+                    **self.args["generator_config"], **kwargs
                 )
 
             if discriminator_name:
@@ -220,12 +221,11 @@ class LanguageModelingModel:
             elif self.args["model_name"]:
                 self.discriminator_config = ElectraConfig.from_pretrained(
                     os.path.join(self.args["model_name"], "discriminator_config"),
-                    vocab_size=self.args["vocab_size"],
                     **kwargs,
                 )
             else:
                 self.discriminator_config = ElectraConfig(
-                    vocab_size=self.args["vocab_size"], **self.args["discriminator_config"], **kwargs
+                    **self.args["discriminator_config"], **kwargs
                 )
 
         if self.args["block_size"] <= 0:
@@ -893,6 +893,9 @@ class LanguageModelingModel:
         Returns: None
         """
 
+        if "vocab_size" not in self.args:
+            raise AttributeError("Tokenizer not specified and vocab_size not specified in args to train a new tokenizer.")
+
         if not isinstance(train_files, list):
             train_files = [train_files]
 
@@ -932,7 +935,6 @@ class LanguageModelingModel:
         if use_trained_tokenizer:
             self.tokenizer = tokenizer
             self.args["tokenizer_name"] = output_dir
-
             try:
                 if self.args["model_type"] == "electra":
                     model_to_resize = (
