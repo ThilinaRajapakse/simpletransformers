@@ -30,7 +30,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 
-from tokenizers import ByteLevelBPETokenizer
+from tokenizers import ByteLevelBPETokenizer, BertWordPieceTokenizer
 from tokenizers.processors import BertProcessing
 from transformers import (
     WEIGHTS_NAME,
@@ -55,6 +55,10 @@ from transformers import (
     RobertaConfig,
     RobertaForMaskedLM,
     RobertaTokenizer,
+    ElectraConfig,
+    ElectraTokenizer,
+    ElectraForMaskedLM,
+    ElectraForPreTraining,
     get_linear_schedule_with_warmup,
 )
 
@@ -65,6 +69,7 @@ from simpletransformers.language_modeling.language_modeling_utils import (
     mask_tokens,
     SimpleDataset,
 )
+from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
 
 try:
     import wandb
@@ -82,12 +87,22 @@ MODEL_CLASSES = {
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
     "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
     "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
+    "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
 }
 
 
 class LanguageModelingModel:
     def __init__(
-        self, model_type, model_name, train_files=None, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self,
+        model_type,
+        model_name,
+        generator_name=None,
+        discriminator_name=None,
+        train_files=None,
+        args=None,
+        use_cuda=True,
+        cuda_device=-1,
+        **kwargs,
     ):
 
         """
@@ -140,6 +155,9 @@ class LanguageModelingModel:
             "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
             "sliding_window": False,
             "stride": 0.8,
+            "config": {},
+            "generator_config": {},
+            "discriminator_config": {},
         }
 
         self.args.update(global_args)
@@ -155,13 +173,6 @@ class LanguageModelingModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.tokenizer_class = tokenizer_class
-
-        if self.args["config_name"]:
-            self.config = config_class.from_pretrained(self.args["config_name"], cache_dir=self.args["cache_dir"])
-        elif self.args["model_name"]:
-            self.config = config_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
-        else:
-            self.config = config_class()
 
         if self.args["tokenizer_name"]:
             self.tokenizer = tokenizer_class.from_pretrained(
@@ -179,6 +190,44 @@ class LanguageModelingModel:
             else:
                 self.train_tokenizer(train_files)
 
+        if self.args["config_name"]:
+            self.config = config_class.from_pretrained(
+                self.args["config_name"], cache_dir=self.args["cache_dir"], vocab_size=self.args["vocab_size"]
+            )
+        elif self.args["model_name"]:
+            self.config = config_class.from_pretrained(
+                model_name, cache_dir=self.args["cache_dir"], vocab_size=self.args["vocab_size"], **kwargs
+            )
+        else:
+            self.config = config_class(vocab_size=self.args["vocab_size"], **self.args["config"], **kwargs)
+
+        if self.args["model_type"] == "electra":
+            if generator_name:
+                self.generator_config = ElectraConfig.from_pretrained(generator_name)
+            elif self.args["model_name"]:
+                self.generator_config = ElectraConfig.from_pretrained(
+                    os.path.join(self.args["model_name"], "generator_config"),
+                    vocab_size=self.args["vocab_size"],
+                    **kwargs,
+                )
+            else:
+                self.generator_config = ElectraConfig(
+                    vocab_size=self.args["vocab_size"], **self.args["generator_config"], **kwargs
+                )
+
+            if discriminator_name:
+                self.discriminator_config = ElectraConfig.from_pretrained(discriminator_name)
+            elif self.args["model_name"]:
+                self.discriminator_config = ElectraConfig.from_pretrained(
+                    os.path.join(self.args["model_name"], "discriminator_config"),
+                    vocab_size=self.args["vocab_size"],
+                    **kwargs,
+                )
+            else:
+                self.discriminator_config = ElectraConfig(
+                    vocab_size=self.args["vocab_size"], **self.args["discriminator_config"], **kwargs
+                )
+
         if self.args["block_size"] <= 0:
             self.args["block_size"] = min(self.args["max_seq_length"], self.tokenizer.max_len)
         else:
@@ -186,13 +235,31 @@ class LanguageModelingModel:
 
         if self.args["model_name"]:
             self.model = model_class.from_pretrained(
-                model_name, config=self.config, cache_dir=self.args["cache_dir"], **kwargs
+                model_name,
+                config=self.config,
+                cache_dir=self.args["cache_dir"],
+                generator_config=self.generator_config,
+                discriminator_config=self.discriminator_config,
+                **kwargs,
             )
+            if self.args["model_type"] == "electra":
+                self.model.load_state_dict(torch.load(os.path.join(self.args["model_name"], "pytorch_model.bin")))
         else:
             logger.info(" Training language model from scratch")
-            self.model = model_class(config=self.config)
-            model_to_resize = self.model.module if hasattr(self.model, "module") else self.model
-            model_to_resize.resize_token_embeddings(len(self.tokenizer))
+            if self.args["model_type"] == "electra":
+                generator_model = ElectraForMaskedLM(config=self.generator_config)
+                discriminator_model = ElectraForPreTraining(config=self.discriminator_config)
+                self.model = ElectraForLanguageModelingModel(
+                    config=self.config,
+                    generator_model=generator_model,
+                    discriminator_model=discriminator_model,
+                    generator_config=self.generator_config,
+                    discriminator_config=self.discriminator_config,
+                )
+            else:
+                self.model = model_class(config=self.config)
+                model_to_resize = self.model.module if hasattr(self.model, "module") else self.model
+                model_to_resize.resize_token_embeddings(len(self.tokenizer))
 
         if model_type in ["camembert", "xlmroberta"]:
             warnings.warn(
@@ -258,10 +325,14 @@ class LanguageModelingModel:
             **kwargs,
         )
 
-        model_to_save = self.model.module if hasattr(self.model, "module") else self.model
-        model_to_save.save_pretrained(output_dir)
-        self.tokenizer.save_pretrained(output_dir)
-        torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
+        self._save_model(output_dir, model=self.model)
+        if self.args["model_type"] == "electra":
+            self.save_discriminator()
+            self.save_generator()
+        # model_to_save = self.model.module if hasattr(self.model, "module") else self.model
+        # model_to_save.save_pretrained(output_dir)
+        # self.tokenizer.save_pretrained(output_dir)
+        # torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
@@ -828,14 +899,27 @@ class LanguageModelingModel:
         if not output_dir:
             output_dir = self.args["output_dir"]
 
-        tokenizer = ByteLevelBPETokenizer()
+        if self.args["model_type"] in ["bert", "electra"]:
+            tokenizer = BertWordPieceTokenizer()
+            self.args["special_tokens"] = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
+            self.args["wordpieces_prefix"] = "##"
 
-        tokenizer.train(
-            files=train_files,
-            vocab_size=self.args["vocab_size"],
-            min_frequency=self.args["min_frequency"],
-            special_tokens=self.args["special_tokens"],
-        )
+            tokenizer.train(
+                files=train_files,
+                vocab_size=self.args["vocab_size"],
+                min_frequency=self.args["min_frequency"],
+                special_tokens=self.args["special_tokens"],
+                wordpieces_prefix="##",
+            )
+        else:
+            tokenizer = ByteLevelBPETokenizer()
+
+            tokenizer.train(
+                files=train_files,
+                vocab_size=self.args["vocab_size"],
+                min_frequency=self.args["min_frequency"],
+                special_tokens=self.args["special_tokens"],
+            )
 
         os.makedirs(output_dir, exist_ok=True)
 
@@ -850,10 +934,55 @@ class LanguageModelingModel:
             self.args["tokenizer_name"] = output_dir
 
             try:
+                if self.args["model_type"] == "electra":
+                    model_to_resize = (
+                        self.model.generator_model.module
+                        if hasattr(self.model.generator_model, "module")
+                        else self.model.generator_model
+                    )
+                    model_to_resize.resize_token_embeddings(len(self.tokenizer))
+
+                    model_to_resize = (
+                        self.model.discriminator_model.module
+                        if hasattr(self.model.discriminator_model, "module")
+                        else self.model.discriminator_model
+                    )
+                    model_to_resize.resize_token_embeddings(len(self.tokenizer))
+
                 model_to_resize = self.model.module if hasattr(self.model, "module") else self.model
                 model_to_resize.resize_token_embeddings(len(self.tokenizer))
             except AttributeError:
                 pass
+
+    def save_discriminator(self, output_dir=None):
+        if self.args["model_type"] == "electra":
+            if not output_dir:
+                output_dir = os.path.join(self.args["output_dir"], "discriminator_model")
+            os.makedirs(output_dir, exist_ok=True)
+            model_to_save = (
+                self.model.discriminator_model.module
+                if hasattr(self.model.discriminator_model, "module")
+                else self.model.discriminator_model
+            )
+            model_to_save.save_pretrained(output_dir)
+            self.tokenizer.save_pretrained(output_dir)
+        else:
+            raise ValueError("Model must be of ElectraForLanguageModelingModel")
+
+    def save_generator(self, output_dir=None):
+        if self.args["model_type"] == "electra":
+            if not output_dir:
+                output_dir = os.path.join(self.args["output_dir"], "generator_model")
+            os.makedirs(output_dir, exist_ok=True)
+            model_to_save = (
+                self.model.generator_model.module
+                if hasattr(self.model.generator_model, "module")
+                else self.model.generator_model
+            )
+            model_to_save.save_pretrained(output_dir)
+            self.tokenizer.save_pretrained(output_dir)
+        else:
+            raise ValueError("Model must be of ElectraForLanguageModelingModel")
 
     def _threshold(self, x, threshold):
         if x >= threshold:
@@ -878,17 +1007,24 @@ class LanguageModelingModel:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def _save_model(self, output_dir, optimizer, scheduler, model=None, results=None):
+    def _save_model(self, output_dir, optimizer=None, scheduler=None, model=None, results=None):
         os.makedirs(output_dir, exist_ok=True)
 
         if model:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
+            if self.args["model_type"] in "electra":
+                os.makedirs(os.path.join(output_dir, "generator_config"), exist_ok=True)
+                os.makedirs(os.path.join(output_dir, "discriminator_config"), exist_ok=True)
+                self.generator_config.save_pretrained(os.path.join(output_dir, "generator_config"))
+                self.discriminator_config.save_pretrained(os.path.join(output_dir, "discriminator_config"))
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-            torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+            if optimizer:
+                torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+            if scheduler:
+                torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")

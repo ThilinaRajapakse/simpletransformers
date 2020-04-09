@@ -11,6 +11,7 @@ from transformers import RobertaModel
 from transformers.configuration_roberta import RobertaConfig
 from transformers import FlaubertModel
 from transformers.configuration_xlm_roberta import XLMRobertaConfig
+from transformers import ElectraForMaskedLM, ElectraForPreTraining
 from torch.nn import BCEWithLogitsLoss
 
 from transformers.modeling_albert import (
@@ -415,20 +416,27 @@ class XLMRobertaForMultiLabelSequenceClassification(RobertaForMultiLabelSequence
 
 
 class ElectraForLanguageModelingModel(PreTrainedModel):
-    def __init__(self, config, generator_model, discriminator_model, **kwargs):
+    def __init__(self, config, **kwargs):
         super(ElectraForLanguageModelingModel, self).__init__(config, **kwargs)
-        self.generator = generator_model
-        self.discriminator = discriminator_model
-        self.vocab_size = generator_model.config.vocab_size
+        if "generator_config" in kwargs:
+            generator_config = kwargs["generator_config"]
+        else:
+            generator_config = config
+        self.generator_model = ElectraForMaskedLM(generator_config)
+        if "discriminator_config" in kwargs:
+            discriminator_config = kwargs["discriminator_config"]
+        else:
+            discriminator_config = config
+        self.discriminator_model = ElectraForPreTraining(discriminator_config)
+        self.vocab_size = config.vocab_size
 
-    def forward(self, inputs, labels, attention_mask, token_type_ids):
+    def forward(self, inputs, masked_lm_labels, attention_mask=None, token_type_ids=None):
         d_inputs = inputs.clone()
 
         # run masked LM.
-        g_out = self.generator(inputs,
-                               masked_lm_labels=labels,
-                               attention_mask=attention_mask,
-                               token_type_ids=token_type_ids)
+        g_out = self.generator_model(
+            inputs, masked_lm_labels=masked_lm_labels, attention_mask=attention_mask, token_type_ids=token_type_ids
+        )
 
         # get samples from masked LM.
         sample_probs = torch.softmax(g_out[1], dim=-1, dtype=torch.float32)
@@ -438,22 +446,21 @@ class ElectraForLanguageModelingModel(PreTrainedModel):
         sampled_tokens = sampled_tokens.view(d_inputs.shape[0], -1)
 
         # labels have a -100 value to mask out loss from unchanged tokens.
-        mask = labels.ne(-100)
+        mask = masked_lm_labels.ne(-100)
 
         # replace the masked out tokens of the input with the generator predictions.
         d_inputs[mask] = sampled_tokens[mask]
 
         # turn mask into new target labels.  1 (True) for corrupted, 0 otherwise.
         # if the prediction was correct, mark it as uncorrupted.
-        correct_preds = sampled_tokens == labels
+        correct_preds = sampled_tokens == masked_lm_labels
         d_labels = mask.long()
         d_labels[correct_preds] = 0
 
         # run token classification, predict whether each token was corrupted.
-        d_out = self.discriminator(d_inputs,
-                                   labels=d_labels,
-                                   attention_mask=attention_mask,
-                                   token_type_ids=token_type_ids)
+        d_out = self.discriminator_model(
+            d_inputs, labels=d_labels, attention_mask=attention_mask, token_type_ids=token_type_ids
+        )
 
         g_loss = g_out[0]
         d_loss = d_out[0]
