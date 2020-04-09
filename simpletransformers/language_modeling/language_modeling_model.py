@@ -160,6 +160,7 @@ class LanguageModelingModel:
             "config": {},
             "generator_config": {},
             "discriminator_config": {},
+            "vocab_size": None,
         }
 
         self.args.update(global_args)
@@ -193,13 +194,9 @@ class LanguageModelingModel:
                 self.train_tokenizer(train_files)
 
         if self.args["config_name"]:
-            self.config = config_class.from_pretrained(
-                self.args["config_name"], cache_dir=self.args["cache_dir"]
-            )
+            self.config = config_class.from_pretrained(self.args["config_name"], cache_dir=self.args["cache_dir"])
         elif self.args["model_name"]:
-            self.config = config_class.from_pretrained(
-                model_name, cache_dir=self.args["cache_dir"], **kwargs
-            )
+            self.config = config_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
         else:
             self.config = config_class(**self.args["config"], **kwargs)
 
@@ -208,25 +205,19 @@ class LanguageModelingModel:
                 self.generator_config = ElectraConfig.from_pretrained(generator_name)
             elif self.args["model_name"]:
                 self.generator_config = ElectraConfig.from_pretrained(
-                    os.path.join(self.args["model_name"], "generator_config"),
-                    **kwargs,
+                    os.path.join(self.args["model_name"], "generator_config"), **kwargs,
                 )
             else:
-                self.generator_config = ElectraConfig(
-                    **self.args["generator_config"], **kwargs
-                )
+                self.generator_config = ElectraConfig(**self.args["generator_config"], **kwargs)
 
             if discriminator_name:
                 self.discriminator_config = ElectraConfig.from_pretrained(discriminator_name)
             elif self.args["model_name"]:
                 self.discriminator_config = ElectraConfig.from_pretrained(
-                    os.path.join(self.args["model_name"], "discriminator_config"),
-                    **kwargs,
+                    os.path.join(self.args["model_name"], "discriminator_config"), **kwargs,
                 )
             else:
-                self.discriminator_config = ElectraConfig(
-                    **self.args["discriminator_config"], **kwargs
-                )
+                self.discriminator_config = ElectraConfig(**self.args["discriminator_config"], **kwargs)
 
         if self.args["block_size"] <= 0:
             self.args["block_size"] = min(self.args["max_seq_length"], self.tokenizer.max_len)
@@ -234,16 +225,23 @@ class LanguageModelingModel:
             self.args["block_size"] = min(self.args["block_size"], self.tokenizer.max_len, self.args["max_seq_length"])
 
         if self.args["model_name"]:
-            self.model = model_class.from_pretrained(
-                model_name,
-                config=self.config,
-                cache_dir=self.args["cache_dir"],
-                generator_config=self.generator_config,
-                discriminator_config=self.discriminator_config,
-                **kwargs,
-            )
             if self.args["model_type"] == "electra":
+                self.model = model_class.from_pretrained(
+                    model_name,
+                    config=self.config,
+                    cache_dir=self.args["cache_dir"],
+                    generator_config=self.generator_config,
+                    discriminator_config=self.discriminator_config,
+                    **kwargs,
+                )
                 self.model.load_state_dict(torch.load(os.path.join(self.args["model_name"], "pytorch_model.bin")))
+            else:
+                self.model = model_class.from_pretrained(
+                    model_name,
+                    config=self.config,
+                    cache_dir=self.args["cache_dir"],
+                    **kwargs,
+                )
         else:
             logger.info(" Training language model from scratch")
             if self.args["model_type"] == "electra":
@@ -893,8 +891,11 @@ class LanguageModelingModel:
         Returns: None
         """
 
-        if "vocab_size" not in self.args:
-            raise AttributeError("Tokenizer not specified and vocab_size not specified in args to train a new tokenizer.")
+        if not self.args["vocab_size"]:
+            raise AttributeError(
+                "Cannot train a new tokenizer as vocab_size is not specified in args dict. "
+                "Either provide a tokenizer or specify vocab_size."
+            )
 
         if not isinstance(train_files, list):
             train_files = [train_files]

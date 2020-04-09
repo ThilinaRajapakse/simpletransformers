@@ -1004,6 +1004,7 @@ transformers_logger.setLevel(logging.WARNING)
 train_args = {
     "reprocess_input_data": True,
     "overwrite_output_dir": True,
+    "vocab_size": 52000,
 }
 
 model = LanguageModelingModel('roberta', None, args=train_args)
@@ -1032,6 +1033,7 @@ transformers_logger.setLevel(logging.WARNING)
 train_args = {
     "reprocess_input_data": True,
     "overwrite_output_dir": True,
+    "vocab_size": 52000,
 }
 
 model = LanguageModelingModel('electra', None, args=train_args)
