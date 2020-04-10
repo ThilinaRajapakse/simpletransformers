@@ -44,7 +44,7 @@ def tokenize_multi(data):
     return list(tokenize_multi((o, tokenizer)) for o in obj)
 
 
-def get_dataset(tokenizer, dataset_path, dataset_cache, process_count, evaluate=False, interact=False, no_cache=False):
+def get_dataset(tokenizer, dataset_path, dataset_cache, process_count, proxies, evaluate=False, interact=False, no_cache=False):
     """ Get tokenized PERSONACHAT dataset from S3 or cache."""
     dataset_path = dataset_path or PERSONACHAT_URL
 
@@ -60,7 +60,7 @@ def get_dataset(tokenizer, dataset_path, dataset_cache, process_count, evaluate=
         dataset = torch.load(dataset_cache)
     else:
         logger.info("Download dataset from %s", dataset_path)
-        personachat_file = cached_path(dataset_path)
+        personachat_file = cached_path(dataset_path, proxies=proxies)
         with open(personachat_file, "r", encoding="utf-8") as f:
             dataset = json.loads(f.read())
 
