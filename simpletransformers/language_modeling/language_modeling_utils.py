@@ -206,7 +206,7 @@ class SimpleDataset(Dataset):
                     with Pool(args["process_count"]) as p:
                         self.examples = list(
                             tqdm(
-                                p.imap(encode, lines, chunksize=50),
+                                p.imap(encode, lines, chunksize=500),
                                 total=len(lines),
                                 # disable=silent,
                             )

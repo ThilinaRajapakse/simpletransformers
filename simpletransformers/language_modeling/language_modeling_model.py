@@ -176,6 +176,7 @@ class LanguageModelingModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.tokenizer_class = tokenizer_class
+        new_tokenizer = False
 
         if self.args["tokenizer_name"]:
             self.tokenizer = tokenizer_class.from_pretrained(
