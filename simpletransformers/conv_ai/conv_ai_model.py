@@ -103,6 +103,7 @@ class ConvAIModel:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        self.__dict__.update(kwargs)
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -591,6 +592,7 @@ class ConvAIModel:
             dataset_path,
             args["cache_dir"],
             process_count=process_count,
+            proxies=self.__dict__.get('proxies',None),
             evaluate=evaluate,
             no_cache=no_cache,
         )
