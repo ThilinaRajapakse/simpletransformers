@@ -589,7 +589,7 @@ class ConvAIModel:
             dataset_path,
             args["cache_dir"],
             process_count=process_count,
-            proxies=self.__dict__.get(proxies,None),
+            proxies=self.__dict__.get('proxies',None),
             evaluate=evaluate,
             no_cache=no_cache,
         )
