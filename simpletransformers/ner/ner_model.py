@@ -492,7 +492,7 @@ class NERModel:
         Evaluates the model on eval_data. Saves results to output_dir.
 
         Args:
-            eval_file: eval_data should be the path to a .txt file containing the evaluation data or a pandas DataFrame.
+            eval_data: eval_data should be the path to a .txt file containing the evaluation data or a pandas DataFrame.
                         If a text file is used the data should be in the CoNLL format. I.e. One word per line, with sentences seperated by an empty line.
                         The first word of the line should be a word, and the last should be a Name Entity Tag.
                         If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
@@ -624,7 +624,7 @@ class NERModel:
         self._move_model_to_device()
 
         predict_examples = [
-            InputExample(i, sentence.split(), ["O" for word in sentence.split()])
+            InputExample(i, sentence.split(), [self.labels[0] for word in sentence.split()])
             for i, sentence in enumerate(to_predict)
         ]
 

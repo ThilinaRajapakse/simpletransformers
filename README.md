@@ -637,7 +637,7 @@ Returns:
 Evaluates the model on eval_data. Saves results to output_dir.
 
 Args:  
-* eval_data: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
+* eval_data: eval_data should be the path to a .txt file containing the evaluation data or a pandas DataFrame. If a text file is used the data should be in the CoNLL format. I.e. One word per line, with sentences seperated by an empty line. The first word of the line should be a word, and the last should be a Name Entity Tag. If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
 
 * output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
 
