@@ -44,7 +44,7 @@ def tokenize_multi(data):
     return list(tokenize_multi((o, tokenizer)) for o in obj)
 
 
-def get_dataset(tokenizer, dataset_path, dataset_cache, process_count, proxies={}, evaluate=False, interact=False, no_cache=False):
+def get_dataset(tokenizer, dataset_path, dataset_cache, process_count, proxies, evaluate=False, interact=False, no_cache=False):
     """ Get tokenized PERSONACHAT dataset from S3 or cache."""
     dataset_path = dataset_path or PERSONACHAT_URL
 
