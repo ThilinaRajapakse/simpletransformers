@@ -200,12 +200,13 @@ class ConvAIModel:
 
         train_dataloader, train_sampler = self.load_and_cache_examples(
             dataset_path=train_file,
+            proxies=kwargs.get('proxies',{}),
             verbose=verbose,
             no_cache=self.args["no_cache"] or self.args["reprocess_input_data"],
         )
 
         if self.args["evaluate_during_training"]:
-            eval_loader, eval_sampler = self.load_and_cache_examples(verbose=verbose, evaluate=True)
+            eval_loader, eval_sampler = self.load_and_cache_examples(verbose=verbose, proxies=kwargs.get('proxies',{}), evaluate=True)
         else:
             eval_loader = None
 
@@ -518,6 +519,7 @@ class ConvAIModel:
 
         eval_dataloader, eval_sampler = self.load_and_cache_examples(
             eval_file,
+            proxies=kwargs.get('proxies',{}),
             evaluate=True,
             verbose=verbose,
             silent=silent,
@@ -564,7 +566,7 @@ class ConvAIModel:
 
         return results
 
-    def load_and_cache_examples(self, dataset_path=None, evaluate=False, no_cache=False, verbose=True, silent=False):
+    def load_and_cache_examples(self, dataset_path=None, proxies={}, evaluate=False, no_cache=False, verbose=True, silent=False):
         """
         Loads, tokenizes, and prepares data for training and/or evaluation.
 
@@ -588,6 +590,7 @@ class ConvAIModel:
             dataset_path,
             args["cache_dir"],
             process_count=process_count,
+            proxies=proxies,
             evaluate=evaluate,
             no_cache=no_cache,
         )
