@@ -56,6 +56,7 @@ Supports
       - [Example (Medium Article)](#example-medium-article)
     - [Minimal Example For Language Model Training From Scratch](#minimal-example-for-language-model-training-from-scratch)
     - [Minimal Example For Language Model Training With ELECTRA](#minimal-example-for-language-model-training-with-electra)
+    - [Real Dataset Example For Training a Language Model](#real-dataset-example-for-training-a-language-model)
     - [LanguageModelingModel](#languagemodelingmodel)
     - [Additional attributes for Language Modeling tasks](#additional-attributes-for-language-modeling-tasks)
       - [*dataset_type: str*](#datasettype-str)
@@ -1054,7 +1055,9 @@ model.eval_model("wikitext-2/wiki.test.tokens")
 
 ```
 
-*A more comprehensive guide will be added here soon*
+### Real Dataset Example For Training a Language Model
+
+- [Esparanto Model trained with ELECTRA](https://medium.com/@chaturangarajapakshe/understanding-electra-and-training-an-electra-language-model-3d33e3a9660d?source=friends_link&sk=2b4b4a79954e3d7c84ab863efaea8c65)
 
 ### LanguageModelingModel
 

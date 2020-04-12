@@ -51,6 +51,11 @@ from transformers import (
     CamembertForTokenClassification,
     CamembertTokenizer,
 )
+from transformers import (
+    ElectraConfig,
+    ElectraForTokenClassification,
+    ElectraTokenizer,
+)
 from simpletransformers.config.global_args import global_args
 
 try:
@@ -108,11 +113,19 @@ class NERModel:
             "distilbert": (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
             "camembert": (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
+            "electra": (ElectraConfig, ElectraForTokenClassification, ElectraTokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
 
-        self.model = model_class.from_pretrained(model_name, num_labels=self.num_labels, **kwargs)
+        if self.num_labels:
+            self.config = config_class.from_pretrained(model_name, num_labels=self.num_labels, **kwargs)
+            self.num_labels = self.num_labels
+        else:
+            self.config = config_class.from_pretrained(model_name, **kwargs)
+            self.num_labels = self.config.num_labels
+
+        self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
 
         if use_cuda:
             if torch.cuda.is_available():

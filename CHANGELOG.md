@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.6] - 2020-04-12
+
+### Added
+
+- Added support for ELECTRA based NER models.
+
 ## [0.24.5] - 2020-04-11
 
 ### Fixed
@@ -569,7 +575,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.24.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/8f1daac...HEAD
+[0.24.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/777f78d...HEAD
+
+[0.24.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/8f1daac...777f78d
 
 [0.24.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ce4b925...8f1daac
 
