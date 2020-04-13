@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.8] - 2020-04-13
+
+### Fixed
+
+- Fixed incorrect indexes when extracting hidden layer outputs and embedding outputs with `ClassificationModel.predict()` method.
+
 ## [0.24.7] - 2020-04-13
 
 ### Added
@@ -587,7 +593,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.24.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/853ca94...HEAD
+[0.24.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9b1f41...HEAD
+
+[0.24.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/853ca94...e9b1f41
 
 [0.24.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/777f78d...853ca94
 

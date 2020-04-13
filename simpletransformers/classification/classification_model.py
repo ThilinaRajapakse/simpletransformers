@@ -900,7 +900,7 @@ class ClassificationModel:
                     inputs = self._get_inputs_dict(batch)
                     outputs = model(**inputs)
                     tmp_eval_loss, logits = outputs[:2]
-                    embedding_outputs, layer_hidden_states = outputs[2][-1], outputs[2][:-1]
+                    embedding_outputs, layer_hidden_states = outputs[2][0], outputs[2][1:]
 
                     if multi_label:
                         logits = logits.sigmoid()
