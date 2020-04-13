@@ -100,25 +100,6 @@ class QuestionAnsweringModel:
             if "n_gpu" in args and args["n_gpu"] > 0:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
-        config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
-        self.model = model_class.from_pretrained(model_name, **kwargs)
-
-        if use_cuda:
-            if torch.cuda.is_available():
-                if cuda_device == -1:
-                    self.device = torch.device("cuda")
-                else:
-                    self.device = torch.device(f"cuda:{cuda_device}")
-            else:
-                raise ValueError(
-                    "'use_cuda' set to True when cuda is unavailable."
-                    " Make sure CUDA is available or set use_cuda=False."
-                )
-        else:
-            self.device = "cpu"
-
-        self.results = {}
-
         self.args = {
             "doc_stride": 384,
             "max_query_length": 64,
@@ -137,6 +118,26 @@ class QuestionAnsweringModel:
 
         if args:
             self.args.update(args)
+
+        config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        self.config = config_class.from_pretrained(model_name, **self.args["config"])
+        self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
+
+        if use_cuda:
+            if torch.cuda.is_available():
+                if cuda_device == -1:
+                    self.device = torch.device("cuda")
+                else:
+                    self.device = torch.device(f"cuda:{cuda_device}")
+            else:
+                raise ValueError(
+                    "'use_cuda' set to True when cuda is unavailable."
+                    " Make sure CUDA is available or set use_cuda=False."
+                )
+        else:
+            self.device = "cpu"
+
+        self.results = {}
 
         self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args["do_lower_case"], **kwargs)
 

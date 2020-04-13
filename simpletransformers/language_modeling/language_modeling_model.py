@@ -157,7 +157,6 @@ class LanguageModelingModel:
             "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
             "sliding_window": False,
             "stride": 0.8,
-            "config": {},
             "generator_config": {},
             "discriminator_config": {},
             "vocab_size": None,

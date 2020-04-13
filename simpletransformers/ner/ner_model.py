@@ -106,6 +106,16 @@ class NERModel:
                 "I-LOC",
             ]
         self.num_labels = len(self.labels)
+        
+        self.args = {}
+        self.args = {"classification_report": False}
+        self.args.update(global_args)
+
+        if not use_cuda:
+            self.args["fp16"] = False
+
+        if args:
+            self.args.update(args)
 
         MODEL_CLASSES = {
             "bert": (BertConfig, BertForTokenClassification, BertTokenizer),
@@ -117,12 +127,11 @@ class NERModel:
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
-
         if self.num_labels:
-            self.config = config_class.from_pretrained(model_name, num_labels=self.num_labels, **kwargs)
+            self.config = config_class.from_pretrained(model_name, num_labels=self.num_labels, **self.args["config"])
             self.num_labels = self.num_labels
         else:
-            self.config = config_class.from_pretrained(model_name, **kwargs)
+            self.config = config_class.from_pretrained(model_name, **self.args["config"])
             self.num_labels = self.config.num_labels
 
         self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
@@ -142,16 +151,6 @@ class NERModel:
             self.device = "cpu"
 
         self.results = {}
-
-        self.args = {}
-        self.args = {"classification_report": False}
-        self.args.update(global_args)
-
-        if not use_cuda:
-            self.args["fp16"] = False
-
-        if args:
-            self.args.update(args)
 
         self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args["do_lower_case"], **kwargs)
 

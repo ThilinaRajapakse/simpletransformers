@@ -44,4 +44,5 @@ global_args = {
     "early_stopping_metric_minimize": True,
     "manual_seed": None,
     "encoding": None,
+    "config": {},
 }

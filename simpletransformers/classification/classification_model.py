@@ -118,12 +118,24 @@ class ClassificationModel:
             if "n_gpu" in args and args["n_gpu"] > 0:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
+        self.args = {
+            "sliding_window": False,
+            "tie_value": 1,
+            "stride": 0.8,
+            "regression": False,
+        }
+
+        self.args.update(global_args)
+
+        if args:
+            self.args.update(args)
+
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
-            self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **kwargs)
+            self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **self.args["config"])
             self.num_labels = num_labels
         else:
-            self.config = config_class.from_pretrained(model_name, **kwargs)
+            self.config = config_class.from_pretrained(model_name, **self.args["config"])
             self.num_labels = self.config.num_labels
         self.weight = weight
 
@@ -142,7 +154,6 @@ class ClassificationModel:
             self.device = "cpu"
 
         if self.weight:
-
             self.model = model_class.from_pretrained(
                 model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device), **kwargs,
             )
@@ -151,20 +162,8 @@ class ClassificationModel:
 
         self.results = {}
 
-        self.args = {
-            "sliding_window": False,
-            "tie_value": 1,
-            "stride": 0.8,
-            "regression": False,
-        }
-
-        self.args.update(global_args)
-
         if not use_cuda:
             self.args["fp16"] = False
-
-        if args:
-            self.args.update(args)
 
         self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args["do_lower_case"], **kwargs)
 
@@ -892,28 +891,59 @@ class ClassificationModel:
         preds = None
         out_label_ids = None
 
-        for batch in tqdm(eval_dataloader, disable=args["silent"]):
-            model.eval()
-            batch = tuple(t.to(device) for t in batch)
+        if self.config.output_hidden_states:
+            for batch in tqdm(eval_dataloader, disable=args["silent"]):
+                model.eval()
+                batch = tuple(t.to(device) for t in batch)
 
-            with torch.no_grad():
-                inputs = self._get_inputs_dict(batch)
-                outputs = model(**inputs)
-                tmp_eval_loss, logits = outputs[:2]
+                with torch.no_grad():
+                    inputs = self._get_inputs_dict(batch)
+                    outputs = model(**inputs)
+                    tmp_eval_loss, logits = outputs[:2]
+                    embedding_outputs, layer_hidden_states = outputs[2][-1], outputs[2][:-1]
 
-                if multi_label:
-                    logits = logits.sigmoid()
+                    if multi_label:
+                        logits = logits.sigmoid()
 
-                eval_loss += tmp_eval_loss.mean().item()
+                    eval_loss += tmp_eval_loss.mean().item()
 
-            nb_eval_steps += 1
+                nb_eval_steps += 1
 
-            if preds is None:
-                preds = logits.detach().cpu().numpy()
-                out_label_ids = inputs["labels"].detach().cpu().numpy()
-            else:
-                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+                if preds is None:
+                    preds = logits.detach().cpu().numpy()
+                    out_label_ids = inputs["labels"].detach().cpu().numpy()
+                    all_layer_hidden_states = [state.detach().cpu().numpy() for state in layer_hidden_states]
+                    all_embedding_outputs = embedding_outputs.detach().cpu().numpy()
+                else:
+                    preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                    out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+                    all_layer_hidden_states = np.append(
+                        [state.detach().cpu().numpy() for state in layer_hidden_states], axis=0
+                    )
+                    all_embedding_outputs = np.append(embedding_outputs.detach().cpu().numpy(), axis=0)
+        else:
+            for batch in tqdm(eval_dataloader, disable=args["silent"]):
+                model.eval()
+                batch = tuple(t.to(device) for t in batch)
+
+                with torch.no_grad():
+                    inputs = self._get_inputs_dict(batch)
+                    outputs = model(**inputs)
+                    tmp_eval_loss, logits = outputs[:2]
+
+                    if multi_label:
+                        logits = logits.sigmoid()
+
+                    eval_loss += tmp_eval_loss.mean().item()
+
+                nb_eval_steps += 1
+
+                if preds is None:
+                    preds = logits.detach().cpu().numpy()
+                    out_label_ids = inputs["labels"].detach().cpu().numpy()
+                else:
+                    preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                    out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
 
         eval_loss = eval_loss / nb_eval_steps
 
@@ -954,7 +984,10 @@ class ClassificationModel:
             else:
                 preds = np.argmax(preds, axis=1)
 
-        return preds, model_outputs
+        if self.config.output_hidden_states:
+            return preds, model_outputs, all_embedding_outputs, all_layer_hidden_states
+        else:
+            return preds, model_outputs
 
     def _threshold(self, x, threshold):
         if x >= threshold:

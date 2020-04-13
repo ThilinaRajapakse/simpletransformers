@@ -85,14 +85,29 @@ class MultiLabelClassificationModel(ClassificationModel):
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForMultiLabelSequenceClassification, XLMRobertaTokenizer,),
         }
 
+        self.args = {
+            "threshold": 0.5,
+            "sliding_window": False,
+            "tie_value": 1,
+            "stride": False,
+        }
+
+        self.args.update(global_args)
+
+        if not use_cuda:
+            self.args["fp16"] = False
+
+        if args:
+            if args.get("sliding_window"):
+                raise ValueError("sliding_window is not implemented for multi-label classification.")
+            self.args.update(args)
+
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
-
-            self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **kwargs)
-
+            self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **self.args["config"])
             self.num_labels = num_labels
         else:
-            self.config = config_class.from_pretrained(model_name, **kwargs)
+            self.config = config_class.from_pretrained(model_name, **self.args["config"])
             self.num_labels = self.config.num_labels
         self.pos_weight = pos_weight
 
@@ -118,23 +133,6 @@ class MultiLabelClassificationModel(ClassificationModel):
             self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
 
         self.results = {}
-
-        self.args = {
-            "threshold": 0.5,
-            "sliding_window": False,
-            "tie_value": 1,
-            "stride": False,
-        }
-
-        self.args.update(global_args)
-
-        if not use_cuda:
-            self.args["fp16"] = False
-
-        if args:
-            if args.get("sliding_window"):
-                raise ValueError("sliding_window is not implemented for multi-label classification.")
-            self.args.update(args)
 
         self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args["do_lower_case"], **kwargs)
 

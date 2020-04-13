@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.7] - 2020-04-13
+
+### Added
+
+- Added option to get hidden layer outputs and embedding outputs with `ClassificationModel.predict()` method.
+  - Setting `config: {"output_hidden_states": True}` will automatically return all embedding outputs and hidden layer outputs.
+
+### Changed
+
+- `global_args` now has a `config` dictionary which can be used to override default values in the confg class.
+  - This can be used with ClassificationModel, MultiLabelClassificationModel, NERModel, QuestionAnsweringModel, and LanguageModelingModel
+
 ## [0.24.6] - 2020-04-12
 
 ### Added
@@ -575,7 +587,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.24.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/777f78d...HEAD
+[0.24.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/853ca94...HEAD
+
+[0.24.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/777f78d...853ca94
 
 [0.24.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/8f1daac...777f78d
 
