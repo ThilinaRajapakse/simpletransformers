@@ -399,7 +399,10 @@ class ConvAIModel:
                             best_eval_metric = results[args["early_stopping_metric"]]
                             self._save_model(args["best_model_dir"], model=model, results=results)
                         if best_eval_metric and args["early_stopping_metric_minimize"]:
-                            if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
+                            if (
+                                results[args["early_stopping_metric"]] - best_eval_metric
+                                < args["early_stopping_delta"]
+                            ):
                                 best_eval_metric = results[args["early_stopping_metric"]]
                                 self._save_model(args["best_model_dir"], model=model, results=results)
                                 early_stopping_counter = 0
@@ -413,12 +416,17 @@ class ConvAIModel:
                                             logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                                     else:
                                         if verbose:
-                                            logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                            logger.info(
+                                                f" Patience of {args['early_stopping_patience']} steps reached"
+                                            )
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
+                            if (
+                                results[args["early_stopping_metric"]] - best_eval_metric
+                                > args["early_stopping_delta"]
+                            ):
                                 best_eval_metric = results[args["early_stopping_metric"]]
                                 self._save_model(args["best_model_dir"], model=model, results=results)
                                 early_stopping_counter = 0
@@ -432,7 +440,9 @@ class ConvAIModel:
                                             logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                                     else:
                                         if verbose:
-                                            logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                            logger.info(
+                                                f" Patience of {args['early_stopping_patience']} steps reached"
+                                            )
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
@@ -448,7 +458,10 @@ class ConvAIModel:
 
             if args["evaluate_during_training"]:
                 results, _, _ = self.eval_model(
-                    eval_dataloader, verbose=verbose and args["evaluate_during_training_verbose"], silent=True, **kwargs
+                    eval_dataloader,
+                    verbose=verbose and args["evaluate_during_training_verbose"],
+                    silent=True,
+                    **kwargs,
                 )
 
                 self._save_model(output_dir_current, results=results)
@@ -592,7 +605,7 @@ class ConvAIModel:
             dataset_path,
             args["cache_dir"],
             process_count=process_count,
-            proxies=self.__dict__.get('proxies',None),
+            proxies=self.__dict__.get("proxies", None),
             evaluate=evaluate,
             no_cache=no_cache,
         )

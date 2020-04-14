@@ -183,7 +183,9 @@ class MultiModalClassificationModel:
                 )
                 raise EnvironmentError(msg)
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args["do_lower_case"], **kwargs)
+        self.tokenizer = tokenizer_class.from_pretrained(
+            model_name, do_lower_case=self.args["do_lower_case"], **kwargs
+        )
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
@@ -512,7 +514,10 @@ class MultiModalClassificationModel:
                             best_eval_metric = results[args["early_stopping_metric"]]
                             self._save_model(args["best_model_dir"], model=model, results=results)
                         if best_eval_metric and args["early_stopping_metric_minimize"]:
-                            if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
+                            if (
+                                results[args["early_stopping_metric"]] - best_eval_metric
+                                < args["early_stopping_delta"]
+                            ):
                                 best_eval_metric = results[args["early_stopping_metric"]]
                                 self._save_model(args["best_model_dir"], model=model, results=results)
                                 early_stopping_counter = 0
@@ -526,12 +531,17 @@ class MultiModalClassificationModel:
                                             logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                                     else:
                                         if verbose:
-                                            logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                            logger.info(
+                                                f" Patience of {args['early_stopping_patience']} steps reached"
+                                            )
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
+                            if (
+                                results[args["early_stopping_metric"]] - best_eval_metric
+                                > args["early_stopping_delta"]
+                            ):
                                 best_eval_metric = results[args["early_stopping_metric"]]
                                 self._save_model(args["best_model_dir"], model=model, results=results)
                                 early_stopping_counter = 0
@@ -545,7 +555,9 @@ class MultiModalClassificationModel:
                                             logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                                     else:
                                         if verbose:
-                                            logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                            logger.info(
+                                                f" Patience of {args['early_stopping_patience']} steps reached"
+                                            )
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
@@ -658,7 +670,8 @@ class MultiModalClassificationModel:
 
         self._move_model_to_device()
 
-        # If data is a tuple, this is for early stopping and first element is data_path and second element is files_list
+        # If data is a tuple,
+        # this is for early stopping and first element is data_path and second element is files_list
         if isinstance(data, tuple):
             data, files_list = data
 
@@ -799,7 +812,7 @@ class MultiModalClassificationModel:
             data_type_extension (optional): If given, this will be added to the end of each value in "files_list".
 
         Utility function for train() and eval() methods. Not intended to be used directly.
-        """
+        """  # noqa: ignore flake8"
 
         tokenizer = self.tokenizer
         args = self.args

@@ -569,9 +569,14 @@ class LanguageModelingModel:
 
                         if not best_eval_metric:
                             best_eval_metric = results[args["early_stopping_metric"]]
-                            self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
+                            self._save_model(
+                                args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                            )
                         if best_eval_metric and args["early_stopping_metric_minimize"]:
-                            if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
+                            if (
+                                results[args["early_stopping_metric"]] - best_eval_metric
+                                < args["early_stopping_delta"]
+                            ):
                                 best_eval_metric = results[args["early_stopping_metric"]]
                                 self._save_model(
                                     args["best_model_dir"], optimizer, scheduler, model=model, results=results
@@ -594,7 +599,10 @@ class LanguageModelingModel:
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
+                            if (
+                                results[args["early_stopping_metric"]] - best_eval_metric
+                                > args["early_stopping_delta"]
+                            ):
                                 best_eval_metric = results[args["early_stopping_metric"]]
                                 self._save_model(
                                     args["best_model_dir"], optimizer, scheduler, model=model, results=results

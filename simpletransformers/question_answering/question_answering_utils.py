@@ -382,7 +382,8 @@ def convert_examples_to_features(
                     "token_to_orig_map: %s" % " ".join(["%d:%d" % (x, y) for (x, y) in token_to_orig_map.items()])
                 )
                 logger.info(
-                    "token_is_max_context: %s" % " ".join(["%d:%s" % (x, y) for (x, y) in token_is_max_context.items()])
+                    "token_is_max_context: %s"
+                    % " ".join(["%d:%s" % (x, y) for (x, y) in token_is_max_context.items()])
                 )
                 logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
                 logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))

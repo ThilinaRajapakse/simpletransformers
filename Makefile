@@ -9,11 +9,11 @@ clean:
 	find . -name '*~' -exec rm -f  {} +
 
 formatter:
-	black simpletransformers tests --exclude simpletransformers/experimental\
+	black --line-length 119 simpletransformers tests --exclude simpletransformers/experimental\
 	
 lint: clean
 	flake8 simpletransformers tests --exclude=simpletransformers/experimental
-	black --check simpletransformers tests --exclude simpletransformers/experimental
+	black --check --line-length 119 . simpletransformers tests --exclude simpletransformers/experimental
 
 types:
 	pytype --keep-going simpletransformers --exclude simpletransformers/experimental 

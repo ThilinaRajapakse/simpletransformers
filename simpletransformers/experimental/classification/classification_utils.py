@@ -368,7 +368,9 @@ def convert_examples_to_features(
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
-                        p.imap(convert_example_to_feature, examples, chunksize=500), total=len(examples), disable=silent
+                        p.imap(convert_example_to_feature, examples, chunksize=500),
+                        total=len(examples),
+                        disable=silent,
                     )
                 )
         else:

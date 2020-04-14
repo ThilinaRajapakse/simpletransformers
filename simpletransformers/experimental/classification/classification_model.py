@@ -59,7 +59,9 @@ from simpletransformers.experimental.classification.transformer_models.roberta_m
     RobertaForSequenceClassification,
 )
 from simpletransformers.experimental.classification.transformer_models.xlm_model import XLMForSequenceClassification
-from simpletransformers.experimental.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
+from simpletransformers.experimental.classification.transformer_models.xlnet_model import (
+    XLNetForSequenceClassification,
+)
 from simpletransformers.experimental.classification.transformer_models.distilbert_model import (
     DistilBertForSequenceClassification,
 )
@@ -128,7 +130,9 @@ class ClassificationModel:
                 sliding_window=self.sliding_window,
             )
         else:
-            self.model = model_class.from_pretrained(model_name, config=self.config, sliding_window=self.sliding_window)
+            self.model = model_class.from_pretrained(
+                model_name, config=self.config, sliding_window=self.sliding_window
+            )
 
         self.results = {}
 
@@ -743,7 +747,9 @@ class ClassificationModel:
 
                 # XLM, DistilBERT and RoBERTa don't use segment_ids
                 if self.args["model_type"] != "distilbert":
-                    input_single["token_type_ids"] = tokens[i] if self.args["model_type"] in ["bert", "xlnet"] else None
+                    input_single["token_type_ids"] = (
+                        tokens[i] if self.args["model_type"] in ["bert", "xlnet"] else None
+                    )
                 inputs_all.append(input_single)
             return inputs_all
         else:

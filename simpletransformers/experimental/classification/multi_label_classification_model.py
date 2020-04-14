@@ -120,7 +120,9 @@ class MultiLabelClassificationModel(ClassificationModel):
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
 
-    def train_model(self, train_df, multi_label=True, eval_df=None, output_dir=None, show_running_loss=True, args=None):
+    def train_model(
+        self, train_df, multi_label=True, eval_df=None, output_dir=None, show_running_loss=True, args=None
+    ):
         return super().train_model(
             train_df,
             multi_label=multi_label,
