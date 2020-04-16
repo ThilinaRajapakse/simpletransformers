@@ -704,7 +704,7 @@ class ConvAIModel:
         self._move_model_to_device()
 
         if not personality:
-            dataset = get_dataset(tokenizer, None, args["cache_dir"], process_count=process_count, interact=True)
+            dataset = get_dataset(tokenizer, None, args["cache_dir"], process_count=process_count,proxies=self.__dict__.get("proxies", None), interact=True)
             personalities = [dialog["personality"] for dataset in dataset.values() for dialog in dataset]
             personality = random.choice(personalities)
         else:
