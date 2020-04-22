@@ -456,11 +456,14 @@ Args:
 
 * `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
->`args` (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+* `args` (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
 
 * show_running_loss (optional): Set to False to disable printing running training loss to the terminal.
 
 * `eval_df` (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
+
+* `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
 Returns:  
 * None
@@ -476,10 +479,15 @@ Args:
 
 * verbose: If verbose, results will be printed to the console on completion of evaluation.  
 
+* silent: If silent, tqdm progress bars will be hidden.
+
+* `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+
 Returns:  
 * result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
 
->model_outputs: List of model outputs for each row in eval_df  
+* model_outputs: List of model outputs for each row in eval_df  
 
 * wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
 
@@ -839,16 +847,19 @@ Trains the model using 'train_file'
 
 Args:  
 
-- train_df: ath to JSON file containing training data. The model will be trained on this file.
+- `train_df`: Path to JSON file containing training data. The model will be trained on this file.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-- output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+- `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-- show_running_loss (Optional): Set to False to prevent training loss being printed.
+- `show_running_loss` (Optional): Set to False to prevent training loss being printed.
 
-- args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+- `args` (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
 
-- eval_file (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+- `eval_file` (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+
+- `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
+    A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
 Returns:
 
@@ -860,17 +871,20 @@ Evaluates the model on eval_file. Saves results to output_dir.
 
 Args:  
 
-- eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.
+- `eval_file`: Path to JSON file containing evaluation data. The model will be evaluated on this file.
 
-- output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+- `output_dir`: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
 
-- verbose: If verbose, results will be printed to the console on completion of evaluation.  
+- `verbose`: If verbose, results will be printed to the console on completion of evaluation.  
+
+- `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
+    A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
 Returns:  
 
-- result: Dictionary containing evaluation results. (correct, similar, incorrect)
+- `result`: Dictionary containing evaluation results. (correct, similar, incorrect)
 
-- text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text.
+- `text`: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text.
 
 **`predict(self, to_predict)`**
 
@@ -878,7 +892,7 @@ Performs predictions on a list of text.
 
 Args:
 
-- to_predict: A python list of python dicts containing contexts and questions to be sent to the model for prediction.
+- `to_predict`: A python list of python dicts containing contexts and questions to be sent to the model for prediction.
 
 ```python
 E.g: predict([
@@ -892,11 +906,11 @@ E.g: predict([
 ])
 ```
 
-- n_best_size (Optional): Number of predictions to return. args['n_best_size'] will be used if not specified.
+- `n_best_size` (Optional): Number of predictions to return. args['n_best_size'] will be used if not specified.
 
 Returns:
 
-- preds: A python list containg the predicted answer, and id for each question in to_predict.
+- `preds`: A python list containg the predicted answer, and id for each question in to_predict.
 
 **`train(self, train_dataset, output_dir, show_running_loss=True, eval_file=None)`**
 
@@ -999,6 +1013,11 @@ model.eval_model("wikitext-2/wiki.test.tokens")
 
 You can use any text file/files for training a new language model. Setting `model_name` to `None` will indicate that the language model should be trained from scratch.
 
+Required for Language Model Training From Scratch:
+
+- `train_files` must be specifief when creating the `LanguagModelingModel`. This may be a path to a single file or a list of paths to multiple files.
+- `vocab_size` (in args dictionary)
+
 ```python
 from simpletransformers.language_modeling import LanguageModelingModel
 import logging
@@ -1043,7 +1062,7 @@ train_args = {
     "vocab_size": 52000,
 }
 
-model = LanguageModelingModel('electra', None, args=train_args)
+model = LanguageModelingModel('electra', None, args=train_args, train_files="wikitext-2/wiki.train.tokens")
 
 # Mixing standard ELECTRA architectures example
 # model = LanguageModelingModel(
@@ -1098,15 +1117,15 @@ Trains the model using 'train_file'
 
 Args:  
 
-- train_file: Path to text file containing the text to train the language model on.
+- `train_file`: Path to text file containing the text to train the language model on.
 
-- output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+- `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-- show_running_loss (Optional): Set to False to prevent training loss being printed.
+- `show_running_loss` (Optional): Set to False to prevent training loss being printed.
 
-- args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+- `args` (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
 
-- eval_file (optional): Path to eval file containing the text to evaluate the language model on. Is required if evaluate_during_training is enabled.
+- `eval_file` (optional): Path to eval file containing the text to evaluate the language model on. Is required if evaluate_during_training is enabled.
 
 Returns:
 
@@ -1118,19 +1137,19 @@ Evaluates the model on eval_file. Saves results to output_dir.
 
 Args:  
 
-- eval_file: Path to eval file containing the text to evaluate the language model on.
+- `eval_file`: Path to eval file containing the text to evaluate the language model on.
 
-- output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+- `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
 
-- verbose: If verbose, results will be printed to the console on completion of evaluation.  
+- `verbose`: If verbose, results will be printed to the console on completion of evaluation.  
 
-- silent: If silent, tqdm progress bars will be hidden.
+- `silent`: If silent, tqdm progress bars will be hidden.
 
 Returns:  
 
-- result: Dictionary containing evaluation results. (correct, similar, incorrect)
+- `result`: Dictionary containing evaluation results. (correct, similar, incorrect)
 
-- text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text.
+- `text`: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text.
 
 **`train_tokenizer(self, train_files, tokenizer_name=None, output_dir=None, use_trained_tokenizer=True)`
 
@@ -1138,13 +1157,13 @@ Train a new tokenizer on `train_files`.
 
 Args:
 
-- train_files: List of files to be used when training the tokenizer.
+- `train_files`: List of files to be used when training the tokenizer.
 
-- tokenizer_name: Name of a pretrained tokenizer or a path to a directory containing a tokenizer.
+- `tokenizer_name`: Name of a pretrained tokenizer or a path to a directory containing a tokenizer.
 
-- output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+- `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
 
-- use_trained_tokenizer (optional): Load the trained tokenizer once training completes.
+- `use_trained_tokenizer` (optional): Load the trained tokenizer once training completes.
 
 Returns: None
 

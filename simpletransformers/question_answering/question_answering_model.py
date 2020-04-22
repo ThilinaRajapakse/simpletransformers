@@ -80,7 +80,8 @@ class QuestionAnsweringModel:
         Args:
             model_type: The type of model (bert, xlnet, xlm, distilbert)
             model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
-            args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args['
+            args (optional): Default args will be used if this parameter is not provided. If provided,
+                it should be a dict containing the args that should be changed in the default args'
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
         """  # noqa: ignore flake8"
@@ -225,7 +226,7 @@ class QuestionAnsweringModel:
         return dataset
 
     def train_model(
-        self, train_data, output_dir=False, show_running_loss=True, args=None, eval_data=None, verbose=True
+        self, train_data, output_dir=False, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs
     ):
         """
         Trains the model using 'train_data'
@@ -235,7 +236,10 @@ class QuestionAnsweringModel:
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
-            eval_data (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+            eval_data (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled.
+                Is required if evaluate_during_training is enabled.
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
+                A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
         Returns:
             None
         """  # noqa: ignore flake8"
@@ -274,7 +278,7 @@ class QuestionAnsweringModel:
         os.makedirs(output_dir, exist_ok=True)
 
         global_step, tr_loss = self.train(
-            train_dataset, output_dir, show_running_loss=show_running_loss, eval_data=eval_data,
+            train_dataset, output_dir, show_running_loss=show_running_loss, eval_data=eval_data, **kwargs
         )
 
         model_to_save = self.model.module if hasattr(self.model, "module") else self.model
@@ -284,7 +288,7 @@ class QuestionAnsweringModel:
 
         logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-    def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True):
+    def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True, **kwargs):
         """
         Trains the model on train_dataset.
 
@@ -364,7 +368,7 @@ class QuestionAnsweringModel:
                 logger.info("   Starting fine-tuning.")
 
         if args["evaluate_during_training"]:
-            training_progress_scores = self._create_training_progress_scores()
+            training_progress_scores = self._create_training_progress_scores(**kwargs)
 
         if args["wandb_project"]:
             wandb.init(project=args["wandb_project"], config={**args}, **args["wandb_kwargs"])
@@ -450,7 +454,7 @@ class QuestionAnsweringModel:
                         and global_step % args["evaluate_during_training_steps"] == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results, _ = self.eval_model(eval_data, verbose=True)
+                        results, _ = self.eval_model(eval_data, verbose=True, **kwargs)
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
@@ -539,7 +543,7 @@ class QuestionAnsweringModel:
                 self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args["evaluate_during_training"]:
-                results, _ = self.eval_model(eval_data, verbose=True)
+                results, _ = self.eval_model(eval_data, verbose=True, **kwargs)
 
                 self._save_model(output_dir_current, optimizer, scheduler, results=results)
 
@@ -569,7 +573,7 @@ class QuestionAnsweringModel:
 
         return global_step, tr_loss / global_step
 
-    def eval_model(self, eval_data, output_dir=None, verbose=False):
+    def eval_model(self, eval_data, output_dir=None, verbose=False, **kwargs):
         """
         Evaluates the model on eval_data. Saves results to output_dir.
 
@@ -577,6 +581,8 @@ class QuestionAnsweringModel:
             eval_data: Path to JSON file containing evaluation data OR list of Python dicts in the correct format. The model will be evaluated on this data.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
+                A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
             result: Dictionary containing evaluation results. (correct, similar, incorrect)
@@ -588,7 +594,7 @@ class QuestionAnsweringModel:
 
         self._move_model_to_device()
 
-        all_predictions, all_nbest_json, scores_diff_json = self.evaluate(eval_data, output_dir)
+        all_predictions, all_nbest_json, scores_diff_json, eval_loss = self.evaluate(eval_data, output_dir)
 
         if isinstance(eval_data, str):
             with open(eval_data, "r", encoding=self.args["encoding"]) as f:
@@ -596,7 +602,8 @@ class QuestionAnsweringModel:
         else:
             truth = eval_data
 
-        result, texts = self.calculate_results(truth, all_predictions)
+        result, texts = self.calculate_results(truth, all_predictions, **kwargs)
+        result["eval_loss"] = eval_loss
 
         self.results.update(result)
 
@@ -629,6 +636,8 @@ class QuestionAnsweringModel:
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
 
+        eval_loss = 0.0
+        nb_eval_steps = 0
         model.eval()
 
         all_results = []
@@ -650,6 +659,7 @@ class QuestionAnsweringModel:
                     inputs.update({"cls_index": batch[4], "p_mask": batch[5]})
 
                 outputs = model(**inputs)
+                eval_loss += outputs[0].mean().item()
 
                 for i, example_index in enumerate(example_indices):
                     eval_feature = features[example_index.item()]
@@ -671,6 +681,10 @@ class QuestionAnsweringModel:
                             end_logits=to_list(outputs[1][i]),
                         )
                     all_results.append(result)
+
+            nb_eval_steps += 1
+
+        eval_loss = eval_loss / nb_eval_steps
 
         prefix = "test"
         os.makedirs(output_dir, exist_ok=True)
@@ -713,7 +727,7 @@ class QuestionAnsweringModel:
                 args["null_score_diff_threshold"],
             )
 
-        return all_predictions, all_nbest_json, scores_diff_json
+        return all_predictions, all_nbest_json, scores_diff_json, eval_loss
 
     def predict(self, to_predict, n_best_size=None):
         """
@@ -816,7 +830,7 @@ class QuestionAnsweringModel:
 
         return answers
 
-    def calculate_results(self, truth, predictions):
+    def calculate_results(self, truth, predictions, **kwargs):
         truth_dict = {}
         questions_dict = {}
         logger.info(truth)
@@ -834,8 +848,12 @@ class QuestionAnsweringModel:
         correct_text = {}
         incorrect_text = {}
         similar_text = {}
+        predicted_answers = []
+        true_answers = []
 
         for q_id, answer in truth_dict.items():
+            predicted_answers.append(predictions[q_id])
+            true_answers.append(answer)
             if predictions[q_id].strip() == answer.strip():
                 correct += 1
                 correct_text[q_id] = answer
@@ -854,11 +872,11 @@ class QuestionAnsweringModel:
                     "question": questions_dict[q_id],
                 }
 
-        result = {
-            "correct": correct,
-            "similar": similar,
-            "incorrect": incorrect,
-        }
+        extra_metrics = {}
+        for metric, func in kwargs.items():
+            extra_metrics[metric] = func(true_answers, predicted_answers)
+
+        result = {"correct": correct, "similar": similar, "incorrect": incorrect, **extra_metrics}
 
         texts = {
             "correct_text": correct_text,
@@ -889,13 +907,16 @@ class QuestionAnsweringModel:
 
         return inputs
 
-    def _create_training_progress_scores(self):
+    def _create_training_progress_scores(self, **kwargs):
+        extra_metrics = {key: [] for key in kwargs}
         training_progress_scores = {
             "global_step": [],
             "correct": [],
             "similar": [],
             "incorrect": [],
             "train_loss": [],
+            "eval_loss": [],
+            **extra_metrics,
         }
 
         return training_progress_scores
