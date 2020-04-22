@@ -228,6 +228,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "iknoorjobs",
+      "name": "Iknoor Singh",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/22852967?v=4",
+      "profile": "https://iknoorjobs.github.io/",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
