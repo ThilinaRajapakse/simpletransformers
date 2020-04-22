@@ -324,7 +324,7 @@ transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
 # Train and Evaluation data needs to be in a Pandas Dataframe containing at least two columns, a 'text' and a 'labels' column. The `labels` column should contain multi-hot encoded lists.
-train_data = [['Example sentence 1 for multilabel classification.', [1, 1, 1, 1, 0, 1]]] + [['This is another example sentence. ', [0, 1, 1, 0, 0, 0]]]
+train_data = [['Example sentence 1 for multilabel classification.', [1, 1, 1, 1, 0, 1]]], [['This is another example sentence. ', [0, 1, 1, 0, 0, 0]]]
 train_df = pd.DataFrame(train_data, columns=['text', 'labels'])
 
 eval_data = [['Example eval sentence for multilabel classification.', [1, 1, 1, 1, 0, 1]], ['Example eval senntence belonging to class 2', [0, 1, 1, 0, 0, 0]]]
