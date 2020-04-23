@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.25.0] - 2020-04-24
+
+### Added
+
+- Added support for Language Generation tasks.
+
 ## [0.24.9] - 2020-04-22
 
 ### Added
@@ -603,7 +609,11 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.24.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9b1f41...HEAD
+[0.25.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/445d386...HEAD
+
+[0.24.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/52fea69...445d386
+
+[0.24.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9b1f41...52fea69
 
 [0.24.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/853ca94...e9b1f41
 

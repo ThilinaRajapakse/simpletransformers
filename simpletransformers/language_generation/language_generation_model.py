@@ -129,7 +129,7 @@ class LanguageGenerationModel:
     def generate(self, prompt=None, args=None, verbose=True):
 
         """
-        Generate text using a LanguageGenerationModel'
+        Generate text using a LanguageGenerationModel
 
         Args:
             prompt (optional): A prompt text for the model. If given, will override args["prompt"]
