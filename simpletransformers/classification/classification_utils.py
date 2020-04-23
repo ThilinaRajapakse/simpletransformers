@@ -16,25 +16,23 @@
 
 from __future__ import absolute_import, division, print_function
 
+import csv
+import json
 import os
 import sys
-import csv
-
+from collections import Counter
 from io import open
 from multiprocessing import Pool, cpu_count
-
-from tqdm.auto import tqdm
-from scipy.stats import pearsonr, spearmanr
-from sklearn.metrics import matthews_corrcoef, f1_score
-import json
-from collections import Counter
 
 import torch
 import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
 from PIL import Image
+from scipy.stats import pearsonr, spearmanr
+from sklearn.metrics import f1_score, matthews_corrcoef
 from torch.utils.data import Dataset
+from tqdm.auto import tqdm
 
 csv.field_size_limit(2147483647)
 

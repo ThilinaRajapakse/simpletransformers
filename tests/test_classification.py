@@ -1,10 +1,7 @@
 import pandas as pd
 import pytest
 
-from simpletransformers.classification import (
-    ClassificationModel,
-    MultiLabelClassificationModel,
-)
+from simpletransformers.classification import ClassificationModel, MultiLabelClassificationModel
 
 
 @pytest.mark.parametrize(

@@ -4,34 +4,31 @@
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import math
 import json
+import logging
+import math
+import os
 import random
 import warnings
-import logging
-from typing import Dict, List
 from multiprocessing import cpu_count
+from typing import Dict, List
 
-import torch
 import numpy as np
 import pandas as pd
-
+import torch
 from sklearn.metrics import (
-    mean_squared_error,
-    matthews_corrcoef,
     confusion_matrix,
     label_ranking_average_precision_score,
+    matthews_corrcoef,
+    mean_squared_error,
 )
 from tensorboardX import SummaryWriter
-from tqdm.auto import trange, tqdm
-
+from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
+from tokenizers.processors import BertProcessing
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-
-from tokenizers import ByteLevelBPETokenizer, BertWordPieceTokenizer
-from tokenizers.processors import BertProcessing
+from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
@@ -44,6 +41,10 @@ from transformers import (
     DistilBertConfig,
     DistilBertForMaskedLM,
     DistilBertTokenizer,
+    ElectraConfig,
+    ElectraForMaskedLM,
+    ElectraForPreTraining,
+    ElectraTokenizer,
     GPT2Config,
     GPT2LMHeadModel,
     GPT2Tokenizer,
@@ -55,21 +56,17 @@ from transformers import (
     RobertaConfig,
     RobertaForMaskedLM,
     RobertaTokenizer,
-    ElectraConfig,
-    ElectraTokenizer,
-    ElectraForMaskedLM,
-    ElectraForPreTraining,
     get_linear_schedule_with_warmup,
 )
 
 from simpletransformers.config.global_args import global_args
+from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
 from simpletransformers.language_modeling.language_modeling_utils import (
     LineByLineTextDataset,
+    SimpleDataset,
     TextDataset,
     mask_tokens,
-    SimpleDataset,
 )
-from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
 
 try:
     import wandb
@@ -662,11 +659,43 @@ class LanguageModelingModel:
                         best_eval_metric = results[args["early_stopping_metric"]]
                         self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
+                    else:
+                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
+                            if early_stopping_counter < args["early_stopping_patience"]:
+                                early_stopping_counter += 1
+                                if verbose:
+                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" Current step: {early_stopping_counter}")
+                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                            else:
+                                if verbose:
+                                    logger.info(
+                                        f" Patience of {args['early_stopping_patience']} steps reached"
+                                    )
+                                    logger.info(" Training terminated.")
+                                    train_iterator.close()
+                                return global_step, tr_loss / global_step
                 else:
                     if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
                         best_eval_metric = results[args["early_stopping_metric"]]
                         self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
+                    else:
+                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
+                            if early_stopping_counter < args["early_stopping_patience"]:
+                                early_stopping_counter += 1
+                                if verbose:
+                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" Current step: {early_stopping_counter}")
+                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                            else:
+                                if verbose:
+                                    logger.info(
+                                        f" Patience of {args['early_stopping_patience']} steps reached"
+                                    )
+                                    logger.info(" Training terminated.")
+                                    train_iterator.close()
+                                return global_step, tr_loss / global_step
 
             if args["max_steps"] > 0 and global_step > args["max_steps"]:
                 return global_step, tr_loss / global_step

@@ -1,27 +1,26 @@
 import torch
 from torch import nn
-
-from transformers import BertPreTrainedModel, BertModel
-from transformers import XLNetPreTrainedModel, XLNetModel
-from transformers import XLMPreTrainedModel, XLMModel
-from transformers import DistilBertModel
-from transformers.configuration_distilbert import DistilBertConfig
-from transformers.modeling_utils import SequenceSummary, PreTrainedModel
-from transformers import RobertaModel
-from transformers.configuration_roberta import RobertaConfig
-from transformers import FlaubertModel
-from transformers.configuration_xlm_roberta import XLMRobertaConfig
-from transformers import ElectraForMaskedLM, ElectraForPreTraining
 from torch.nn import BCEWithLogitsLoss
-
-from transformers.modeling_albert import (
-    AlbertConfig,
-    AlbertPreTrainedModel,
-    AlbertModel,
+from transformers import (
+    BertModel,
+    BertPreTrainedModel,
+    DistilBertModel,
+    ElectraForMaskedLM,
+    ElectraForPreTraining,
+    FlaubertModel,
+    RobertaModel,
+    XLMModel,
+    XLMPreTrainedModel,
+    XLNetModel,
+    XLNetPreTrainedModel,
 )
-
-from transformers.modeling_roberta import ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.configuration_distilbert import DistilBertConfig
+from transformers.configuration_roberta import RobertaConfig
+from transformers.configuration_xlm_roberta import XLMRobertaConfig
+from transformers.modeling_albert import AlbertConfig, AlbertModel, AlbertPreTrainedModel
 from transformers.modeling_distilbert import DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.modeling_roberta import ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.modeling_utils import PreTrainedModel, SequenceSummary
 from transformers.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
 
 

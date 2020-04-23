@@ -1,6 +1,5 @@
 from multiprocessing import cpu_count
 
-
 global_args = {
     "output_dir": "outputs/",
     "best_model_dir": "outputs/best_model",
@@ -42,6 +41,7 @@ global_args = {
     "early_stopping_delta": 0,
     "early_stopping_metric": "eval_loss",
     "early_stopping_metric_minimize": True,
+    "early_stopping_consider_epochs": False,
     "manual_seed": None,
     "encoding": None,
     "config": {},

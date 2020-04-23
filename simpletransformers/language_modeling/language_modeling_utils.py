@@ -1,15 +1,15 @@
+import logging
 import os
 import pickle
-import logging
-from typing import Tuple
 from multiprocessing import Pool
+from typing import Tuple
 
 import torch
-from torch.utils.data import Dataset
-from transformers import PreTrainedTokenizer
 from tokenizers.implementations import ByteLevelBPETokenizer
 from tokenizers.processors import BertProcessing
+from torch.utils.data import Dataset
 from tqdm.auto import tqdm
+from transformers import PreTrainedTokenizer
 
 logger = logging.getLogger(__name__)
 

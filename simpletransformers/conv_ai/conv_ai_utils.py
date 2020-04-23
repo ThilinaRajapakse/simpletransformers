@@ -1,18 +1,17 @@
 # Copyright (c) 2019-present, HuggingFace Inc.
 # All rights reserved. This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
-from datetime import datetime
 import json
 import logging
 import os
+import socket
 import tarfile
 import tempfile
-import socket
+from datetime import datetime
 from multiprocessing import Pool
 
-from tqdm.auto import tqdm
 import torch
-
+from tqdm.auto import tqdm
 from transformers import cached_path
 
 PERSONACHAT_URL = "https://s3.amazonaws.com/datasets.huggingface.co/personachat/personachat_self_original.json"

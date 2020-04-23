@@ -1,6 +1,7 @@
-from simpletransformers.question_answering import QuestionAnsweringModel
 import json
 import os
+
+from simpletransformers.question_answering import QuestionAnsweringModel
 
 
 def test_question_answering():

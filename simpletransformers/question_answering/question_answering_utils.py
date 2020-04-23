@@ -1,23 +1,21 @@
 from __future__ import absolute_import, division, print_function
 
+import collections
 import json
 import logging
 import math
-import collections
-from io import open
+import os
 import re
 import string
-
-from tqdm import tqdm, trange
-import os
-import torch
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-
-from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
+from io import open
 from pprint import pprint
 
-from transformers import AdamW, get_linear_schedule_with_warmup
+import torch
 from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from tqdm import tqdm, trange
+from transformers import AdamW, get_linear_schedule_with_warmup
+from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
 
 logger = logging.getLogger(__name__)
 
@@ -372,30 +370,29 @@ def convert_examples_to_features(
                 start_position = cls_index
                 end_position = cls_index
 
-            if example_index < 20:
-                logger.info("*** Example ***")
-                logger.info("unique_id: %s" % (unique_id))
-                logger.info("example_index: %s" % (example_index))
-                logger.info("doc_span_index: %s" % (doc_span_index))
-                logger.info("tokens: %s" % " ".join(tokens))
-                logger.info(
-                    "token_to_orig_map: %s" % " ".join(["%d:%d" % (x, y) for (x, y) in token_to_orig_map.items()])
-                )
-                logger.info(
-                    "token_is_max_context: %s"
-                    % " ".join(["%d:%s" % (x, y) for (x, y) in token_is_max_context.items()])
-                )
-                logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
-                logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
-                logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
-                if is_training and span_is_impossible:
-                    logger.info("impossible example")
-                if is_training and not span_is_impossible:
-                    answer_text = " ".join(tokens[start_position : (end_position + 1)])
-                    logger.info("start_position: %d" % (start_position))
-                    logger.info("end_position: %d" % (end_position))
-                    logger.info("answer: %s" % (answer_text))
-
+            # if example_index < 20:
+            #     logger.info("*** Example ***")
+            #     logger.info("unique_id: %s" % (unique_id))
+            #     logger.info("example_index: %s" % (example_index))
+            #     logger.info("doc_span_index: %s" % (doc_span_index))
+            #     logger.info("tokens: %s" % " ".join(tokens))
+            #     logger.info(
+            #         "token_to_orig_map: %s" % " ".join(["%d:%d" % (x, y) for (x, y) in token_to_orig_map.items()])
+            #     )
+            #     logger.info(
+            #         "token_is_max_context: %s"
+            #         % " ".join(["%d:%s" % (x, y) for (x, y) in token_is_max_context.items()])
+            #     )
+            #     logger.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+            #     logger.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
+            #     logger.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+            #     if is_training and span_is_impossible:
+            #         logger.info("impossible example")
+            #     if is_training and not span_is_impossible:
+            #         answer_text = " ".join(tokens[start_position : (end_position + 1)])
+            #         logger.info("start_position: %d" % (start_position))
+            #         logger.info("end_position: %d" % (end_position))
+            #         logger.info("answer: %s" % (answer_text))
             features.append(
                 InputFeatures(
                     unique_id=unique_id,

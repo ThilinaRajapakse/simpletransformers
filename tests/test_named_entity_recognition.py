@@ -1,5 +1,6 @@
-from simpletransformers.ner import NERModel
 import pandas as pd
+
+from simpletransformers.ner import NERModel
 
 
 def test_named_entity_recognition():

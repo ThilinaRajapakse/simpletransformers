@@ -1,8 +1,8 @@
-from transformers.modeling_camembert import CamembertModel, CamembertConfig, CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP
-from transformers.modeling_roberta import RobertaForSequenceClassification, RobertaClassificationHead
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
+from transformers.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP, CamembertConfig, CamembertModel
+from transformers.modeling_roberta import RobertaClassificationHead, RobertaForSequenceClassification
 
 
 class CamembertForSequenceClassification(RobertaForSequenceClassification):

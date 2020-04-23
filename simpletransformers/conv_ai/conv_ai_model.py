@@ -4,52 +4,46 @@
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import math
 import json
-import random
-import warnings
 import logging
+import math
+import os
+import random
+import statistics
+import warnings
 from collections import defaultdict
 from itertools import chain
-import statistics
 from multiprocessing import cpu_count
 
-import torch
-import torch.nn.functional as F
 import numpy as np
 import pandas as pd
-
-from scipy.stats import pearsonr, mode
+import torch
+import torch.nn.functional as F
+from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
-    mean_squared_error,
-    matthews_corrcoef,
     confusion_matrix,
-    label_ranking_average_precision_score,
     f1_score,
+    label_ranking_average_precision_score,
+    matthews_corrcoef,
+    mean_squared_error,
 )
 from tensorboardX import SummaryWriter
-from tqdm.auto import trange, tqdm
-
-from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-
-from transformers import AdamW, get_linear_schedule_with_warmup
+from torch.utils.data.distributed import DistributedSampler
+from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
-    GPT2Tokenizer,
-    GPT2DoubleHeadsModel,
+    AdamW,
     GPT2Config,
+    GPT2DoubleHeadsModel,
+    GPT2Tokenizer,
+    OpenAIGPTConfig,
     OpenAIGPTDoubleHeadsModel,
     OpenAIGPTTokenizer,
-    OpenAIGPTConfig,
+    get_linear_schedule_with_warmup,
 )
 
-from simpletransformers.classification.classification_utils import (
-    InputExample,
-    convert_examples_to_features,
-)
-
+from simpletransformers.classification.classification_utils import InputExample, convert_examples_to_features
 from simpletransformers.config.global_args import global_args
 from simpletransformers.conv_ai.conv_ai_utils import get_dataset
 
