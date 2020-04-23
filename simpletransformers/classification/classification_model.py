@@ -13,8 +13,6 @@ import warnings
 from multiprocessing import cpu_count
 
 import numpy as np
-import pandas as pd
-import torch
 from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -22,10 +20,24 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
+from tqdm.auto import tqdm, trange
+
+import pandas as pd
+import torch
+from simpletransformers.classification.classification_utils import InputExample, convert_examples_to_features
+from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
+from simpletransformers.classification.transformer_models.bert_model import BertForSequenceClassification
+from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
+from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
+from simpletransformers.classification.transformer_models.flaubert_model import FlaubertForSequenceClassification
+from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
+from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
+from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
+from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
+from simpletransformers.config.global_args import global_args
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
-from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
@@ -49,18 +61,6 @@ from transformers import (
     XLNetTokenizer,
     get_linear_schedule_with_warmup,
 )
-
-from simpletransformers.classification.classification_utils import InputExample, convert_examples_to_features
-from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
-from simpletransformers.classification.transformer_models.bert_model import BertForSequenceClassification
-from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
-from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
-from simpletransformers.classification.transformer_models.flaubert_model import FlaubertForSequenceClassification
-from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
-from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
-from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
-from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
-from simpletransformers.config.global_args import global_args
 
 try:
     import wandb
@@ -569,9 +569,7 @@ class ClassificationModel:
                                     logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                             else:
                                 if verbose:
-                                    logger.info(
-                                        f" Patience of {args['early_stopping_patience']} steps reached"
-                                    )
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
@@ -590,9 +588,7 @@ class ClassificationModel:
                                     logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                             else:
                                 if verbose:
-                                    logger.info(
-                                        f" Patience of {args['early_stopping_patience']} steps reached"
-                                    )
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step

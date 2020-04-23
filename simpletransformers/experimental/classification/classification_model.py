@@ -12,7 +12,6 @@ import warnings
 from multiprocessing import cpu_count
 
 import numpy as np
-import torch
 from scipy.stats import pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -20,31 +19,9 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tensorboardX import SummaryWriter
-from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
-from transformers import (
-    WEIGHTS_NAME,
-    AdamW,
-    AlbertConfig,
-    AlbertTokenizer,
-    BertConfig,
-    BertTokenizer,
-    CamembertConfig,
-    CamembertTokenizer,
-    DistilBertConfig,
-    DistilBertTokenizer,
-    RobertaConfig,
-    RobertaTokenizer,
-    XLMConfig,
-    XLMTokenizer,
-    XLNetConfig,
-    XLNetTokenizer,
-    get_linear_schedule_with_warmup,
-)
 
+import torch
 from simpletransformers.experimental.classification.classification_utils import (
     InputExample,
     convert_examples_to_features,
@@ -65,6 +42,29 @@ from simpletransformers.experimental.classification.transformer_models.roberta_m
 from simpletransformers.experimental.classification.transformer_models.xlm_model import XLMForSequenceClassification
 from simpletransformers.experimental.classification.transformer_models.xlnet_model import (
     XLNetForSequenceClassification,
+)
+from tensorboardX import SummaryWriter
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from torch.utils.data.distributed import DistributedSampler
+from transformers import (
+    WEIGHTS_NAME,
+    AdamW,
+    AlbertConfig,
+    AlbertTokenizer,
+    BertConfig,
+    BertTokenizer,
+    CamembertConfig,
+    CamembertTokenizer,
+    DistilBertConfig,
+    DistilBertTokenizer,
+    RobertaConfig,
+    RobertaTokenizer,
+    XLMConfig,
+    XLMTokenizer,
+    XLNetConfig,
+    XLNetTokenizer,
+    get_linear_schedule_with_warmup,
 )
 
 

@@ -10,8 +10,9 @@ import tempfile
 from datetime import datetime
 from multiprocessing import Pool
 
-import torch
 from tqdm.auto import tqdm
+
+import torch
 from transformers import cached_path
 
 PERSONACHAT_URL = "https://s3.amazonaws.com/datasets.huggingface.co/personachat/personachat_self_original.json"

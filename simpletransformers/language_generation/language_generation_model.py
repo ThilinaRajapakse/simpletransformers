@@ -1,34 +1,32 @@
 import argparse
 import logging
-
-import numpy as np
-import torch
 import random
 
+import numpy as np
+
+import torch
+from simpletransformers.config.global_args import global_args
+from simpletransformers.language_generation.language_generation_utils import PREPROCESSING_FUNCTIONS
 from transformers import (
+    CTRLConfig,
     CTRLLMHeadModel,
     CTRLTokenizer,
+    GPT2Config,
     GPT2LMHeadModel,
     GPT2Tokenizer,
+    OpenAIGPTConfig,
     OpenAIGPTLMHeadModel,
     OpenAIGPTTokenizer,
+    TransfoXLConfig,
     TransfoXLLMHeadModel,
     TransfoXLTokenizer,
+    XLMConfig,
     XLMTokenizer,
     XLMWithLMHeadModel,
+    XLNetConfig,
     XLNetLMHeadModel,
     XLNetTokenizer,
-    CTRLConfig,
-    GPT2Config,
-    OpenAIGPTConfig,
-    TransfoXLConfig,
-    XLMConfig,
-    XLNetConfig,
 )
-
-from simpletransformers.language_generation.language_generation_utils import PREPROCESSING_FUNCTIONS
-from simpletransformers.config.global_args import global_args
-
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +158,10 @@ class LanguageGenerationModel:
             prepare_input = PREPROCESSING_FUNCTIONS.get(args["model_type"])
             preprocessed_prompt_text = prepare_input(args, model, tokenizer, prompt_text)
             encoded_prompt = tokenizer.encode(
-                preprocessed_prompt_text, add_special_tokens=False, return_tensors="pt", add_space_before_punct_symbol=True
+                preprocessed_prompt_text,
+                add_special_tokens=False,
+                return_tensors="pt",
+                add_space_before_punct_symbol=True,
             )
         else:
             encoded_prompt = tokenizer.encode(prompt_text, add_special_tokens=False, return_tensors="pt")

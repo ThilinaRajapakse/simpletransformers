@@ -3,6 +3,18 @@ import warnings
 from multiprocessing import cpu_count
 
 import torch
+from simpletransformers.classification import ClassificationModel
+from simpletransformers.config.global_args import global_args
+from simpletransformers.custom_models.models import (
+    AlbertForMultiLabelSequenceClassification,
+    BertForMultiLabelSequenceClassification,
+    DistilBertForMultiLabelSequenceClassification,
+    FlaubertForMultiLabelSequenceClassification,
+    RobertaForMultiLabelSequenceClassification,
+    XLMForMultiLabelSequenceClassification,
+    XLMRobertaForMultiLabelSequenceClassification,
+    XLNetForMultiLabelSequenceClassification,
+)
 from transformers import (
     WEIGHTS_NAME,
     AlbertConfig,
@@ -21,19 +33,6 @@ from transformers import (
     XLMTokenizer,
     XLNetConfig,
     XLNetTokenizer,
-)
-
-from simpletransformers.classification import ClassificationModel
-from simpletransformers.config.global_args import global_args
-from simpletransformers.custom_models.models import (
-    AlbertForMultiLabelSequenceClassification,
-    BertForMultiLabelSequenceClassification,
-    DistilBertForMultiLabelSequenceClassification,
-    FlaubertForMultiLabelSequenceClassification,
-    RobertaForMultiLabelSequenceClassification,
-    XLMForMultiLabelSequenceClassification,
-    XLMRobertaForMultiLabelSequenceClassification,
-    XLNetForMultiLabelSequenceClassification,
 )
 
 try:

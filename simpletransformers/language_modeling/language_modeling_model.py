@@ -14,13 +14,23 @@ from multiprocessing import cpu_count
 from typing import Dict, List
 
 import numpy as np
-import pandas as pd
-import torch
 from sklearn.metrics import (
     confusion_matrix,
     label_ranking_average_precision_score,
     matthews_corrcoef,
     mean_squared_error,
+)
+from tqdm.auto import tqdm, trange
+
+import pandas as pd
+import torch
+from simpletransformers.config.global_args import global_args
+from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
+from simpletransformers.language_modeling.language_modeling_utils import (
+    LineByLineTextDataset,
+    SimpleDataset,
+    TextDataset,
+    mask_tokens,
 )
 from tensorboardX import SummaryWriter
 from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
@@ -28,7 +38,6 @@ from tokenizers.processors import BertProcessing
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
@@ -57,15 +66,6 @@ from transformers import (
     RobertaForMaskedLM,
     RobertaTokenizer,
     get_linear_schedule_with_warmup,
-)
-
-from simpletransformers.config.global_args import global_args
-from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
-from simpletransformers.language_modeling.language_modeling_utils import (
-    LineByLineTextDataset,
-    SimpleDataset,
-    TextDataset,
-    mask_tokens,
 )
 
 try:
@@ -669,9 +669,7 @@ class LanguageModelingModel:
                                     logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                             else:
                                 if verbose:
-                                    logger.info(
-                                        f" Patience of {args['early_stopping_patience']} steps reached"
-                                    )
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
@@ -690,9 +688,7 @@ class LanguageModelingModel:
                                     logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                             else:
                                 if verbose:
-                                    logger.info(
-                                        f" Patience of {args['early_stopping_patience']} steps reached"
-                                    )
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step

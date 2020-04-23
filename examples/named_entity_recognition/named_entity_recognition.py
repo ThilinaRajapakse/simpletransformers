@@ -1,5 +1,4 @@
 import pandas as pd
-
 from simpletransformers.ner import NERModel
 
 # Creating train_df  and eval_df for demonstration

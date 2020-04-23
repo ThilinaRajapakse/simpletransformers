@@ -24,15 +24,16 @@ from collections import Counter
 from io import open
 from multiprocessing import Pool, cpu_count
 
-import torch
-import torch.nn as nn
 import torchvision
 import torchvision.transforms as transforms
 from PIL import Image
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
-from torch.utils.data import Dataset
 from tqdm.auto import tqdm
+
+import torch
+import torch.nn as nn
+from torch.utils.data import Dataset
 
 csv.field_size_limit(2147483647)
 

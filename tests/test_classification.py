@@ -1,6 +1,5 @@
 import pandas as pd
 import pytest
-
 from simpletransformers.classification import ClassificationModel, MultiLabelClassificationModel
 
 

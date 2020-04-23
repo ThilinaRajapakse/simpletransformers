@@ -1,6 +1,5 @@
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 # Padding text to help Transformer-XL and XLNet with short prompts as proposed by Aman Rusia

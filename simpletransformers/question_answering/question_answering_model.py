@@ -9,8 +9,6 @@ import warnings
 from multiprocessing import cpu_count
 
 import numpy as np
-import pandas as pd
-import torch
 from scipy.stats import pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -18,10 +16,26 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
+from tqdm.auto import tqdm, trange
+
+import pandas as pd
+import torch
+from simpletransformers.config.global_args import global_args
+from simpletransformers.question_answering.question_answering_utils import (
+    RawResult,
+    RawResultExtended,
+    build_examples,
+    convert_examples_to_features,
+    get_best_predictions,
+    get_best_predictions_extended,
+    get_examples,
+    to_list,
+    write_predictions,
+    write_predictions_extended,
+)
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
-from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
@@ -41,20 +55,6 @@ from transformers import (
     XLNetForQuestionAnswering,
     XLNetTokenizer,
     get_linear_schedule_with_warmup,
-)
-
-from simpletransformers.config.global_args import global_args
-from simpletransformers.question_answering.question_answering_utils import (
-    RawResult,
-    RawResultExtended,
-    build_examples,
-    convert_examples_to_features,
-    get_best_predictions,
-    get_best_predictions_extended,
-    get_examples,
-    to_list,
-    write_predictions,
-    write_predictions_extended,
 )
 
 try:

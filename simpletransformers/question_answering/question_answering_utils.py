@@ -10,10 +10,11 @@ import string
 from io import open
 from pprint import pprint
 
+from tqdm import tqdm, trange
+
 import torch
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-from tqdm import tqdm, trange
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
 

@@ -9,14 +9,23 @@ import warnings
 from multiprocessing import cpu_count
 
 import numpy as np
-import pandas as pd
-import torch
 from scipy.stats import pearsonr
 from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
+from tqdm.auto import tqdm, trange
+
+import pandas as pd
+import torch
+from simpletransformers.config.global_args import global_args
+from simpletransformers.ner.ner_utils import (
+    InputExample,
+    convert_examples_to_features,
+    get_examples_from_df,
+    get_labels,
+    read_examples_from_file,
+)
 from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
@@ -39,15 +48,6 @@ from transformers import (
     XLMRobertaForTokenClassification,
     XLMRobertaTokenizer,
     get_linear_schedule_with_warmup,
-)
-
-from simpletransformers.config.global_args import global_args
-from simpletransformers.ner.ner_utils import (
-    InputExample,
-    convert_examples_to_features,
-    get_examples_from_df,
-    get_labels,
-    read_examples_from_file,
 )
 
 try:
@@ -507,9 +507,7 @@ class NERModel:
                                     logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                             else:
                                 if verbose:
-                                    logger.info(
-                                        f" Patience of {args['early_stopping_patience']} steps reached"
-                                    )
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
@@ -529,9 +527,7 @@ class NERModel:
                                     logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                             else:
                                 if verbose:
-                                    logger.info(
-                                        f" Patience of {args['early_stopping_patience']} steps reached"
-                                    )
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step

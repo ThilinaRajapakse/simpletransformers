@@ -13,8 +13,6 @@ import warnings
 from multiprocessing import cpu_count
 
 import numpy as np
-import pandas as pd
-import torch
 from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -22,13 +20,10 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tensorboardX import SummaryWriter
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
-from transformers import WEIGHTS_NAME, AdamW, BertConfig, BertModel, BertTokenizer, get_linear_schedule_with_warmup
-from transformers.configuration_mmbt import MMBTConfig
 
+import pandas as pd
+import torch
 from simpletransformers.classification.classification_utils import (
     ImageEncoder,
     InputExample,
@@ -39,6 +34,11 @@ from simpletransformers.classification.classification_utils import (
 )
 from simpletransformers.classification.transformer_models.mmbt_model import MMBTForClassification
 from simpletransformers.config.global_args import global_args
+from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from torch.utils.data.distributed import DistributedSampler
+from transformers import WEIGHTS_NAME, AdamW, BertConfig, BertModel, BertTokenizer, get_linear_schedule_with_warmup
+from transformers.configuration_mmbt import MMBTConfig
 
 try:
     import wandb
@@ -593,9 +593,7 @@ class MultiModalClassificationModel:
                                     logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                             else:
                                 if verbose:
-                                    logger.info(
-                                        f" Patience of {args['early_stopping_patience']} steps reached"
-                                    )
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
@@ -614,9 +612,7 @@ class MultiModalClassificationModel:
                                     logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
                             else:
                                 if verbose:
-                                    logger.info(
-                                        f" Patience of {args['early_stopping_patience']} steps reached"
-                                    )
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step

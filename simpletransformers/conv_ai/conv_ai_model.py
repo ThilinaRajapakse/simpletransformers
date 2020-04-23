@@ -16,9 +16,6 @@ from itertools import chain
 from multiprocessing import cpu_count
 
 import numpy as np
-import pandas as pd
-import torch
-import torch.nn.functional as F
 from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -27,10 +24,17 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
+from tqdm.auto import tqdm, trange
+
+import pandas as pd
+import torch
+import torch.nn.functional as F
+from simpletransformers.classification.classification_utils import InputExample, convert_examples_to_features
+from simpletransformers.config.global_args import global_args
+from simpletransformers.conv_ai.conv_ai_utils import get_dataset
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
-from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
@@ -42,10 +46,6 @@ from transformers import (
     OpenAIGPTTokenizer,
     get_linear_schedule_with_warmup,
 )
-
-from simpletransformers.classification.classification_utils import InputExample, convert_examples_to_features
-from simpletransformers.config.global_args import global_args
-from simpletransformers.conv_ai.conv_ai_utils import get_dataset
 
 try:
     import wandb

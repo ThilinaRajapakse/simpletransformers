@@ -1,7 +1,6 @@
+from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
 from transformers.configuration_camembert import CamembertConfig
 from transformers.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP
-
-from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
 
 
 class CamembertForSequenceClassification(RobertaForSequenceClassification):

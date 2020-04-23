@@ -1,5 +1,4 @@
 import pandas as pd
-
 from simpletransformers.ner import NERModel
 
 

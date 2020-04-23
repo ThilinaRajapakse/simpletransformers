@@ -1,5 +1,4 @@
 import pandas as pd
-
 from simpletransformers.classification import ClassificationModel
 
 # Train and Evaluation data needs to be in a Pandas Dataframe of two columns. The first column is the text with type str, and the second column is the label with type int.
