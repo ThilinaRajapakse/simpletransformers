@@ -17,10 +17,15 @@ Supports
 - Multi-Modal Classification
 - Conversational AI.
 
+### Latest
+
+ELECTRA models can now be used with Language Model Training, Token Classification, Sequence Classification, and Question Answering.
+
 # Table of contents
 
 <!--ts-->
 - [Simple Transformers](#simple-transformers)
+    - [Latest](#latest)
 - [Table of contents](#table-of-contents)
   - [Setup](#setup)
     - [With Conda](#with-conda)
@@ -227,15 +232,16 @@ Supports Binary Classification, Multiclass Classification, and Multilabel Classi
 
 Supported model types:
 
-* BERT
-* RoBERTa
-* XLNet
-* XLM
-* DistilBERT
 * ALBERT
+* BERT
 * CamemBERT
-* XLM-RoBERTa
+* RoBERTa
+* DistilBERT
+* ELECTRA
 * FlauBERT
+* XLM
+* XLM-RoBERTa
+* XLNet
 
 ### Task Specific Notes
 
@@ -566,9 +572,10 @@ This section describes how to use Simple Transformers for Named Entity Recogniti
 
 Supported model types:
 * BERT
-* RoBERTa
-* DistilBERT
 * CamemBERT
+* DistilBERT
+* ELECTRA
+* RoBERTa
 * XLM-RoBERTa
 
 ```python
@@ -716,11 +723,12 @@ _[Back to Table of Contents](#table-of-contents)_
 
 Supported model types:
 
-* BERT
-* XLNet
-* XLM
-* DistilBERT
 * ALBERT
+* BERT
+* DistilBERT
+* ELECTRA
+* XLM
+* XLNet
 
 ### Data format
 
@@ -983,13 +991,13 @@ _[Back to Table of Contents](#table-of-contents)_
 
 Supported model types:
 
+- BERT
+- CamemBERT
+- DistilBERT
+- ELECTRA
 - GPT-2
 - OpenAI-GPT
-- BERT
 - RoBERTa
-- DistilBERT
-- CamemBERT
-- ELECTRA
 
 ### Data format
 
@@ -1301,12 +1309,13 @@ _[Back to Table of Contents](#table-of-contents)_
 This section describes how to use Simple Transformers for Langauge Generation.
 
 Supported model types:
-* GPT-2
+
 * CTRL
+* GPT-2
 * OpenAI-GPT
-* XLNet
 * Transformer-XL
 * XLM
+* XLNet
 
 #### Minimal Start
 

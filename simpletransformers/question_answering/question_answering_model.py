@@ -21,6 +21,7 @@ from tqdm.auto import tqdm, trange
 import pandas as pd
 import torch
 from simpletransformers.config.global_args import global_args
+from simpletransformers.custom_models.models import ElectraForQuestionAnswering
 from simpletransformers.question_answering.question_answering_utils import (
     RawResult,
     RawResultExtended,
@@ -48,6 +49,11 @@ from transformers import (
     DistilBertConfig,
     DistilBertForQuestionAnswering,
     DistilBertTokenizer,
+    ElectraConfig,
+    ElectraTokenizer,
+    RobertaConfig,
+    RobertaForQuestionAnswering,
+    RobertaTokenizer,
     XLMConfig,
     XLMForQuestionAnswering,
     XLMTokenizer,
@@ -89,6 +95,8 @@ class QuestionAnsweringModel:
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,),
             "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
+            "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
+            "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
         }
 
         if args and "manual_seed" in args:
@@ -451,7 +459,7 @@ class QuestionAnsweringModel:
                         and global_step % args["evaluate_during_training_steps"] == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results, _ = self.eval_model(eval_data, verbose=True, **kwargs)
+                        results, _ = self.eval_model(eval_data, verbose=False, **kwargs)
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
@@ -540,7 +548,7 @@ class QuestionAnsweringModel:
                 self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args["evaluate_during_training"]:
-                results, _ = self.eval_model(eval_data, verbose=True, **kwargs)
+                results, _ = self.eval_model(eval_data, verbose=False, **kwargs)
 
                 self._save_model(output_dir_current, optimizer, scheduler, results=results)
 
@@ -598,7 +606,7 @@ class QuestionAnsweringModel:
 
         return global_step, tr_loss / global_step
 
-    def eval_model(self, eval_data, output_dir=None, verbose=False, **kwargs):
+    def eval_model(self, eval_data, output_dir=None, verbose=False, verbose_logging=False, **kwargs):
         """
         Evaluates the model on eval_data. Saves results to output_dir.
 
@@ -606,6 +614,7 @@ class QuestionAnsweringModel:
             eval_data: Path to JSON file containing evaluation data OR list of Python dicts in the correct format. The model will be evaluated on this data.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
+            verbose_logging: Log info related to feature conversion and writing predictions.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
@@ -619,7 +628,9 @@ class QuestionAnsweringModel:
 
         self._move_model_to_device()
 
-        all_predictions, all_nbest_json, scores_diff_json, eval_loss = self.evaluate(eval_data, output_dir)
+        all_predictions, all_nbest_json, scores_diff_json, eval_loss = self.evaluate(
+            eval_data, output_dir, verbose_logging=verbose
+        )
 
         if isinstance(eval_data, str):
             with open(eval_data, "r", encoding=self.args["encoding"]) as f:
@@ -637,7 +648,7 @@ class QuestionAnsweringModel:
 
         return result, texts
 
-    def evaluate(self, eval_data, output_dir):
+    def evaluate(self, eval_data, output_dir, verbose_logging=False):
         """
         Evaluates the model on eval_data.
 
@@ -673,10 +684,11 @@ class QuestionAnsweringModel:
                 inputs = {
                     "input_ids": batch[0],
                     "attention_mask": batch[1],
+                    "token_type_ids": batch[2],
                 }
 
-                if args["model_type"] != "distilbert":
-                    inputs["token_type_ids"] = None if args["model_type"] == "xlm" else batch[2]
+                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra"]:
+                    del inputs["token_type_ids"]
 
                 example_indices = batch[3]
 
@@ -734,7 +746,7 @@ class QuestionAnsweringModel:
                 model.config.end_n_top,
                 True,
                 tokenizer,
-                not args["silent"],
+                verbose_logging,
             )
         else:
             all_predictions, all_nbest_json, scores_diff_json = write_predictions(
@@ -747,7 +759,7 @@ class QuestionAnsweringModel:
                 output_prediction_file,
                 output_nbest_file,
                 output_null_log_odds_file,
-                not args["silent"],
+                verbose_logging,
                 True,
                 args["null_score_diff_threshold"],
             )
@@ -802,10 +814,11 @@ class QuestionAnsweringModel:
                 inputs = {
                     "input_ids": batch[0],
                     "attention_mask": batch[1],
+                    "token_type_ids": batch[2],
                 }
 
-                if args["model_type"] != "distilbert":
-                    inputs["token_type_ids"] = None if args["model_type"] == "xlm" else batch[2]
+                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra"]:
+                    del inputs["token_type_ids"]
 
                 example_indices = batch[3]
 
@@ -858,7 +871,6 @@ class QuestionAnsweringModel:
     def calculate_results(self, truth, predictions, **kwargs):
         truth_dict = {}
         questions_dict = {}
-        logger.info(truth)
         for item in truth:
             for answer in item["qas"]:
                 if answer["answers"]:
@@ -921,12 +933,14 @@ class QuestionAnsweringModel:
         inputs = {
             "input_ids": batch[0],
             "attention_mask": batch[1],
+            "token_type_ids": batch[2],
             "start_positions": batch[3],
             "end_positions": batch[4],
         }
 
-        if self.args["model_type"] != "distilbert":
-            inputs["token_type_ids"] = None if self.args["model_type"] == "xlm" else batch[2]
+        if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra"]:
+            del inputs["token_type_ids"]
+
         if self.args["model_type"] in ["xlnet", "xlm"]:
             inputs.update({"cls_index": batch[5], "p_mask": batch[6]})
 

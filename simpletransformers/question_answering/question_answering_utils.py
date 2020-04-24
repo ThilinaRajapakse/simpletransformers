@@ -509,8 +509,8 @@ def write_predictions(
     null_score_diff_threshold,
 ):
     """Write final predictions to the json file and log-odds of null if needed."""
-    logger.info("Writing predictions to: %s" % (output_prediction_file))
-    logger.info("Writing nbest to: %s" % (output_nbest_file))
+    # logger.info("Writing predictions to: %s" % (output_prediction_file))
+    # logger.info("Writing nbest to: %s" % (output_nbest_file))
 
     example_index_to_features = collections.defaultdict(list)
     for feature in all_features:
@@ -724,7 +724,7 @@ def write_predictions_extended(
         "NbestPrediction", ["text", "start_log_prob", "end_log_prob"]
     )
 
-    logger.info("Writing predictions to: %s", output_prediction_file)
+    # logger.info("Writing predictions to: %s", output_prediction_file)
     # logger.info("Writing nbest to: %s" % (output_nbest_file))
 
     example_index_to_features = collections.defaultdict(list)

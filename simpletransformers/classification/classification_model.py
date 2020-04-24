@@ -35,6 +35,7 @@ from simpletransformers.classification.transformer_models.xlm_model import XLMFo
 from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
 from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
 from simpletransformers.config.global_args import global_args
+from simpletransformers.custom_models.models import ElectraForSequenceClassification
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
@@ -49,6 +50,8 @@ from transformers import (
     CamembertTokenizer,
     DistilBertConfig,
     DistilBertTokenizer,
+    ElectraConfig,
+    ElectraTokenizer,
     FlaubertConfig,
     FlaubertTokenizer,
     RobertaConfig,
@@ -101,6 +104,7 @@ class ClassificationModel:
             "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
             "flaubert": (FlaubertConfig, FlaubertForSequenceClassification, FlaubertTokenizer),
+            "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
         }
 
         if args and "manual_seed" in args:
