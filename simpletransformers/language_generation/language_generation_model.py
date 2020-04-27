@@ -185,7 +185,8 @@ class LanguageGenerationModel:
         generated_sequences = []
 
         for generated_sequence_idx, generated_sequence in enumerate(output_sequences):
-            logger.info("=== GENERATED SEQUENCE {} ===".format(generated_sequence_idx + 1))
+            if verbose:
+                logger.info("=== GENERATED SEQUENCE {} ===".format(generated_sequence_idx + 1))
             generated_sequence = generated_sequence.tolist()
 
             # Decode text
