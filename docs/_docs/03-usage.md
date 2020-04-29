@@ -1,0 +1,210 @@
+---
+title: "General Usage"
+permalink: /docs/usage/
+excerpt: "General usage instructions applicable to most tasks."
+last_modified_at: 2018-03-20T15:59:40-04:00
+toc: true
+---
+
+This section contains general usage information and tips applicable to most tasks in the library.
+
+## Task Specific Models
+
+Simple Transformer models are built with a particular Natural Language Processing (NLP) task in mind. Each such model comes equipped with features and functionality designed to best fit the task that they are intended to perform. The high-level process of using Simple Transformers models follows the same pattern.
+
+1. Initialize a task-specific model
+2. Train the model with `train_model()`
+3. Evaluate the model with `eval_model()`
+4. Make predictions on (unlabelled) data with `predict()`
+
+However, there are necessary differences between the different models to ensure that they are well suited for their intended task. The key differences will typically be the differences in input/output data formats and any task specific features/configuration options. These can all be found in the documentation section for each task.
+
+The currently implemented task-specific Simple Transformer models, along with their task, are given below.
+
+| Task                                                      | Model                           |
+| --------------------------------------------------------- | ------------------------------- |
+| Binary and multi-class text classification                | `ClassificationModel`           |
+| Conversational AI (chatbot training)                      | `ConvAIModel`                   |
+| Language generation                                       | `LanguageGenerationModel`       |
+| Language model training/fine-tuning                       | `LanguageModelingModel`         |
+| Multi-label text classification                           | `MultiLabelClassificationModel` |
+| Multi-modal classification (text and image data combined) | `MultiModalClassificationModel` |
+| Named entity recognition                                  | `NERModel`                      |
+| Question answering                                        | `QuestionAnsweringModel`        |
+| Regression                                                | `ClassificationModel`           |
+| Sentence-pair classification                              | `ClassificationModel`           |
+
+
+## Creating a task-specific model
+
+To create a task-specific Simple Transformers model, you will typically specify a `model_type` and a `model_name`.
+Any deviation from this will be noted in the appropriate model documentation.
+
+- `model_type` should be one of the model types from the supported models (e.g. bert, electra, xlnet)
+- `model_name` specifies the exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model or it could be the path to a directory containing model files.
+
+    **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
+    {: .notice--info}
+
+    **Note:** For a list of community models, see [here](https://huggingface.co/models).
+    {: .notice--info}
+
+    You may use any of these models provided the `model_type` is supported.
+
+
+The code snippets below demonstrate the typical process of creating a Simple Transformers model, using the `ClassificationModel` as an example.
+
+
+### Importing the task-specific model
+
+```python
+from simpletransformers.classification import ClassificationModel
+```
+
+### Loading a pre-trained model
+
+```python
+model = ClassificationModel(
+    "roberta", "roberta-base"
+)
+```
+
+### Loading a community model
+
+```python
+model = ClassificationModel(
+    "bert", "KB/bert-base-swedish-cased"
+)
+```
+
+### Loading a local save
+
+```python
+model = ClassificationModel(
+    "bert", "outputs/best_model"
+)
+```
+
+
+## To CUDA or not to CUDA
+
+Deep Learning (DL) models are typically run on CUDA-enabled GPUs as the performance is far, *far* superior compared to running on a CPU. This is especially true for Transformer models considering that they are quite large even in relation to other DL models.
+{: .notice--info}
+
+CUDA is enabled by default on all Simple Transformers models.
+
+### Enabling/Disabling CUDA
+
+All Simple Transformers models have a `use_cuda` parameter to easily flip the switch on CUDA. Attempting to use CUDA when a CUDA device is not available will result in an error.
+
+```python
+model = ClassificationModel(
+    "roberta", "roberta-base", use_cuda=False
+)
+```
+
+**Pro tip:** You can use the following code snippet to ensure that your script will use CUDA if it is available, but won't error out if it is not.
+{: .notice--info}
+
+```python
+import torch
+
+
+cuda_available = torch.cuda.is_available()
+
+model = ClassificationModel(
+    "roberta", "roberta-base", use_cuda=cuda_available
+)
+```
+
+### Selecting a CUDA device
+
+If your environment has multiple CUDA devices, but you wish to use a particular device, you can specify the device ID (`int` starting from `0`) as shown below.
+
+```python
+model = ClassificationModel(
+    "roberta", "roberta-base", cuda_device=1
+```
+
+
+## Configuring a Simple Transformers model
+
+Every task-specific Simple Transformers model comes with tons of configuration options to enable the user to easily tailor the model for their use case. These options can be categorized into two types, options common to all tasks and task-specific options. This section focuses on the common (or global) options. The task-specific options are detailed in the relevant documentation for the task.
+
+Configuration options in Simple Transformers are defined as Python dicts. The [`global_args`](https://github.com/ThilinaRajapakse/simpletransformers/blob/master/simpletransformers/config/global_args.py) dict contains all the global options set to their default values, as shown below.
+
+| Argument                         | Type  | Default                                                   | Description                                                                                                                                                                              |
+|----------------------------------|-------|-----------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| adam_epsilon                     | float | 1e-8                                                      | Epsilon hyperparameter used in AdamOptimizer.                                                                                                                                            |
+| best_model_dir                   | str   | outputs/best_model                                        | The directory where the best model (model checkpoints) will be saved (based on eval_during_training)                                                                                     |
+| cache_dir                        | str   | cache_dir                                                 | The directory where cached files will be saved.                                                                                                                                          |
+| config                           | dict  | {}                                                        | A dictionary containing configuration options that should be overriden in a model's config.                                                                                              |
+| do_lower_case                    | bool  | False                                                     | Set to True when using uncased models.                                                                                                                                                   |
+| early_stopping_consider_epochs   | bool  | False                                                     | If True, end of epoch evaluation score will be considered for early stopping.                                                                                                            |
+| early_stopping_delta             | float | 0                                                         | The improvement over best_eval_loss necessary to count as a better checkpoint.                                                                                                           |
+| early_stopping_metric            | str   | eval_loss                                                 | The metric that should be used with early stopping. (Should be computed during eval_during_training).                                                                                    |
+| early_stopping_metric_minimize   | bool  | True                                                      | Whether early_stopping_metric should be minimized (or maximized).                                                                                                                        |
+| early_stopping_patience          | int   | 3                                                         | Terminate training after this many evaluations without an improvement in eval_loss greater then early_stopping_delta.                                                                    |
+| encoding                         | str   | None                                                      | Specify an encoding to be used when reading text files.                                                                                                                                  |
+| eval_batch_size                  | int   | 8                                                         | The evaluation batch size.                                                                                                                                                               |
+| evaluate_during_training         | bool  | False                                                     | Set to True to perform evaluation while training models. Make sure eval data is passed to the training method if enabled.                                                                |
+| evaluate_during_training_steps   | int   | 2000                                                      | Perform evaluation at every specified number of steps. A checkpoint model and the evaluation results will be saved.                                                                      |
+| evaluate_during_training_verbose | bool  | False                                                     | Print results from evaluation during training.                                                                                                                                           |
+| fp16                             | bool  | True                                                      | Whether or not fp16 mode should be used. Requires NVidia Apex library.                                                                                                                   |
+| fp16_opt_level                   | str   | O1                                                        | Can be '01', '02', '03'. See the Apex docs for an explanation of the different optimization levels (opt_levels).                                                                         |
+| gradient_accumulation_steps      | int   | 1                                                         | The number of training steps to execute before performing a optimizer.step(). Effectively increases the training batch size while sacrificing training time to lower memory consumption. |
+| learning_rate                    | float | 4e-5                                                      | The learning rate for training.                                                                                                                                                          |
+| logging_steps                    | int   | 50                                                        | Log training loss and learning at every specified number of steps.                                                                                                                       |
+| manual_seed                      | int   | None                                                      | Set a manual seed if necessary for reproducible results.                                                                                                                                 |
+| max_grad_norm                    | float | 1.0                                                       | Maximum gradient clipping.                                                                                                                                                               |
+| max_seq_length                   | int   | 128                                                       | Maximum sequence length the model will support.                                                                                                                                          |
+| n_gpu                            | int   | 1                                                         | Number of GPUs to use.                                                                                                                                                                   |
+| no_cache                         | bool  | False                                                     | Cache features to disk.                                                                                                                                                                  |
+| num_train_epochs                 | int   | 1                                                         | The number of epochs the model will be trained for.                                                                                                                                      |
+| output_dir                       | str   | "outputs/"                                                | The directory where all outputs will be stored. This includes model checkpoints and evaluation results.                                                                                  |
+| overwrite_output_dir             | bool  | False                                                     | If True, the trained model will be saved to the ouput_dir and will overwrite existing saved models in the same directory.                                                                |
+| process_count                    | int   | cpu_count ()  -   2   if   cpu_count ()  >   2   else   1 | Number of cpu cores (processes) to use when converting examples to features. Default is (number of cores - 2) or 1 if (number of cores <= 2)                                             |
+| reprocess_input_data             | bool  | True                                                      | If True, the input data will be reprocessed even if a cached file of the input data exists in the cache_dir.                                                                             |
+| save_eval_checkpoints            | bool  | True                                                      | Save a model checkpoint for every evaluation performed.                                                                                                                                  |
+| save_model_every_epoch           | bool  | True                                                      | Save a model checkpoint at the end of every epoch.                                                                                                                                       |
+| save_steps                       | int   | 2000                                                      | Save a model checkpoint at every specified number of steps.                                                                                                                              |
+| silent                           | bool  | False                                                     | Disables progress bars.                                                                                                                                                                  |
+| tensorboard_dir                  | str   | None                                                      | The directory where Tensorboard events will be stored during training. By default, Tensorboard events will be saved in a subfolder inside runs/ like runs/Dec02_09-32-58_36d9e58955b0/.  |
+| train_batch_size                 | int   | 8                                                         | The training batch size.                                                                                                                                                                 |
+| use_cached_eval_features         | bool  | False                                                     | Evaluation during training uses cached features. Setting this to False will cause features to be recomputed at every evaluation step.                                                    |
+| use_early_stopping               | bool  | False                                                     | Use early stopping to stop training when early_stopping_metric doesn't improve (based on early_stopping_patience, and early_stopping_delta)                                              |
+| use_multiprocessing              | bool  | True                                                      | If True, multiprocessing will be used when converting data into features. Disabling can reduce memory usage, but may substantially slow down processing.                                 |
+| wandb_kwargs                     | dict  | {}                                                        | Dictionary of keyword arguments to be passed to the W&B project.                                                                                                                         |
+| wandb_project                    | str   | None                                                      | Name of W&B project. This will log all hyperparameter values, training losses, and evaluation metrics to the given project.                                                              |
+| warmup_ratio                     | float | 0.06                                                      | Ratio of total training steps where learning rate will "warm up". Overridden if `warmup_steps` is specified.                                                                             |
+| warmup_steps                     | int   | 0                                                         | Number of training steps where learning rate will "warm up". Overrides `warmup_ratio`.                                                                                                   |
+| weight_decay                     | int   | 0                                                         | Adds L2 penalty.                                                                                                                                                                         |
+
+
+You can override any of these default values by passing in a Python dict containing the appropriate key-value pairs when initializing a Simple Transformers model.
+
+```python
+from simpletransformers.classification import ClassificationModel
+
+
+model_args = {
+    "num_train_epochs": 5,
+    "learning_rate": 1e-4,
+}
+
+model = ClassficationModel("bert", "bert-base-cased", args=model_args)
+```
+
+## Options for downloading pre-trained models
+
+Most Simple Transformers models will use the `from_pretrained()` [method](https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained) from the Hugging Face Transformers library to download pre-trained models. You can pass `kwargs` to this method to configure things like proxies and force downloading (refer to method link above).
+
+You can pass these `kwargs` when initializing a Simple Transformers task-specific model to access the same functionality. For example, if you are behind a firewall and need to set the proxy settings;
+
+```python
+model = ClassficationModel(
+    "bert",
+    "bert-base-cased",
+    proxies={"http": "foo.bar:3128", "http://hostname": "foo.bar:4012"}
+)
+```
