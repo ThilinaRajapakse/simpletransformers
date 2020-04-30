@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import os
+import sys
 import re
 import string
 from io import open
@@ -141,26 +142,41 @@ def get_examples(examples_to_process, is_training=True, version_2_with_negative=
                 if version_2_with_negative:
                     is_impossible = qa["is_impossible"]
                 if (len(qa["answers"]) != 1) and (not is_impossible):
-                    raise ValueError("For training, each question should have exactly 1 answer.")
+                    # Only choose the first answer when multiple answers exist
+                    # This is to ensure to be able to moving forward.
+                    qa["answers"] = qa["answers"][0]
+                    logger.warning("For training, each question should have exactly 1 answer.")
+                    # raise ValueError("For training, each question should have exactly 1 answer.")
                 if not is_impossible:
-                    answer = qa["answers"][0]
-                    orig_answer_text = answer["text"]
-                    answer_offset = answer["answer_start"]
-                    answer_length = len(orig_answer_text)
-                    start_position = char_to_word_offset[answer_offset]
-                    end_position = char_to_word_offset[answer_offset + answer_length - 1]
-                    # Only add answers where the text can be exactly recovered from the
-                    # document. If this CAN'T happen it's likely due to weird Unicode
-                    # stuff so we will just skip the example.
-                    #
-                    # Note that this means for training mode, every example is NOT
-                    # guaranteed to be preserved.
-                    actual_text = " ".join(doc_tokens[start_position : (end_position + 1)])
-                    cleaned_answer_text = " ".join(whitespace_tokenize(orig_answer_text))
-                    if actual_text.find(cleaned_answer_text) == -1:
-                        logger.warning(
-                            "Could not find answer: '%s' vs. '%s'", actual_text, cleaned_answer_text,
-                        )
+                    try:
+                        answer = qa["answers"][0]
+                        orig_answer_text = answer["text"]
+                        answer_offset = answer["answer_start"]
+                        answer_length = len(orig_answer_text)
+                        start_position = char_to_word_offset[answer_offset]
+                        end_position = char_to_word_offset[answer_offset + answer_length - 1]
+                        # Only add answers where the text can be exactly recovered from the
+                        # document. If this CAN'T happen it's likely due to weird Unicode
+                        # stuff so we will just skip the example.
+                        #
+                        # Note that this means for training mode, every example is NOT
+                        # guaranteed to be preserved.
+                        actual_text = " ".join(doc_tokens[start_position : (end_position + 1)])
+                        cleaned_answer_text = " ".join(whitespace_tokenize(orig_answer_text))
+                        if actual_text.find(cleaned_answer_text) == -1:
+                            logger.warning(
+                                "Could not find answer: '%s' vs. '%s'", actual_text, cleaned_answer_text,
+                            )
+                            continue
+                    except Exception as e:
+                        # This fix is to skip any out of index error for incorrect tagging on answer text.
+                        # char_to_word_offset[answer_offset + answer_length - 1] may result in error out
+                        # here for anay out of index error we would skip later InputExample call
+                        exc_type, exc_obj, exc_tb = sys.exc_info()
+                        excname = exc_type.__name__
+                        linenum = exc_tb.tb_lineno
+                        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                        logger.warning('Exception = {} on Line = {} in Flie: {}'.format(excname, linenum, fname))
                         continue
                 else:
                     start_position = -1
