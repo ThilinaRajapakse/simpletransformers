@@ -143,7 +143,7 @@ def get_examples(examples_to_process, is_training=True, version_2_with_negative=
                     is_impossible = qa["is_impossible"]
                 if (len(qa["answers"]) != 1) and (not is_impossible):
                     # Only choose the first answer when multiple answers exist
-                    # This is to ensure to be able to moving forward.
+                    # This is to make sure to be able to move forward and not error out.
                     qa["answers"] = qa["answers"][0]
                     logger.warning("For training, each question should have exactly 1 answer.")
                     # raise ValueError("For training, each question should have exactly 1 answer.")
