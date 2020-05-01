@@ -613,7 +613,7 @@ class ClassificationModel:
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
-            result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
+            result: Dictionary containing evaluation results.
             model_outputs: List of model outputs for each row in eval_df
             wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model
         """  # noqa: ignore flake8"

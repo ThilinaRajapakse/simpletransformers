@@ -35,13 +35,13 @@ The currently implemented task-specific Simple Transformer models, along with th
 | Sentence-pair classification                              | `ClassificationModel`           |
 
 
-## Creating a task-specific model
+## Creating a Task-Specific Model
 
 To create a task-specific Simple Transformers model, you will typically specify a `model_type` and a `model_name`.
 Any deviation from this will be noted in the appropriate model documentation.
 
 - `model_type` should be one of the model types from the supported models (e.g. bert, electra, xlnet)
-- `model_name` specifies the exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model or it could be the path to a directory containing model files.
+- `model_name` specifies the exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
 
     **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
     {: .notice--info}
@@ -78,6 +78,8 @@ model = ClassificationModel(
 ```
 
 ### Loading a local save
+
+When loading a saved model, the path to the directory containing the model file should be used.
 
 ```python
 model = ClassificationModel(
@@ -127,7 +129,7 @@ model = ClassificationModel(
 ```
 
 
-## Configuring a Simple Transformers model
+## Configuring a Simple Transformers Model
 
 Every task-specific Simple Transformers model comes with tons of configuration options to enable the user to easily tailor the model for their use case. These options can be categorized into two types, options common to all tasks and task-specific options. This section focuses on the common (or global) options. The task-specific options are detailed in the relevant documentation for the task.
 
@@ -144,7 +146,7 @@ Configuration options in Simple Transformers are defined as Python dicts. The [`
 | early_stopping_delta             | float | 0                                                         | The improvement over best_eval_loss necessary to count as a better checkpoint.                                                                                                           |
 | early_stopping_metric            | str   | eval_loss                                                 | The metric that should be used with early stopping. (Should be computed during eval_during_training).                                                                                    |
 | early_stopping_metric_minimize   | bool  | True                                                      | Whether early_stopping_metric should be minimized (or maximized).                                                                                                                        |
-| early_stopping_patience          | int   | 3                                                         | Terminate training after this many evaluations without an improvement in eval_loss greater then early_stopping_delta.                                                                    |
+| early_stopping_patience          | int   | 3                                                         | Terminate training after this many evaluations without an improvement in the evaluation metric greater then early_stopping_delta.                                                                    |
 | encoding                         | str   | None                                                      | Specify an encoding to be used when reading text files.                                                                                                                                  |
 | eval_batch_size                  | int   | 8                                                         | The evaluation batch size.                                                                                                                                                               |
 | evaluate_during_training         | bool  | False                                                     | Set to True to perform evaluation while training models. Make sure eval data is passed to the training method if enabled.                                                                |
@@ -195,7 +197,67 @@ model_args = {
 model = ClassficationModel("bert", "bert-base-cased", args=model_args)
 ```
 
-## Options for downloading pre-trained models
+
+## Tips and Tricks
+
+### Using early stopping
+
+Early stopping is a technique used to prevent model overfitting. In a nutshell, the idea is to periodically evaluate the performance of a model against a test dataset and terminate the training once the model stops improving on the test data.
+
+The exact conditions for early stopping can be adjusted as needed using a model's configuration options.
+
+**Note:** Refer the configuration options table for more details. (`early_stopping_consider_epochs`, `early_stopping_delta`, `early_stopping_metric`, `early_stopping_metric_minimize`, `early_stopping_patience`)
+{: .notice--info}
+
+You must set `use_early_stopping` to `True` in order to use early stopping.
+
+```python
+from simpletransformers.classification import ClassificationModel
+
+
+model_args = {
+    "use_early_stopping": True,
+    "early_stopping_delta": 0.01,
+    "early_stopping_metric": "mcc",
+    "early_stopping_metric_minimize": False,
+    "early_stopping_patience": 5,
+    "evaluate_during_training_steps": 1000,
+}
+
+model = ClassficationModel("bert", "bert-base-cased", args=model_args)
+```
+
+With this configuration, the training will terminate if the `mcc` score of the model on the test data does not improve upon the best `mcc` score by at least `0.01` for 5 consecutive evaluations. An evaluation will occur once for every `1000` training steps.
+
+**Pro tip:** You can use the evaluation during training functionality without invoking early stopping by setting `evaluate_during_training` to `True` while keeping `use_early_stopping` as `False`.
+{: .notice--success}
+
+
+### Additional evaluation metrics
+
+Task-specific Simple Transformers models each have their own default metrics that will be calculated when a model is evaluated 
+on a dataset. The default metrics have been chosen according to the task, usually by looking at the metrics used in standard benchmarks for that task.
+
+However, it is likely that you will wish to calculate your own metrics depending on your particular use case. To facilitate this, all `eval_model()` and `train_model()` methods in Simple Transformers accepts keyword-arguments consisting of the name of the metric (str), and the metric function itself. The metric function should accept two inputs, the true labels and the model predictions (sklearn format).
+
+
+```python
+from simpletransformers.classification import ClassificationModel
+import sklearn
+
+
+model = ClassficationModel("bert", "bert-base-cased")
+
+model.train_model(train_df, acc=sklearn.metrics.accuracy_score)
+
+model.eval_model(eval_df, acc=sklearn.metrics.accuracy_score)
+```
+
+**Pro tip:** You can combine the additional evaluation metrics functionality with early stopping by setting the name of your metrics function as the `early_stopping_metric`.
+{: .notice--success}
+
+
+## Options For Downloading Pre-Trained Models
 
 Most Simple Transformers models will use the `from_pretrained()` [method](https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained) from the Hugging Face Transformers library to download pre-trained models. You can pass `kwargs` to this method to configure things like proxies and force downloading (refer to method link above).
 

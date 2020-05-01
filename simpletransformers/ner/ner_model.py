@@ -165,7 +165,7 @@ class NERModel:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args["wandb_project"] = None
 
-    def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None, verbose=True):
+    def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None, verbose=True, **kwargs):
         """
         Trains the model using 'train_data'
 
@@ -178,6 +178,8 @@ class NERModel:
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
             None
@@ -211,7 +213,7 @@ class NERModel:
         os.makedirs(output_dir, exist_ok=True)
 
         global_step, tr_loss = self.train(
-            train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df
+            train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df, **kwargs
         )
 
         model_to_save = self.model.module if hasattr(self.model, "module") else self.model
@@ -221,7 +223,7 @@ class NERModel:
 
         logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-    def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None, verbose=True):
+    def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None, verbose=True, **kwargs):
         """
         Trains the model on train_dataset.
 
@@ -301,7 +303,7 @@ class NERModel:
                 logger.info("   Starting fine-tuning.")
 
         if args["evaluate_during_training"]:
-            training_progress_scores = self._create_training_progress_scores()
+            training_progress_scores = self._create_training_progress_scores(**kwargs)
         if args["wandb_project"]:
             wandb.init(project=args["wandb_project"], config={**args}, **args["wandb_kwargs"])
             wandb.watch(self.model)
@@ -385,7 +387,7 @@ class NERModel:
                         and global_step % args["evaluate_during_training_steps"] == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results, _, _ = self.eval_model(eval_df, verbose=True)
+                        results, _, _ = self.eval_model(eval_df, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs)
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
@@ -476,7 +478,7 @@ class NERModel:
                 self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args["evaluate_during_training"]:
-                results, _, _ = self.eval_model(eval_df, verbose=True)
+                results, _, _ = self.eval_model(eval_df, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs)
 
                 self._save_model(output_dir_current, optimizer, scheduler, results=results)
 
@@ -535,7 +537,7 @@ class NERModel:
 
         return global_step, tr_loss / global_step
 
-    def eval_model(self, eval_data, output_dir=None, verbose=True):
+    def eval_model(self, eval_data, output_dir=None, verbose=True, silent=False, **kwargs):
         """
         Evaluates the model on eval_data. Saves results to output_dir.
 
@@ -547,6 +549,8 @@ class NERModel:
 
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
             result: Dictionary containing evaluation results. (eval_loss, precision, recall, f1_score)
@@ -560,7 +564,7 @@ class NERModel:
 
         eval_dataset = self.load_and_cache_examples(eval_data, evaluate=True)
 
-        result, model_outputs, preds_list = self.evaluate(eval_dataset, output_dir)
+        result, model_outputs, preds_list = self.evaluate(eval_dataset, output_dir, verbose=verbose, silent=silent, **kwargs)
         self.results.update(result)
 
         if verbose:
@@ -568,7 +572,7 @@ class NERModel:
 
         return result, model_outputs, preds_list
 
-    def evaluate(self, eval_dataset, output_dir):
+    def evaluate(self, eval_dataset, output_dir, verbose=True, silent=False, **kwargs):
         """
         Evaluates the model on eval_dataset.
 
@@ -592,7 +596,7 @@ class NERModel:
         out_label_ids = None
         model.eval()
 
-        for batch in tqdm(eval_dataloader, disable=args["silent"]):
+        for batch in tqdm(eval_dataloader, disable=args["silent"] or silent):
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
@@ -633,11 +637,16 @@ class NERModel:
                     out_label_list[i].append(label_map[out_label_ids[i][j]])
                     preds_list[i].append(label_map[preds[i][j]])
 
+        extra_metrics = {}
+        for metric, func in kwargs.items():
+            extra_metrics[metric] = func(out_label_list, preds_list)
+
         result = {
             "eval_loss": eval_loss,
             "precision": precision_score(out_label_list, preds_list),
             "recall": recall_score(out_label_list, preds_list),
             "f1_score": f1_score(out_label_list, preds_list),
+            **extra_metrics
         }
 
         results.update(result)
@@ -660,7 +669,7 @@ class NERModel:
             to_predict: A python list of text (str) to be sent to the model for prediction.
 
         Returns:
-            preds: A Python list of lists with dicts containg each word mapped to its NER tag.
+            preds: A Python list of lists with dicts containing each word mapped to its NER tag.
             model_outputs: A python list of the raw model outputs for each text.
         """
 
@@ -837,7 +846,8 @@ class NERModel:
 
         return inputs
 
-    def _create_training_progress_scores(self):
+    def _create_training_progress_scores(self, **kwargs):
+        extra_metrics = {key: [] for key in kwargs}
         training_progress_scores = {
             "global_step": [],
             "precision": [],
@@ -845,6 +855,7 @@ class NERModel:
             "f1_score": [],
             "train_loss": [],
             "eval_loss": [],
+            **extra_metrics,
         }
 
         return training_progress_scores

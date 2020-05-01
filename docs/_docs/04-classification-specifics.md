@@ -1,6 +1,6 @@
 ---
-title: Intro - Classification
-permalink: /docs/intro-classification/
+title: Classification Specifics
+permalink: /docs/classification-specifics/
 excerpt: "Specific notes for text classification tasks."
 last_modified_at: 2020-04-27T20:45:49.398Z
 toc: true
@@ -16,6 +16,17 @@ This section describes how Text Classification tasks are organized and conducted
 | Multi-label text classification                           | `MultiLabelClassificationModel` |
 | Regression                                                | `ClassificationModel`           |
 | Sentence-pair classification                              | `ClassificationModel`           |
+
+
+## Usage Steps
+
+The process of performing text classification in Simple Transformers does not deviate from the [standard pattern](/docs/usage/#task-specific-models).
+
+1. Initialize a `ClassificationModel` or a `MultiLabelClassificationModel`
+2. Train the model with `train_model()`
+3. Evaluate the model with `eval_model()`
+4. Make predictions on (unlabelled) data with `predict()`
+
 
 ## Supported model types
 
@@ -48,6 +59,18 @@ While there is currently no standard method of circumventing this issue, a plaus
 The *windows* will typically overlap each other to a certain degree to minimize any information loss that may be caused by hard cutoffs. The amount of overlap between the windows is determined by the `stride`. The stride is the distance (in terms of number of tokens) that the window will be, well, *slid* to obtain the next sub-sequence.
 
 The `stride` can be specified in terms of either a fraction of the `max_seq_length`, or as an absolute number of tokens. The default `stride` is set to `0.8 * max_seq_length`, which results in about 20% overlap between the sub-sequences.
+
+```python
+model_args = {
+    "sliding_window": True
+}
+
+model = ClassificationModel(
+    "roberta",
+    "roberta-base",
+    args=model_args,
+)
+```
 
 ### Training with sliding window
 

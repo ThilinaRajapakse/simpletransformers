@@ -28,8 +28,6 @@ main:
     url: /year-archive/
   - title: "Sample Collections"
     url: /collection-archive/
-  - title: "Terms &amp; Privacy Policy"
-    url: /terms/
 
 
 # documentation links
@@ -44,50 +42,32 @@ docs:
         url: /docs/usage/
   - title: Text Classification
     children:
-      - title: "Intro - Classification"
-        url: /docs/intro-classification/
+      - title: "Classification Introduction"
+        url: /docs/classification-specifics/
       - title: "Classification Models"
-        url: /docs/models-classification/
+        url: /docs/classification-models/
+      - title: "Data Formats"
+        url: /docs/classification-data-formats/
       - title: "Binary Classification"
         url: /docs/binary-classification/
       - title: "Multi-Class Classification"
-        url: /docs/navigation/
+        url: /docs/multi-class-classification/
       - title: "Regression"
-        url: /docs/ui-text/
+        url: /docs/regression/
       - title: "Sentence-pair Classification"
-        url: /docs/ui-text/
+        url: /docs/sentence-pair-classification/
       - title: "Multi-Label Classification"
-        url: /docs/models-classification/
-  - title: Content
-    children:
-      - title: "Working with Posts"
-        url: /docs/posts/
-      - title: "Working with Pages"
-        url: /docs/pages/
-      - title: "Working with Collections"
-        url: /docs/collections/
-      - title: "Helpers"
-        url: /docs/helpers/
-      - title: "Utility Classes"
-        url: /docs/utility-classes/
-  - title: Extras
-    children:
-      - title: "Stylesheets"
-        url: /docs/stylesheets/
-      - title: "JavaScript"
-        url: /docs/javascript/
+        url: /docs/multi-label-classification/
   - title: Meta
     children:
       - title: "History"
         url: /docs/history/
       - title: "Contributing"
         url: /docs/contributing/
-      - title: "Old 2.2 Docs"
-        url: /docs/docs-2-2/
+      - title: "Old Documentation"
+        url: /docs/docs-old/
       - title: "License"
         url: /docs/license/
-      - title: "Terms &amp; Privacy Policy"
-        url: /terms/
 
 # sidebar navigation list sample
 sidebar-sample:

@@ -18,9 +18,10 @@ email: chaturangarajapakshe@gmail.com
 description: >- # this means to ignore newlines until "baseurl:"
   Transformers for Classification, NER, QA, Language Modelling, Language Generation, Multi-Modal, and Conversational AI.
 baseurl: "" # the subpath of your site, e.g. /blog
+repository: ThilinaRajapakse/simpletransformers
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 twitter_username: t_rajapakse
-github_username:  thilinarajapakse
+github_username:  ThilinaRajapakse
 
 # Build settings
 markdown: kramdown
@@ -40,6 +41,9 @@ include:
   - .htaccess
   - _pages
 
+search                   : true # true, false (default)
+search_full_content      : true # true, false (default)
+
 # Conversion
 markdown: kramdown
 highlighter: rouge
@@ -58,17 +62,13 @@ kramdown:
   toc_levels: 1..6
   smart_quotes: lsquo,rsquo,ldquo,rdquo
   enable_coderay: false
-
+  syntax_highlighter_opts:
+    block:
+      line_numbers: true
 
 # Collections
 collections:
   docs:
-    output: true
-    permalink: /:collection/:path/
-  recipes:
-    output: true
-    permalink: /:collection/:path/
-  pets:
     output: true
     permalink: /:collection/:path/
   portfolio:
@@ -108,33 +108,18 @@ defaults:
       comments: false
       sidebar:
         nav: "docs"
-  # _recipes
-  - scope:
-      path: ""
-      type: recipes
-    values:
-      layout: single
-      author_profile: true
-      share: true
-      comments: true
-  # _pets
-  - scope:
-      path: ""
-      type: pets
-    values:
-      layout: single
-      author_profile: true
-      share: true
-      comment: true
-  # _portfolio
+  # _blog
   - scope:
       path: ""
       type: portfolio
     values:
       layout: single
+      read_time: false
       author_profile: false
-      share: true
-
+      share: false
+      comments: false
+      sidebar:
+        nav: "docs"
 
 # Sass/SCSS
 sass:
