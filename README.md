@@ -19,13 +19,23 @@ Supports
 
 ### Latest
 
-ELECTRA models can now be used with Language Model Training, Token Classification, Sequence Classification, and Question Answering.
+#### 2020-05-03
+
+**New documentation is now live at https://thilinarajapakse.github.io/simpletransformers/**
+
+Only text classification tasks are added so far but the others will follow in the next few days. Any feedback will be immensely helpful in improving the documentation! If you have any feedback, please leave a comment in the [issue](https://github.com/ThilinaRajapakse/simpletransformers/issues/342) I've opened for this.
+
+#### 2020-04-27
+
+* ELECTRA models can now be used with Language Model Training, Named Entity Recognition (Token Classification), Sequence Classification, and Question Answering.
 
 # Table of contents
 
 <!--ts-->
 - [Simple Transformers](#simple-transformers)
     - [Latest](#latest)
+      - [2020-05-03](#2020-05-03)
+      - [2020-04-27](#2020-04-27)
 - [Table of contents](#table-of-contents)
   - [Setup](#setup)
     - [With Conda](#with-conda)
