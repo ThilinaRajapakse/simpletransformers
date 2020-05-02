@@ -71,6 +71,7 @@ footer:
 include:
   - .htaccess
   - _pages
+  - _docs
 
 search                   : true # true, false (default)
 search_full_content      : true # true, false (default)
