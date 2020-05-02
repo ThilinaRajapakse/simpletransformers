@@ -2,7 +2,7 @@
 title: Sentence Pair Classification
 permalink: /docs/sentence-pair-classification/
 excerpt: "Sentence pair classification."
-last_modified_at: 2020-04-27T20:45:49.398Z
+last_modified_at: 2020-05-02 17:58:44
 ---
 
 In sentence-pair classification, each example in a dataset has *two* sentences along with the appropriate target variable. E.g. Sentence similarity, entailment, etc.

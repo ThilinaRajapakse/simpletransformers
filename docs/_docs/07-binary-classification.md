@@ -2,7 +2,7 @@
 title: Binary Classification
 permalink: /docs/binary-classification/
 excerpt: "Binary text classification."
-last_modified_at: 2020-04-27T20:45:49.398Z
+last_modified_at: 2020-05-02 17:58:16
 ---
 
 The goal of binary text classification is to classify a text sequence into one of two classes. A transformer-based binary text classification model typically consists of a transformer model with a classification layer on top of it. The classification layer will have two output neurons, corresponding to each class.

@@ -2,7 +2,7 @@
 title: "Old Documentation"
 permalink: /docs/docs-old/
 excerpt: "Setup and installation instructions for Minimal Mistakes 2.2 (deprecated)."
-last_modified_at: 2018-03-20T16:00:34-04:00
+last_modified_at: 2020-05-02 17:59:15
 toc: true
 ---
 

@@ -2,7 +2,7 @@
 title: Data Formats
 permalink: /docs/classification-data-formats/
 excerpt: "Classification data formats."
-last_modified_at: 2020-04-27T20:45:49.398Z
+last_modified_at: 2020-05-02 17:58:06
 toc: true
 ---
 

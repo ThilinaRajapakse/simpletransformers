@@ -1,75 +1,47 @@
 ---
 permalink: /about/
 title: "About"
-excerpt: "Minimal Mistakes is a flexible two-column Jekyll theme."
-layouts_gallery:
-  - url: /assets/images/mm-layout-splash.png
-    image_path: /assets/images/mm-layout-splash.png
-    alt: "splash layout example"
-  - url: /assets/images/mm-layout-single-meta.png
-    image_path: /assets/images/mm-layout-single-meta.png
-    alt: "single layout with comments and related posts"
-  - url: /assets/images/mm-layout-archive.png
-    image_path: /assets/images/mm-layout-archive.png
-    alt: "archive layout example"
-last_modified_at: 2020-03-23T14:07:54-04:00
+excerpt: "Simple Transformers is the easy to use but incredibly powerful Transformers library."
 toc: true
+last_modified_at: 2020-05-02 16:20:14
 ---
 
-Minimal Mistakes is a flexible two-column Jekyll theme. Perfect for hosting your personal site, blog, or portfolio on GitHub or self-hosting on your own server. As the name implies --- styling is purposely minimalistic to be enhanced and customized by you :smile:.
+Simple Transformers is a Natural Language Processing (NLP) library designed to simplify the usage of Transformer models without having to compromise on utility. It is built on the amazing work of Hugging Face and their [Transformers](https://github.com/huggingface/transformers) library.
 
-{% include gallery id="layouts_gallery" caption="Examples of included layouts `splash`, `single`, and `archive`." %}
 
-[Install the Theme]({{ "/docs/quick-start-guide/" | relative_url }}){: .btn .btn--success .btn--large}
+[Install Simple Transformers]({{ "/docs/installation" | relative_url }}){: .btn .btn--success .btn--large}
 
-## Notable Features
+## Why Simple Transformers?
 
-- Bundled as a "theme gem" for easier install/upgrading.
-- Compatible with GitHub Pages.
-- Support for Jekyll's built-in Sass/SCSS preprocessor.
-- Nine different skins (color variations).
-- Several responsive layout options (single, archive index, search, splash, and paginated home page).
-- Optimized for search engines with support for [Twitter Cards](https://dev.twitter.com/cards/overview) and [Open Graph](http://ogp.me/) data
-- Optional [header images](https://mmistakes.github.io/minimal-mistakes/docs/layouts/#headers), [custom sidebars](https://mmistakes.github.io/minimal-mistakes/docs/layouts/#sidebars), [table of contents](https://mmistakes.github.io/minimal-mistakes/docs/helpers/#table-of-contents), [galleries](https://mmistakes.github.io/minimal-mistakes/docs/helpers/#gallery), related posts, [breadcrumb links](https://mmistakes.github.io/minimal-mistakes/docs/configuration/#breadcrumb-navigation-beta), [navigation lists](https://mmistakes.github.io/minimal-mistakes/docs/helpers/#navigation-list), and more.
-- Commenting support (powered by [Disqus](https://disqus.com/), [Facebook](https://developers.facebook.com/docs/plugins/comments), [Discourse](https://www.discourse.org/), [utterances](https://utteranc.es/), static-based via [Staticman v1 and v2](https://staticman.net/), and custom).
-- [Google Analytics](https://www.google.com/analytics/) support.
-- UI localized text in English (default), Brazilian Portuguese (Português brasileiro), Catalan, Chinese, Danish, Dutch, Finnish, French (Français), German (Deutsch), Greek, Hindi (हिंदी), Hungarian, Indonesian, Irish (Gaeilge), Italian (Italiano), Japanese, Korean, Malayalam, Nepali (Nepalese), Persian (فارسی), Polish, Punjabi (ਪੰਜਾਬੀ), Romanian, Russian, Slovak, Spanish (Español), Swedish, Thai, Turkish (Türkçe), and Vietnamese.
+Simple Transformers is designed around the way a person will typically use a Transformers model. At the highest level, Simple Transformers is branched into common NLP tasks such as text classification, question answering, and language modeling. Each of these tasks have their own task-specific Simple Transformers model. While all of the task-specific models maintain a consistent usage pattern *(initialize, train, evaluate, predict)*, this separation allows the freedom to adapt the models to their specific use case. To list but a few of the benefits;
 
-## Demo Pages
+- Input data formats are optimized for the task
+- Outputs are clean and ready-to-use for the task with minimal to no post-processing required
+- Unique configuration options for each task, while sharing a large, common base of configuration options across all tasks
+- No boilerplate code attempting to squeeze together things that don't fit (Simple Transformers scripts rarely need to be longer than a few lines)
+- Common sense defaults to get started quickly, so that you can configure as little *or* as much as you want to
 
-| Name                                        | Description                                           |
-| ------------------------------------------- | ----------------------------------------------------- |
-| [Post with Header Image][header-image-post] | A post with a large header image. |
-| [HTML Tags and Formatting Post][html-tags-post] | A variety of common markup showing how the theme styles them. |
-| [Syntax Highlighting Post][syntax-post] | Post displaying highlighted code. |
-| [Post with a Gallery][gallery-post] | A post showing several images wrapped in `<figure>` elements. |
-| [Sample Collection Page][sample-collection] | Single page from a collection. |
-| [Categories Archive][categories-archive] | Posts grouped by category. |
-| [Tags Archive][tags-archive] | Posts grouped by tag. |
+Most of the time, you'll find that you only need to change the data files when switching between projects. This also means that Simple Transformers scripts are clear and readable, even to people unfamiliar with Transformers. If you are just starting out with Natural Language Processing, or if you are coming from a different field, this should help to get you up and running quickly without being overwhelmed.
 
-For even more demo pages check the [posts archive][year-archive].
+In short, Simple Transformers gives you everything you need for your Transformer-based research, project, or product, and then gets out of your way.
 
-[header-image-post]: {{ "" | relative_url }}{% post_url 2012-03-15-layout-header-image-text-readability %}
-[gallery-post]: {{ "" | relative_url }}{% post_url 2010-09-09-post-gallery %}
-[html-tags-post]: {{ "" | relative_url }}{% post_url 2013-01-11-markup-html-tags-and-formatting %}
-[syntax-post]: {{ "" | relative_url }}{% post_url 2013-08-16-markup-syntax-highlighting %}
-[sample-collection]: {{ "/recipes/chocolate-chip-cookies/" | relative_url }}
-[categories-archive]: {{ "/categories/" | relative_url }}
-[tags-archive]: {{ "/tags/" | relative_url }}
-[year-archive]: {{ "/year-archive/" | relative_url }}
+Happy [transforming](/docs/installation/)!
 
 ---
 
 ## Credits
 
-### Icons + Demo Images:
+### Tools and Libraries
 
+- [Transformers](https://github.com/huggingface/transformers) -- by Hugging Face. You guys rock!
+- [Weights & Biases](https://www.wandb.com/) -- For tracking runs, and looking good while doing it!
+
+### Docs Theme
+
+- [Minimal Mistakes](https://github.com/mmistakes/minimal-mistakes) -- designed, developed, and maintained by Michael Rose.
 - [The Noun Project](https://thenounproject.com) -- Garrett Knoll, Arthur Shlain, and [tracy tam](https://thenounproject.com/tracytam)
 - [Font Awesome](http://fontawesome.io/)
 - [Unsplash](https://unsplash.com/)
-
-### Other:
-
 - [Jekyll](https://jekyllrb.com/)
 - [jQuery](https://jquery.com/)
 - [Susy](http://susy.oddbird.net/)
@@ -82,4 +54,4 @@ For even more demo pages check the [posts archive][year-archive].
 
 ---
 
-Minimal Mistakes is designed, developed, and maintained by Michael Rose. Just another boring, tattooed, designer from Buffalo New York.
+Simple Transformers is developed, maintained, and updated by Thilina Rajapakse with the help of all these wonderful [contributors](https://github.com/ThilinaRajapakse/simpletransformers#contributors-)!

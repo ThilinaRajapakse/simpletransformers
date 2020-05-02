@@ -2,7 +2,7 @@
 title: Installation
 permalink: /docs/installation/
 excerpt: "Instructions for installing the Simple Transformers library."
-last_modified_at: 2020-04-27T20:15:02.423Z
+last_modified_at: 2020-05-02 17:56:52
 toc: true
 ---
 

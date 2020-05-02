@@ -15,13 +15,44 @@
 # in the templates via {{ site.myvariable }}.
 title: Simple Transformers
 email: chaturangarajapakshe@gmail.com
+name: &name "Thilina Rajapakse"
 description: >- # this means to ignore newlines until "baseurl:"
   Transformers for Classification, NER, QA, Language Modelling, Language Generation, Multi-Modal, and Conversational AI.
 baseurl: "" # the subpath of your site, e.g. /blog
 repository: ThilinaRajapakse/simpletransformers
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
-twitter_username: t_rajapakse
 github_username:  ThilinaRajapakse
+
+# Social Sharing
+twitter:
+  username : &twitter "t_rajapakse"
+
+social:
+  links:
+    - "https://twitter.com/t_rajapakse"
+    - "https://www.linkedin.com/in/t-rajapakse/"
+    - "https://medium.com/@chaturangarajapakshe"
+  
+# Site Author
+author:
+  name             : *name # *name is a YAML reference pointing to the &anchor earlier
+  avatar           : "/assets/images/thilina-rajapakse.jpeg"
+  bio              : "AI researcher, serial procrastinator, avid reader, fantasy and Sci-Fi geek, and fan of the Oxford comma."
+  location         : "Kandy, Sri Lanka"
+  links:
+    - label: "GitHub"
+      icon: "fab fa-fw fa-github"
+      url: "https://github.com/ThilinaRajapakse"
+    - label: "LinkedIn"
+      icon: "fab fa-fw fa-linkedin-in"
+      url: "https://www.linkedin.com/in/t-rajapakse/"
+    - label: "Medium"
+      icon: "fab fa-fw fa-medium"
+      url: "https://medium.com/@chaturangarajapakshe"
+    - label: "Twitter"
+      icon: "fab fa-fw fa-twitter-square"
+      url: "https://twitter.com/t_rajapakse"
+
 
 # Build settings
 markdown: kramdown
@@ -71,7 +102,7 @@ collections:
   docs:
     output: true
     permalink: /:collection/:path/
-  portfolio:
+  tutorials:
     output: true
     permalink: /:collection/:path/
 
@@ -108,18 +139,18 @@ defaults:
       comments: false
       sidebar:
         nav: "docs"
-  # _blog
+  # _tutorials
   - scope:
       path: ""
-      type: portfolio
+      type: tutorials
     values:
       layout: single
       read_time: false
-      author_profile: false
+      author_profile: true
       share: false
       comments: false
       sidebar:
-        nav: "docs"
+        nav: "tutorials"
 
 # Sass/SCSS
 sass:
@@ -131,7 +162,7 @@ sass:
 permalink: /:categories/:title/
 # paginate: 5 # amount of posts to show
 # paginate_path: /page:num/
-timezone: America/New_York # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+timezone: 	Asia/Colombo # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 
 
 # Plugins (previously gems:)

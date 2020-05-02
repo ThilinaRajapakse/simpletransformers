@@ -2,7 +2,7 @@
 title: Multi-Class Classification
 permalink: /docs/multi-class-classification/
 excerpt: "Multi-Class text classification."
-last_modified_at: 2020-04-27T20:45:49.398Z
+last_modified_at: 2020-05-02 17:58:31
 ---
 
 The goal of multi-class classification is to classify a text sequence into one of `n` classes. A transformer-based multi-class text classification model typically consists of a transformer model with a classification layer on top of it. The classification layer will have `n` output neurons, corresponding to each class.

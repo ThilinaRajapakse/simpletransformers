@@ -2,7 +2,7 @@
 title: Upgrading
 permalink: /docs/upgrading/
 excerpt: "Instructions for upgrading the library."
-last_modified_at: 2020-04-27T20:36:44.410Z
+last_modified_at: 2020-05-02 17:57:14
 toc: true
 ---
 

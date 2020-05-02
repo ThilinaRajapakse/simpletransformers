@@ -2,7 +2,7 @@
 title: "Classification Models"
 permalink: /docs/classification-models/
 excerpt: "Model class used for text classifcation"
-last_modified_at: 2018-03-20T15:59:31-04:00
+last_modified_at: 2020-05-02 17:57:50
 toc: true
 ---
 

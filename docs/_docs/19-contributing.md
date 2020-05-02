@@ -2,7 +2,7 @@
 title: "Contributing"
 permalink: /docs/contributing/
 excerpt: "How you can contribute to make this theme better."
-last_modified_at: 2017-03-22T09:51:05-04:00
+last_modified_at: 2020-05-02 17:59:07
 ---
 
 Coming soon!

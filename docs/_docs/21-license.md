@@ -2,7 +2,7 @@
 title: License
 permalink: /docs/license/
 excerpt: License for Simple Transformers.
-last_modified_at: 22020-05-01T13:41:44.765Z
+last_modified_at: 2020-05-02 17:59:22
 ---
 
 ## Apache License

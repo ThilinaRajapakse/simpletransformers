@@ -22,12 +22,11 @@ foo:
 main:
   - title: "Documentation"
     url: /docs/installation/
+  - title: "Tutorials"
+    url: /tutorials/
   - title: "About"
     url: /about/
-  - title: "Sample Posts"
-    url: /year-archive/
-  - title: "Sample Collections"
-    url: /collection-archive/
+
 
 
 # documentation links
@@ -68,6 +67,15 @@ docs:
         url: /docs/docs-old/
       - title: "License"
         url: /docs/license/
+
+
+# portfolio links
+tutorials:
+  - title: Getting Started
+    children:
+      - title: "Baz Boom Identity"
+        url: /blog/baz-boom-identity
+
 
 # sidebar navigation list sample
 sidebar-sample:
