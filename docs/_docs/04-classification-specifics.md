@@ -32,18 +32,24 @@ The process of performing text classification in Simple Transformers does not de
 
 New model types are regularly added to the library. Text classification tasks currently supports the model types given below.
 
-* ALBERT
-* BERT
-* CamemBERT*
-* RoBERTa
-* DistilBERT
-* ELECTRA
-* FlauBERT
-* XLM
-* XLM-RoBERTa
-* XLNet
+| Model       | Model code for `ClassificationModel` |
+|-------------|--------------------------------------|
+| ALBERT      | albert                               |
+| BERT        | bert                                 |
+| *CamemBERT  | camembert                            |
+| RoBERTa     | roberta                              |
+| DistilBERT  | distilbert                           |
+| ELECTRA     | electra                              |
+| FlauBERT    | flaubert                             |
+| XLM         | xlm                                  |
+| XLM-RoBERTa | xlmroberta                           |
+| XLNet       | xlnet                                |
 
 \* *Not available with Multi-label classification*
+
+**Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
+{: .notice--success}
+
 
 ## Dealing with long text
 
