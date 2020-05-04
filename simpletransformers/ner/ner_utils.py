@@ -21,7 +21,9 @@ import logging
 import os
 from io import open
 from multiprocessing import Pool, cpu_count
+
 from tqdm.auto import tqdm
+
 import pandas as pd
 
 
@@ -61,9 +63,7 @@ def read_examples_from_file(data_file, mode):
         for line in f:
             if line.startswith("-DOCSTART-") or line == "" or line == "\n":
                 if words:
-                    examples.append(InputExample(guid="{}-{}".format(mode, guid_index),
-                                                 words=words,
-                                                 labels=labels))
+                    examples.append(InputExample(guid="{}-{}".format(mode, guid_index), words=words, labels=labels,))
                     guid_index += 1
                     words = []
                     labels = []
@@ -76,18 +76,35 @@ def read_examples_from_file(data_file, mode):
                     # Examples could have no label for mode = "test"
                     labels.append("O")
         if words:
-            examples.append(InputExample(guid="%s-%d".format(mode, guid_index),
-                                         words=words,
-                                         labels=labels))
+            examples.append(InputExample(guid="%s-%d".format(mode, guid_index), words=words, labels=labels))
     return examples
 
 
 def get_examples_from_df(data):
-    return [InputExample(guid=sentence_id, words=sentence_df['words'].tolist(), labels=sentence_df['labels'].tolist()) for sentence_id, sentence_df in data.groupby(['sentence_id'])]
+    return [
+        InputExample(guid=sentence_id, words=sentence_df["words"].tolist(), labels=sentence_df["labels"].tolist(),)
+        for sentence_id, sentence_df in data.groupby(["sentence_id"])
+    ]
 
 
 def convert_example_to_feature(example_row):
-    example, label_map, max_seq_length, tokenizer, cls_token_at_end, cls_token, cls_token_segment_id, sep_token, sep_token_extra, pad_on_left, pad_token, pad_token_segment_id, pad_token_label_id, sequence_a_segment_id, mask_padding_with_zero = example_row
+    (
+        example,
+        label_map,
+        max_seq_length,
+        tokenizer,
+        cls_token_at_end,
+        cls_token,
+        cls_token_segment_id,
+        sep_token,
+        sep_token_extra,
+        pad_on_left,
+        pad_token,
+        pad_token_segment_id,
+        pad_token_label_id,
+        sequence_a_segment_id,
+        mask_padding_with_zero,
+    ) = example_row
 
     tokens = []
     label_ids = []
@@ -95,13 +112,14 @@ def convert_example_to_feature(example_row):
         word_tokens = tokenizer.tokenize(word)
         tokens.extend(word_tokens)
         # Use the real label id for the first token of the word, and padding ids for the remaining tokens
-        label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
+        if word_tokens:  # avoid non printable character like '\u200e' which are tokenized as a void token ''
+            label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
 
     # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
     special_tokens_count = 3 if sep_token_extra else 2
     if len(tokens) > max_seq_length - special_tokens_count:
-        tokens = tokens[:(max_seq_length - special_tokens_count)]
-        label_ids = label_ids[:(max_seq_length - special_tokens_count)]
+        tokens = tokens[: (max_seq_length - special_tokens_count)]
+        label_ids = label_ids[: (max_seq_length - special_tokens_count)]
 
     # The convention in BERT is:
     # (a) For sequence pairs:
@@ -152,44 +170,40 @@ def convert_example_to_feature(example_row):
         segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
         label_ids = ([pad_token_label_id] * padding_length) + label_ids
     else:
-        input_ids += ([pad_token] * padding_length)
-        input_mask += ([0 if mask_padding_with_zero else 1] * padding_length)
-        segment_ids += ([pad_token_segment_id] * padding_length)
-        label_ids += ([pad_token_label_id] * padding_length)
+        input_ids += [pad_token] * padding_length
+        input_mask += [0 if mask_padding_with_zero else 1] * padding_length
+        segment_ids += [pad_token_segment_id] * padding_length
+        label_ids += [pad_token_label_id] * padding_length
 
     assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
     assert len(segment_ids) == max_seq_length
     assert len(label_ids) == max_seq_length
 
-    return InputFeatures(
-        input_ids=input_ids,
-        input_mask=input_mask,
-        segment_ids=segment_ids,
-        label_ids=label_ids
-    )
+    return InputFeatures(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids,)
+
 
 def convert_examples_to_features(
-        examples,
-        label_list,
-        max_seq_length,
-        tokenizer,
-        cls_token_at_end=False,
-        cls_token="[CLS]",
-        cls_token_segment_id=1,
-        sep_token="[SEP]",
-        sep_token_extra=False,
-        pad_on_left=False,
-        pad_token=0,
-        pad_token_segment_id=0,
-        pad_token_label_id=-1,
-        sequence_a_segment_id=0,
-        mask_padding_with_zero=True,
-        process_count=cpu_count() - 2,
-        chunksize=500,
-        silent=False,
-        use_multiprocessing=True
-    ):
+    examples,
+    label_list,
+    max_seq_length,
+    tokenizer,
+    cls_token_at_end=False,
+    cls_token="[CLS]",
+    cls_token_segment_id=1,
+    sep_token="[SEP]",
+    sep_token_extra=False,
+    pad_on_left=False,
+    pad_token=0,
+    pad_token_segment_id=0,
+    pad_token_label_id=-1,
+    sequence_a_segment_id=0,
+    mask_padding_with_zero=True,
+    process_count=cpu_count() - 2,
+    chunksize=500,
+    silent=False,
+    use_multiprocessing=True,
+):
     """ Loads a data file into a list of `InputBatch`s
         `cls_token_at_end` define the location of the CLS token:
             - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
@@ -199,26 +213,36 @@ def convert_examples_to_features(
 
     label_map = {label: i for i, label in enumerate(label_list)}
 
-    examples = [(
-        example, 
-        label_map, 
-        max_seq_length,
-        tokenizer,
-        cls_token_at_end,
-        cls_token,
-        cls_token_segment_id,
-        sep_token,
-        sep_token_extra,
-        pad_on_left,
-        pad_token,
-        pad_token_segment_id,
-        pad_token_label_id,
-        sequence_a_segment_id,
-        mask_padding_with_zero) for example in examples]
+    examples = [
+        (
+            example,
+            label_map,
+            max_seq_length,
+            tokenizer,
+            cls_token_at_end,
+            cls_token,
+            cls_token_segment_id,
+            sep_token,
+            sep_token_extra,
+            pad_on_left,
+            pad_token,
+            pad_token_segment_id,
+            pad_token_label_id,
+            sequence_a_segment_id,
+            mask_padding_with_zero,
+        )
+        for example in examples
+    ]
 
     if use_multiprocessing:
         with Pool(process_count) as p:
-                features = list(tqdm(p.imap(convert_example_to_feature, examples, chunksize=chunksize), total=len(examples), disable=silent))
+            features = list(
+                tqdm(
+                    p.imap(convert_example_to_feature, examples, chunksize=chunksize),
+                    total=len(examples),
+                    disable=silent,
+                )
+            )
     else:
         features = []
         for example in tqdm(examples):
@@ -234,4 +258,14 @@ def get_labels(path):
             labels = ["O"] + labels
         return labels
     else:
-        return ["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"]
+        return [
+            "O",
+            "B-MISC",
+            "I-MISC",
+            "B-PER",
+            "I-PER",
+            "B-ORG",
+            "I-ORG",
+            "B-LOC",
+            "I-LOC",
+        ]

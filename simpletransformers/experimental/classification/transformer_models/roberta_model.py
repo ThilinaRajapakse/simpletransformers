@@ -1,7 +1,13 @@
-from transformers.modeling_roberta import RobertaConfig, RobertaModel, RobertaClassificationHead, ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP, BertPreTrainedModel
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
+from transformers.modeling_roberta import (
+    ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP,
+    BertPreTrainedModel,
+    RobertaClassificationHead,
+    RobertaConfig,
+    RobertaModel,
+)
 
 
 class RobertaForSequenceClassification(BertPreTrainedModel):
@@ -43,35 +49,44 @@ class RobertaForSequenceClassification(BertPreTrainedModel):
         self.classifier = RobertaClassificationHead(config)
         self.weight = weight
         self.sliding_window = sliding_window
-    
-    def forward(self, input_ids, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None, inputs_embeds=None,
-                labels=None):
+
+    def forward(
+        self,
+        input_ids,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+    ):
         all_outputs = []
         if self.sliding_window:
             # input_ids is really the list of inputs for each "sequence window"
-            labels = input_ids[0]['labels']
+            labels = input_ids[0]["labels"]
             for inputs in input_ids:
-                ids = inputs['input_ids']
-                attention_mask = inputs['attention_mask']
-                token_type_ids = inputs['token_type_ids']
+                ids = inputs["input_ids"]
+                attention_mask = inputs["attention_mask"]
+                token_type_ids = inputs["token_type_ids"]
                 outputs = self.roberta(
                     ids,
-                    attention_mask=attention_mask, 
+                    attention_mask=attention_mask,
                     token_type_ids=token_type_ids,
                     position_ids=position_ids,
                     head_mask=head_mask,
-                    inputs_embeds=inputs_embeds
+                    inputs_embeds=inputs_embeds,
                 )
                 all_outputs.append(outputs[0])
 
             sequence_output = torch.mean(torch.stack(all_outputs), axis=0)
         else:
-            outputs = self.roberta(input_ids,
+            outputs = self.roberta(
+                input_ids,
                 attention_mask=attention_mask,
                 token_type_ids=token_type_ids,
                 position_ids=position_ids,
                 head_mask=head_mask,
-                inputs_embeds=inputs_embeds
+                inputs_embeds=inputs_embeds,
             )
             sequence_output = outputs[0]
         logits = self.classifier(sequence_output)

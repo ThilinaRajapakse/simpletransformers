@@ -1,7 +1,7 @@
-from transformers.modeling_bert import BertPreTrainedModel, BertModel
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
+from transformers.modeling_bert import BertModel, BertPreTrainedModel
 
 
 class BertForSequenceClassification(BertPreTrainedModel):
@@ -30,7 +30,8 @@ class BertForSequenceClassification(BertPreTrainedModel):
         labels = torch.tensor([1]).unsqueeze(0)  # Batch size 1
         outputs = model(input_ids, labels=labels)
         loss, logits = outputs[:2]
-    """
+    """  # noqa: ignore flake8"
+
     def __init__(self, config, weight=None):
         super(BertForSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
@@ -42,15 +43,25 @@ class BertForSequenceClassification(BertPreTrainedModel):
 
         self.init_weights()
 
-    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None,
-                position_ids=None, head_mask=None, inputs_embeds=None, labels=None):
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+    ):
 
-        outputs = self.bert(input_ids,
-                            attention_mask=attention_mask,
-                            token_type_ids=token_type_ids,
-                            position_ids=position_ids,
-                            head_mask=head_mask)
-                            # Complains if input_embeds is kept
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+        )
+        # Complains if input_embeds is kept
 
         pooled_output = outputs[1]
 

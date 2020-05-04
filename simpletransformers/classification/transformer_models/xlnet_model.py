@@ -1,7 +1,7 @@
-from transformers.modeling_xlnet import XLNetModel, XLNetPreTrainedModel, SequenceSummary
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
+from transformers.modeling_xlnet import SequenceSummary, XLNetModel, XLNetPreTrainedModel
 
 
 class XLNetForSequenceClassification(XLNetPreTrainedModel):
@@ -35,7 +35,8 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
         labels = torch.tensor([1]).unsqueeze(0)  # Batch size 1
         outputs = model(input_ids, labels=labels)
         loss, logits = outputs[:2]
-    """
+    """  # noqa: ignore flake8"
+
     def __init__(self, config, weight=None):
         super(XLNetForSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
@@ -47,16 +48,29 @@ class XLNetForSequenceClassification(XLNetPreTrainedModel):
 
         self.init_weights()
 
-    def forward(self, input_ids=None, attention_mask=None, mems=None, perm_mask=None, target_mapping=None,
-                token_type_ids=None, input_mask=None, head_mask=None, inputs_embeds=None, labels=None):
-        transformer_outputs = self.transformer(input_ids,
-                                               attention_mask=attention_mask,
-                                               mems=mems,
-                                               perm_mask=perm_mask,
-                                               target_mapping=target_mapping,
-                                               token_type_ids=token_type_ids,
-                                               input_mask=input_mask,
-                                               head_mask=head_mask)
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        mems=None,
+        perm_mask=None,
+        target_mapping=None,
+        token_type_ids=None,
+        input_mask=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+    ):
+        transformer_outputs = self.transformer(
+            input_ids,
+            attention_mask=attention_mask,
+            mems=mems,
+            perm_mask=perm_mask,
+            target_mapping=target_mapping,
+            token_type_ids=token_type_ids,
+            input_mask=input_mask,
+            head_mask=head_mask,
+        )
         output = transformer_outputs[0]
 
         output = self.sequence_summary(output)

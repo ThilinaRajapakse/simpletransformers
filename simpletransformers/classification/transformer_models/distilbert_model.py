@@ -1,6 +1,6 @@
-from transformers.modeling_distilbert import DistilBertModel, DistilBertPreTrainedModel
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
+from transformers.modeling_distilbert import DistilBertModel, DistilBertPreTrainedModel
 
 
 class DistilBertForSequenceClassification(DistilBertPreTrainedModel):
@@ -29,7 +29,8 @@ class DistilBertForSequenceClassification(DistilBertPreTrainedModel):
         labels = torch.tensor([1]).unsqueeze(0)  # Batch size 1
         outputs = model(input_ids, labels=labels)
         loss, logits = outputs[:2]
-    """
+    """  # noqa: ignore flake8"
+
     def __init__(self, config, weight=None):
         super(DistilBertForSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
@@ -42,16 +43,16 @@ class DistilBertForSequenceClassification(DistilBertPreTrainedModel):
 
         self.init_weights()
 
-    def forward(self, input_ids=None, attention_mask=None, head_mask=None, inputs_embeds=None, labels=None):
-        distilbert_output = self.distilbert(input_ids=input_ids,
-                                            attention_mask=attention_mask,
-                                            head_mask=head_mask)
-        hidden_state = distilbert_output[0]                    # (bs, seq_len, dim)
-        pooled_output = hidden_state[:, 0]                    # (bs, dim)
-        pooled_output = self.pre_classifier(pooled_output)   # (bs, dim)
-        pooled_output = nn.ReLU()(pooled_output)             # (bs, dim)
-        pooled_output = self.dropout(pooled_output)         # (bs, dim)
-        logits = self.classifier(pooled_output)              # (bs, dim)
+    def forward(
+        self, input_ids=None, attention_mask=None, head_mask=None, inputs_embeds=None, labels=None,
+    ):
+        distilbert_output = self.distilbert(input_ids=input_ids, attention_mask=attention_mask, head_mask=head_mask)
+        hidden_state = distilbert_output[0]  # (bs, seq_len, dim)
+        pooled_output = hidden_state[:, 0]  # (bs, dim)
+        pooled_output = self.pre_classifier(pooled_output)  # (bs, dim)
+        pooled_output = nn.ReLU()(pooled_output)  # (bs, dim)
+        pooled_output = self.dropout(pooled_output)  # (bs, dim)
+        logits = self.classifier(pooled_output)  # (bs, dim)
 
         outputs = (logits,) + distilbert_output[1:]
         if labels is not None:
