@@ -165,7 +165,7 @@ class NERModel:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args["wandb_project"] = None
 
-    def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None, verbose=True, **kwargs):
+    def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs):
         """
         Trains the model using 'train_data'
 
@@ -174,7 +174,7 @@ class NERModel:
                         If a text file is given the data should be in the CoNLL format. i.e. One word per line, with sentences seperated by an empty line.
                         The first word of the line should be a word, and the last should be a Name Entity Tag.
                         If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
-
+            eval_data: Evaluation data (same format as train_data) against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
@@ -191,11 +191,18 @@ class NERModel:
         if self.args["silent"]:
             show_running_loss = False
 
-        if self.args["evaluate_during_training"] and eval_df is None:
-            raise ValueError(
-                "evaluate_during_training is enabled but eval_df is not specified."
-                " Pass eval_df to model.train_model() if using evaluate_during_training."
-            )
+        if self.args["evaluate_during_training"] and eval_data is None:
+            if "eval_df" in kwargs:
+                warnings.warn(
+                    "The eval_df parameter has been renamed to eval_data."
+                    " Using eval_df will raise an error in a future version."
+                )
+                eval_data = kwargs.pop("eval_df")
+            else:
+                raise ValueError(
+                    "evaluate_during_training is enabled but eval_data is not specified."
+                    " Pass eval_data to model.train_model() if using evaluate_during_training."
+                )
 
         if not output_dir:
             output_dir = self.args["output_dir"]
@@ -213,7 +220,7 @@ class NERModel:
         os.makedirs(output_dir, exist_ok=True)
 
         global_step, tr_loss = self.train(
-            train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df, **kwargs
+            train_dataset, output_dir, show_running_loss=show_running_loss, eval_data=eval_data, **kwargs
         )
 
         model_to_save = self.model.module if hasattr(self.model, "module") else self.model
@@ -223,7 +230,7 @@ class NERModel:
 
         logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-    def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None, verbose=True, **kwargs):
+    def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True, **kwargs):
         """
         Trains the model on train_dataset.
 
@@ -387,7 +394,7 @@ class NERModel:
                         and global_step % args["evaluate_during_training_steps"] == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results, _, _ = self.eval_model(eval_df, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs)
+                        results, _, _ = self.eval_model(eval_data, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs)
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
@@ -478,7 +485,7 @@ class NERModel:
                 self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args["evaluate_during_training"]:
-                results, _, _ = self.eval_model(eval_df, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs)
+                results, _, _ = self.eval_model(eval_data, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs)
 
                 self._save_model(output_dir_current, optimizer, scheduler, results=results)
 
@@ -661,12 +668,16 @@ class NERModel:
 
         return results, model_outputs, preds_list
 
-    def predict(self, to_predict):
+    def predict(self, to_predict, split_on_space=True):
         """
         Performs predictions on a list of text.
 
         Args:
             to_predict: A python list of text (str) to be sent to the model for prediction.
+            split_on_space: If True, each sequence will be split by spaces for assigning labels.
+                            If False, to_predict must be a a list of lists, with the inner list being a
+                            list of strings consisting of the split sequences. The outer list is the list of sequences to
+                            predict on.
 
         Returns:
             preds: A Python list of lists with dicts containing each word mapped to its NER tag.
@@ -680,10 +691,16 @@ class NERModel:
 
         self._move_model_to_device()
 
-        predict_examples = [
-            InputExample(i, sentence.split(), [self.labels[0] for word in sentence.split()])
-            for i, sentence in enumerate(to_predict)
-        ]
+        if split_on_space:
+            predict_examples = [
+                InputExample(i, sentence.split(), [self.labels[0] for word in sentence.split()])
+                for i, sentence in enumerate(to_predict)
+            ]
+        else:
+            predict_examples = [
+                InputExample(i, sentence, [self.labels[0] for word in sentence])
+                for i, sentence in enumerate(to_predict)
+            ]
 
         eval_dataset = self.load_and_cache_examples(None, to_predict=predict_examples)
 
