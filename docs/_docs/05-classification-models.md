@@ -39,6 +39,40 @@ model = ClassificationModel(
 {: .notice--info}
 
 
+### `Class ClassificationModel`
+
+> *simpletransformers.classification.ClassificationModel*{: .function-name}(self, model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True, cuda_device=-1, **kwargs,)
+
+Initializes a ClassificationModel model.
+{: .function-text}
+
+> Parameters
+{: .parameter-blockquote}
+
+* **model_type** *(`str`)* - The type of model to use ([model types](/docs/classification-specifics/#supported-model-types))
+
+* **model_name** *(`str`)* - The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+
+* **num_labels** *(`int`, optional)* - The number of labels or classes in the dataset. (See [here](/docs/classification-models/#specifying-the-number-of-classeslabels))
+
+* **weight** *(`list`, optional)* - A list of length num_labels containing the weights to assign to each label for loss calculation. (See [here](/docs/classification-models/#setting-class-weights))
+
+* **args** *(`dict`, optional)* - [Default args](/docs/usage/#configuring-a-simple-transformers-model) will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
+
+* **use_cuda** *(`bool`, optional)* - Use GPU if available. Setting to False will force model to use CPU only. (See [here](/docs/usage/#to-cuda-or-not-to-cuda))
+
+* **cuda_device** *(`int`, optional)* - Specific GPU that should be used. Will use the first available GPU by default. (See [here](/docs/usage/#selecting-a-cuda-device))
+
+* **kwargs** *(optional)* - For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied. (See [here](/docs/usage/#options-for-downloading-pre-trained-models))
+{: .parameter-list}
+
+> Returns
+{: .returns}
+
+* `None`
+{: .return-list}
+
+
 ### Specifying the number of classes/labels
 
 By default, a `ClassificationModel` will behave as a binary classifier.
@@ -70,8 +104,8 @@ model = ClassificationModel(
 )
 ```
 
-**Note:** You must also configure the model's args dict and set `regression` to `True`.
-{: .notice--info}
+**Note:** When performing regression, you must configure the model's args dict and set `regression` to `True` in addition to specifying `num_labels=1`.
+{: .notice--warning}
 
 
 ### Setting class weights
@@ -112,6 +146,9 @@ model = ClassificationModel(
 )
 ```
 
+**Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
+{: .notice--info}
+
 
 ## `MultiLabelClassificationModel`
 
@@ -141,6 +178,40 @@ model = MultiLabelClassificationModel(
 
 **Note:** For more information on working with Simple Transformers models, please refer to the [General Usage section](/docs/usage/#creating-a-task-specific-model).
 {: .notice--info}
+
+
+### `Class MultiLabelClassificationModel`
+
+> *simpletransformers.classification.MultiLabelClassificationModel*{: .function-name}(self, model_type, model_name, num_labels=None, pos_weight=None, args=None, use_cuda=True, cuda_device=-1, **kwargs,)
+
+Initializes a MultiLabelClassification model.
+{: .function-text}
+
+> Parameters
+{: .parameter-blockquote}
+
+* **model_type** *(`str`)* - The type of model to use ([model types](/docs/classification-specifics/#supported-model-types))
+
+* **model_name** *(`str`)* - The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+
+* **num_labels** *(`int`, optional)* - The number of labels or classes in the dataset. (See [here](/docs/classification-models/#specifying-the-number-of-labels))
+
+* **pos_weight** *(`list`, optional)* - A list of length num_labels containing the weights to assign to each label for loss calculation. (See [here](/docs/classification-models/#setting-class-weights-1))
+
+* **args** *(`dict`, optional)* - [Default args](/docs/usage/#configuring-a-simple-transformers-model) will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
+
+* **use_cuda** *(`bool`, optional)* - Use GPU if available. Setting to False will force model to use CPU only. (See [here](/docs/usage/#to-cuda-or-not-to-cuda))
+
+* **cuda_device** *(`int`, optional)* - Specific GPU that should be used. Will use the first available GPU by default. (See [here](/docs/usage/#selecting-a-cuda-device))
+
+* **kwargs** *(optional)* - For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied. (See [here](/docs/usage/#options-for-downloading-pre-trained-models))
+{: .parameter-list}
+
+> Returns
+{: .returns}
+
+* `None`
+{: .return-list}
 
 
 ### Specifying the number of labels
@@ -185,6 +256,9 @@ model = MultiLabelClassificationModel(
 )
 ```
 
+**Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
+{: .notice--info}
+
 
 ## Training a Classification Model
 
@@ -203,11 +277,16 @@ Trains the model using 'train_df'
 > Parameters
 {: .parameter-blockquote}
 
-* **train_df** - Pandas DataFrame containing the train data
+* **train_df** - Pandas DataFrame containing the train data. Refer to [Data Format](/docs/classification-data-formats/).
+
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
+
 * **show_running_loss** *(`bool`, optional)* - If True, the running loss (training loss at current step) will be logged to the console.
+
 * **args** *(`dict`, optional)* - A dict of configuration options for the `ClassificationModel`. Any changes made will persist for the model.
+
 * **eval_df** *(`dataframe`, optional)* - A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+
 * **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
 E.g. `f1=sklearn.metrics.f1_score`.  
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
@@ -228,6 +307,25 @@ A metric function should take in two parameters. The first parameter will be the
 
 The `eval_model()`  method is used to evaluate the model. The `eval_model()` method is identical for `ClassificationModel` and `MultiLabelClassificationModel`, except for the `multi_label` argument being `True` by default for the latter.
 
+The following metrics will be calculated by default:
+
+* Binary classification
+  * `mcc` - [Matthews correlation coefficient](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.matthews_corrcoef.html)
+  * `tp` - True positives
+  * `tn` - True negatives
+  * `fp` - False positives
+  * `fn` - False negatives
+  * `eval_loss` - Cross Entropy Loss for eval_df
+* Multi-class classification
+  * `mcc` - [Matthews correlation coefficient](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.matthews_corrcoef.html)
+  * `eval_loss` - Cross Entropy Loss for eval_df
+* Regression
+  * `eval_loss` - Cross Entropy Loss for eval_df
+* Multi-label classification
+  * `LRAP` - [Label ranking average precision](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.label_ranking_average_precision_score.html?highlight=lrap)
+  * `eval_loss` - Binary Cross Entropy Loss for eval_df
+
+
 ```python
 result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 ```
@@ -241,10 +339,14 @@ Evaluates the model using 'eval_df'
 > Parameters
 {: .parameter-blockquote}
 
-* **eval_df** - Pandas DataFrame containing the evaluation data
+* **eval_df** - Pandas DataFrame containing the evaluation data. Refer to [Data Format](/docs/classification-data-formats/).
+
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
+
 * **verbose** *(`bool`, optional)* - If verbose, results will be printed to the console on completion of evaluation.
+
 * **silent** *(`bool`, optional)* - If silent, tqdm progress bars will be hidden.
+
 * **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics).
 E.g. `f1=sklearn.metrics.f1_score` section.  
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
@@ -254,13 +356,14 @@ A metric function should take in two parameters. The first parameter will be the
 {: .returns}
 
 * **result** *(`dict`)* - Dictionary containing evaluation results.
+
 * **model_outputs** *(`list`)* - List of model outputs for each row in eval_df
+
 * **wrong_preds** *(`list`)* - List of InputExample objects corresponding to each incorrect prediction by the model
 {: .return-list}
 
 **Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
 {: .notice--info}
-
 
 
 ## Making Predictions With a Classification Model

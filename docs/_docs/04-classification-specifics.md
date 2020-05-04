@@ -8,7 +8,7 @@ toc: true
 
 This section describes how Text Classification tasks are organized and conducted with Simple Transformers.
 
-## Sub-tasks falling under text classification
+## Sub-Tasks Falling Under Text Classification
 
 | Task                                                      | Model                           |
 | --------------------------------------------------------- | ------------------------------- |
@@ -28,7 +28,7 @@ The process of performing text classification in Simple Transformers does not de
 4. Make predictions on (unlabelled) data with `predict()`
 
 
-## Supported model types
+## Supported Model Types
 
 New model types are regularly added to the library. Text classification tasks currently supports the model types given below.
 
@@ -51,7 +51,7 @@ New model types are regularly added to the library. Text classification tasks cu
 {: .notice--success}
 
 
-## Dealing with long text
+## Dealing With Long Text
 
 Transformer models typically have a restriction on the maximum length allowed for a sequence. This is defined in terms of the number of tokens, where a token is any of the "words" that appear in the model vocabulary.
 

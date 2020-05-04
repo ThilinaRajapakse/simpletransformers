@@ -1,8 +1,9 @@
 ---
-title: NER Model
-permalink: /docs/ner-model/
-excerpt: "NERModel for named entity recognition."
+title: Named Entitty Recognition Specifics
+permalink: /docs/ner-specifics/
+excerpt: "Specific notes for Named Entity Recognition tasks."
 last_modified_at: 2020-05-02 17:58:53
+toc: true
 ---
 
 The goal of Named Entity Recognition is to locate and classify *named entities* in a sequence. The named entities are pre-defined categories chosen according to the use case such as names of people, organizations, places, codes, time notations, monetary values, etc. Essentially, NER aims to assign a class to each token (usually a single word) in a sequence. Because of this, NER is also referred to as *token classification*.
@@ -18,14 +19,14 @@ The process of performing Named Entity Recognition in Simple Transformers does n
 4. Make predictions on (unlabelled) data with `predict()`
 
 
-## Supported model types
+## Supported Model Types
 
 New model types are regularly added to the library. Text classification tasks currently supports the model types given below.
 
-| Model       | Model code for `ClassificationModel` |
+| Model       | Model code for `NERModel` |
 |-------------|--------------------------------------|
 | BERT        | bert                                 |
-| *CamemBERT  | camembert                            |
+| CamemBERT  | camembert                            |
 | RoBERTa     | roberta                              |
 | DistilBERT  | distilbert                           |
 | ELECTRA     | electra                              |
@@ -35,3 +36,25 @@ New model types are regularly added to the library. Text classification tasks cu
 {: .notice--success}
 
 
+## Custom Labels
+
+The default list of labels used in the `NERModel` is from the [CoNLL](https://www.clips.uantwerpen.be/conll2003/ner/) dataset which uses the following tags/labels.
+
+`["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"]`
+
+However, named entity recognition is a very versatile task and has many different applications. It is highly likely that you will wish to define and use your own token tags/labels.
+
+This can be done by passing in your list of labels when creating the `NERModel` to the `labels` parameter.
+
+```python
+model = NERModel(
+    "bert", "bert-cased-base"
+)
+```
+
+## Configuring a `NERModel`
+
+`NERModel` does not have any task-specific configuration options.
+
+**Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
+{: .notice--info}

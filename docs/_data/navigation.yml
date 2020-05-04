@@ -63,6 +63,8 @@ docs:
         url: /docs/ner-specifics
       - title: "NER Model"
         url: /docs/ner-model
+      - title: "NER Data Formats"
+        url: /docs/ner-data-formats/
   - title: Meta
     children:
       - title: "History"
