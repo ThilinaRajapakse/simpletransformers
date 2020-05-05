@@ -14,10 +14,15 @@ Supports
 - Language Model Fine-Tuning
 - Language Model Training
 - Language Generation
+- T5 Model
 - Multi-Modal Classification
 - Conversational AI.
 
 ### Latest
+
+#### 2020-05-05
+
+- T5 Model support added
 
 #### 2020-05-03
 
@@ -34,6 +39,7 @@ Only text classification tasks are added so far but the others will follow in th
 <!--ts-->
 - [Simple Transformers](#simple-transformers)
     - [Latest](#latest)
+      - [2020-05-05](#2020-05-05)
       - [2020-05-03](#2020-05-03)
       - [2020-04-27](#2020-04-27)
 - [Table of contents](#table-of-contents)
