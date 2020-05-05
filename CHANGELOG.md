@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added support for T5 Model.
+- Added `do_sample` arg to language generation.
 - `NERModel.predict()` now accepts a `split_on_space` optional argument. If set to `False`, `to_predict` must be a a list of lists, with the inner list being a list of strings consisting of the split sequences. The outer list is the list of sequences to predict on. 
 
 ### Changed
