@@ -37,3 +37,7 @@ td,
 th {
   vertical-align: middle;
 }
+
+tr:nth-child(even) {
+  background-color: $code-background-color-dark;
+}

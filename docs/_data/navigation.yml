@@ -57,6 +57,16 @@ docs:
         url: /docs/sentence-pair-classification/
       - title: "Multi-Label Classification"
         url: /docs/multi-label-classification/
+  - title: Named Entity Recognition
+    children:
+      - title: "NER Specifics"
+        url: /docs/ner-specifics
+      - title: "NER Model"
+        url: /docs/ner-model
+      - title: "NER Data Formats"
+        url: /docs/ner-data-formats/
+      - title: "NER Minimal Start"
+        url: /docs/ner-minimal-start/
   - title: Meta
     children:
       - title: "History"

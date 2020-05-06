@@ -1,5 +1,5 @@
 ---
-title: Data Formats
+title: Classification Data Formats
 permalink: /docs/classification-data-formats/
 excerpt: "Classification data formats."
 last_modified_at: 2020-05-02 17:58:06
@@ -11,7 +11,7 @@ The required input data formats for each classification sub-task is described in
 
 ## Train Data Format
 
-*Used with `train_model()`*
+*Used with [`train_model()`](/docs/classification-models/#training-a-classification-model)*
 
 ### Binary classification
 
@@ -103,7 +103,7 @@ train_df.columns = ["text", "labels"]
 
 ## Evaluation Data Format
 
-*Used with `eval_model()`*
+*Used with [`eval_model()`](/docs/classification-models/#evaluating-a-classification-model)*
 
 The evaluation data format is identical to the train data format.
 
