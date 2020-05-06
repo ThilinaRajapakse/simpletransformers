@@ -155,7 +155,7 @@ A metric function should take in two parameters. The first parameter will be the
 
 * **model_outputs** *(`list`)* - List of model outputs for each row in eval_data
 
-* **wrong_preds** *(`list`)* - List of predicted tags
+* **preds_list** *(`list`)* - List of predicted tags
 {: .return-list}
 
 **Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.

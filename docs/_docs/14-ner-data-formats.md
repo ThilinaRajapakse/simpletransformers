@@ -76,7 +76,7 @@ Phoenix I-ORG
 
 ## Train Data Format
 
-*Used with [train_model()](/docs/ner-model/#training-a-nermodel)*
+*Used with [`train_model()`](/docs/ner-model/#training-a-nermodel)*
 
 Train data can be in the form of a Pandas DataFrame or in a CoNLL style formatted text file.
 
@@ -113,7 +113,7 @@ train_data = "data/train.txt"
 
 ## Evaluation Data Format
 
-*Used with [eval_model()](/docs/ner-model/#evaluating-a-nermodel)*
+*Used with [`eval_model()`](/docs/ner-model/#evaluating-a-nermodel)*
 
 Evaluation data can be in the form of a Pandas DataFrame or in a CoNLL style formatted text file.
 
@@ -146,3 +146,37 @@ eval_data = pd.DataFrame(
 ```python
 eval_data = "data/eval.txt"
 ```
+
+
+## Prediction Data Format
+
+*Used with [`predict()`](/docs/ner-model/#making-predictins-with-a-nermodel)*
+
+The prediction data should be one of the following formats.
+
+### Automatically split sentences on spaces
+
+By default, the input should be a list of strings, where each string is a sequence on which the model will perform NER. Here, each string will be split into words by splitting on spaces.
+
+```python
+to_pedict = [
+    "Ron is Harry's best friend",
+    "Hermione was the best in her class",
+]
+```
+
+### Manually split sentences
+
+While splitting on spaces makes sense in most situations, you may wish to decide how to split the sentences yourself. This may be particularly useful when working with languages other than English, where splitting on spaces might not be ideal.
+
+In this case, the inputs should be a list of lists, with the inner list containing the split words of a sequence, while the outer list contains the list of sequences.
+
+```python
+to_predict = [
+    ["Ron", "is", "Harry's", "best", "friend"],
+    ["Hrmione", "was", "the ", "best", "in", "her", "class"],
+]
+```
+
+**Note:** You must pass `split_on_space=False` to the `predict()` method when manually splitting sentences. See [`predict()`](/docs/ner-model/#making-predictins-with-a-nermodel) method.
+{: .notice--warning}

@@ -26,7 +26,7 @@ New model types are regularly added to the library. Text classification tasks cu
 | Model       | Model code for `NERModel` |
 |-------------|--------------------------------------|
 | BERT        | bert                                 |
-| CamemBERT  | camembert                            |
+| CamemBERT  | camembert                             |
 | RoBERTa     | roberta                              |
 | DistilBERT  | distilbert                           |
 | ELECTRA     | electra                              |
@@ -47,8 +47,10 @@ However, named entity recognition is a very versatile task and has many differen
 This can be done by passing in your list of labels when creating the `NERModel` to the `labels` parameter.
 
 ```python
+custom_labels = ["O", "B-SPELL", "I-SPELL", "B-PER", "I-PER", "B-ORG", "I-ORG", "B-PLACE", "I-PLACE"]
+
 model = NERModel(
-    "bert", "bert-cased-base"
+    "bert", "bert-cased-base", labels=custom_labels
 )
 ```
 

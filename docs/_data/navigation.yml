@@ -65,6 +65,8 @@ docs:
         url: /docs/ner-model
       - title: "NER Data Formats"
         url: /docs/ner-data-formats/
+      - title: "NER Minimal Start"
+        url: /docs/ner-minimal-start/
   - title: Meta
     children:
       - title: "History"
