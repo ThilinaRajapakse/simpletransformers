@@ -14,18 +14,34 @@ Supports
 - Language Model Fine-Tuning
 - Language Model Training
 - Language Generation
+- T5 Model
 - Multi-Modal Classification
 - Conversational AI.
 
 ### Latest
 
-ELECTRA models can now be used with Language Model Training, Token Classification, Sequence Classification, and Question Answering.
+#### 2020-05-05
+
+- T5 Model support added
+
+#### 2020-05-03
+
+**New documentation is now live at https://thilinarajapakse.github.io/simpletransformers/**
+
+Only text classification tasks are added so far but the others will follow in the next few days. Any feedback will be immensely helpful in improving the documentation! If you have any feedback, please leave a comment in the [issue](https://github.com/ThilinaRajapakse/simpletransformers/issues/342) I've opened for this.
+
+#### 2020-04-27
+
+* ELECTRA models can now be used with Language Model Training, Named Entity Recognition (Token Classification), Sequence Classification, and Question Answering.
 
 # Table of contents
 
 <!--ts-->
 - [Simple Transformers](#simple-transformers)
     - [Latest](#latest)
+      - [2020-05-05](#2020-05-05)
+      - [2020-05-03](#2020-05-03)
+      - [2020-04-27](#2020-04-27)
 - [Table of contents](#table-of-contents)
   - [Setup](#setup)
     - [With Conda](#with-conda)
@@ -84,6 +100,7 @@ ELECTRA models can now be used with Language Model Training, Token Classificatio
       - [Minimal Start](#minimal-start-1)
       - [LanguageGenerationModel](#languagegenerationmodel)
     - [Additional attributes for Language Generation tasks](#additional-attributes-for-language-generation-tasks)
+      - [*do_sample: bool*](#dosample-bool)
       - [*prompt: str*](#prompt-str)
       - [*length: int*](#length-int)
       - [*stop_token: str*](#stoptoken-str)
@@ -95,8 +112,26 @@ ELECTRA models can now be used with Language Model Training, Token Classificatio
       - [*xlm_language: str*](#xlmlanguage-str)
       - [*num_return_sequences: int*](#numreturnsequences-int)
       - [*config: dict*](#config-dict-1)
+  - [T5 Transformer](#t5-transformer)
+    - [Data Format](#data-format-2)
+      - [Train and evaluation input formats](#train-and-evaluation-input-formats)
+      - [Prediction data format](#prediction-data-format)
+      - [Minimal Start](#minimal-start-2)
+      - [Evaluating with custom metrics](#evaluating-with-custom-metrics)
+      - [T5Model](#t5model)
+    - [Additional attributes for T5 Model](#additional-attributes-for-t5-model)
+      - [*dataset_class: Subclass of Pytorch Dataset*](#datasetclass-subclass-of-pytorch-dataset-1)
+      - [*do_sample: bool*](#dosample-bool-1)
+      - [*max_steps: int*](#maxsteps-int-1)
+      - [*evaluate_generated_text: bool*](#evaluategeneratedtext-bool)
+      - [*num_beams: int*](#numbeams-int)
+      - [*max_lemgth: int*](#maxlemgth-int)
+      - [*repetition_penalty: float*](#repetitionpenalty-float-1)
+      - [*length_penalty: float*](#lengthpenalty-float)
+      - [*early_stopping: bool*](#earlystopping-bool)
+      - [*preprocess_inputs: bool*](#preprocessinputs-bool)
   - [Conversational AI](#conversational-ai)
-    - [Data format](#data-format-2)
+    - [Data format](#data-format-3)
     - [Minimal Example](#minimal-example-1)
     - [Real Dataset Example](#real-dataset-example)
     - [ConvAIModel](#convaimodel)
@@ -113,7 +148,7 @@ ELECTRA models can now be used with Language Model Training, Token Classificatio
       - [*top_k: float*](#topk-float)
       - [*top_p: float*](#topp-float)
   - [Multi-Modal Classification](#multi-modal-classification)
-    - [Data format](#data-format-3)
+    - [Data format](#data-format-4)
       - [1 - Directory based](#1---directory-based)
       - [2 - Directory and file list](#2---directory-and-file-list)
       - [3 - Pandas DataFrame](#3---pandas-dataframe)
@@ -1335,7 +1370,7 @@ model.generate("Let's give a minimal start to the model like")
 #### LanguageGenerationModel
 
 `class simpletransformers.language_generation.language_generation_model.LanguageGenerationModel (self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`  
-This class  is used for Named Entity Recognition.
+This class  is used for Language Generation.
 
 `Class attributes`
 * `tokenizer`: The tokenizer to be used.
@@ -1383,6 +1418,7 @@ Returns:
 LanguageGenerationModel has a few additional attributes in its `args` dictionary, given below with their default values.
 
 ```python
+    "do_sample": True,
     "prompt": "",
     "length": 20,
     "stop_token": None,
@@ -1396,6 +1432,10 @@ LanguageGenerationModel has a few additional attributes in its `args` dictionary
     "config_name": None,
     "tokenizer_name": None,
 ```
+
+#### *do_sample: bool*
+
+If set to `False` greedy decoding is used. Otherwise sampling is used. Defaults to `False` as defined in `configuration_utils.PretrainedConfig`.
 
 #### *prompt: str*
 
@@ -1439,6 +1479,336 @@ The number of samples to generate.
 
 #### *config: dict*
 Key-values given here will override the default values used in a model Config.
+
+
+_[Back to Table of Contents](#table-of-contents)_
+
+---
+
+## T5 Transformer
+
+*T5 model seems to be working fine, but please open an issue if you run across any problems*
+
+The T5 Transformer is an Encoder-Decoder architecture where both the input and targets are text sequences. The task that should be performed on the input is defined by a *prefix*. This means that the same T5 model can perform multiple tasks.
+
+You can train the T5 model on a completely new task by simply using a new `prefix`.
+
+### Data Format
+
+The input to a T5 model has the following pattern;
+
+```python
+"<prefix>: <input_text> </s>"
+```
+
+The *label* sequence has the following pattern;
+
+```python
+"<target_sequence> </s>"
+```
+
+#### Train and evaluation input formats
+
+The inputs to both the `train_model()` and `eval_model()` methods should be a Pandas DataFrame containing the 3 columns - `prefix`, `input_text`, `target_text`.
+
+- `prefix`: A string indicating the task to perform. (E.g. `"question"`, `"stsb"`)
+- `input_text`: The input text sequence. `prefix` is automatically prepended to form the full input. (`<prefix>: <input_text>`)
+- `target_text`: The target sequence
+
+
+If `preprocess_inputs` is set to `True` in the model `args`, then the `< /s>` tokens (including preceeding space) and the `: ` *(prefix separator including trailing separator)* between `prefix`  and `input_text` are automatically added. Otherwise, the input DataFrames must contain the `< /s>` tokens (including preceeding space) and the `:` *(prefix separator including trailing separator)*.
+
+
+#### Prediction data format
+
+The prediction data should be a list of strings with the `prefix` and the `: ` *(prefix separator)* included.
+
+If `preprocess_inputs` is set to `True` in the model `args`, then the ` < /s>` token (including preceeding space) is automatically added to each string in the list. Otherwise, the strings must have the ` < /s>` (including preceeding space) must be included.
+
+
+#### Minimal Start
+
+```python
+import logging
+
+import pandas as pd
+from simpletransformers.t5 import T5Model
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+
+train_data = [
+    ["convert", "one", "1"],
+    ["convert", "two", "2"],
+]
+
+train_df = pd.DataFrame(train_data, columns=["prefix", "input_text", "target_text"])
+
+eval_data = [
+    ["convert", "three", "3"],
+    ["convert", "four", "4"],
+]
+
+eval_df = pd.DataFrame(eval_data, columns=["prefix", "input_text", "target_text"])
+
+eval_df = train_df.copy()
+
+model_args = {
+    "reprocess_input_data": True,
+    "overwrite_output_dir": True,
+    "max_seq_length": 10,
+    "train_batch_size": 2,
+    "num_train_epochs": 200,
+}
+
+# Create T5 Model
+model = T5Model("t5-base", args=model_args)
+
+# Train T5 Model on new task
+model.train_model(train_df)
+
+# Evaluate T5 Model on new task
+results = model.eval_model(eval_df)
+
+# Predict with trained T5 model
+print(model.predict(["convert: four"]))
+
+```
+
+#### Evaluating with custom metrics
+
+You can evaluate the models' generated sequences using custom metric functions (including evaluation during training). However, due to the way T5 outputs are generated, this may be significantly slower than evaluation with other models.
+
+Note, you must set `evaluate_generated_text` to `True` to evaluate generated sequences.
+
+```python
+import logging
+
+import pandas as pd
+from simpletransformers.t5 import T5Model
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+
+train_data = [
+    ["convert", "one", "1"],
+    ["convert", "two", "2"],
+]
+
+train_df = pd.DataFrame(train_data, columns=["prefix", "input_text", "target_text"])
+
+eval_data = [
+    ["convert", "three", "3"],
+    ["convert", "four", "4"],
+]
+
+eval_df = pd.DataFrame(eval_data, columns=["prefix", "input_text", "target_text"])
+
+eval_df = train_df.copy()
+
+model_args = {
+    "reprocess_input_data": True,
+    "overwrite_output_dir": True,
+    "max_seq_length": 10,
+    "train_batch_size": 2,
+    "num_train_epochs": 200,
+    "save_eval_checkpoints": False,
+    "save_model_every_epoch": False,
+    # "silent": True,
+    "evaluate_generated_text": True,
+    "evaluate_during_training": True,
+    "evaluate_during_training_verbose": True,
+}
+
+model = T5Model("t5-base", args=model_args)
+
+
+def count_matches(labels, preds):
+    print(labels)
+    print(preds)
+    return sum([1 if label == pred else 0 for label, pred in zip(labels, preds)])
+
+
+model.train_model(train_df, eval_data=eval_df, matches=count_matches)
+
+print(model.eval_model(eval_df, matches=count_matches))
+
+```
+
+#### T5Model
+
+`class simpletransformers.t5.t5_model.T5Model (self, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`  
+This class  is used for the T5 Transformer.
+
+`Class attributes`
+* `tokenizer`: The tokenizer to be used.
+* `model`: The model to be used.
+            model_name: Default Transformer model name or path to Transformer model file (pytorch_model.bin).
+* `device`: The device on which the model will be trained and evaluated.
+* `args`: A python dict of arguments used for training and evaluation.
+- `cuda_device`: (optional) int - Default = -1. Used to specify which GPU should be used.
+
+`Parameters`
+
+* `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+
+* `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
+
+* `cuda_device`: (optional) Specific GPU that should be used. Will use the first available GPU by default.
+
+* `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
+
+* `**kwargs`: (optional) For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
+
+
+
+`class methods`  
+**`train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None)`**
+
+Trains the model using 'train_data'
+
+Args:  
+* `train_data`: Pandas DataFrame containing the 3 columns - `prefix`, `input_text`, `target_text`.
+                    - `prefix`: A string indicating the task to perform. (E.g. `"question"`, `"stsb"`)
+                    - `input_text`: The input text sequence. `prefix` is automatically prepended to form the full input. (`<prefix>: <input_text>`)
+                    - `target_text`: The target sequence
+
+* `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+
+* `args` (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+
+* show_running_loss (optional): Set to False to disable printing running training loss to the terminal.
+
+* `eval_data` (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
+
+* `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
+A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs will be lists of strings. Note that this will slow down training significantly as the predicted sequences need to be generated.
+
+Returns:  
+* None
+
+**`eval_model(self, eval_data, output_dir=None, verbose=True, silent=False)`**
+
+Evaluates the model on eval_data. Saves results to output_dir.
+
+Args:  
+* eval_data: Pandas DataFrame containing the 3 columns - `prefix`, `input_text`, `target_text`.
+  - `prefix`: A string indicating the task to perform. (E.g. `"question"`, `"stsb"`)
+  - `input_text`: The input text sequence. `prefix` is automatically prepended to form the full input. (`<prefix>: <input_text>`)
+  - `target_text`: The target sequence  
+* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+
+* verbose: If verbose, results will be printed to the console on completion of evaluation.  
+
+* silent: If silent, tqdm progress bars will be hidden.
+
+* `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
+
+
+Returns:  
+* result: Dictionary containing evaluation results.
+
+**`predict(self, to_predict)`**
+
+Performs predictions on a list of text.
+
+Args:
+* to_predict: A python list of text (str) to be sent to the model for prediction. Note that the prefix should be prepended to the text.
+
+Returns:
+* preds: A python list of the generated sequences.
+
+
+**`train(self, train_dataset, output_dir)`**
+
+Trains the model on train_dataset.
+*Utility function to be used by the train_model() method. Not intended to be used directly.*
+
+**`evaluate(self, eval_dataset, output_dir, prefix="")`**
+
+Evaluates the model on eval_dataset.
+*Utility function to be used by the eval_model() method. Not intended to be used directly*
+
+**`load_and_cache_examples(self, examples, evaluate=False)`**
+
+Creates a `T5Dataset` from data.
+
+*Utility function for train() and eval() methods. Not intended to be used directly*
+
+**`compute_metrics(self, preds, labels, **kwargs):`**
+
+Computes the evaluation metrics for the model predictions.
+
+Args:
+
+* `labels`: List of target sequences
+* `preds`: List of model generated outputs
+* `**kwargs`: Custom metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
+
+Returns:
+
+* result: Dictionary containing evaluation results.
+
+
+### Additional attributes for T5 Model
+
+`T5Model` has a few additional attributes in its `args` dictionary, given below with their default values.
+
+```python
+{
+    "dataset_class": None,
+    "max_steps": -1,
+    "evaluate_generated_text": False,
+    "num_beams": 1,
+    "repetition_penalty": 2.5,
+    "length_penalty": 1.0,
+    "preprocess_inputs": True,
+}
+```
+
+#### *dataset_class: Subclass of Pytorch Dataset*
+
+A custom dataset class to use.
+
+#### *do_sample: bool*
+
+If set to `False` greedy decoding is used. Otherwise sampling is used. Defaults to `False` as defined in `configuration_utils.PretrainedConfig`.
+
+#### *max_steps: int*
+
+Maximum number of training steps. Will override the effect of `num_train_epochs`.
+
+#### *evaluate_generated_text: bool*
+
+Generate sequences for evaluation.
+
+#### *num_beams: int*
+
+Number of beams for beam search. Must be between 1 and infinity. 1 means no beam search. Default to 1.
+
+#### *max_lemgth: int*
+
+The max length of the sequence to be generated.  Between `min_length` and infinity. Default to 20.
+
+#### *repetition_penalty: float*
+
+The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no penalty. Default to 1.0.
+
+#### *length_penalty: float*
+
+Exponential penalty to the length. Default to 1.
+
+#### *early_stopping: bool*
+
+if set to `True` beam search is stopped when at least `num_beams` sentences finished per batch.
+
+#### *preprocess_inputs: bool*
+
+Automatically add `:` and `< /s>` tokens to `train_model()` and `eval_model()` inputs. Automatically add `< /s>` to each string in `to_predict` in `predict()`.
 
 
 _[Back to Table of Contents](#table-of-contents)_

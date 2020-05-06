@@ -85,7 +85,7 @@ class ClassificationModel:
 
         Args:
             model_type: The type of model (bert, xlnet, xlm, roberta, distilbert)
-            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
+            model_name: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
             num_labels (optional): The number of labels or classes in the dataset.
             weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.

@@ -67,6 +67,7 @@ class LanguageGenerationModel:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
         self.args = {
+            "do_sample": True,
             "prompt": "",
             "length": 20,
             "stop_token": None,
@@ -174,7 +175,7 @@ class LanguageGenerationModel:
             top_k=args["k"],
             top_p=args["p"],
             repetition_penalty=args["repetition_penalty"],
-            do_sample=True,
+            do_sample=args["do_sample"],
             num_return_sequences=args["num_return_sequences"],
         )
 

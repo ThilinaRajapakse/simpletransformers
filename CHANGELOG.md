@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.27.1] - 2020-05-05
+
+### Fixed
+
+- Fixed issue with custom evaluation metrics not being handled correctly in `MultiLabelClassificationModel`. [@galtay](https://github.com/galtay)
+
+## [0.27.0] - 2020-05-05
+
+### Added
+
+- Added support for T5 Model.
+- Added `do_sample` arg to language generation.
+- `NERModel.predict()` now accepts a `split_on_space` optional argument. If set to `False`, `to_predict` must be a a list of lists, with the inner list being a list of strings consisting of the split sequences. The outer list is the list of sequences to predict on. 
+
+### Changed
+
+- `eval_df` argument in `NERModel.train_model()` renamed to `eval_data` to better reflect the input format. Added Deprecation Warning.
+
+
 ## [0.26.1] - 2020-04-27
 
 ### Fixed
@@ -628,7 +647,11 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.26.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3d4f616...HEAD
+[0.27.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/32d5a1a...HEAD
+
+[0.27.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ab1e600...32d5a1a
+
+[0.26.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3d4f616...ab1e600
 
 [0.26.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/aa8e6a6...3d4f616
 

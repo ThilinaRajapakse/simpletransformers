@@ -166,6 +166,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             show_running_loss=show_running_loss,
             verbose=True,
             args=args,
+            **kwargs,
         )
 
     def eval_model(self, eval_df, multi_label=True, output_dir=None, verbose=False, silent=False, **kwargs):
