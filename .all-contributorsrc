@@ -237,6 +237,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "galtay",
+      "name": "Gabriel Altay",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/663051?v=4",
+      "profile": "https://github.com/galtay",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
