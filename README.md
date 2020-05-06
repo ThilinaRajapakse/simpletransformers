@@ -26,7 +26,7 @@ Supports
 
 #### 2020-05-03
 
-**New documentation is now live at http://simpletransformers.ai/**
+**New documentation is now live at [simpletransformers.ai](http://simpletransformers.ai/)**
 
 Only text classification tasks are added so far but the others will follow in the next few days. Any feedback will be immensely helpful in improving the documentation! If you have any feedback, please leave a comment in the [issue](https://github.com/ThilinaRajapakse/simpletransformers/issues/342) I've opened for this.
 
