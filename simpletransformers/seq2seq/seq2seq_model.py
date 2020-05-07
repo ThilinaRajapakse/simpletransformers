@@ -38,8 +38,7 @@ class Seq2SeqModel:
         if not config:
             if not (encoder_name and decoder_name):
                 raise ValueError(
-                    "You must specify either a Seq2Seq config or "
-                    "you must specify encoder_name and decoder_name"
+                    "You must specify either a Seq2Seq config or " "you must specify encoder_name and decoder_name"
                 )
 
         if args and "manual_seed" in args:
@@ -83,5 +82,6 @@ class Seq2SeqModel:
 
         self.results = {}
 
-        self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(config=config, encoder=encoder_name, decoder=decoder_name)
-    
+        self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
+            config=config, encoder=encoder_name, decoder=decoder_name
+        )
