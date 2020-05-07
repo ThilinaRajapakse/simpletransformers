@@ -7,18 +7,13 @@ clean:
 	find . -name '*.pyc' -exec rm -f {} +
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f  {} +
-	rm -f .coverage*
-	rm -rf outputs
-	rm -rf cache_dir
-	rm -rf runs
-	rm -rf data
 
 formatter:
-	black simpletransformers tests --exclude simpletransformers/experimental\
+	black --line-length 119 simpletransformers tests --exclude simpletransformers/experimental\
 	
 lint: clean
 	flake8 simpletransformers tests --exclude=simpletransformers/experimental
-	black --check simpletransformers tests --exclude simpletransformers/experimental
+	black --check --line-length 119 . simpletransformers tests --exclude simpletransformers/experimental
 
 types:
 	pytype --keep-going simpletransformers --exclude simpletransformers/experimental 

@@ -1,7 +1,7 @@
-from transformers.modeling_xlm import SequenceSummary, XLMModel, XLMPreTrainedModel
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
+from transformers.modeling_xlm import SequenceSummary, XLMModel, XLMPreTrainedModel
 
 
 class XLMForSequenceClassification(XLMPreTrainedModel):
@@ -69,9 +69,7 @@ class XLMForSequenceClassification(XLMPreTrainedModel):
         output = transformer_outputs[0]
         logits = self.sequence_summary(output)
 
-        outputs = (logits,) + transformer_outputs[
-            1:
-        ]  # Keep new_mems and attention/hidden states if they are here
+        outputs = (logits,) + transformer_outputs[1:]  # Keep new_mems and attention/hidden states if they are here
 
         if labels is not None:
             if self.num_labels == 1:

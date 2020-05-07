@@ -1,6 +1,7 @@
-from simpletransformers.question_answering import QuestionAnsweringModel
 import json
 import os
+
+from simpletransformers.question_answering import QuestionAnsweringModel
 
 
 def test_question_answering():
@@ -34,9 +35,7 @@ def test_question_answering():
                     "id": "00003",
                     "is_impossible": False,
                     "question": "What was the name of the 1937 treaty?",
-                    "answers": [
-                        {"text": "Bald Eagle Protection Act", "answer_start": 167}
-                    ],
+                    "answers": [{"text": "Bald Eagle Protection Act", "answer_start": 167}],
                 },
             ],
         },

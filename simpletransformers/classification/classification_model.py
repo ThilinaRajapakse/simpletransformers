@@ -4,69 +4,75 @@
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import math
 import json
+import logging
+import math
+import os
 import random
 import warnings
-
 from multiprocessing import cpu_count
 
-import torch
 import numpy as np
-import pandas as pd
-
-from scipy.stats import pearsonr, mode
+from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
-    mean_squared_error,
-    matthews_corrcoef,
     confusion_matrix,
     label_ranking_average_precision_score,
+    matthews_corrcoef,
+    mean_squared_error,
 )
-from tensorboardX import SummaryWriter
-from tqdm.auto import trange, tqdm
+from tqdm.auto import tqdm, trange
 
-from torch.utils.data.distributed import DistributedSampler
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-
-from transformers import AdamW, get_linear_schedule_with_warmup
-from transformers import (
-    WEIGHTS_NAME,
-    BertConfig,
-    BertTokenizer,
-    XLNetConfig,
-    XLNetTokenizer,
-    XLMConfig,
-    XLMTokenizer,
-    RobertaConfig,
-    RobertaTokenizer,
-    DistilBertConfig,
-    DistilBertTokenizer,
-    AlbertConfig,
-    AlbertTokenizer,
-    CamembertConfig,
-    CamembertTokenizer,
-    XLMRobertaConfig,
-    XLMRobertaTokenizer,
-)
-
-from simpletransformers.classification.classification_utils import (
-    InputExample,
-    convert_examples_to_features,
-)
-
+import pandas as pd
+import torch
+from simpletransformers.classification.classification_utils import InputExample, convert_examples_to_features
+from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
 from simpletransformers.classification.transformer_models.bert_model import BertForSequenceClassification
+from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
+from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
+from simpletransformers.classification.transformer_models.flaubert_model import FlaubertForSequenceClassification
 from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
 from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
-from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
-from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
-from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
-from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
 from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
-
+from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
 from simpletransformers.config.global_args import global_args
+from simpletransformers.custom_models.models import ElectraForSequenceClassification
+from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from torch.utils.data.distributed import DistributedSampler
+from transformers import (
+    WEIGHTS_NAME,
+    AdamW,
+    AlbertConfig,
+    AlbertTokenizer,
+    BertConfig,
+    BertTokenizer,
+    CamembertConfig,
+    CamembertTokenizer,
+    DistilBertConfig,
+    DistilBertTokenizer,
+    ElectraConfig,
+    ElectraTokenizer,
+    FlaubertConfig,
+    FlaubertTokenizer,
+    RobertaConfig,
+    RobertaTokenizer,
+    XLMConfig,
+    XLMRobertaConfig,
+    XLMRobertaTokenizer,
+    XLMTokenizer,
+    XLNetConfig,
+    XLNetTokenizer,
+    get_linear_schedule_with_warmup,
+)
 
-import wandb
+try:
+    import wandb
+
+    wandb_available = True
+except ImportError:
+    wandb_available = False
+
+logger = logging.getLogger(__name__)
 
 
 class ClassificationModel:
@@ -79,7 +85,7 @@ class ClassificationModel:
 
         Args:
             model_type: The type of model (bert, xlnet, xlm, roberta, distilbert)
-            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
+            model_name: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
             num_labels (optional): The number of labels or classes in the dataset.
             weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
@@ -92,19 +98,40 @@ class ClassificationModel:
             "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
             "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
-            "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer,),
-            "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer,),
+            "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
+            "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
             "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-            "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer,),
-            "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer,),
+            "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
+            "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
+            "flaubert": (FlaubertConfig, FlaubertForSequenceClassification, FlaubertTokenizer),
+            "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
         }
+
+        if args and "manual_seed" in args:
+            random.seed(args["manual_seed"])
+            np.random.seed(args["manual_seed"])
+            torch.manual_seed(args["manual_seed"])
+            if "n_gpu" in args and args["n_gpu"] > 0:
+                torch.cuda.manual_seed_all(args["manual_seed"])
+
+        self.args = {
+            "sliding_window": False,
+            "tie_value": 1,
+            "stride": 0.8,
+            "regression": False,
+        }
+
+        self.args.update(global_args)
+
+        if args:
+            self.args.update(args)
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
-            self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **kwargs)
+            self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **self.args["config"])
             self.num_labels = num_labels
         else:
-            self.config = config_class.from_pretrained(model_name, **kwargs)
+            self.config = config_class.from_pretrained(model_name, **self.args["config"])
             self.num_labels = self.config.num_labels
         self.weight = weight
 
@@ -123,7 +150,6 @@ class ClassificationModel:
             self.device = "cpu"
 
         if self.weight:
-
             self.model = model_class.from_pretrained(
                 model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device), **kwargs,
             )
@@ -132,24 +158,12 @@ class ClassificationModel:
 
         self.results = {}
 
-        self.args = {
-            "sliding_window": False,
-            "tie_value": 1,
-            "stride": 0.8,
-            "regression": False,
-        }
-
-        self.args.update(global_args)
-
         if not use_cuda:
             self.args["fp16"] = False
 
-        if args:
-            self.args.update(args)
-
-        self.tokenizer = tokenizer_class.from_pretrained(model_name,
-                                                         do_lower_case=self.args["do_lower_case"],
-                                                         **kwargs)
+        self.tokenizer = tokenizer_class.from_pretrained(
+            model_name, do_lower_case=self.args["do_lower_case"], **kwargs
+        )
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
@@ -161,15 +175,9 @@ class ClassificationModel:
             )
             self.args["use_multiprocessing"] = False
 
-        self.args["model_name"] = model_name
-        self.args["model_type"] = model_type
-
-        if model_type in ["camembert", "xlmroberta"]:
-            warnings.warn(
-                f"use_multiprocessing automatically disabled as {model_type}"
-                " fails when using multiprocessing for feature conversion."
-            )
-            self.args["use_multiprocessing"] = False
+        if self.args["wandb_project"] and not wandb_available:
+            warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
+            self.args["wandb_project"] = None
 
     def train_model(
         self,
@@ -245,7 +253,7 @@ class ClassificationModel:
 
         train_dataset = self.load_and_cache_examples(train_examples, verbose=verbose)
 
-        os.makedirs(output_dir, exist_ok = True)
+        os.makedirs(output_dir, exist_ok=True)
 
         global_step, tr_loss = self.train(
             train_dataset,
@@ -263,7 +271,7 @@ class ClassificationModel:
         torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
         if verbose:
-            print("Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+            logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
     def train(
         self,
@@ -325,10 +333,33 @@ class ClassificationModel:
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
-        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
+        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"], mininterval=0)
         epoch_number = 0
-        best_eval_loss = None
+        best_eval_metric = None
         early_stopping_counter = 0
+        steps_trained_in_current_epoch = 0
+        epochs_trained = 0
+
+        if args["model_name"] and os.path.exists(args["model_name"]):
+            try:
+                # set global_step to gobal_step of last saved checkpoint from model path
+                checkpoint_suffix = args["model_name"].split("/")[-1].split("-")
+                if len(checkpoint_suffix) > 2:
+                    checkpoint_suffix = checkpoint_suffix[1]
+                else:
+                    checkpoint_suffix = checkpoint_suffix[-1]
+                global_step = int(checkpoint_suffix)
+                epochs_trained = global_step // (len(train_dataloader) // args["gradient_accumulation_steps"])
+                steps_trained_in_current_epoch = global_step % (
+                    len(train_dataloader) // args["gradient_accumulation_steps"]
+                )
+
+                logger.info("   Continuing training from checkpoint, will skip to saved global_step")
+                logger.info("   Continuing training from epoch %d", epochs_trained)
+                logger.info("   Continuing training from global step %d", global_step)
+                logger.info("   Will skip the first %d steps in the current epoch", steps_trained_in_current_epoch)
+            except ValueError:
+                logger.info("   Starting fine-tuning.")
 
         if args["evaluate_during_training"]:
             training_progress_scores = self._create_training_progress_scores(multi_label, **kwargs)
@@ -339,8 +370,14 @@ class ClassificationModel:
 
         model.train()
         for _ in train_iterator:
+            if epochs_trained > 0:
+                epochs_trained -= 1
+                continue
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
             for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])):
+                if steps_trained_in_current_epoch > 0:
+                    steps_trained_in_current_epoch -= 1
+                    continue
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
@@ -401,7 +438,7 @@ class ClassificationModel:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        self._save_model(output_dir_current, model=model)
+                        self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
                     if args["evaluate_during_training"] and (
                         args["evaluate_during_training_steps"] > 0
@@ -412,7 +449,7 @@ class ClassificationModel:
                             eval_df,
                             verbose=verbose and args["evaluate_during_training_verbose"],
                             silent=True,
-                            **kwargs
+                            **kwargs,
                         )
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
@@ -420,7 +457,7 @@ class ClassificationModel:
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
                         if args["save_eval_checkpoints"]:
-                            self._save_model(output_dir_current, model=model, results=results)
+                            self._save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
 
                         training_progress_scores["global_step"].append(global_step)
                         training_progress_scores["train_loss"].append(current_loss)
@@ -428,82 +465,137 @@ class ClassificationModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            args["output_dir"] + "training_progress_scores.csv", index=False,
+                            os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False,
                         )
 
                         if args["wandb_project"]:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
-                        if not best_eval_loss:
-                            best_eval_loss = results["eval_loss"]
-                            self._save_model(args["best_model_dir"], model=model, results=results)
-                        elif results["eval_loss"] - best_eval_loss < args["early_stopping_delta"]:
-                            best_eval_loss = results["eval_loss"]
-                            self._save_model(args["best_model_dir"], model=model, results=results)
-                            early_stopping_counter = 0
+                        if not best_eval_metric:
+                            best_eval_metric = results[args["early_stopping_metric"]]
+                            self._save_model(
+                                args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                            )
+                        if best_eval_metric and args["early_stopping_metric_minimize"]:
+                            if (
+                                results[args["early_stopping_metric"]] - best_eval_metric
+                                < args["early_stopping_delta"]
+                            ):
+                                best_eval_metric = results[args["early_stopping_metric"]]
+                                self._save_model(
+                                    args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                                )
+                                early_stopping_counter = 0
+                            else:
+                                if args["use_early_stopping"]:
+                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                        early_stopping_counter += 1
+                                        if verbose:
+                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" Current step: {early_stopping_counter}")
+                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    else:
+                                        if verbose:
+                                            logger.info(
+                                                f" Patience of {args['early_stopping_patience']} steps reached"
+                                            )
+                                            logger.info(" Training terminated.")
+                                            train_iterator.close()
+                                        return global_step, tr_loss / global_step
                         else:
-                            if args["use_early_stopping"]:
-                                if early_stopping_counter < args["early_stopping_patience"]:
-                                    early_stopping_counter += 1
-                                    if verbose:
-                                        print()
-                                        print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
-                                        print(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                        print()
-                                else:
-                                    if verbose:
-                                        print()
-                                        print(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                        print("Training terminated.")
-                                        print()
-                                    return global_step, tr_loss / global_step
+                            if (
+                                results[args["early_stopping_metric"]] - best_eval_metric
+                                > args["early_stopping_delta"]
+                            ):
+                                best_eval_metric = results[args["early_stopping_metric"]]
+                                self._save_model(
+                                    args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                                )
+                                early_stopping_counter = 0
+                            else:
+                                if args["use_early_stopping"]:
+                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                        early_stopping_counter += 1
+                                        if verbose:
+                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" Current step: {early_stopping_counter}")
+                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    else:
+                                        if verbose:
+                                            logger.info(
+                                                f" Patience of {args['early_stopping_patience']} steps reached"
+                                            )
+                                            logger.info(" Training terminated.")
+                                            train_iterator.close()
+                                        return global_step, tr_loss / global_step
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
-            if (args["save_model_every_epoch"] or args["evaluate_during_training"]):
+            if args["save_model_every_epoch"] or args["evaluate_during_training"]:
                 os.makedirs(output_dir_current, exist_ok=True)
 
             if args["save_model_every_epoch"]:
-                self._save_model(output_dir_current, model=model)
+                self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args["evaluate_during_training"]:
                 results, _, _ = self.eval_model(
                     eval_df, verbose=verbose and args["evaluate_during_training_verbose"], silent=True, **kwargs
                 )
 
-                self._save_model(output_dir_current, results=results)
+                self._save_model(output_dir_current, optimizer, scheduler, results=results)
 
                 training_progress_scores["global_step"].append(global_step)
                 training_progress_scores["train_loss"].append(current_loss)
                 for key in results:
                     training_progress_scores[key].append(results[key])
                 report = pd.DataFrame(training_progress_scores)
-                report.to_csv(args["output_dir"] + "training_progress_scores.csv", index=False)
+                report.to_csv(os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False)
 
-                if not best_eval_loss:
-                    best_eval_loss = results["eval_loss"]
-                    self._save_model(args["best_model_dir"], model=model, results=results)
-                elif results["eval_loss"] - best_eval_loss < args["early_stopping_delta"]:
-                    best_eval_loss = results["eval_loss"]
-                    self._save_model(args["best_model_dir"], model=model, results=results)
-                    early_stopping_counter = 0
+                if args["wandb_project"]:
+                    wandb.log(self._get_last_metrics(training_progress_scores))
+
+                if not best_eval_metric:
+                    best_eval_metric = results[args["early_stopping_metric"]]
+                    self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
+                if best_eval_metric and args["early_stopping_metric_minimize"]:
+                    if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
+                        best_eval_metric = results[args["early_stopping_metric"]]
+                        self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
+                        early_stopping_counter = 0
+                    else:
+                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
+                            if early_stopping_counter < args["early_stopping_patience"]:
+                                early_stopping_counter += 1
+                                if verbose:
+                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" Current step: {early_stopping_counter}")
+                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                            else:
+                                if verbose:
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(" Training terminated.")
+                                    train_iterator.close()
+                                return global_step, tr_loss / global_step
                 else:
-                    if args["use_early_stopping"]:
-                        if early_stopping_counter < args["early_stopping_patience"]:
-                            early_stopping_counter += 1
-                            if verbose:
-                                print()
-                                print(f"No improvement in eval_loss for {early_stopping_counter} steps.")
-                                print(f"Training will stop at {args['early_stopping_patience']} steps.")
-                                print()
-                        else:
-                            if verbose:
-                                print()
-                                print(f"Patience of {args['early_stopping_patience']} steps reached.")
-                                print("Training terminated.")
-                                print()
-                            return global_step, tr_loss / global_step
+                    if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
+                        best_eval_metric = results[args["early_stopping_metric"]]
+                        self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
+                        early_stopping_counter = 0
+                    else:
+                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
+                            if early_stopping_counter < args["early_stopping_patience"]:
+                                early_stopping_counter += 1
+                                if verbose:
+                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" Current step: {early_stopping_counter}")
+                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                            else:
+                                if verbose:
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(" Training terminated.")
+                                    train_iterator.close()
+                                return global_step, tr_loss / global_step
 
         return global_step, tr_loss / global_step
 
@@ -521,7 +613,7 @@ class ClassificationModel:
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
-            result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
+            result: Dictionary containing evaluation results.
             model_outputs: List of model outputs for each row in eval_df
             wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model
         """  # noqa: ignore flake8"
@@ -537,7 +629,7 @@ class ClassificationModel:
         self.results.update(result)
 
         if verbose:
-            print(self.results)
+            logger.info(self.results)
 
         return result, model_outputs, wrong_preds
 
@@ -582,7 +674,7 @@ class ClassificationModel:
             )
         else:
             eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, verbose=verbose, silent=silent)
-        os.makedirs(eval_output_dir,exist_ok = True)
+        os.makedirs(eval_output_dir, exist_ok=True)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
@@ -674,7 +766,8 @@ class ClassificationModel:
         tokenizer = self.tokenizer
         args = self.args
 
-        no_cache = args["no_cache"]
+        if not no_cache:
+            no_cache = args["no_cache"]
 
         if not multi_label and args["regression"]:
             output_mode = "regression"
@@ -692,16 +785,17 @@ class ClassificationModel:
         )
 
         if os.path.exists(cached_features_file) and (
-            (not args["reprocess_input_data"] and not no_cache) or (mode == "dev" and args["use_cached_eval_features"])
+            (not args["reprocess_input_data"] and not no_cache)
+            or (mode == "dev" and args["use_cached_eval_features"] and not no_cache)
         ):
             features = torch.load(cached_features_file)
             if verbose:
-                print(f"Features loaded from cache at {cached_features_file}")
+                logger.info(f" Features loaded from cache at {cached_features_file}")
         else:
             if verbose:
-                print(f"Converting to features started. Cache is not used.")
+                logger.info(f" Converting to features started. Cache is not used.")
                 if args["sliding_window"]:
-                    print("Sliding window enabled")
+                    logger.info(" Sliding window enabled")
             features = convert_examples_to_features(
                 examples,
                 args["max_seq_length"],
@@ -728,7 +822,7 @@ class ClassificationModel:
                 stride=args["stride"],
             )
             if verbose and args["sliding_window"]:
-                print(f"{len(features)} features created from {len(examples)} samples.")
+                logger.info(f" {len(features)} features created from {len(examples)} samples.")
 
             if not no_cache:
                 torch.save(features, cached_features_file)
@@ -788,7 +882,7 @@ class ClassificationModel:
         mcc = matthews_corrcoef(labels, preds)
 
         if self.model.num_labels == 2:
-            tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
+            tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
             return (
                 {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn}, **extra_metrics},
                 wrong,
@@ -838,28 +932,59 @@ class ClassificationModel:
         preds = None
         out_label_ids = None
 
-        for batch in tqdm(eval_dataloader, disable=args["silent"]):
-            model.eval()
-            batch = tuple(t.to(device) for t in batch)
+        if self.config.output_hidden_states:
+            for batch in tqdm(eval_dataloader, disable=args["silent"]):
+                model.eval()
+                batch = tuple(t.to(device) for t in batch)
 
-            with torch.no_grad():
-                inputs = self._get_inputs_dict(batch)
-                outputs = model(**inputs)
-                tmp_eval_loss, logits = outputs[:2]
+                with torch.no_grad():
+                    inputs = self._get_inputs_dict(batch)
+                    outputs = model(**inputs)
+                    tmp_eval_loss, logits = outputs[:2]
+                    embedding_outputs, layer_hidden_states = outputs[2][0], outputs[2][1:]
 
-                if multi_label:
-                    logits = logits.sigmoid()
+                    if multi_label:
+                        logits = logits.sigmoid()
 
-                eval_loss += tmp_eval_loss.mean().item()
+                    eval_loss += tmp_eval_loss.mean().item()
 
-            nb_eval_steps += 1
+                nb_eval_steps += 1
 
-            if preds is None:
-                preds = logits.detach().cpu().numpy()
-                out_label_ids = inputs["labels"].detach().cpu().numpy()
-            else:
-                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+                if preds is None:
+                    preds = logits.detach().cpu().numpy()
+                    out_label_ids = inputs["labels"].detach().cpu().numpy()
+                    all_layer_hidden_states = [state.detach().cpu().numpy() for state in layer_hidden_states]
+                    all_embedding_outputs = embedding_outputs.detach().cpu().numpy()
+                else:
+                    preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                    out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+                    all_layer_hidden_states = np.append(
+                        [state.detach().cpu().numpy() for state in layer_hidden_states], axis=0
+                    )
+                    all_embedding_outputs = np.append(embedding_outputs.detach().cpu().numpy(), axis=0)
+        else:
+            for batch in tqdm(eval_dataloader, disable=args["silent"]):
+                model.eval()
+                batch = tuple(t.to(device) for t in batch)
+
+                with torch.no_grad():
+                    inputs = self._get_inputs_dict(batch)
+                    outputs = model(**inputs)
+                    tmp_eval_loss, logits = outputs[:2]
+
+                    if multi_label:
+                        logits = logits.sigmoid()
+
+                    eval_loss += tmp_eval_loss.mean().item()
+
+                nb_eval_steps += 1
+
+                if preds is None:
+                    preds = logits.detach().cpu().numpy()
+                    out_label_ids = inputs["labels"].detach().cpu().numpy()
+                else:
+                    preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                    out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
 
         eval_loss = eval_loss / nb_eval_steps
 
@@ -900,7 +1025,10 @@ class ClassificationModel:
             else:
                 preds = np.argmax(preds, axis=1)
 
-        return preds, model_outputs
+        if self.config.output_hidden_states:
+            return preds, model_outputs, all_embedding_outputs, all_layer_hidden_states
+        else:
+            return preds, model_outputs
 
     def _threshold(self, x, threshold):
         if x >= threshold:
@@ -963,7 +1091,7 @@ class ClassificationModel:
 
         return training_progress_scores
 
-    def _save_model(self, output_dir, model=None, results=None):
+    def _save_model(self, output_dir, optimizer, scheduler, model=None, results=None):
         os.makedirs(output_dir, exist_ok=True)
 
         if model:
@@ -971,6 +1099,9 @@ class ClassificationModel:
             model_to_save = model.module if hasattr(model, "module") else model
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
+            torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
+            torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+            torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
