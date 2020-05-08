@@ -674,7 +674,7 @@ class T5Model:
         lm_labels = batch[1]
         lm_labels[lm_labels == self.tokenizer.pad_token_id] = -100
 
-        inputs = {"input_ids": batch[0], "lm_labels": batch[1]}
+        inputs = {"input_ids": batch[0], "lm_labels": lm_labels}
 
         return inputs
 
