@@ -19,7 +19,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from transformers import AdamW, EncoderDecoderModel, EncoderDecoderConfig, get_linear_schedule_with_warmup
-from transformers import BertTokenizer
+from transformers import BertTokenizer, BertModel, BertForMaskedLM, RobertaForMaskedLM, RobertaTokenizer, RobertaModel
 
 try:
     import wandb
@@ -33,13 +33,23 @@ logger = logging.getLogger(__name__)
 
 class Seq2SeqModel:
     def __init__(
-        self, encoder_name=None, decoder_name=None, config=None, args=None, use_cuda=True, cuda_device=-1, **kwargs
+        self,
+        encoder_name=None,
+        decoder_name=None,
+        encoder_decoder_name=None,
+        config=None,
+        args=None,
+        use_cuda=True,
+        cuda_device=-1,
+        **kwargs,
     ):
 
         if not config:
-            if not (encoder_name and decoder_name):
+            if not ((encoder_name and decoder_name) or encoder_decoder_name):
                 raise ValueError(
-                    "You must specify either a Seq2Seq config or " "you must specify encoder_name and decoder_name"
+                    "You must specify a Seq2Seq config, "
+                    "both encoder_name and decoder_name, "
+                    "or encoder_decoder_name."
                 )
 
         if args and "manual_seed" in args:
@@ -86,10 +96,23 @@ class Seq2SeqModel:
         if not use_cuda:
             self.args["fp16"] = False
 
-        self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(encoder_name, decoder_name, config=config)
+        # config = EncoderDecoderConfig.from_encoder_decoder_configs(config, config)
 
-        self.encoder_tokenizer = BertTokenizer.from_pretrained(encoder_name)
-        self.decoder_tokenizer = BertTokenizer.from_pretrained(decoder_name)
+        if encoder_decoder_name:
+            # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
+            self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
+                os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
+            )
+            self.model.encoder = RobertaModel.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
+            self.model.decoder = BertForMaskedLM.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
+            self.encoder_tokenizer = RobertaTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
+            self.decoder_tokenizer = BertTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
+        else:
+            self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(encoder_name, decoder_name, config=config)
+            self.encoder_tokenizer = RobertaTokenizer.from_pretrained(encoder_name)
+            self.decoder_tokenizer = BertTokenizer.from_pretrained(decoder_name)
+        self.encoder_config = self.model.config.encoder
+        self.decoder_config = self.model.config.decoder
 
         if self.args["wandb_project"] and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
@@ -155,6 +178,8 @@ class Seq2SeqModel:
             verbose=verbose,
             **kwargs,
         )
+
+        self._save_model(self.args["output_dir"], model=self.model)
 
         model_to_save = self.model.module if hasattr(self.model, "module") else self.model
         model_to_save.save_pretrained(output_dir)
@@ -714,7 +739,7 @@ class Seq2SeqModel:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def _save_model(self, output_dir, optimizer, scheduler, model=None, results=None):
+    def _save_model(self, output_dir, optimizer=None, scheduler=None, model=None, results=None):
         os.makedirs(output_dir, exist_ok=True)
 
         logger.info(f"Saving model into {output_dir}")
@@ -722,12 +747,26 @@ class Seq2SeqModel:
         if model:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
-            model_to_save.save_pretrained(output_dir)
-            self.encoder_tokenizer.save_pretrained(output_dir)
-            self.decoder_tokenizer.save_pretrained(output_dir)
+
+            os.makedirs(os.path.join(output_dir, "encoder"), exist_ok=True)
+            os.makedirs(os.path.join(output_dir, "decoder"), exist_ok=True)
+            self.encoder_config.save_pretrained(os.path.join(output_dir, "encoder"))
+            self.decoder_config.save_pretrained(os.path.join(output_dir, "decoder"))
+
+            model_to_save = self.model.encoder.module if hasattr(self.model.encoder, "module") else self.model.encoder
+            model_to_save.save_pretrained(os.path.join(output_dir, "encoder"))
+
+            model_to_save = self.model.decoder.module if hasattr(self.model.decoder, "module") else self.model.decoder
+
+            model_to_save.save_pretrained(os.path.join(output_dir, "decoder"))
+
+            self.encoder_tokenizer.save_pretrained(os.path.join(output_dir, "encoder"))
+            self.decoder_tokenizer.save_pretrained(os.path.join(output_dir, "decoder"))
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-            torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+            if optimizer:
+                torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+            if scheduler:
+                torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
