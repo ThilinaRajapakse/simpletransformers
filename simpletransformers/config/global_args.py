@@ -33,6 +33,7 @@ global_args = {
     "reprocess_input_data": True,
     "save_eval_checkpoints": True,
     "save_model_every_epoch": True,
+    "save_best_model": True,
     "save_steps": 2000,
     "silent": False,
     "tensorboard_dir": None,
