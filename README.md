@@ -1146,7 +1146,7 @@ model.eval_model("wikitext-2/wiki.test.tokens")
 ### LanguageModelingModel
 
 `class simpletransformers.language_modeling.LanguageModelingModel (model_type, model_name, generator_name=None, discriminator_name=None, args=None, use_cuda=True, cuda_device=-1)`  
-This class is used for Question Answering tasks.
+This class is used for language modeling tasks.
 
 `Class attributes`
 
