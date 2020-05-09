@@ -165,6 +165,12 @@ permalink: /:categories/:title/
 # paginate_path: /page:num/
 timezone: 	Asia/Colombo # https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 
+# Analytics
+analytics:
+  provider               : "google-universal" # false (default), "google", "google-universal", "custom"
+  google:
+    tracking_id          : "UA-80427548-2" # Replace this with your ID, or delete
+    anonymize_ip         : true
 
 # Plugins (previously gems:)
 plugins:
