@@ -29,6 +29,9 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, Tenso
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelForTokenClassification,
     BertConfig,
     BertForTokenClassification,
     BertTokenizer,
@@ -111,12 +114,13 @@ class NERModel:
             self.args.update(args)
 
         MODEL_CLASSES = {
+            "auto": (AutoConfig, AutoTokenizer, AutoModelForTokenClassification),
             "bert": (BertConfig, BertForTokenClassification, BertTokenizer),
-            "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
-            "distilbert": (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
             "camembert": (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer),
-            "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
+            "distilbert": (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForTokenClassification, ElectraTokenizer),
+            "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
+            "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
