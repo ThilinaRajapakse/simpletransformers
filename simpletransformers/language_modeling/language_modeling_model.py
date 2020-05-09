@@ -41,6 +41,9 @@ from torch.utils.data.distributed import DistributedSampler
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelWithLMHead,
     BertConfig,
     BertForMaskedLM,
     BertTokenizer,
@@ -78,13 +81,14 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 MODEL_CLASSES = {
+    "auto": (AutoConfig, AutoModelWithLMHead, AutoTokenizer),
+    "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
+    "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
+    "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
+    "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
     "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
     "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
-    "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
-    "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
-    "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
 }
 
 
