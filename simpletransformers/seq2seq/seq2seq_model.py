@@ -19,7 +19,30 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from transformers import AdamW, EncoderDecoderModel, EncoderDecoderConfig, get_linear_schedule_with_warmup
-from transformers import BertTokenizer, BertModel, BertForMaskedLM, RobertaForMaskedLM, RobertaTokenizer, RobertaModel
+from transformers import (
+    BertTokenizer,
+    BertModel,
+    BertForMaskedLM,
+    RobertaForMaskedLM,
+    RobertaTokenizer,
+    RobertaModel,
+    BertConfig,
+    CamembertConfig,
+    CamembertModel,
+    CamembertTokenizer,
+    DistilBertConfig,
+    DistilBertModel,
+    DistilBertTokenizer,
+    ElectraConfig,
+    ElectraModel,
+    ElectraModel,
+    ElectraTokenizer,
+    PreTrainedModel,
+    PreTrainedTokenizer,
+    RobertaConfig,
+    RobertaModel,
+    RobertaTokenizer,
+)
 
 try:
     import wandb
@@ -30,10 +53,19 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+MODEL_CLASSES = {
+    "bert": (BertConfig, BertModel, BertTokenizer),
+    "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
+    "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
+    "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
+    "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
+}
+
 
 class Seq2SeqModel:
     def __init__(
         self,
+        encoder_type=None,
         encoder_name=None,
         decoder_name=None,
         encoder_decoder_name=None,
@@ -44,12 +76,35 @@ class Seq2SeqModel:
         **kwargs,
     ):
 
+        """
+        Initializes a Seq2SeqModel.
+
+        Args:
+            encoder_type (optional): The type of model to use as the encoder.
+            encoder_name (optional): The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+            decoder_name (optional): The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+                                    Must be the same "size" as the encoder model (base/base, large/large, etc.)
+            encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/")
+            config (optional): A configuration file to build an EncoderDecoderModel.
+            args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
+            use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
+            cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
+            **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
+        """  # noqa: ignore flake8"
+
         if not config:
+            # if not ((encoder_name and decoder_name) or encoder_decoder_name) and not encoder_type:
             if not ((encoder_name and decoder_name) or encoder_decoder_name):
                 raise ValueError(
-                    "You must specify a Seq2Seq config, "
-                    "both encoder_name and decoder_name, "
-                    "or encoder_decoder_name."
+                    "You must specify a Seq2Seq config \t OR \t"
+                    "encoder_type, encoder_name, and decoder_name OR \t \t"
+                    "encoder_type and encoder_decoder_name"
+                )
+            elif not encoder_type:
+                raise ValueError(
+                    "You must specify a Seq2Seq config \t OR \t"
+                    "encoder_type, encoder_name, and decoder_name \t OR \t"
+                    "encoder_type and encoder_decoder_name"
                 )
 
         if args and "manual_seed" in args:
@@ -97,19 +152,20 @@ class Seq2SeqModel:
             self.args["fp16"] = False
 
         # config = EncoderDecoderConfig.from_encoder_decoder_configs(config, config)
+        config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
 
         if encoder_decoder_name:
             # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
             self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
                 os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
             )
-            self.model.encoder = RobertaModel.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
+            self.model.encoder = model_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
             self.model.decoder = BertForMaskedLM.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
-            self.encoder_tokenizer = RobertaTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
+            self.encoder_tokenizer = tokenizer_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
             self.decoder_tokenizer = BertTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
         else:
             self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(encoder_name, decoder_name, config=config)
-            self.encoder_tokenizer = RobertaTokenizer.from_pretrained(encoder_name)
+            self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_name)
             self.decoder_tokenizer = BertTokenizer.from_pretrained(decoder_name)
         self.encoder_config = self.model.config.encoder
         self.decoder_config = self.model.config.decoder
