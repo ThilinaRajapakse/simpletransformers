@@ -20,6 +20,9 @@ from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampl
 from torch.utils.data.distributed import DistributedSampler
 from transformers import AdamW, EncoderDecoderModel, EncoderDecoderConfig, get_linear_schedule_with_warmup
 from transformers import (
+    AutoModel,
+    AutoTokenizer,
+    AutoConfig,
     BertTokenizer,
     BertModel,
     BertForMaskedLM,
@@ -54,6 +57,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 MODEL_CLASSES = {
+    "auto": (AutoConfig, AutoModel, AutoTokenizer),
     "bert": (BertConfig, BertModel, BertTokenizer),
     "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
     "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
