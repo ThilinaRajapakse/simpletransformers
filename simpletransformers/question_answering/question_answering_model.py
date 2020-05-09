@@ -40,6 +40,9 @@ from torch.utils.data.distributed import DistributedSampler
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelForQuestionAnswering,
     AlbertConfig,
     AlbertForQuestionAnswering,
     AlbertTokenizer,
@@ -90,13 +93,14 @@ class QuestionAnsweringModel:
         """  # noqa: ignore flake8"
 
         MODEL_CLASSES = {
+            "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
+            "auto": (AutoConfig, AutoTokenizer, AutoModelForQuestionAnswering),
             "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
+            "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
+            "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
+            "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
             "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
-            "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,),
-            "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
-            "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
-            "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
         }
 
         if args and "manual_seed" in args:
