@@ -13,7 +13,7 @@ from tqdm.auto import tqdm, trange
 import pandas as pd
 import torch
 from simpletransformers.config.global_args import global_args
-from simpletransformers.seq2seq.seq2seq_utils import Seq2SeqDataset
+from simpletransformers.seq2seq.seq2seq_utils import Seq2SeqDataset, SimpleSummarizationDataset
 from tensorboardX import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
@@ -26,9 +26,6 @@ from transformers import (
     BertTokenizer,
     BertModel,
     BertForMaskedLM,
-    RobertaForMaskedLM,
-    RobertaTokenizer,
-    RobertaModel,
     BertConfig,
     CamembertConfig,
     CamembertModel,
@@ -38,13 +35,15 @@ from transformers import (
     DistilBertTokenizer,
     ElectraConfig,
     ElectraModel,
-    ElectraModel,
     ElectraTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
     RobertaConfig,
     RobertaModel,
     RobertaTokenizer,
+    BartForConditionalGeneration,
+    BartTokenizer,
+    BartConfig,
 )
 
 try:
@@ -63,6 +62,7 @@ MODEL_CLASSES = {
     "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
     "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
     "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
+    "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
 }
 
 
@@ -72,6 +72,7 @@ class Seq2SeqModel:
         encoder_type=None,
         encoder_name=None,
         decoder_name=None,
+        encoder_decoder_type=None,
         encoder_decoder_name=None,
         config=None,
         args=None,
@@ -88,7 +89,8 @@ class Seq2SeqModel:
             encoder_name (optional): The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
             decoder_name (optional): The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
                                     Must be the same "size" as the encoder model (base/base, large/large, etc.)
-            encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/")
+            encoder_decoder_type (optional): The type of encoder-decoder model. (E.g. bart)
+            encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART model.
             config (optional): A configuration file to build an EncoderDecoderModel.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
@@ -104,7 +106,7 @@ class Seq2SeqModel:
                     "encoder_type, encoder_name, and decoder_name OR \t \t"
                     "encoder_type and encoder_decoder_name"
                 )
-            elif not encoder_type:
+            elif not (encoder_type or encoder_decoder_type):
                 raise ValueError(
                     "You must specify a Seq2Seq config \t OR \t"
                     "encoder_type, encoder_name, and decoder_name \t OR \t"
@@ -156,29 +158,52 @@ class Seq2SeqModel:
             self.args["fp16"] = False
 
         # config = EncoderDecoderConfig.from_encoder_decoder_configs(config, config)
-        config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
-
-        if encoder_decoder_name:
-            # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
-            self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
-                os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
-            )
-            self.model.encoder = model_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
-            self.model.decoder = BertForMaskedLM.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
-            self.encoder_tokenizer = tokenizer_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
-            self.decoder_tokenizer = BertTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
+        if encoder_decoder_type:
+            config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_decoder_type]
         else:
-            self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(encoder_name, decoder_name, config=config)
-            self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_name)
-            self.decoder_tokenizer = BertTokenizer.from_pretrained(decoder_name)
-        self.encoder_config = self.model.config.encoder
-        self.decoder_config = self.model.config.decoder
+            config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
+
+        if encoder_decoder_type == "bart":
+            self.model = BartForConditionalGeneration.from_pretrained(encoder_decoder_name)
+            self.encoder_tokenizer = BartTokenizer.from_pretrained(encoder_decoder_name)
+            self.decoder_tokenizer = BartTokenizer.from_pretrained(encoder_decoder_name)
+            self.config = self.model.config
+        else:
+            if encoder_decoder_name:
+                # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
+                self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
+                    os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
+                )
+                self.model.encoder = model_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
+                self.model.decoder = BertForMaskedLM.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
+                self.encoder_tokenizer = tokenizer_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
+                self.decoder_tokenizer = BertTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
+            else:
+                self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
+                    encoder_name, decoder_name, config=config
+                )
+                self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_name)
+                self.decoder_tokenizer = BertTokenizer.from_pretrained(decoder_name)
+            self.encoder_config = self.model.config.encoder
+            self.decoder_config = self.model.config.decoder
 
         if self.args["wandb_project"] and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args["wandb_project"] = None
 
-        self.args["model_name"] = "bert"
+        if encoder_decoder_name:
+            self.args["model_name"] = encoder_decoder_name
+        elif encoder_name and decoder_name:
+            self.args["model_name"] = encoder_name + "-" + decoder_name
+        else:
+            self.args["model_name"] = "encoder-decoder"
+
+        if encoder_decoder_type:
+            self.args["model_type"] = encoder_decoder_type
+        elif encoder_type:
+            self.args["model_type"] = encoder_type + "-bert"
+        else:
+            self.args["model_type"] = "encoder-decoder"
 
     def train_model(
         self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs,
@@ -261,7 +286,6 @@ class Seq2SeqModel:
 
         model = self.model
         args = self.args
-        device = self.device
 
         tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
         train_sampler = RandomSampler(train_dataset)
@@ -363,7 +387,7 @@ class Seq2SeqModel:
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
-                batch = tuple(t.to(device) for t in batch)
+                # batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
                 outputs = model(**inputs)
@@ -662,7 +686,7 @@ class Seq2SeqModel:
         model.eval()
 
         for batch in tqdm(eval_dataloader, disable=args["silent"] or silent):
-            batch = tuple(t.to(device) for t in batch)
+            # batch = tuple(t.to(device) for t in batch)
 
             inputs = self._get_inputs_dict(batch)
             with torch.no_grad():
@@ -701,25 +725,33 @@ class Seq2SeqModel:
             to_predict[i : i + self.args["eval_batch_size"]]
             for i in range(0, len(to_predict), self.args["eval_batch_size"])
         ]:
-            if self.args["preprocess_inputs"]:
-                input_ids = self.encoder_tokenizer.batch_encode_plus(
-                    batch, max_length=self.args["max_seq_length"], pad_to_max_length=True, return_tensors="pt",
-                )["input_ids"]
-            else:
-                input_ids = self.encoder_tokenizer.batch_encode_plus(
-                    batch, max_length=self.args["max_seq_length"], pad_to_max_length=True, return_tensors="pt",
-                )["input_ids"]
+            input_ids = self.encoder_tokenizer.batch_encode_plus(
+                batch, max_length=self.args["max_seq_length"], pad_to_max_length=True, return_tensors="pt",
+            )["input_ids"]
             input_ids = input_ids.to(self.device)
-            outputs = self.model.generate(
-                input_ids=input_ids,
-                decoder_start_token_id=self.model.config.decoder.pad_token_id,
-                num_beams=self.args["num_beams"],
-                max_length=self.args["max_length"],
-                length_penalty=self.args["length_penalty"],
-                early_stopping=self.args["early_stopping"],
-                repetition_penalty=self.args["repetition_penalty"],
-                do_sample=self.args["do_sample"],
-            )
+
+            if self.args["model_type"] == "bart":
+                outputs = self.model.generate(
+                    input_ids=input_ids,
+                    num_beams=self.args["num_beams"],
+                    max_length=self.args["max_length"],
+                    length_penalty=self.args["length_penalty"],
+                    early_stopping=self.args["early_stopping"],
+                    repetition_penalty=self.args["repetition_penalty"],
+                    do_sample=self.args["do_sample"],
+                )
+            else:
+                outputs = self.model.generate(
+                    input_ids=input_ids,
+                    decoder_start_token_id=self.model.config.decoder.pad_token_id,
+                    num_beams=self.args["num_beams"],
+                    max_length=self.args["max_length"],
+                    length_penalty=self.args["length_penalty"],
+                    early_stopping=self.args["early_stopping"],
+                    repetition_penalty=self.args["repetition_penalty"],
+                    do_sample=self.args["do_sample"],
+                )
+
             all_outputs.extend(outputs)
 
         return [
@@ -749,18 +781,6 @@ class Seq2SeqModel:
 
         return results
 
-    def _move_model_to_device(self):
-        self.model.to(self.device)
-
-    def _get_inputs_dict(self, batch):
-        lm_labels = batch[1]
-        lm_labels_masked = lm_labels.clone()
-        lm_labels_masked[lm_labels_masked == self.decoder_tokenizer.pad_token_id] = -100
-
-        inputs = {"input_ids": batch[0], "decoder_input_ids": lm_labels, "lm_labels": lm_labels_masked}
-
-        return inputs
-
     def load_and_cache_examples(self, data, evaluate=False, no_cache=False, verbose=True, silent=False):
         """
         Creates a T5Dataset from data.
@@ -783,7 +803,10 @@ class Seq2SeqModel:
             CustomDataset = args["dataset_class"]
             return CustomDataset(encoder_tokenizer, decoder_tokenizer, args, data, mode)
         else:
-            return Seq2SeqDataset(encoder_tokenizer, decoder_tokenizer, self.args, data, mode,)
+            if args["model_type"] == "bart":
+                return SimpleSummarizationDataset(encoder_tokenizer, self.args, data, mode)
+            else:
+                return Seq2SeqDataset(encoder_tokenizer, decoder_tokenizer, self.args, data, mode,)
 
     def _create_training_progress_scores(self, **kwargs):
         extra_metrics = {key: [] for key in kwargs}
@@ -808,20 +831,31 @@ class Seq2SeqModel:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
 
-            os.makedirs(os.path.join(output_dir, "encoder"), exist_ok=True)
-            os.makedirs(os.path.join(output_dir, "decoder"), exist_ok=True)
-            self.encoder_config.save_pretrained(os.path.join(output_dir, "encoder"))
-            self.decoder_config.save_pretrained(os.path.join(output_dir, "decoder"))
+            if self.args["model_type"] == "bart":
+                os.makedirs(os.path.join(output_dir), exist_ok=True)
+                model_to_save.save_pretrained(output_dir)
+                self.encoder_tokenizer.save_pretrained(output_dir)
+                self.config.save_pretrained(output_dir)
+            else:
+                os.makedirs(os.path.join(output_dir, "encoder"), exist_ok=True)
+                os.makedirs(os.path.join(output_dir, "decoder"), exist_ok=True)
+                self.encoder_config.save_pretrained(os.path.join(output_dir, "encoder"))
+                self.decoder_config.save_pretrained(os.path.join(output_dir, "decoder"))
 
-            model_to_save = self.model.encoder.module if hasattr(self.model.encoder, "module") else self.model.encoder
-            model_to_save.save_pretrained(os.path.join(output_dir, "encoder"))
+                model_to_save = (
+                    self.model.encoder.module if hasattr(self.model.encoder, "module") else self.model.encoder
+                )
+                model_to_save.save_pretrained(os.path.join(output_dir, "encoder"))
 
-            model_to_save = self.model.decoder.module if hasattr(self.model.decoder, "module") else self.model.decoder
+                model_to_save = (
+                    self.model.decoder.module if hasattr(self.model.decoder, "module") else self.model.decoder
+                )
 
-            model_to_save.save_pretrained(os.path.join(output_dir, "decoder"))
+                model_to_save.save_pretrained(os.path.join(output_dir, "decoder"))
 
-            self.encoder_tokenizer.save_pretrained(os.path.join(output_dir, "encoder"))
-            self.decoder_tokenizer.save_pretrained(os.path.join(output_dir, "decoder"))
+                self.encoder_tokenizer.save_pretrained(os.path.join(output_dir, "encoder"))
+                self.decoder_tokenizer.save_pretrained(os.path.join(output_dir, "decoder"))
+
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
             if optimizer:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
@@ -833,3 +867,34 @@ class Seq2SeqModel:
             with open(output_eval_file, "w") as writer:
                 for key in sorted(results.keys()):
                     writer.write("{} = {}\n".format(key, str(results[key])))
+
+    def _move_model_to_device(self):
+        self.model.to(self.device)
+
+    def _get_inputs_dict(self, batch):
+        device = self.device
+        if self.args["model_type"] == "bart":
+            pad_token_id = self.encoder_tokenizer.pad_token_id
+            source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
+            y_ids = y[:, :-1].contiguous()
+            lm_labels = y[:, 1:].clone()
+            lm_labels[y[:, 1:] == pad_token_id] = -100
+
+            inputs = {
+                "input_ids": source_ids.to(device),
+                "attention_mask": source_mask.to(device),
+                "decoder_input_ids": y_ids.to(device),
+                "lm_labels": lm_labels.to(device),
+            }
+        else:
+            lm_labels = batch[1]
+            lm_labels_masked = lm_labels.clone()
+            lm_labels_masked[lm_labels_masked == self.decoder_tokenizer.pad_token_id] = -100
+
+            inputs = {
+                "input_ids": batch[0].to(device),
+                "decoder_input_ids": lm_labels.to(device),
+                "lm_labels": lm_labels_masked.to(device),
+            }
+
+        return inputs
