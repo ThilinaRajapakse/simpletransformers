@@ -733,7 +733,7 @@ Args:
 
 Returns:
 * preds: A Python list of lists with dicts containg each word mapped to its NER tag.
-* model_outputs: A python list of the raw model outputs for each text.
+* model_outputs: A Python list of lists with dicts containing each word mapped to its list with raw model output.
 
 
 **`train(self, train_dataset, output_dir)`**
