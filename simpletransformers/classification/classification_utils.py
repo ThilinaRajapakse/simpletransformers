@@ -24,9 +24,14 @@ from collections import Counter
 from io import open
 from multiprocessing import Pool, cpu_count
 
-import torchvision
-import torchvision.transforms as transforms
-from PIL import Image
+try:
+    import torchvision
+    import torchvision.transforms as transforms
+    torchvision_available = True
+    from PIL import Image
+except ImportError:
+    torchvision_available = False
+    
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
 from tqdm.auto import tqdm
