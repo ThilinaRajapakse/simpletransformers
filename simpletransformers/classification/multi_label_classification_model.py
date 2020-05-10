@@ -96,6 +96,13 @@ class MultiLabelClassificationModel(ClassificationModel):
 
         self.args.update(global_args)
 
+        saved_model_args = self._load_model_args(model_name)
+        if saved_model_args:
+            self.args.update(saved_model_args)
+
+        if args:
+            self.args.update(args)
+
         if not use_cuda:
             self.args["fp16"] = False
 

@@ -492,7 +492,7 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
         **attentions**: (`optional`, returned when ``config.output_attentions=True``)
             list of ``torch.FloatTensor`` (one for each layer) of shape ``(batch_size, num_heads, sequence_length, sequence_length)``:
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention heads.
-    """ # noqa
+    """  # noqa
     config_class = ElectraConfig
     pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP
     base_model_prefix = "electra"

@@ -107,6 +107,13 @@ class NERModel:
         self.args = {"classification_report": False}
         self.args.update(global_args)
 
+        saved_model_args = self._load_model_args(model_name)
+        if saved_model_args:
+            self.args.update(saved_model_args)
+
+        if args:
+            self.args.update(args)
+
         if not use_cuda:
             self.args["fp16"] = False
 
@@ -169,7 +176,9 @@ class NERModel:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args["wandb_project"] = None
 
-    def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs):
+    def train_model(
+        self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs
+    ):
         """
         Trains the model using 'train_data'
 
@@ -398,7 +407,9 @@ class NERModel:
                         and global_step % args["evaluate_during_training_steps"] == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results, _, _ = self.eval_model(eval_data, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs)
+                        results, _, _ = self.eval_model(
+                            eval_data, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs
+                        )
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
@@ -489,7 +500,9 @@ class NERModel:
                 self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args["evaluate_during_training"]:
-                results, _, _ = self.eval_model(eval_data, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs)
+                results, _, _ = self.eval_model(
+                    eval_data, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs
+                )
 
                 self._save_model(output_dir_current, optimizer, scheduler, results=results)
 
@@ -575,7 +588,9 @@ class NERModel:
 
         eval_dataset = self.load_and_cache_examples(eval_data, evaluate=True)
 
-        result, model_outputs, preds_list = self.evaluate(eval_dataset, output_dir, verbose=verbose, silent=silent, **kwargs)
+        result, model_outputs, preds_list = self.evaluate(
+            eval_dataset, output_dir, verbose=verbose, silent=silent, **kwargs
+        )
         self.results.update(result)
 
         if verbose:
@@ -657,7 +672,7 @@ class NERModel:
             "precision": precision_score(out_label_list, preds_list),
             "recall": recall_score(out_label_list, preds_list),
             "f1_score": f1_score(out_label_list, preds_list),
-            **extra_metrics
+            **extra_metrics,
         }
 
         results.update(result)
@@ -686,7 +701,7 @@ class NERModel:
         Returns:
             preds: A Python list of lists with dicts containing each word mapped to its NER tag.
             model_outputs: A Python list of lists with dicts containing each word mapped to its list with raw model output.
-        """
+        """  # noqa: ignore flake8"
 
         device = self.device
         model = self.model
@@ -697,9 +712,7 @@ class NERModel:
 
         if split_on_space:
             predict_examples = [
-                InputExample(
-                    i, sentence.split(), [self.labels[0] for word in sentence.split()]
-                )
+                InputExample(i, sentence.split(), [self.labels[0] for word in sentence.split()])
                 for i, sentence in enumerate(to_predict)
             ]
         else:
@@ -711,9 +724,7 @@ class NERModel:
         eval_dataset = self.load_and_cache_examples(None, to_predict=predict_examples)
 
         eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(
-            eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"]
-        )
+        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
 
         eval_loss = 0.0
         nb_eval_steps = 0
@@ -747,16 +758,10 @@ class NERModel:
                 out_attention_mask = inputs["attention_mask"].detach().cpu().numpy()
             else:
                 preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                out_label_ids = np.append(
-                    out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0
-                )
-                out_input_ids = np.append(
-                    out_input_ids, inputs["input_ids"].detach().cpu().numpy(), axis=0
-                )
+                out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+                out_input_ids = np.append(out_input_ids, inputs["input_ids"].detach().cpu().numpy(), axis=0)
                 out_attention_mask = np.append(
-                    out_attention_mask,
-                    inputs["attention_mask"].detach().cpu().numpy(),
-                    axis=0,
+                    out_attention_mask, inputs["attention_mask"].detach().cpu().numpy(), axis=0,
                 )
 
         eval_loss = eval_loss / nb_eval_steps
@@ -775,35 +780,24 @@ class NERModel:
                     preds_list[i].append(label_map[preds[i][j]])
 
         preds = [
-            [
-                {word: preds_list[i][j]}
-                for j, word in enumerate(sentence.split()[: len(preds_list[i])])
-            ]
+            [{word: preds_list[i][j]} for j, word in enumerate(sentence.split()[: len(preds_list[i])])]
             for i, sentence in enumerate(to_predict)
         ]
 
         word_tokens = []
         for n, sentence in enumerate(to_predict):
             w_log = self._convert_tokens_to_word_logits(
-                out_input_ids[n],
-                out_label_ids[n],
-                out_attention_mask[n],
-                token_logits[n],
+                out_input_ids[n], out_label_ids[n], out_attention_mask[n], token_logits[n],
             )
             word_tokens.append(w_log)
 
         model_outputs = [
-            [
-                {word: word_tokens[i][j]}
-                for j, word in enumerate(sentence.split()[: len(preds_list[i])])
-            ]
+            [{word: word_tokens[i][j]} for j, word in enumerate(sentence.split()[: len(preds_list[i])])]
             for i, sentence in enumerate(to_predict)
         ]
         return preds, model_outputs
 
-    def _convert_tokens_to_word_logits(
-        self, input_ids, label_ids, attention_mask, logits
-    ):
+    def _convert_tokens_to_word_logits(self, input_ids, label_ids, attention_mask, logits):
 
         ignore_ids = [
             self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token),
@@ -961,9 +955,22 @@ class NERModel:
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
             torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
             torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+            self._save_model_args(output_dir)
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
             with open(output_eval_file, "w") as writer:
                 for key in sorted(results.keys()):
                     writer.write("{} = {}\n".format(key, str(results[key])))
+
+    def _save_model_args(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
+            json.dump(self.args, f)
+
+    def _load_model_args(self, input_dir):
+        model_args_file = os.path.join(input_dir, "model_args.json")
+        if os.path.isfile(model_args_file):
+            with open(model_args_file, "r") as f:
+                model_args = json.load(f)
+            return model_args
