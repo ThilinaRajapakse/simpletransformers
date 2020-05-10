@@ -28,10 +28,10 @@ try:
     import torchvision
     import torchvision.transforms as transforms
     torchvision_available = True
+    from PIL import Image
 except ImportError:
     torchvision_available = False
     
-from PIL import Image
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
 from tqdm.auto import tqdm
