@@ -4,28 +4,22 @@ import pandas as pd
 from simpletransformers.classification import ClassificationModel
 
 
-prefix = 'data/'
+prefix = "data/"
 
-train_df = pd.read_csv(prefix + 'train.csv', header=None)
+train_df = pd.read_csv(prefix + "train.csv", header=None)
 train_df.head()
 
-eval_df = pd.read_csv(prefix + 'test.csv', header=None)
+eval_df = pd.read_csv(prefix + "test.csv", header=None)
 eval_df.head()
 
 train_df[0] = (train_df[0] == 2).astype(int)
 eval_df[0] = (eval_df[0] == 2).astype(int)
 
-train_df = pd.DataFrame({
-    'text': train_df[1].replace(r'\n', ' ', regex=True),
-    'labels': train_df[0]
-})
+train_df = pd.DataFrame({"text": train_df[1].replace(r"\n", " ", regex=True), "labels": train_df[0]})
 
 print(train_df.head())
 
-eval_df = pd.DataFrame({
-    'text': eval_df[1].replace(r'\n', ' ', regex=True),
-    'labels': eval_df[0]
-})
+eval_df = pd.DataFrame({"text": eval_df[1].replace(r"\n", " ", regex=True), "labels": eval_df[0]})
 
 print(eval_df.head())
 
@@ -52,7 +46,7 @@ elif model_type == "electra-base":
 elif model_type == "electra-small":
     model_type = "electra"
     model_name = "google/electra-small-discriminator"
-    
+
 elif model_type == "xlnet":
     model_name = "xlnet-base-cased"
 
@@ -70,16 +64,13 @@ train_args = {
     "wandb_kwargs": {"name": model_name},
     "save_model_every_epoch": False,
     "save_eval_checkpoints": False,
-
     # "use_early_stopping": True,
     # "early_stopping_metric": "mcc",
     # "n_gpu": 2,
-
     # "manual_seed": 4,
     # "use_multiprocessing": False,
     "train_batch_size": 128,
     "eval_batch_size": 64,
-
     # "config": {
     #     "output_hidden_states": True
     # }

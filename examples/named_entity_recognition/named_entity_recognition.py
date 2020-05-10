@@ -49,17 +49,17 @@ result, model_outputs, predictions = model.eval_model(eval_df)
 
 
 # Predictions on arbitary text strings
-sentences = ["Some arbitary sentence","Simple Transformers sentence"]
+sentences = ["Some arbitary sentence", "Simple Transformers sentence"]
 predictions, raw_outputs = model.predict(sentences)
 
 print(predictions)
 
-# More detailed preditctions 
-for n,(preds,outs) in enumerate(zip(predictions,raw_outputs)):
+# More detailed preditctions
+for n, (preds, outs) in enumerate(zip(predictions, raw_outputs)):
     print("\n___________________________")
-    print("Sentence: ",sentences[n])
+    print("Sentence: ", sentences[n])
     for pred, out in zip(preds, outs):
         key = list(pred.keys())[0]
         new_out = out[key]
-        preds  = list(softmax(np.mean(new_out,axis=0)))
-        print(key,pred[key],preds[np.argmax(preds)],preds)
+        preds = list(softmax(np.mean(new_out, axis=0)))
+        print(key, pred[key], preds[np.argmax(preds)], preds)
