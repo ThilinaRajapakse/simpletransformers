@@ -44,6 +44,9 @@ from transformers import (
     BartForConditionalGeneration,
     BartTokenizer,
     BartConfig,
+    MarianMTModel,
+    MarianSentencePieceTokenizer,
+    MarianConfig,
 )
 
 try:
@@ -63,6 +66,7 @@ MODEL_CLASSES = {
     "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
     "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
     "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
+    "marian": (MarianConfig, MarianMTModel, MarianSentencePieceTokenizer),
 }
 
 
@@ -135,6 +139,10 @@ class Seq2SeqModel:
 
         self.args.update(global_args)
 
+        saved_model_args = self._load_model_args(encoder_decoder_name)
+        if saved_model_args:
+            self.args.update(saved_model_args)
+
         if args:
             self.args.update(args)
 
@@ -163,10 +171,16 @@ class Seq2SeqModel:
         else:
             config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
 
-        if encoder_decoder_type == "bart":
-            self.model = BartForConditionalGeneration.from_pretrained(encoder_decoder_name)
-            self.encoder_tokenizer = BartTokenizer.from_pretrained(encoder_decoder_name)
-            self.decoder_tokenizer = BartTokenizer.from_pretrained(encoder_decoder_name)
+        if encoder_decoder_type in ["bart", "marian"]:
+            self.model = model_class.from_pretrained(encoder_decoder_name)
+            if encoder_decoder_type == "bart":
+                self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
+            elif encoder_decoder_type == "marian":
+                if "base_marian_model_name" in self.args:
+                    self.encoder_tokenizer = tokenizer_class.from_pretrained(self.args["base_marian_model_name"])
+                else:
+                    self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
+            self.decoder_tokenizer = self.encoder_tokenizer
             self.config = self.model.config
         else:
             if encoder_decoder_name:
@@ -193,6 +207,12 @@ class Seq2SeqModel:
 
         if encoder_decoder_name:
             self.args["model_name"] = encoder_decoder_name
+
+            # Checking if we are loading from a saved model or using a pre-trained model
+            if not saved_model_args and encoder_decoder_type == "marian":
+                # Need to store base pre-trained model name to get the tokenizer when loading a saved model
+                self.args["base_marian_model_name"] = encoder_decoder_name
+
         elif encoder_name and decoder_name:
             self.args["model_name"] = encoder_name + "-" + decoder_name
         else:
@@ -266,11 +286,11 @@ class Seq2SeqModel:
 
         self._save_model(self.args["output_dir"], model=self.model)
 
-        model_to_save = self.model.module if hasattr(self.model, "module") else self.model
-        model_to_save.save_pretrained(output_dir)
-        self.encoder_tokenizer.save_pretrained(output_dir)
-        self.decoder_tokenizer.save_pretrained(output_dir)
-        torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
+        # model_to_save = self.model.module if hasattr(self.model, "module") else self.model
+        # model_to_save.save_pretrained(output_dir)
+        # self.encoder_tokenizer.save_pretrained(output_dir)
+        # self.decoder_tokenizer.save_pretrained(output_dir)
+        # torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_name"], output_dir))
@@ -671,7 +691,6 @@ class Seq2SeqModel:
         model = self.model
         args = self.args
         eval_output_dir = output_dir
-        device = self.device
 
         results = {}
 
@@ -730,7 +749,7 @@ class Seq2SeqModel:
             )["input_ids"]
             input_ids = input_ids.to(self.device)
 
-            if self.args["model_type"] == "bart":
+            if self.args["model_type"] in ["bart", "marian"]:
                 outputs = self.model.generate(
                     input_ids=input_ids,
                     num_beams=self.args["num_beams"],
@@ -803,7 +822,7 @@ class Seq2SeqModel:
             CustomDataset = args["dataset_class"]
             return CustomDataset(encoder_tokenizer, decoder_tokenizer, args, data, mode)
         else:
-            if args["model_type"] == "bart":
+            if args["model_type"] in ["bart", "marian"]:
                 return SimpleSummarizationDataset(encoder_tokenizer, self.args, data, mode)
             else:
                 return Seq2SeqDataset(encoder_tokenizer, decoder_tokenizer, self.args, data, mode,)
@@ -830,12 +849,14 @@ class Seq2SeqModel:
         if model:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
+            self._save_model_args(output_dir)
 
-            if self.args["model_type"] == "bart":
+            if self.args["model_type"] in ["bart", "marian"]:
                 os.makedirs(os.path.join(output_dir), exist_ok=True)
                 model_to_save.save_pretrained(output_dir)
-                self.encoder_tokenizer.save_pretrained(output_dir)
                 self.config.save_pretrained(output_dir)
+                if self.args["model_type"] == "bart":
+                    self.encoder_tokenizer.save_pretrained(output_dir)
             else:
                 os.makedirs(os.path.join(output_dir, "encoder"), exist_ok=True)
                 os.makedirs(os.path.join(output_dir, "decoder"), exist_ok=True)
@@ -873,7 +894,7 @@ class Seq2SeqModel:
 
     def _get_inputs_dict(self, batch):
         device = self.device
-        if self.args["model_type"] == "bart":
+        if self.args["model_type"] in ["bart", "marian"]:
             pad_token_id = self.encoder_tokenizer.pad_token_id
             source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
             y_ids = y[:, :-1].contiguous()
@@ -898,3 +919,15 @@ class Seq2SeqModel:
             }
 
         return inputs
+
+    def _save_model_args(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
+            json.dump(self.args, f)
+
+    def _load_model_args(self, input_dir):
+        model_args_file = os.path.join(input_dir, "model_args.json")
+        if os.path.isfile(model_args_file):
+            with open(model_args_file, "r") as f:
+                model_args = json.load(f)
+            return model_args
