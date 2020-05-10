@@ -4,10 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.27.4] - 2020-05-10
+## [0.27.4] - 2020-05-11
 
 ### Added
 
+- Sequence-to-Sequence task support added. This includes the following models:
+  - BART
+  - Marian
+  - Generic Encoder-Decoder
 - The `args` dict of a task-specific Simple Transformers model is now saved along with the model. When loading the model, these values will be read and used.
 Any new `args` passed into the model initialization will override the loaded values.
 
@@ -679,7 +683,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.27.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bc94b34...HEAD
+[0.27.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/402bd8e...HEAD
+
+[0.27.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bc94b34...402bd8e
 
 [0.27.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d665494...bc94b34
 

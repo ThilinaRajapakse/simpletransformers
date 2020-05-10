@@ -134,7 +134,6 @@ class Seq2SeqModel:
             "repetition_penalty": 1.0,
             "length_penalty": 2.0,
             "early_stopping": True,
-            "preprocess_inputs": True,
         }
 
         self.args.update(global_args)
@@ -232,10 +231,9 @@ class Seq2SeqModel:
         Trains the model using 'train_data'
 
         Args:
-            train_data: Pandas DataFrame containing the 3 columns - `prefix`, `input_text`, `target_text`.
-                        - `prefix`: A string indicating the task to perform. (E.g. `"question"`, `"stsb"`)
-                        - `input_text`: The input text sequence. `prefix` is automatically prepended to form the full input. (<prefix>: <input_text>)
-                        - `target_text`: The target sequence
+            train_data: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
+                        - `input_text`: The input text sequence.
+                        - `target_text`: The target sequence         
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
@@ -644,9 +642,8 @@ class Seq2SeqModel:
         Evaluates the model on eval_data. Saves results to output_dir.
 
         Args:
-            eval_data: Pandas DataFrame containing the 3 columns - `prefix`, `input_text`, `target_text`.
-                        - `prefix`: A string indicating the task to perform. (E.g. `"question"`, `"stsb"`)
-                        - `input_text`: The input text sequence. `prefix` is automatically prepended to form the full input. (<prefix>: <input_text>)
+            eval_data: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
+                        - `input_text`: The input text sequence.
                         - `target_text`: The target sequence            
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
