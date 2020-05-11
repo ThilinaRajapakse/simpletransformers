@@ -41,7 +41,7 @@ docs:
         url: /docs/usage/
   - title: Text Classification
     children:
-      - title: "Classification Introduction"
+      - title: "Classification Specifics"
         url: /docs/classification-specifics/
       - title: "Classification Models"
         url: /docs/classification-models/
@@ -60,13 +60,23 @@ docs:
   - title: Named Entity Recognition
     children:
       - title: "NER Specifics"
-        url: /docs/ner-specifics
+        url: /docs/ner-specifics/
       - title: "NER Model"
-        url: /docs/ner-model
+        url: /docs/ner-model/
       - title: "NER Data Formats"
         url: /docs/ner-data-formats/
       - title: "NER Minimal Start"
         url: /docs/ner-minimal-start/
+  - title: Question Answering
+    children:
+      - title: "Question Answering Specifics"
+        url: /docs/qa-specifics/
+      - title: "Question Answering Model"
+        url: /docs/qa-model/
+      - title: "Question Answering Data Formats"
+        url: /docs/qa-data-formats/
+      - title: "Question Answering Minimal Start"
+        url: /docs/qa-minimal-start/
   - title: Meta
     children:
       - title: "History"
@@ -77,6 +87,8 @@ docs:
         url: /docs/docs-old/
       - title: "License"
         url: /docs/license/
+      - title: "Privacy"
+        url: /terms/
 
 
 # portfolio links

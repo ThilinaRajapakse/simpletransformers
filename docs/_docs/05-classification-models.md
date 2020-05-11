@@ -132,7 +132,7 @@ model = ClassificationModel(
 | sliding_window | bool       | `False` | Whether to use sliding window technique to prevent truncating longer sequences                                                                        |
 | tie_value      | int        | `1`     | The tie_value will be used as the prediction label for any samples where the sliding window predictions are tied                                      |
 | stride         | float/int  | `0.8`   | The distance to move the window when generating sub-sequences using a sliding window. Can be a fraction of the `max_seq_length` OR a number of tokens |
-| regression     | regression | `False` | Set True when doing regression. `num_labels` parameter in the model must also be set to `1`.                                                          |
+| regression     | int | `False` | Set True when doing regression. `num_labels` parameter in the model must also be set to `1`.                                                          |
 
 ```python
 model_args = {

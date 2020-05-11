@@ -6,8 +6,14 @@ last_modified_at: 2020-05-02 17:58:53
 ---
 
 ```python
-from simpletransformers.classification import NERModel
+import logging
 
+from simpletransformers.ner import NERModel
+
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
 
 train_data = [
     [0, "Harry", "B-PER"],
