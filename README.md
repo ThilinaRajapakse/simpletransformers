@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-25-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-27-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -26,9 +26,9 @@ Supports
 
 #### 2020-05-03
 
-**New documentation is now live at https://thilinarajapakse.github.io/simpletransformers/**
+**New documentation is now live at [simpletransformers.ai](https://simpletransformers.ai/)**
 
-Only text classification tasks are added so far but the others will follow in the next few days. Any feedback will be immensely helpful in improving the documentation! If you have any feedback, please leave a comment in the [issue](https://github.com/ThilinaRajapakse/simpletransformers/issues/342) I've opened for this.
+Only text classification and NER tasks are added so far but the others will follow in the next few days. Any feedback will be immensely helpful in improving the documentation! If you have any feedback, please leave a comment in the [issue](https://github.com/ThilinaRajapakse/simpletransformers/issues/342) I've opened for this.
 
 #### 2020-04-27
 
@@ -98,6 +98,7 @@ Only text classification tasks are added so far but the others will follow in th
     - [*discriminator_config: dict*](#discriminatorconfig-dict)
   - [Language Generation](#language-generation)
       - [Minimal Start](#minimal-start-1)
+      - [Real Dataset Examples](#real-dataset-examples-3)
       - [LanguageGenerationModel](#languagegenerationmodel)
     - [Additional attributes for Language Generation tasks](#additional-attributes-for-language-generation-tasks)
       - [*do_sample: bool*](#dosample-bool)
@@ -116,9 +117,9 @@ Only text classification tasks are added so far but the others will follow in th
     - [Data Format](#data-format-2)
       - [Train and evaluation input formats](#train-and-evaluation-input-formats)
       - [Prediction data format](#prediction-data-format)
-      - [Minimal Start](#minimal-start-2)
-      - [Evaluating with custom metrics](#evaluating-with-custom-metrics)
-      - [T5Model](#t5model)
+    - [Minimal Start](#minimal-start-2)
+    - [Evaluating with custom metrics](#evaluating-with-custom-metrics)
+    - [T5Model](#t5model)
     - [Additional attributes for T5 Model](#additional-attributes-for-t5-model)
       - [*dataset_class: Subclass of Pytorch Dataset*](#datasetclass-subclass-of-pytorch-dataset-1)
       - [*do_sample: bool*](#dosample-bool-1)
@@ -130,8 +131,32 @@ Only text classification tasks are added so far but the others will follow in th
       - [*length_penalty: float*](#lengthpenalty-float)
       - [*early_stopping: bool*](#earlystopping-bool)
       - [*preprocess_inputs: bool*](#preprocessinputs-bool)
+  - [Sequence-to-Sequence Models](#sequence-to-sequence-models)
+    - [Types of Sequence-to-Sequence Models](#types-of-sequence-to-sequence-models)
+      - [BART](#bart)
+      - [Marian](#marian)
+      - [Encoder-Decoder](#encoder-decoder)
+    - [Data Format](#data-format-3)
+      - [Train and evaluation input formats](#train-and-evaluation-input-formats-1)
+      - [Prediction data format](#prediction-data-format-1)
+    - [Minimal Starts For Sequence-to-Sequence Tasks](#minimal-starts-for-sequence-to-sequence-tasks)
+      - [BART minimal start](#bart-minimal-start)
+      - [Marian minimal start](#marian-minimal-start)
+      - [Generic Encoder-Decoder minimal start](#generic-encoder-decoder-minimal-start)
+      - [Evaluating with custom metrics](#evaluating-with-custom-metrics-1)
+    - [Seq2SeqModel](#seq2seqmodel)
+    - [Additional attributes for `Seq2SeqModel`](#additional-attributes-for-seq2seqmodel)
+      - [*dataset_class: Subclass of Pytorch Dataset*](#datasetclass-subclass-of-pytorch-dataset-2)
+      - [*do_sample: bool*](#dosample-bool-2)
+      - [*max_steps: int*](#maxsteps-int-2)
+      - [*evaluate_generated_text: bool*](#evaluategeneratedtext-bool-1)
+      - [*num_beams: int*](#numbeams-int-1)
+      - [*max_lemgth: int*](#maxlemgth-int-1)
+      - [*repetition_penalty: float*](#repetitionpenalty-float-2)
+      - [*length_penalty: float*](#lengthpenalty-float-1)
+      - [*early_stopping: bool*](#earlystopping-bool-1)
   - [Conversational AI](#conversational-ai)
-    - [Data format](#data-format-3)
+    - [Data format](#data-format-4)
     - [Minimal Example](#minimal-example-1)
     - [Real Dataset Example](#real-dataset-example)
     - [ConvAIModel](#convaimodel)
@@ -148,7 +173,7 @@ Only text classification tasks are added so far but the others will follow in th
       - [*top_k: float*](#topk-float)
       - [*top_p: float*](#topp-float)
   - [Multi-Modal Classification](#multi-modal-classification)
-    - [Data format](#data-format-4)
+    - [Data format](#data-format-5)
       - [1 - Directory based](#1---directory-based)
       - [2 - Directory and file list](#2---directory-and-file-list)
       - [3 - Pandas DataFrame](#3---pandas-dataframe)
@@ -479,6 +504,7 @@ print(raw_outputs)
 * [Toxic Comments Dataset - Multilabel Classification](https://towardsdatascience.com/multi-label-classification-using-bert-roberta-xlnet-xlm-and-distilbert-with-simple-transformers-b3e0cda12ce5?source=friends_link&sk=354e688fe238bfb43e9a575216816219)
 * [Semantic Textual Similarity Benchmark - Sentence Pair](https://medium.com/@chaturangarajapakshe/solving-sentence-pair-tasks-using-simple-transformers-2496fe79d616?source=friends_link&sk=fbf7439e9c31f7aefa1613d423a0fd40)
 * [AG News Dataset - BERT (base and distilled), RoBERTa (base and distilled), and XLNet compared](https://towardsdatascience.com/to-distil-or-not-to-distil-bert-roberta-and-xlnet-c777ad92f8?source=friends_link&sk=6a3c7940b18066ded94aeee95e354ed1)
+* [Comparing ELECTRA, BERT, RoBERTa, and XLNET](https://medium.com/@chaturangarajapakshe/battle-of-the-transformers-electra-bert-roberta-or-xlnet-40607e97aba3?sk=fe857841d15d5202d94a58ba166c240b)
 
 
 #### ClassificationModel
@@ -732,7 +758,7 @@ Args:
 
 Returns:
 * preds: A Python list of lists with dicts containg each word mapped to its NER tag.
-* model_outputs: A python list of the raw model outputs for each text.
+* model_outputs: A Python list of lists with dicts containing each word mapped to its list with raw model output.
 
 
 **`train(self, train_dataset, output_dir)`**
@@ -1146,7 +1172,7 @@ model.eval_model("wikitext-2/wiki.test.tokens")
 ### LanguageModelingModel
 
 `class simpletransformers.language_modeling.LanguageModelingModel (model_type, model_name, generator_name=None, discriminator_name=None, args=None, use_cuda=True, cuda_device=-1)`  
-This class is used for Question Answering tasks.
+This class is used for language modeling tasks.
 
 `Class attributes`
 
@@ -1367,6 +1393,11 @@ model = LanguageGenerationModel("gpt2", "gpt2")
 model.generate("Let's give a minimal start to the model like")
 ```
 
+#### Real Dataset Examples
+
+* [Writing Scientific Paper Abstracts with GPT-2](https://medium.com/swlh/learning-to-write-language-generation-with-gpt-2-2a13fa249024?source=friends_link&sk=97192355cd3d8ba6cfd8b782d7380d86)
+
+
 #### LanguageGenerationModel
 
 `class simpletransformers.language_generation.language_generation_model.LanguageGenerationModel (self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`  
@@ -1526,7 +1557,7 @@ The prediction data should be a list of strings with the `prefix` and the `: ` *
 If `preprocess_inputs` is set to `True` in the model `args`, then the ` < /s>` token (including preceeding space) is automatically added to each string in the list. Otherwise, the strings must have the ` < /s>` (including preceeding space) must be included.
 
 
-#### Minimal Start
+### Minimal Start
 
 ```python
 import logging
@@ -1577,7 +1608,7 @@ print(model.predict(["convert: four"]))
 
 ```
 
-#### Evaluating with custom metrics
+### Evaluating with custom metrics
 
 You can evaluate the models' generated sequences using custom metric functions (including evaluation during training). However, due to the way T5 outputs are generated, this may be significantly slower than evaluation with other models.
 
@@ -1639,7 +1670,7 @@ print(model.eval_model(eval_df, matches=count_matches))
 
 ```
 
-#### T5Model
+### T5Model
 
 `class simpletransformers.t5.t5_model.T5Model (self, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`  
 This class  is used for the T5 Transformer.
@@ -1761,11 +1792,14 @@ Returns:
 ```python
 {
     "dataset_class": None,
+    "do_sample": False,
     "max_steps": -1,
     "evaluate_generated_text": False,
     "num_beams": 1,
-    "repetition_penalty": 2.5,
-    "length_penalty": 1.0,
+    "max_length": 20,
+    "repetition_penalty": 1.0,
+    "length_penalty": 2.0,
+    "early_stopping": True,
     "preprocess_inputs": True,
 }
 ```
@@ -1809,6 +1843,495 @@ if set to `True` beam search is stopped when at least `num_beams` sentences fini
 #### *preprocess_inputs: bool*
 
 Automatically add `:` and `< /s>` tokens to `train_model()` and `eval_model()` inputs. Automatically add `< /s>` to each string in `to_predict` in `predict()`.
+
+
+_[Back to Table of Contents](#table-of-contents)_
+
+---
+
+## Sequence-to-Sequence Models
+
+These models are Sequence-to-Sequence models (`Seq2SeqModel`) where both the input and targets are text sequences. For example, translation and summarization are sequence-to-sequence tasks.
+
+Currently, three main types of Sequence-to-Sequence models are available.
+
+- BART (Summarization)
+- Marian (Translation)
+- Encoder-Decoder (Generic)
+
+*Note that these models are not restricted to the specifed task. The task is merely given as a starting point.*
+
+### Types of Sequence-to-Sequence Models
+
+#### BART
+
+Commonly used for summarization tasks.
+
+#### Marian
+
+Commonly used for translation tasks.
+
+#### Encoder-Decoder
+
+Encoder-Decoder is a generic type of Sequence-to-Sequence model and it can be configured with different Encoder-Decoder combinations.
+
+**There is a known issue with loading saved Encoder-Decoder models. The loaded model seems to underperform compared to the model that was saved.**
+
+The following rules currently apply to Encoder-Decoder models:
+
+- The decoder must be a `bert` model.
+- The encoder can be one of `[bert, roberta, distilbert, camembert, electra]`.
+- The encodr and the decoder must be of the same "size". (E.g. `roberta-base` encoder and a `bert-base-uncased` decoder)
+
+### Data Format
+
+#### Train and evaluation input formats
+
+The inputs to both the `train_model()` and `eval_model()` methods should be a Pandas DataFrame containing the 2 columns - `input_text` and `target_text`.
+
+- `input_text`: The input text sequence.
+- `target_text`: The target text sequence.
+
+#### Prediction data format
+
+The prediction data should be a list of strings.
+
+### Minimal Starts For Sequence-to-Sequence Tasks
+
+#### BART minimal start
+
+The `Seq2SeqModel` must be initialized with `encoder_decoder_type="bart"` and `encoder_decoder_name` set to a pre-trained model name or the path to a saved model directory.
+
+```python
+import logging
+
+import pandas as pd
+from simpletransformers.seq2seq import Seq2SeqModel
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+
+train_data = [
+    ["one", "1"],
+    ["two", "2"],
+]
+
+train_df = pd.DataFrame(train_data, columns=["input_text", "target_text"])
+
+eval_data = [
+    ["three", "3"],
+    ["four", "4"],
+]
+
+eval_df = pd.DataFrame(eval_data, columns=["input_text", "target_text"])
+
+model_args = {
+    "reprocess_input_data": True,
+    "overwrite_output_dir": True,
+    "max_seq_length": 10,
+    "train_batch_size": 2,
+    "num_train_epochs": 10,
+    "save_eval_checkpoints": False,
+    "save_model_every_epoch": False,
+    "evaluate_during_training": True,
+    "evaluate_generated_text": True,
+    "evaluate_during_training_verbose": True,
+    "use_multiprocessing": False,
+    "max_length": 15,
+    "manual_seed": 4,
+}
+
+# Initialize model
+model = Seq2SeqModel(
+    encoder_decoder_type="bart",
+    encoder_decoder_name="bart-large",
+    args=model_args,
+)
+
+# Train the model
+model.train_model(train_df)
+
+# Evaluate the model
+results = model.eval_model(eval_df)
+
+# Use the model for prediction
+print(model.predict(["five"]))
+
+# Load a saved model
+model1 = Seq2SeqModel(
+    encoder_decoder_type="bart",
+    encoder_decoder_name="outputs",
+    args=model_args,
+)
+print(model1.predict(["five"]))
+
+```
+
+#### Marian minimal start
+
+The `Seq2SeqModel` must be initialized with `encoder_decoder_type="marian"` and `encoder_decoder_name` set to a pre-trained model name or the path to a saved model directory.
+
+Everything else is identical to the Bart model usage.
+
+```python
+import logging
+
+import pandas as pd
+from simpletransformers.seq2seq import Seq2SeqModel
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+model_args = {
+    "reprocess_input_data": True,
+    "overwrite_output_dir": True,
+    "max_seq_length": 50,
+    "train_batch_size": 2,
+    "num_train_epochs": 10,
+    "save_eval_checkpoints": False,
+    "save_model_every_epoch": False,
+    "evaluate_generated_text": True,
+    "evaluate_during_training_verbose": True,
+    "use_multiprocessing": False,
+    "max_length": 50,
+    "manual_seed": 4,
+}
+
+model = Seq2SeqModel(
+    encoder_decoder_type="marian",
+    encoder_decoder_name="Helsinki-NLP/opus-mt-en-de",
+    args=model_args,
+)
+
+src = [
+    "People say nothing is impossible, but I do nothing every day.",
+    "My opinions may have changed, but not the fact that I'm right.",
+    "He who laughs last didn't get the joke.",
+]
+
+predictions = model.predict(src)
+
+for en, de in zip(src, predictions):
+    print("-------------")
+    print(en)
+    print(de)
+    print()
+
+```
+
+#### Generic Encoder-Decoder minimal start
+
+```python
+import logging
+
+import pandas as pd
+from simpletransformers.seq2seq import Seq2SeqModel
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+
+train_data = [
+    ["one", "1"],
+    ["two", "2"],
+]
+
+train_df = pd.DataFrame(train_data, columns=["input_text", "target_text"])
+
+eval_data = [
+    ["three", "3"],
+    ["four", "4"],
+]
+
+eval_df = pd.DataFrame(eval_data, columns=["input_text", "target_text"])
+
+model_args = {
+    "reprocess_input_data": True,
+    "overwrite_output_dir": True,
+    "max_seq_length": 10,
+    "train_batch_size": 2,
+    "num_train_epochs": 10,
+    "save_eval_checkpoints": False,
+    "save_model_every_epoch": False,
+    "evaluate_generated_text": True,
+    "evaluate_during_training_verbose": True,
+    "use_multiprocessing": False,
+    "max_length": 15,
+    "manual_seed": 4,
+}
+
+encoder_type = "roberta"
+
+model = Seq2SeqModel(
+    encoder_type,
+    "roberta-base",
+    "bert-base-cased",
+    args=model_args,
+    use_cuda=True,
+)
+
+model.train_model(train_df)
+
+results = model.eval_model(eval_df)
+
+print(model.predict(["five"]))
+
+
+model1 = Seq2SeqModel(
+    encoder_type,
+    encoder_decoder_name="outputs",
+    args=model_args,
+    use_cuda=True,
+)
+print(model1.predict(["five"]))
+
+```
+
+
+#### Evaluating with custom metrics
+
+You can evaluate the models' generated sequences using custom metric functions (including evaluation during training). However, this may be significantly slower than evaluation with other models.
+
+Note, you must set `evaluate_generated_text` to `True` to evaluate generated sequences.
+
+```python
+import logging
+
+import pandas as pd
+from simpletransformers.t5 import T5Model
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+
+train_data = [
+    ["convert", "one", "1"],
+    ["convert", "two", "2"],
+]
+
+train_df = pd.DataFrame(train_data, columns=["prefix", "input_text", "target_text"])
+
+eval_data = [
+    ["convert", "three", "3"],
+    ["convert", "four", "4"],
+]
+
+eval_df = pd.DataFrame(eval_data, columns=["prefix", "input_text", "target_text"])
+
+eval_df = train_df.copy()
+
+model_args = {
+    "reprocess_input_data": True,
+    "overwrite_output_dir": True,
+    "max_seq_length": 10,
+    "train_batch_size": 2,
+    "num_train_epochs": 200,
+    "save_eval_checkpoints": False,
+    "save_model_every_epoch": False,
+    "evaluate_generated_text": True,
+    "evaluate_during_training": True,
+    "evaluate_during_training_verbose": True,
+}
+
+# Initialize model
+model = Seq2SeqModel(
+    encoder_decoder_type="bart",
+    encoder_decoder_name="bart-large",
+    args=model_args,
+    use_cuda=True,
+)
+
+
+def count_matches(labels, preds):
+    print(labels)
+    print(preds)
+    return sum([1 if label == pred else 0 for label, pred in zip(labels, preds)])
+
+
+# Train the model
+model.train_model(train_df, eval_data=eval_df, matches=count_matches)
+
+```
+
+### Seq2SeqModel
+
+`class simpletransformers.seq2seq.seq2seq_model.Seq2SeqModel (self, encoder_type=None, encoder_name=None, decoder_name=None, encoder_decoder_type=None, encoder_decoder_name=None, config=None, args=None, use_cuda=True, cuda_device=-1, **kwargs)`  
+This class  is used for the T5 Transformer.
+
+`Class attributes`
+- `encoder_tokenizer`: The tokenizer to be used with the encoder model.
+- `decoder_tokenizer`: The tokenizer to be used with the decoder model.
+- `model`: The model to be used.
+- `device`: The device on which the model will be trained and evaluated.
+- `args`: A python dict of arguments used for training and evaluation.
+- `cuda_device`: (optional) int - Default = -1. Used to specify which GPU should be used.
+
+`Parameters`
+
+- `encoder_type`: (optional) str - The type of model to use as the encoder.
+
+- `encoder_name`: (optional) str - The exact model to use as the encoder. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+
+- `decoder_name`: (optional) str - The exact model to use as the decoder. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
+
+- `encoder_decoder_type`: (optional) str - The type of encoder-decoder model. (E.g. bart)
+
+- `encoder_decoder_name`: (optional) str - The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART model OR a valid Marian model.
+
+- `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
+
+- `cuda_device`: (optional) Specific GPU that should be used. Will use the first available GPU by default.
+
+- `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
+
+- `**kwargs`: (optional) For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
+
+
+
+`class methods`  
+**`train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None)`**
+
+Trains the model using 'train_data'
+
+Args:  
+* `train_data`: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
+  - `input_text`: The input text sequence.
+  - `target_text`: The target sequence 
+
+* `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+
+* `args` (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+
+* show_running_loss (optional): Set to False to disable printing running training loss to the terminal.
+
+* `eval_data` (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
+
+* `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
+A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs will be lists of strings. Note that this will slow down training significantly as the predicted sequences need to be generated.
+
+Returns:  
+* None
+
+**`eval_model(self, eval_data, output_dir=None, verbose=True, silent=False)`**
+
+Evaluates the model on eval_data. Saves results to output_dir.
+
+Args:  
+* eval_data: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
+    - `input_text`: The input text sequence.
+    - `target_text`: The target sequence         
+* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+
+* verbose: If verbose, results will be printed to the console on completion of evaluation.  
+
+* silent: If silent, tqdm progress bars will be hidden.
+
+* `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
+
+
+Returns:  
+* result: Dictionary containing evaluation results.
+
+**`predict(self, to_predict)`**
+
+Performs predictions on a list of text.
+
+Args:
+* to_predict: A python list of text (str) to be sent to the model for prediction. Note that the prefix should be prepended to the text.
+
+Returns:
+* preds: A python list of the generated sequences.
+
+
+**`train(self, train_dataset, output_dir)`**
+
+Trains the model on train_dataset.
+*Utility function to be used by the train_model() method. Not intended to be used directly.*
+
+**`evaluate(self, eval_dataset, output_dir, prefix="")`**
+
+Evaluates the model on eval_dataset.
+*Utility function to be used by the eval_model() method. Not intended to be used directly*
+
+**`load_and_cache_examples(self, examples, evaluate=False)`**
+
+Creates a `T5Dataset` from data.
+
+*Utility function for train() and eval() methods. Not intended to be used directly*
+
+**`compute_metrics(self, preds, labels, **kwargs):`**
+
+Computes the evaluation metrics for the model predictions.
+
+Args:
+
+* `labels`: List of target sequences
+* `preds`: List of model generated outputs
+* `**kwargs`: Custom metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
+
+Returns:
+
+* result: Dictionary containing evaluation results.
+
+
+### Additional attributes for `Seq2SeqModel`
+
+`Seq2SeqModel` has a few additional attributes in its `args` dictionary, given below with their default values.
+
+```python
+{
+    "dataset_class": None,
+    "do_sample": False,
+    "max_steps": -1,
+    "evaluate_generated_text": False,
+    "num_beams": 1,
+    "max_length": 20,
+    "repetition_penalty": 1.0,
+    "length_penalty": 2.0,
+    "early_stopping": True,
+}
+```
+
+#### *dataset_class: Subclass of Pytorch Dataset*
+
+A custom dataset class to use.
+
+#### *do_sample: bool*
+
+If set to `False` greedy decoding is used. Otherwise sampling is used. Defaults to `False` as defined in `configuration_utils.PretrainedConfig`.
+
+#### *max_steps: int*
+
+Maximum number of training steps. Will override the effect of `num_train_epochs`.
+
+#### *evaluate_generated_text: bool*
+
+Generate sequences for evaluation.
+
+#### *num_beams: int*
+
+Number of beams for beam search. Must be between 1 and infinity. 1 means no beam search. Default to 1.
+
+#### *max_lemgth: int*
+
+The max length of the sequence to be generated.  Between `min_length` and infinity. Default to 20.
+
+#### *repetition_penalty: float*
+
+The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no penalty. Default to 1.0.
+
+#### *length_penalty: float*
+
+Exponential penalty to the length. Default to 1.
+
+#### *early_stopping: bool*
+
+if set to `True` beam search is stopped when at least `num_beams` sentences finished per batch.
 
 
 _[Back to Table of Contents](#table-of-contents)_
@@ -2740,6 +3263,8 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="http://kozistr.tech"><img src="https://avatars2.githubusercontent.com/u/15344796?v=4" width="100px;" alt=""/><br /><sub><b>Hyeongchan Kim</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=kozistr" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/Pradhy729"><img src="https://avatars3.githubusercontent.com/u/49659913?v=4" width="100px;" alt=""/><br /><sub><b>Pradhy729</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Pradhy729" title="Code">💻</a></td>
     <td align="center"><a href="https://iknoorjobs.github.io/"><img src="https://avatars2.githubusercontent.com/u/22852967?v=4" width="100px;" alt=""/><br /><sub><b>Iknoor Singh</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=iknoorjobs" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/galtay"><img src="https://avatars2.githubusercontent.com/u/663051?v=4" width="100px;" alt=""/><br /><sub><b>Gabriel Altay</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=galtay" title="Code">💻</a></td>
+    <td align="center"><a href="https://a-ware.io"><img src="https://avatars1.githubusercontent.com/u/47894090?v=4" width="100px;" alt=""/><br /><sub><b>flozi00</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flozi00" title="Documentation">📖</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flozi00" title="Code">💻</a></td>
   </tr>
 </table>
 

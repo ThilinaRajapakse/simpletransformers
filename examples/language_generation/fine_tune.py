@@ -19,7 +19,7 @@ train_args = {
     "output_dir": f"outputs/fine-tuned/",
 }
 
-model = LanguageModelingModel('gpt2', 'gpt2', args=train_args)
+model = LanguageModelingModel("gpt2", "gpt2", args=train_args)
 
 model.train_model("data/train.txt", eval_file="data/test.txt")
 

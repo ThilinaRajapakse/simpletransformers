@@ -41,6 +41,9 @@ from torch.utils.data.distributed import DistributedSampler
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelWithLMHead,
     BertConfig,
     BertForMaskedLM,
     BertTokenizer,
@@ -78,13 +81,14 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 MODEL_CLASSES = {
+    "auto": (AutoConfig, AutoModelWithLMHead, AutoTokenizer),
+    "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
+    "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
+    "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
+    "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
     "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
     "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
-    "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
-    "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
-    "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
 }
 
 
@@ -160,6 +164,13 @@ class LanguageModelingModel:
         }
 
         self.args.update(global_args)
+
+        saved_model_args = self._load_model_args(model_name)
+        if saved_model_args:
+            self.args.update(saved_model_args)
+
+        if args:
+            self.args.update(args)
 
         if not use_cuda:
             self.args["fp16"] = False
@@ -1080,9 +1091,22 @@ class LanguageModelingModel:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
             if scheduler:
                 torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+            self._save_model_args(output_dir)
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
             with open(output_eval_file, "w") as writer:
                 for key in sorted(results.keys()):
                     writer.write("{} = {}\n".format(key, str(results[key])))
+
+    def _save_model_args(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
+            json.dump(self.args, f)
+
+    def _load_model_args(self, input_dir):
+        model_args_file = os.path.join(input_dir, "model_args.json")
+        if os.path.isfile(model_args_file):
+            with open(model_args_file, "r") as f:
+                model_args = json.load(f)
+            return model_args

@@ -1,5 +1,7 @@
 import pandas as pd
 from simpletransformers.ner import NERModel
+import numpy as np
+from scipy.special import softmax
 
 # Creating train_df  and eval_df for demonstration
 train_data = [
@@ -45,7 +47,19 @@ model.train_model(train_df)
 # Evaluate the model
 result, model_outputs, predictions = model.eval_model(eval_df)
 
+
 # Predictions on arbitary text strings
-predictions, raw_outputs = model.predict(["Some arbitary sentence"])
+sentences = ["Some arbitary sentence", "Simple Transformers sentence"]
+predictions, raw_outputs = model.predict(sentences)
 
 print(predictions)
+
+# More detailed preditctions
+for n, (preds, outs) in enumerate(zip(predictions, raw_outputs)):
+    print("\n___________________________")
+    print("Sentence: ", sentences[n])
+    for pred, out in zip(preds, outs):
+        key = list(pred.keys())[0]
+        new_out = out[key]
+        preds = list(softmax(np.mean(new_out, axis=0)))
+        print(key, pred[key], preds[np.argmax(preds)], preds)

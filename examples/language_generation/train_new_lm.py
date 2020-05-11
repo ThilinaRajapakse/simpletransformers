@@ -22,7 +22,7 @@ train_args = {
     "dataset_type": "simple",
     "logging_steps": 100,
     "evaluate_during_training": True,
-	"evaluate_during_training_steps": 3000,
+    "evaluate_during_training_steps": 3000,
     "evaluate_during_training_verbose": True,
     "use_cached_eval_features": True,
     "sliding_window": True,
@@ -35,16 +35,10 @@ train_args = {
 train_file = f"data/train.txt"
 test_file = f"data/test.txt"
 
-model = LanguageModelingModel(
-    "gpt2",
-    None,
-    args=train_args,
-    train_files=train_file,
-)
+model = LanguageModelingModel("gpt2", None, args=train_args, train_files=train_file,)
 
 model.train_model(
-    train_file,
-    eval_file=test_file,
+    train_file, eval_file=test_file,
 )
 
 model.eval_model(test_file)

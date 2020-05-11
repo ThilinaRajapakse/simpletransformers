@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 def preprocess_data(data):
     prefix, input_text, target_text, tokenizer, args = data
 
+    # Add EOS again if truncated?
     if args["preprocess_inputs"]:
         input_text = tokenizer.encode(
             prefix + ": " + input_text + " </s>",
