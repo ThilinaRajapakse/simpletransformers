@@ -90,13 +90,13 @@ class QuestionAnsweringModel:
         """  # noqa: ignore flake8"
 
         MODEL_CLASSES = {
-            "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
-            "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
-            "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
-            "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,),
             "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
-            "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
+            "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
+            "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,),
             "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
+            "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
+            "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
+            "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
         }
 
         if args and "manual_seed" in args:
@@ -112,8 +112,6 @@ class QuestionAnsweringModel:
             "n_best_size": 20,
             "max_answer_length": 100,
             "null_score_diff_threshold": 0.0,
-            "wandb_project": False,
-            "wandb_kwargs": {},
         }
 
         self.args.update(global_args)
