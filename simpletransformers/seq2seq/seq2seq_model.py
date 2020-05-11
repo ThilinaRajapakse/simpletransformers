@@ -84,7 +84,6 @@ class Seq2SeqModel:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a Seq2SeqModel.
 
@@ -169,6 +168,9 @@ class Seq2SeqModel:
             config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_decoder_type]
         else:
             config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
+        if 'tokenizer_name' in self.args:
+            tokenizer_name = self.args['tokenizer_name']
+            _, _, tokenizer_class = MODEL_CLASSES[tokenizer_name]
 
         if encoder_decoder_type in ["bart", "marian"]:
             self.model = model_class.from_pretrained(encoder_decoder_name)

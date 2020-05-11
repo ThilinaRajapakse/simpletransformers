@@ -39,7 +39,6 @@ class LanguageGenerationModel:
     def __init__(
         self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
-
         """
         Initializes a LanguageGenerationModel model.
 
@@ -114,6 +113,9 @@ class LanguageGenerationModel:
             self.device = "cpu"
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        if 'tokenizer_name' in self.args:
+            tokenizer_name = self.args['tokenizer_name']
+            _, _, tokenizer_class = MODEL_CLASSES[tokenizer_name]
 
         if self.args["tokenizer_name"]:
             self.tokenizer = tokenizer_class.from_pretrained(
@@ -135,7 +137,6 @@ class LanguageGenerationModel:
         self.model.to(self.device)
 
     def generate(self, prompt=None, args=None, verbose=True):
-
         """
         Generate text using a LanguageGenerationModel
 

@@ -71,7 +71,6 @@ class ConvAIModel:
     def __init__(
         self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
-
         """
         Initializes a ClassificationModel model.
 
@@ -97,6 +96,9 @@ class ConvAIModel:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        if 'tokenizer_name' in args:
+            tokenizer_name = args['tokenizer_name']
+            _, _, tokenizer_class = MODEL_CLASSES[tokenizer_name]
         self.__dict__.update(kwargs)
 
         if use_cuda:

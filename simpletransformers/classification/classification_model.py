@@ -79,7 +79,6 @@ class ClassificationModel:
     def __init__(
         self, model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
-
         """
         Initializes a ClassificationModel model.
 
@@ -131,6 +130,9 @@ class ClassificationModel:
             self.args.update(args)
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        if 'tokenizer_name' in self.args:
+            tokenizer_name = self.args['tokenizer_name']
+            _, _, tokenizer_class = MODEL_CLASSES[tokenizer_name]
         if num_labels:
             self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **self.args["config"])
             self.num_labels = num_labels

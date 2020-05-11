@@ -67,7 +67,6 @@ class MultiModalClassificationModel:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a MultiModalClassificationModel model.
 
@@ -96,6 +95,9 @@ class MultiModalClassificationModel:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        if 'tokenizer_name' in args:
+            tokenizer_name = args['tokenizer_name']
+            _, _, tokenizer_class = MODEL_CLASSES[tokenizer_name]
 
         self.label_list = label_list
         if self.label_list and not num_labels:

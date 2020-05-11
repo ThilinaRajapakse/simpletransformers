@@ -131,6 +131,9 @@ class NERModel:
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        if 'tokenizer_name' in self.args:
+            tokenizer_name = self.args['tokenizer_name']
+            _, _, tokenizer_class = MODEL_CLASSES[tokenizer_name]
         if self.num_labels:
             self.config = config_class.from_pretrained(model_name, num_labels=self.num_labels, **self.args["config"])
             self.num_labels = self.num_labels

@@ -79,7 +79,6 @@ logger = logging.getLogger(__name__)
 
 class QuestionAnsweringModel:
     def __init__(self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs):
-
         """
         Initializes a QuestionAnsweringModel model.
 
@@ -137,6 +136,9 @@ class QuestionAnsweringModel:
             self.args.update(args)
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        if 'tokenizer_name' in self.args:
+            tokenizer_name = self.args['tokenizer_name']
+            _, _, tokenizer_class = MODEL_CLASSES[tokenizer_name]
         self.config = config_class.from_pretrained(model_name, **self.args["config"])
         self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
 

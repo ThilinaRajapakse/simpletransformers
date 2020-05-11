@@ -105,7 +105,6 @@ class LanguageModelingModel:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a LanguageModelingModel.
 
@@ -182,6 +181,9 @@ class LanguageModelingModel:
         self.args["model_type"] = model_type
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+        if 'tokenizer_name' in self.args:
+            tokenizer_name = self.args['tokenizer_name']
+            _, _, tokenizer_class = MODEL_CLASSES[tokenizer_name]
         self.tokenizer_class = tokenizer_class
         new_tokenizer = False
 
