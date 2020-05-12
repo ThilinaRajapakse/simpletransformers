@@ -1105,8 +1105,11 @@ class LanguageModelingModel:
             json.dump(self.args, f)
 
     def _load_model_args(self, input_dir):
-        model_args_file = os.path.join(input_dir, "model_args.json")
-        if os.path.isfile(model_args_file):
-            with open(model_args_file, "r") as f:
-                model_args = json.load(f)
-            return model_args
+        if input_dir:
+            input_dir, filename = os.path.split(input_dir)
+
+            model_args_file = os.path.join(input_dir, "model_args.json")
+            if os.path.isfile(model_args_file):
+                with open(model_args_file, "r") as f:
+                    model_args = json.load(f)
+                return model_args
