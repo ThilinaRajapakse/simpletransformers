@@ -99,8 +99,8 @@ class QuestionAnsweringModel:
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
             "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
-            "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
+            "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
         }
 
         if args and "manual_seed" in args:
