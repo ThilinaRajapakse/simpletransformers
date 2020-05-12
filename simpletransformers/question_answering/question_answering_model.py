@@ -94,22 +94,13 @@ class QuestionAnsweringModel:
 
         MODEL_CLASSES = {
             "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
-<<<<<<< HEAD
-            "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
-            "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer,),
-            "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
-            "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
-            "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
-            "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
-=======
             "auto": (AutoConfig, AutoTokenizer, AutoModelForQuestionAnswering),
             "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
             "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
-            "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
->>>>>>> master
+            "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
         }
 
         if args and "manual_seed" in args:
