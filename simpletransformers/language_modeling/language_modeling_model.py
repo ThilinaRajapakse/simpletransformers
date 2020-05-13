@@ -70,6 +70,9 @@ from transformers import (
     RobertaTokenizer,
     get_linear_schedule_with_warmup,
 )
+# for using TPU
+import torch_xla
+import torch_xla.core.xla_model as xm
 
 try:
     import wandb
@@ -128,8 +131,13 @@ class LanguageModelingModel:
             if "n_gpu" in args and args["n_gpu"] > 0:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
-        if use_cuda:
+        # to use this add "use_tpu": True to  train_args 
+        if args['use_tpu']:
+            print('using TPU')
+            self.device = xm.xla_device()
+        elif use_cuda:
             if torch.cuda.is_available():
+                print('using GPU')
                 if cuda_device == -1:
                     self.device = torch.device("cuda")
                 else:
@@ -140,6 +148,7 @@ class LanguageModelingModel:
                     " Make sure CUDA is available or set use_cuda=False."
                 )
         else:
+            print('using CPU')
             self.device = "cpu"
 
         self.results = {}
@@ -519,7 +528,11 @@ class LanguageModelingModel:
                     else:
                         torch.nn.utils.clip_grad_norm_(model.parameters(), args["max_grad_norm"])
 
-                    optimizer.step()
+                   # Update parameters and take a step using the computed gradient
+                    if args['use_tpu']:
+                        xm.optimizer_step(optimizer, barrier=True)
+                    else: 
+                        optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1
