@@ -25,7 +25,7 @@ setup(
         "requests",
         "tqdm",
         "regex",
-        "transformers>=2.9.0",
+        "transformers>=2.9.1",
         "scipy",
         "scikit-learn",
         "seqeval",
