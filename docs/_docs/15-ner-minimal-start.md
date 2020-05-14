@@ -74,3 +74,7 @@ result, model_outputs, preds_list = model.eval_model(eval_data)
 predictions, raw_outputs = model.predict(["Hermione was the best in her class"])
 
 ```
+
+## Guides
+
+- [CoNLL Dataset Example](https://towardsdatascience.com/simple-transformers-named-entity-recognition-with-transformer-models-c04b9242a2a0?source=friends_link&sk=e8b98c994173cd5219f01e075727b096)

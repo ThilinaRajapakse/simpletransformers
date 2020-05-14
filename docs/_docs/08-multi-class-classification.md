@@ -65,3 +65,9 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 predictions, raw_outputs = model.predict(["Sam was a Wizard"])
 
 ```
+
+## Guides
+
+- [AG News Dataset - Multiclass Classification](https://medium.com/swlh/simple-transformers-multi-class-text-classification-with-bert-roberta-xlnet-xlm-and-8b585000ce3a?source=friends_link&sk=90e1c97255b65cedf4910a99041d9dfc)
+- [AG News Dataset - BERT (base and distilled), RoBERTa (base and distilled), and XLNet compared](https://towardsdatascience.com/to-distil-or-not-to-distil-bert-roberta-and-xlnet-c777ad92f8?source=friends_link&sk=6a3c7940b18066ded94aeee95e354ed1)
+- [Comparing ELECTRA, BERT, RoBERTa, and XLNET](https://medium.com/@chaturangarajapakshe/battle-of-the-transformers-electra-bert-roberta-or-xlnet-40607e97aba3?sk=fe857841d15d5202d94a58ba166c240b)

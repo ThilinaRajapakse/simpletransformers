@@ -13,7 +13,7 @@ The `QuestionAnsweringModel` class is used for Question Answering.
 
 To create a `QuestionAnsweringModel`, you must specify a `model_type` and a `model_name`.
 
-- `model_type` should be one of the model types from the [supported models](/docs/ner-specifics/) (e.g. bert, electra, xlnet)
+- `model_type` should be one of the model types from the [supported models](/docs/qa-specifics/) (e.g. bert, electra, xlnet)
 - `model_name` specifies the exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
 
     **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
@@ -50,6 +50,10 @@ model = QuestionAnsweringModel(
 | max_answer_length         | int   | `100`   | The maximum token length of an answer that can be generated.                                         |
 | null_score_diff_threshold | float | `0.0`   | If `(null_score - best_non_null)` is greater than the threshold predict null.                            |
 
+**Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
+{: .notice--info}
+
+
 ## `Class QuestionAnsweringModel`
 
 > *simpletransformers.question_answering.QuestionAnsweringModel*{: .function-name}(self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,)
@@ -60,7 +64,7 @@ Initializes a QuestionAnsweringModel model.
 > Parameters
 {: .parameter-blockquote}
 
-* **model_type** *(`str`)* - The type of model to use ([model types](/docs/ner-specifics/#supported-model-types))
+* **model_type** *(`str`)* - The type of model to use ([model types](/docs/qa-specifics/#supported-model-types))
 
 * **model_name** *(`str`)* - The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
 

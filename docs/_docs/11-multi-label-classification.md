@@ -92,3 +92,7 @@ result, model_outputs, wrong_predictions = model.eval_model(
 predictions, raw_outputs = model.predict(["Sam"])
 
 ```
+
+## Guides
+
+- [Toxic Comments Dataset - Multilabel Classification](https://towardsdatascience.com/multi-label-classification-using-bert-roberta-xlnet-xlm-and-distilbert-with-simple-transformers-b3e0cda12ce5?source=friends_link&sk=354e688fe238bfb43e9a575216816219)

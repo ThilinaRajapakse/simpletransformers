@@ -58,3 +58,9 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 predictions, raw_outputs = model.predict(["Sam was a Wizard"])
 
 ```
+
+
+## Guides
+
+- [Binary Classification of Yelp Reviews](https://towardsdatascience.com/simple-transformers-introducing-the-easiest-bert-roberta-xlnet-and-xlm-library-58bf8c59b2a3?source=friends_link&sk=40726ceeadf99e1120abc9521a10a55c)
+- [Comparison of Model Types](https://towardsdatascience.com/battle-of-the-transformers-electra-bert-roberta-or-xlnet-40607e97aba3?source=friends_link&sk=fe857841d15d5202d94a58ba166c240b)

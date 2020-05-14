@@ -91,3 +91,7 @@ predictions, raw_outputs = model.predict(
 )
 
 ```
+
+## Guides
+
+- [Semantic Textual Similarity Benchmark - Sentence Pair](https://medium.com/@chaturangarajapakshe/solving-sentence-pair-tasks-using-simple-transformers-2496fe79d616?source=friends_link&sk=fbf7439e9c31f7aefa1613d423a0fd40)

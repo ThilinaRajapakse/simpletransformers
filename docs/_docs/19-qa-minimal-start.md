@@ -148,3 +148,8 @@ answers = model.predict(to_predict)
 print(answers)
 
 ```
+
+
+## Guide
+
+- [SQuAD 2.0 - Question Answering](https://towardsdatascience.com/question-answering-with-bert-xlnet-xlm-and-distilbert-using-simple-transformers-4d8785ee762a?source=friends_link&sk=e8e6f9a39f20b5aaf08bbcf8b0a0e1c2)

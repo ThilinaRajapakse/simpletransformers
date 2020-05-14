@@ -77,6 +77,16 @@ docs:
         url: /docs/qa-data-formats/
       - title: "Question Answering Minimal Start"
         url: /docs/qa-minimal-start/
+  - title: Language Modeling
+    children:
+      - title: "Language Modeling Specifics"
+        url: /docs/lm-specifics/
+      - title: "Language Modeling Model"
+        url: /docs/lm-model/
+      # - title: "Question Answering Data Formats"
+      #   url: /docs/qa-data-formats/
+      # - title: "Question Answering Minimal Start"
+      #   # url: /docs/qa-minimal-start/
   - title: Meta
     children:
       - title: "History"
