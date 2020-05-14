@@ -19,23 +19,13 @@ logger = logging.getLogger(__name__)
 def preprocess_data(data):
     input_text, target_text, encoder_tokenizer, decoder_tokenizer, args = data
 
-    # Add EOS again if truncated?
-    if args["preprocess_inputs"]:
-        input_text = encoder_tokenizer.encode(
-            input_text, max_length=args["max_seq_length"], pad_to_max_length=True, return_tensors="pt",
-        )
+    input_text = encoder_tokenizer.encode(
+        input_text, max_length=args["max_seq_length"], pad_to_max_length=True, return_tensors="pt",
+    )
 
-        target_text = decoder_tokenizer.encode(
-            target_text, max_length=args["max_seq_length"], pad_to_max_length=True, return_tensors="pt"
-        )
-    else:
-        input_text = encoder_tokenizer.encode(
-            input_text, max_length=args["max_seq_length"], pad_to_max_length=True, return_tensors="pt",
-        )
-
-        target_text = decoder_tokenizer.encode(
-            target_text, max_length=args["max_seq_length"], pad_to_max_length=True, return_tensors="pt"
-        )
+    target_text = decoder_tokenizer.encode(
+        target_text, max_length=args["max_seq_length"], pad_to_max_length=True, return_tensors="pt"
+    )
     return (torch.flatten(input_text), torch.flatten(target_text))
 
 

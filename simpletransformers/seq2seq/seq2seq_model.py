@@ -138,9 +138,12 @@ class Seq2SeqModel:
 
         self.args.update(global_args)
 
-        saved_model_args = self._load_model_args(encoder_decoder_name)
-        if saved_model_args:
-            self.args.update(saved_model_args)
+        try:
+            saved_model_args = self._load_model_args(encoder_decoder_name)
+            if saved_model_args:
+                self.args.update(saved_model_args)
+        except TypeError:
+            logger.info(f"Failed to load saved args from {encoder_decoder_name}. This may be normal.")
 
         if args:
             self.args.update(args)
