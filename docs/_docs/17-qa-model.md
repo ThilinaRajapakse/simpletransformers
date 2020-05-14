@@ -98,7 +98,7 @@ model.train_model(train_data)
 
 > *simpletransformers.question_answering.QuestionAnsweringModel*{: .function-name}(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs)
 
-Trains the model using 'train_df'
+Trains the model using 'train_data'
 {: .function-text}
 
 > Parameters
@@ -110,7 +110,7 @@ Trains the model using 'train_df'
 
 * **show_running_loss** *(`bool`, optional)* - If True, the running loss (training loss at current step) will be logged to the console.
 
-* **args** *(`dict`, optional)* - A dict of configuration options for the `ClassificationModel`. Any changes made will persist for the model.
+* **args** *(`dict`, optional)* - A dict of configuration options for the `QuestionAnsweringModel`. Any changes made will persist for the model.
 
 * **eval_data** *(optional)* - Evaluation data (same format as train_data) against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
 

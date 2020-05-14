@@ -146,29 +146,28 @@ Initializes a LanguageModelingModel model.
 The `train_model()`  method is used to train the model.
 
 ```python
-model.train_model(train_data)
+model.train_model(train_file)
 ```
 
-> *simpletransformers.language_modeling.LanguageModelingModel*{: .function-name}(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs)
+> *simpletransformers.language_modeling.LanguageModelingModel*{: .function-name}(self, train_file, output_dir=None, show_running_loss=True, args=None, eval_file=None, verbose=True, **kwargs)
 
-Trains the model using 'train_df'
+Trains the model using 'train_file'
 {: .function-text}
 
 > Parameters
 {: .parameter-blockquote}
 
-* **train_data** - Path to JSON file containing training data OR list of Python dicts in the correct format. The model will be trained on this data. Refer to the [Language Modeling Data Formats](/docs/qa-data-formats) section for the correct formats.
+* **train_file** *(`str`)* - Path to text file containing the text to train the language model on. The model will be trained on this data. Refer to the [Language Modeling Data Formats](/docs/lm-data-formats) section for the correct formats.
 
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
 
 * **show_running_loss** *(`bool`, optional)* - If True, the running loss (training loss at current step) will be logged to the console.
 
-* **args** *(`dict`, optional)* - A dict of configuration options for the `ClassificationModel`. Any changes made will persist for the model.
+* **args** *(`dict`, optional)* - A dict of configuration options for the `LanguageModelingModel`. Any changes made will persist for the model.
 
-* **eval_data** *(optional)* - Evaluation data (same format as train_data) against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+* **eval_file** *(`str`, optional)* - Evaluation data (same format as train_data) against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
 
 * **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
-E.g. `f1=sklearn.metrics.f1_score`.  
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 {: .parameter-list}
 
@@ -207,7 +206,7 @@ Evaluates the model using 'eval_data'
 > Parameters
 {: .parameter-blockquote}
 
-* **eval_data** - Path to JSON file containing training data OR list of Python dicts in the correct format. The model will be evaluated on this data. Refer to the [Language Modeling Data Formats](/docs/qa-data-formats) section for the correct formats.
+* **eval_data** - Path to text file containing the text to train the language model on. The model will be evaluated on this data. Refer to the [Language Modeling Data Formats](/docs/lm-data-formats) section for the correct formats.
 
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
 
@@ -245,7 +244,7 @@ predictions, raw_outputs = model.predict(
     [
         {
             "context": context_text,
-            "qas": [
+            "lms": [
                 {
                     "question": "Who was the author of Mistborn?",
                     "id": "0",
@@ -269,7 +268,7 @@ Performs predictions on a list of text `to_predict`.
 > Parameters
 {: .parameter-blockquote}
 
-* **to_predict** - A python list of python dicts in the correct format to be sent to the model for prediction. Refer to the [Language Modeling Data Formats](/docs/qa-data-formats) section for the correct formats.
+* **to_predict** - A python list of python dicts in the correct format to be sent to the model for prediction. Refer to the [Language Modeling Data Formats](/docs/lm-data-formats) section for the correct formats.
 
 * **n_best_size** *(`int`, optional)* - Number of predictions to return. args['n_best_size'] will be used if not specified.
 {: .parameter-list}

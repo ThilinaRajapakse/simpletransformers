@@ -93,13 +93,13 @@ Trains the model using 'train_df'
 > Parameters
 {: .parameter-blockquote}
 
-* **train_data** - train_data should be the path to a .txt file containing the training data OR a pandas DataFrame with 3 columns. If a text file is given the data should be in the CoNLL format. i.e. One word per line, with sentences seperated by an empty line. The first word of the line should be a word, and the last should be a Name Entity Tag. If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
+* **train_data** - train_data should be the path to a .txt file containing the training data OR a pandas DataFrame with 3 columns. If a text file is given the data should be in the CoNLL format. i.e. One word per line, with sentences separated by an empty line. The first word of the line should be a word, and the last should be a Name Entity Tag. If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
 
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
 
 * **show_running_loss** *(`bool`, optional)* - If True, the running loss (training loss at current step) will be logged to the console.
 
-* **args** *(`dict`, optional)* - A dict of configuration options for the `ClassificationModel`. Any changes made will persist for the model.
+* **args** *(`dict`, optional)* - A dict of configuration options for the `NERModel`. Any changes made will persist for the model.
 
 * **eval_data** *(optional)* - Evaluation data (same format as train_data) against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
 
