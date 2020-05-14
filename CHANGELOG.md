@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.3] - 2020-05-15
+
+### Changed
+
+- Updated `Seq2SeqModel` to use `MarianTokenizer` with MarianMT models. [@flozi00](https://github.com/flozi00)
+
 ## [0.28.2] - 2020-05-14
 
 ### Fixed
@@ -696,7 +702,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.28.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1695fc4...HEAD
+[0.28.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ca87582...HEAD
+
+[0.28.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1695fc4...ca87582
 
 [0.28.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4d9665d...1695fc4
 

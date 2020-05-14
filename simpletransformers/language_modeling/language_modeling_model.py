@@ -147,7 +147,6 @@ class LanguageModelingModel:
         self.args = {
             "dataset_type": "None",
             "dataset_class": None,
-            "custom_tokenizer": None,
             "block_size": -1,
             "mlm": True,
             "mlm_probability": 0.15,
