@@ -744,9 +744,14 @@ class Seq2SeqModel:
             to_predict[i : i + self.args["eval_batch_size"]]
             for i in range(0, len(to_predict), self.args["eval_batch_size"])
         ]:
-            input_ids = self.encoder_tokenizer.batch_encode_plus(
-                batch, max_length=self.args["max_seq_length"], pad_to_max_length=True, return_tensors="pt",
-            )["input_ids"]
+            if self.args["model_type"] == "marian":
+                input_ids = self.encoder_tokenizer.prepare_translation_batch(
+                    batch, max_length=self.args["max_seq_length"], pad_to_max_length=True, return_tensors="pt",
+                )["input_ids"]
+            else:
+                input_ids = self.encoder_tokenizer.batch_encode_plus(
+                    batch, max_length=self.args["max_seq_length"], pad_to_max_length=True, return_tensors="pt",
+                )["input_ids"]
             input_ids = input_ids.to(self.device)
 
             if self.args["model_type"] in ["bart", "marian"]:
