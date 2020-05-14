@@ -45,7 +45,7 @@ from transformers import (
     BartTokenizer,
     BartConfig,
     MarianMTModel,
-    MarianSentencePieceTokenizer,
+    MarianTokenizer,
     MarianConfig,
 )
 
@@ -66,7 +66,7 @@ MODEL_CLASSES = {
     "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
     "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
     "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
-    "marian": (MarianConfig, MarianMTModel, MarianSentencePieceTokenizer),
+    "marian": (MarianConfig, MarianMTModel, MarianTokenizer),
 }
 
 
