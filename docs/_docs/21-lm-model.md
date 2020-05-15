@@ -18,7 +18,7 @@ To create a `LanguageModelingModel`, you must specify a `model_type` and a `mode
 {: .notice--info}
 
 
-- `model_type` should be one of the model types from the [supported models](/docs/lm-specifics/) (e.g. bert, electra, gpt2)
+- `model_type` should be one of the model types from the [supported models](/docs/lm-specifics/#supported-model-types) (e.g. bert, electra, gpt2)
 - `model_name` specifies the exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, the path to a directory containing model files, or `None` to train a Language Model from scratch.
 
     **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
@@ -33,19 +33,21 @@ To create a `LanguageModelingModel`, you must specify a `model_type` and a `mode
 ### Language Model fine-tuning
 
 ```python
-from simpletransformers.language_modeling import LanguageModelingModel
-
-
-model = LanguageModelingModel(
-    "bert", "bert-base-cased"
+from simpletransformers.language_modeling import (
+    LanguageModelingModel,
 )
+
+
+model = LanguageModelingModel("bert", "bert-base-cased")
+
 ```
 
 ### Language Model training from scratch
 
 ```python
-from simpletransformers.language_modeling import LanguageModelingModel
-
+from simpletransformers.language_modeling import (
+    LanguageModelingModel,
+)
 
 model = LanguageModelingModel(
     "bert", None
@@ -99,6 +101,53 @@ model = LanguageModelingModel(
   <strong>Dataset types</strong>
   {{ notice-text | markdownify }}
 </div>
+
+### Configuring the architecture of a Language Model
+
+When training a Language Model from scratch, you are free to define your own architecture. For all model types except ELECTRA, this is controlled through the `config` entry in the model `args` dict. For ELECTRA, the generator and the discriminator architectures can be specified through the `generator_config`, and `discriminator_config` entries respectively.
+
+If not specified, the default configurations (the base architecture) for the given model will be used. For all available parameters and their default values, please refer to the Hugging Face docs for the relevant config class (E.g. [BERT config](https://huggingface.co/transformers/model_doc/bert.html#bertconfig)).
+
+A custom BERT architecture:
+
+```python
+model_args = {
+    "config": {
+        "num_hidden_layers": 2
+    },
+    "vocab_size": 5000
+}
+
+model = LanguageModelingModel(
+    "bert", None, args=model_args, train_files=train_file
+)
+
+```
+
+A custom ELECTRA architecture:
+
+```python
+model_args = {
+    "vocab_size": 30000,
+    "generator_config": {
+        "embedding_size": 512,
+        "hidden_size": 256,
+        "num_hidden_layers": 4,
+    },
+    "discriminator_config": {
+        "embedding_size": 512,
+        "hidden_size": 256,
+        "num_hidden_layers": 16,
+    },
+}
+
+model = LanguageModelingModel(
+    "electra",
+    None,
+    args=model_args,
+    train_files=train_file
+)
+```
 
 
 ## `Class LanguageModelingModel`
@@ -165,10 +214,9 @@ Trains the model using 'train_file'
 
 * **args** *(`dict`, optional)* - A dict of configuration options for the `LanguageModelingModel`. Any changes made will persist for the model.
 
-* **eval_file** *(`str`, optional)* - Evaluation data (same format as train_data) against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+* **eval_file** *(`str`, optional)* - Evaluation data (same format as train_file) against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
 
-* **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
-A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+* **kwargs** *(optional)* - Additional metrics are not currently supported for Language Modeling.
 {: .parameter-list}
 
 > Returns
@@ -187,38 +235,30 @@ The `eval_model()`  method is used to evaluate the model.
 
 The following metrics will be calculated by default:
 
-* `correct` - Number of predicted answers matching the true answer exactly.
-* `similar` - Number of predicted answers that are a substring of the true answer or vice versa.
-* `incorrect` - Number of predicted answers that does not meet the criteria for `correct` or `similar`.
-* `eval_loss` - Cross Entropy Loss for eval_data
+* `perplexity` - Perplexity is a score used to evaluate language models.
+* `eval_loss` - Cross Entropy Loss for eval_file
 
 
 ```python
-result, model_outputs, wrong_preds = model.eval_model(eval_data)
+result = model.eval_model(eval_file)
 ```
 
-> *simpletransformers.language_modeling.LanguageModelingModel.eval_model*{: .function-name}(self, eval_data, 
-> output_dir=None, verbose=True, silent=False, **kwargs)
+> *simpletransformers.language_modeling.LanguageModelingModel.eval_model*{: .function-name}(self, eval_file, 
+> output_dir=None, verbose=True, silent=False)
 
-Evaluates the model using 'eval_data'
+Evaluates the model using 'eval_file'
 {: .function-text}
 
 > Parameters
 {: .parameter-blockquote}
 
-* **eval_data** - Path to text file containing the text to train the language model on. The model will be evaluated on this data. Refer to the [Language Modeling Data Formats](/docs/lm-data-formats) section for the correct formats.
+* **eval_file** *(`str`)* - Path to text file containing the text to evaluate the language model on. The model will be evaluated on this data. Refer to the [Language Modeling Data Formats](/docs/lm-data-formats) section for the correct formats.
 
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
 
 * **verbose** *(`bool`, optional)* - If verbose, results will be printed to the console on completion of evaluation.
             
-* **verbose_logging** *(`bool`, optional)* - Log info related to feature conversion and writing predictions.
-
 * **silent** *(`bool`, optional)* - If silent, tqdm progress bars will be hidden.
-
-* **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
-E.g. `f1=sklearn.metrics.f1_score`.  
-A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 {: .parameter-list}
 
 > Returns
@@ -231,50 +271,3 @@ A metric function should take in two parameters. The first parameter will be the
 
 **Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
 {: .notice--info}
-
-
-## Making Predictions With a `LanguageModelingModel`
-
-The `predict()`  method is used to make predictions with the model.
-
-```python
-context_text = "Mistborn is a series of epic fantasy novels written by American author Brandon Sanderson."
-
-predictions, raw_outputs = model.predict(
-    [
-        {
-            "context": context_text,
-            "lms": [
-                {
-                    "question": "Who was the author of Mistborn?",
-                    "id": "0",
-                }
-            ],
-        }
-    ]
-)
-
-```
-
-**Note:** The input **must** be a List even if there is only one sentence.
-{: .notice--info}
-
-
-> *simpletransformers.language_modeling.LanguageModelingModel.predict*{: .function-name}(to_predict, n_best_size=None)
-
-Performs predictions on a list of text `to_predict`.
-{: .function-text}
-
-> Parameters
-{: .parameter-blockquote}
-
-* **to_predict** - A python list of python dicts in the correct format to be sent to the model for prediction. Refer to the [Language Modeling Data Formats](/docs/lm-data-formats) section for the correct formats.
-
-* **n_best_size** *(`int`, optional)* - Number of predictions to return. args['n_best_size'] will be used if not specified.
-{: .parameter-list}
-
-> Returns
-{: .returns}
-
-* **answers** *(`list`)* - A Python list of dicts containing each question id mapped to its answer.
-{: .return-list}

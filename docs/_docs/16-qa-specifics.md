@@ -23,7 +23,7 @@ The process of performing Question Answering in Simple Transformers does not dev
 
 New model types are regularly added to the library. Question Answering tasks currently supports the model types given below.
 
-| Model      | Model code for `NERModel` |
+| Model      | Model code for `QuestionAnsweringModel` |
 | ---------- | ------------------------- |
 | ALBERT     | albert                    |
 | BERT       | bert                      |

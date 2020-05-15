@@ -32,29 +32,30 @@ When *fine-tuning* a language model, an existing pre-trained model (e.g. `bert-b
 
 Here, an untrained, randomly initialized model is pre-trained on a large corpus of text *from scratch*. This will also train a tokenizer optimized for the given corpus of text. This is particularly useful when training a language model for languages which do not have publicly available pre-trained models.
 
+This also gives you the option to create a Transformer model with a custom architecture.
+
 ## Usage Steps
 
-The process of performing Language Modeling in Simple Transformers does not deviate from the [standard pattern](/docs/usage/#task-specific-models).
+The process of performing Language Modeling in Simple Transformers follows the [standard pattern](/docs/usage/#task-specific-models). However, there is no predict functionality.
 
-1. Initialize a `QuestionAnsweringModel`
+1. Initialize a `LanguageModelingModel`
 2. Train the model with `train_model()`
 3. Evaluate the model with `eval_model()`
-4. Make predictions on (unlabelled) data with `predict()`
 
 
 ## Supported Model Types
 
 New model types are regularly added to the library. Language Modeling tasks currently supports the model types given below.
 
-| Model      | Model code for `NERModel` |
-| ---------- | ------------------------- |
-| ALBERT     | albert                    |
-| BERT       | bert                      |
-| DistilBERT | distilbert                |
-| ELECTRA    | electra                   |
-| RoBERTa    | roberta                   |
-| XLM        | xlm                       |
-| XLNet      | xlnet                     |
+| Model      | Model code for `LanguageModelingModel` |
+| ---------- | -------------------------------------- |
+| BERT       | bert                                   |
+| CamemBERT  | camembert                              |
+| DistilBERT | distilbert                             |
+| ELECTRA    | electra                                |
+| GPT-2      | gpt2                                   |
+| OpenAI GPT | openai-gpt                             |
+| RoBERTa    | roberta                                |
 
 **Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
 {: .notice--success}
@@ -62,16 +63,20 @@ New model types are regularly added to the library. Language Modeling tasks curr
 
 ## ELECTRA Models
 
-The ELECTRA model consists of a generator model and a discriminator model. Because of this, you can configure an ELECTRA model in several ways by using the options below.
+The ELECTRA model consists of a generator model and a discriminator model.
 
-- `model_type` must be set to `"electra"`.
+### Configuring an ELECTRA model
+
+You can configure an ELECTRA model in several ways by using the options below.
+
+- `model_type` must be set to `electra`.
 - To load a saved ELECTRA model, you can provide the path to the save files as `model_name`.
-- However, the pre-trained ELECTRA models made public by Google are available as separate generator and discriminator models. When starting from these models (Language Model fine-tuning), set `model_name` to `None` and provide the pre-trained models as `generator_name` and `discriminator_name`. These two parameters can also be used to load locally saved generator and/or discriminator models.
+- However, the pre-trained ELECTRA models made public by Google are available as separate generator and discriminator models. When starting from these models (Language Model fine-tuning), set `model_name` to `electra` and provide the pre-trained models as `generator_name` and `discriminator_name`. These two parameters can also be used to load locally saved generator and/or discriminator models.
 
     ```python
     model = LanguageModelingModel(
         "electra",
-        None,
+        "electra",
         generator_name="outputs/generator_model",
         discriminator_name="outputs/disciminator_model",
     )
@@ -105,3 +110,28 @@ The ELECTRA model consists of a generator model and a discriminator model. Becau
     ```
 
 Refer to the [Language Modeling Minimal Start](/docs/lm-minimal-start/) for full (minimal) examples.
+
+
+### Saving ELECTRA models
+
+When using ELECTRA models for downstream tasks, the ELECTRA developers recommend using the discriminator model only. Because of this, Simple Transformers will save the generator and discriminator models separately at the end of training. The discriminator model can then be used for downstream tasks.
+
+E.g.:
+
+```python
+model = ClassificationModel("electra", "outputs/discriminator_model")
+```
+
+The discriminator and generator models are not saved separately for any intermediate checkpoints as it is not necessary to save them separately unless they are to be used for a downstream task. However, you can manually save the discriminator and/or generator model separately from any checkpoint by using the `save_discriminator()` and `save_generator()` methods.
+
+E.g.:
+
+```python
+lm_model = LanguageModelingModel("electra", "outputs/checkpoint-1-epoch-1")
+lm_model.save_discriminator("outputs/checkpoint-1-epoch-1")
+
+classification_model = ClassificationModel("electra", "outputs/checkpoint-1-epoch-1/discriminator_model")
+```
+
+**Note:** Both `save_discriminator()` and `save_generator()` methods takes in an optional `output_dir` argument which specifies where the model should be saved.
+{: .notice--info}

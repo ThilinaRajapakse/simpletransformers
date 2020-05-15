@@ -154,7 +154,7 @@ Evaluates the model using 'eval_data'
 > Parameters
 {: .parameter-blockquote}
 
-* **eval_data** - Path to JSON file containing training data OR list of Python dicts in the correct format. The model will be evaluated on this data. Refer to the [Question Answering Data Formats](/docs/qa-data-formats) section for the correct formats.
+* **eval_data** - Path to JSON file containing evaluation data OR list of Python dicts in the correct format. The model will be evaluated on this data. Refer to the [Question Answering Data Formats](/docs/qa-data-formats) section for the correct formats.
 
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
 

@@ -164,7 +164,7 @@ eval_data = [
 
 ## Prediction Data Format
 
-*Used with [`predict()`](/docs/qa-model/#making-predictins-with-a-questionansweringmodel)*
+*Used with [`predict()`](/docs/qa-model/#making-predictions-with-a-questionansweringmodel)*
 
 The `predict()` method of a Simple Transformers model is typically used to get a prediction from the model when the true label/answer is not known. Reflecting this, the `predict()` method of the `QuestionAnsweringModel` class expects a list of dictionaries which contains only contexts, questions, and an unique ID for each question.
 

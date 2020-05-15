@@ -83,10 +83,10 @@ docs:
         url: /docs/lm-specifics/
       - title: "Language Modeling Model"
         url: /docs/lm-model/
-      # - title: "Question Answering Data Formats"
-      #   url: /docs/qa-data-formats/
-      # - title: "Question Answering Minimal Start"
-      #   # url: /docs/qa-minimal-start/
+      - title: "Language Modeling Data Formats"
+        url: /docs/lm-data-formats/
+      - title: "Language Modeling Minimal Start"
+        url: /docs/lm-minimal-start/
   - title: Meta
     children:
       - title: "History"
