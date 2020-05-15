@@ -189,8 +189,12 @@ class LanguageModelingModel:
                 self.args["tokenizer_name"], cache_dir=self.args["cache_dir"]
             )
         elif self.args["model_name"]:
-            self.tokenizer = tokenizer_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
-            self.args["tokenizer_name"] = self.args["model_name"]
+            if self.args["model_name"] == "electra":
+                self.tokenizer = tokenizer_class.from_pretrained(generator_name, cache_dir=self.args["cache_dir"], **kwargs)
+                self.args["tokenizer_name"] = self.args["model_name"]
+            else:
+                self.tokenizer = tokenizer_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
+                self.args["tokenizer_name"] = self.args["model_name"]
         else:
             if not train_files:
                 raise ValueError(
@@ -203,7 +207,7 @@ class LanguageModelingModel:
 
         if self.args["config_name"]:
             self.config = config_class.from_pretrained(self.args["config_name"], cache_dir=self.args["cache_dir"])
-        elif self.args["model_name"]:
+        elif self.args["model_name"] and self.args["model_name"] != "electra":
             self.config = config_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
         else:
             self.config = config_class(**self.args["config"], **kwargs)
@@ -242,15 +246,41 @@ class LanguageModelingModel:
 
         if self.args["model_name"]:
             if self.args["model_type"] == "electra":
-                self.model = model_class.from_pretrained(
-                    model_name,
-                    config=self.config,
-                    cache_dir=self.args["cache_dir"],
-                    generator_config=self.generator_config,
-                    discriminator_config=self.discriminator_config,
-                    **kwargs,
-                )
-                self.model.load_state_dict(torch.load(os.path.join(self.args["model_name"], "pytorch_model.bin")))
+                if self.args["model_name"] == "electra":
+                    generator_model = ElectraForMaskedLM.from_pretrained(generator_name)
+                    discriminator_model = ElectraForPreTraining.from_pretrained(discriminator_name)
+                    self.model = ElectraForLanguageModelingModel(
+                        config=self.config,
+                        generator_model=generator_model,
+                        discriminator_model=discriminator_model,
+                        generator_config=self.generator_config,
+                        discriminator_config=self.discriminator_config,
+                    )
+                    model_to_resize = (
+                        self.model.generator_model.module
+                        if hasattr(self.model.generator_model, "module")
+                        else self.model.generator_model
+                    )
+                    model_to_resize.resize_token_embeddings(len(self.tokenizer))
+
+                    model_to_resize = (
+                        self.model.discriminator_model.module
+                        if hasattr(self.model.discriminator_model, "module")
+                        else self.model.discriminator_model
+                    )
+                    model_to_resize.resize_token_embeddings(len(self.tokenizer))
+                    self.model.generator_model = generator_model
+                    self.model.discriminator_model = discriminator_model
+                else:
+                    self.model = model_class.from_pretrained(
+                        model_name,
+                        config=self.config,
+                        cache_dir=self.args["cache_dir"],
+                        generator_config=self.generator_config,
+                        discriminator_config=self.discriminator_config,
+                        **kwargs,
+                    )
+                    self.model.load_state_dict(torch.load(os.path.join(self.args["model_name"], "pytorch_model.bin")))
             else:
                 self.model = model_class.from_pretrained(
                     model_name, config=self.config, cache_dir=self.args["cache_dir"], **kwargs,
@@ -710,7 +740,7 @@ class LanguageModelingModel:
 
     def eval_model(self, eval_file, output_dir=None, verbose=True, silent=False, **kwargs):
         """
-        Evaluates the model on eval_df. Saves results to outpuargs['output_dir']
+        Evaluates the model on eval_df. Saves results to args['output_dir']
             result: Dictionary containing evaluation results.
         """  # noqa: ignore flake8"
 

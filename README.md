@@ -19,17 +19,28 @@ Supports
 - Multi-Modal Classification
 - Conversational AI.
 
+
+### Documentation Updates
+
+**New documentation is now live at [simpletransformers.ai](https://simpletransformers.ai/)**
+
+Currently added:
+
+- Text classification
+- NER
+- Question answering
+- Language model training
+  - Language model fine-tuning
+  - Training language models from scratch 
+
+Any feedback will be immensely helpful in improving the documentation! If you have any feedback, please leave a comment in the [issue](https://github.com/ThilinaRajapakse/simpletransformers/issues/342) I've opened for this.
+
+
 ### Latest
 
 #### 2020-05-05
 
 - T5 Model support added
-
-#### 2020-05-03
-
-**New documentation is now live at [simpletransformers.ai](https://simpletransformers.ai/)**
-
-Only text classification, NER, and question answering tasks are added so far but the others will follow in the next few days. Any feedback will be immensely helpful in improving the documentation! If you have any feedback, please leave a comment in the [issue](https://github.com/ThilinaRajapakse/simpletransformers/issues/342) I've opened for this.
 
 #### 2020-04-27
 
@@ -39,9 +50,9 @@ Only text classification, NER, and question answering tasks are added so far but
 
 <!--ts-->
 - [Simple Transformers](#simple-transformers)
+    - [Documentation Updates](#documentation-updates)
     - [Latest](#latest)
       - [2020-05-05](#2020-05-05)
-      - [2020-05-03](#2020-05-03)
       - [2020-04-27](#2020-04-27)
 - [Table of contents](#table-of-contents)
   - [Setup](#setup)
