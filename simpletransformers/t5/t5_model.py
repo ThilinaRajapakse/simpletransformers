@@ -174,10 +174,7 @@ class T5Model:
             **kwargs,
         )
 
-        model_to_save = self.model.module if hasattr(self.model, "module") else self.model
-        model_to_save.save_pretrained(output_dir)
-        self.tokenizer.save_pretrained(output_dir)
-        torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
+        self._save_model()
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_name"], output_dir))
@@ -724,17 +721,20 @@ class T5Model:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def _save_model(self, output_dir, optimizer, scheduler, model=None, results=None):
+    def _save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
+        if not output_dir:
+            output_dir = self.args["output_dir"]
         os.makedirs(output_dir, exist_ok=True)
 
-        if model:
+        if model and not self.args["no_save"]:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-            torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+            if optimizer and scheduler:
+                torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+                torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
             self._save_model_args(output_dir)
 
         if results:

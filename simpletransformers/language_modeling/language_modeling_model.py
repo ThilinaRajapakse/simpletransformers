@@ -1051,33 +1051,35 @@ class LanguageModelingModel:
 
     def save_discriminator(self, output_dir=None):
         if self.args["model_type"] == "electra":
-            if not output_dir:
-                output_dir = os.path.join(self.args["output_dir"], "discriminator_model")
-            os.makedirs(output_dir, exist_ok=True)
-            model_to_save = (
-                self.model.discriminator_model.module
-                if hasattr(self.model.discriminator_model, "module")
-                else self.model.discriminator_model
-            )
-            model_to_save.save_pretrained(output_dir)
-            self.tokenizer.save_pretrained(output_dir)
-        else:
-            raise ValueError("Model must be of ElectraForLanguageModelingModel")
+            if not self.args["no_save"]:
+                if not output_dir:
+                    output_dir = os.path.join(self.args["output_dir"], "discriminator_model")
+                os.makedirs(output_dir, exist_ok=True)
+                model_to_save = (
+                    self.model.discriminator_model.module
+                    if hasattr(self.model.discriminator_model, "module")
+                    else self.model.discriminator_model
+                )
+                model_to_save.save_pretrained(output_dir)
+                self.tokenizer.save_pretrained(output_dir)
+            else:
+                raise ValueError("Model must be of ElectraForLanguageModelingModel type")
 
     def save_generator(self, output_dir=None):
         if self.args["model_type"] == "electra":
-            if not output_dir:
-                output_dir = os.path.join(self.args["output_dir"], "generator_model")
-            os.makedirs(output_dir, exist_ok=True)
-            model_to_save = (
-                self.model.generator_model.module
-                if hasattr(self.model.generator_model, "module")
-                else self.model.generator_model
-            )
-            model_to_save.save_pretrained(output_dir)
-            self.tokenizer.save_pretrained(output_dir)
+            if not self.args["no_save"]:
+                if not output_dir:
+                    output_dir = os.path.join(self.args["output_dir"], "generator_model")
+                os.makedirs(output_dir, exist_ok=True)
+                model_to_save = (
+                    self.model.generator_model.module
+                    if hasattr(self.model.generator_model, "module")
+                    else self.model.generator_model
+                )
+                model_to_save.save_pretrained(output_dir)
+                self.tokenizer.save_pretrained(output_dir)
         else:
-            raise ValueError("Model must be of ElectraForLanguageModelingModel")
+            raise ValueError("Model must be of ElectraForLanguageModelingModel type")
 
     def _threshold(self, x, threshold):
         if x >= threshold:
@@ -1102,10 +1104,12 @@ class LanguageModelingModel:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def _save_model(self, output_dir, optimizer=None, scheduler=None, model=None, results=None):
+    def _save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
+        if not output_dir:
+            output_dir = self.args["output_dir"]
         os.makedirs(output_dir, exist_ok=True)
 
-        if model:
+        if model and not self.args["no_save"]:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
             if self.args["model_type"] in "electra":

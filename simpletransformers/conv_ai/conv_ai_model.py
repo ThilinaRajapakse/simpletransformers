@@ -222,10 +222,7 @@ class ConvAIModel:
             **kwargs,
         )
 
-        model_to_save = self.model.module if hasattr(self.model, "module") else self.model
-        model_to_save.save_pretrained(output_dir)
-        self.tokenizer.save_pretrained(output_dir)
-        torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
+        self._save_model()
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
@@ -759,10 +756,11 @@ class ConvAIModel:
 
         return training_progress_scores
 
-    def _save_model(self, output_dir, model=None, results=None):
-        os.makedirs(output_dir, exist_ok=True)
+    def _save_model(self, output_dir=None, model=None, results=None):
+        if not output_dir:
+            output_dir = self.args["output_dir"]
 
-        if model:
+        if model and not self.args["no_save"]:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
             model_to_save.save_pretrained(output_dir)
