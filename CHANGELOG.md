@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.28.7] - 2020-05-19
+
+### Fixed
+
+- Fixed bug in NERModel.predict() method when `split_on_space=False`. [@alexysdussier](https://github.com/alexysdussier)
+
 ## [0.28.6] - 2020-05-19
 
 ### Added
@@ -722,7 +729,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.28.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/68d62b1...HEAD
+[0.28.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9077ebb...HEAD
+
+[0.28.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/68d62b1...9077ebb
 
 [0.28.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/91866e8...68d62b1
 
