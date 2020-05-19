@@ -190,10 +190,14 @@ class LanguageModelingModel:
             )
         elif self.args["model_name"]:
             if self.args["model_name"] == "electra":
-                self.tokenizer = tokenizer_class.from_pretrained(generator_name, cache_dir=self.args["cache_dir"], **kwargs)
+                self.tokenizer = tokenizer_class.from_pretrained(
+                    generator_name, cache_dir=self.args["cache_dir"], **kwargs
+                )
                 self.args["tokenizer_name"] = self.args["model_name"]
             else:
-                self.tokenizer = tokenizer_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
+                self.tokenizer = tokenizer_class.from_pretrained(
+                    model_name, cache_dir=self.args["cache_dir"], **kwargs
+                )
                 self.args["tokenizer_name"] = self.args["model_name"]
         else:
             if not train_files:

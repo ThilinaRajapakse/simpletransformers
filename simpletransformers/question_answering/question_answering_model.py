@@ -207,6 +207,7 @@ class QuestionAnsweringModel:
                 cls_token_at_end=True if args["model_type"] in ["xlnet"] else False,
                 sequence_a_is_doc=True if args["model_type"] in ["xlnet"] else False,
                 silent=args["silent"],
+                args=args,
             )
 
             if not no_cache:
