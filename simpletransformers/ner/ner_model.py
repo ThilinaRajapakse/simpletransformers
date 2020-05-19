@@ -776,10 +776,16 @@ class NERModel:
                     out_label_list[i].append(label_map[out_label_ids[i][j]])
                     preds_list[i].append(label_map[preds[i][j]])
 
-        preds = [
-            [{word: preds_list[i][j]} for j, word in enumerate(sentence.split()[: len(preds_list[i])])]
-            for i, sentence in enumerate(to_predict)
-        ]
+        if split_on_space:
+            preds = [
+                [{word: preds_list[i][j]} for j, word in enumerate(sentence.split()[: len(preds_list[i])])]
+                for i, sentence in enumerate(to_predict)
+            ]
+        else:
+            preds = [
+                [{word: preds_list[i][j]} for j, word in enumerate(sentence[: len(preds_list[i])])]
+                for i, sentence in enumerate(to_predict)
+            ]
 
         word_tokens = []
         for n, sentence in enumerate(to_predict):
@@ -788,10 +794,17 @@ class NERModel:
             )
             word_tokens.append(w_log)
 
-        model_outputs = [
-            [{word: word_tokens[i][j]} for j, word in enumerate(sentence.split()[: len(preds_list[i])])]
-            for i, sentence in enumerate(to_predict)
-        ]
+        if split_on_space:
+            model_outputs = [
+                [{word: word_tokens[i][j]} for j, word in enumerate(sentence.split()[: len(preds_list[i])])]
+                for i, sentence in enumerate(to_predict)
+            ]
+        else:
+            model_outputs = [
+                [{word: word_tokens[i][j]} for j, word in enumerate(sentence[: len(preds_list[i])])]
+                for i, sentence in enumerate(to_predict)
+            ]
+
         return preds, model_outputs
 
     def _convert_tokens_to_word_logits(self, input_ids, label_ids, attention_mask, logits):
