@@ -1,4 +1,5 @@
 import json
+import pytest
 import os
 
 from simpletransformers.question_answering import QuestionAnsweringModel
@@ -50,7 +51,7 @@ def test_question_answering():
     model = QuestionAnsweringModel(
         "distilbert",
         "distilbert-base-uncased-distilled-squad",
-        args={"reprocess_input_data": True, "overwrite_output_dir": True},
+        args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True},
         use_cuda=False,
     )
 

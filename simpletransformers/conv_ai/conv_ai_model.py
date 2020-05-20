@@ -606,6 +606,7 @@ class ConvAIModel:
             proxies=self.__dict__.get("proxies", None),
             evaluate=evaluate,
             no_cache=no_cache,
+            args=args,
         )
         # logger.info(personachat.keys())
         # datasets = {"train": defaultdict(list), "valid": defaultdict(list)}
@@ -709,6 +710,7 @@ class ConvAIModel:
                 process_count=process_count,
                 proxies=self.__dict__.get("proxies", None),
                 interact=True,
+                args=args,
             )
             personalities = [dialog["personality"] for dataset in dataset.values() for dialog in dataset]
             personality = random.choice(personalities)

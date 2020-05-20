@@ -64,7 +64,11 @@ class TextDataset(Dataset):
             with Pool(args["process_count"]) as p:
                 self.examples = list(
                     tqdm(
-                        p.imap(tokenizer.build_inputs_with_special_tokens, tokenized_text_split, chunksize=500),
+                        p.imap(
+                            tokenizer.build_inputs_with_special_tokens,
+                            tokenized_text_split,
+                            chunksize=args["multiprocessing_chunksize"],
+                        ),
                         total=len(tokenized_text_split),
                         # disable=silent,
                     )
@@ -189,7 +193,7 @@ class SimpleDataset(Dataset):
                     with Pool(args["process_count"]) as p:
                         self.examples = list(
                             tqdm(
-                                p.imap(encode_sliding_window, lines, chunksize=50),
+                                p.imap(encode_sliding_window, lines, chunksize=args["multiprocessing_chunksize"]),
                                 total=len(lines),
                                 # disable=silent,
                             )
@@ -208,7 +212,7 @@ class SimpleDataset(Dataset):
                     with Pool(args["process_count"]) as p:
                         self.examples = list(
                             tqdm(
-                                p.imap(encode, lines, chunksize=500),
+                                p.imap(encode, lines, chunksize=args["multiprocessing_chunksize"]),
                                 total=len(lines),
                                 # disable=silent,
                             )

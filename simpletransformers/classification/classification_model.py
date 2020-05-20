@@ -825,6 +825,7 @@ class ClassificationModel:
                 sliding_window=args["sliding_window"],
                 flatten=not evaluate,
                 stride=args["stride"],
+                args=args,
             )
             if verbose and args["sliding_window"]:
                 logger.info(f" {len(features)} features created from {len(examples)} samples.")

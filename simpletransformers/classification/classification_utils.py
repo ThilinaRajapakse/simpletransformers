@@ -321,6 +321,7 @@ def convert_examples_to_features(
     sliding_window=False,
     flatten=False,
     stride=None,
+    args=None,
 ):
     """ Loads a data file into a list of `InputBatch`s
         `cls_token_at_end` define the location of the CLS token:
@@ -353,7 +354,11 @@ def convert_examples_to_features(
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
-                        p.imap(convert_example_to_feature_sliding_window, examples, chunksize=500,),
+                        p.imap(
+                            convert_example_to_feature_sliding_window,
+                            examples,
+                            chunksize=args["multiprocessing_chunksize"],
+                        ),
                         total=len(examples),
                         disable=silent,
                     )
@@ -364,7 +369,7 @@ def convert_examples_to_features(
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
-                        p.imap(convert_example_to_feature, examples, chunksize=500),
+                        p.imap(convert_example_to_feature, examples, chunksize=args["multiprocessing_chunksize"]),
                         total=len(examples),
                         disable=silent,
                     )

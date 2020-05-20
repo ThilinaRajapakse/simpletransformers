@@ -43,7 +43,15 @@ def tokenize_multi(data):
 
 
 def get_dataset(
-    tokenizer, dataset_path, dataset_cache, process_count, proxies, evaluate=False, interact=False, no_cache=False
+    tokenizer,
+    dataset_path,
+    dataset_cache,
+    process_count,
+    proxies,
+    evaluate=False,
+    interact=False,
+    no_cache=False,
+    args=None,
 ):
     """ Get tokenized PERSONACHAT dataset from S3 or cache."""
     dataset_path = dataset_path or PERSONACHAT_URL
@@ -70,14 +78,13 @@ def get_dataset(
             if isinstance(obj, str):
                 return tokenizer.convert_tokens_to_ids(tokenizer.tokenize(obj))
             if isinstance(obj, dict):
-                # data = [(d, tokenizer) for d in obj.values()]
-                # with Pool(process_count) as p:
-                #     tokenized_data = list(tqdm(p.imap(tokenize_multi, data, chunksize=500), total=len(data)))
                 return dict((n, tokenize(o)) for n, o in obj.items())
 
             data = [(d, tokenizer) for d in obj]
             with Pool(process_count) as p:
-                tokenized_data = list(tqdm(p.imap(tokenize_multi, data, chunksize=500), total=len(data)))
+                tokenized_data = list(
+                    tqdm(p.imap(tokenize_multi, data, chunksize=args["multiprocessing_chunksize"]), total=len(data))
+                )
             return tokenized_data
 
         if not interact and dataset_path == PERSONACHAT_URL:

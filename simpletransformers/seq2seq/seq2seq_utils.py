@@ -53,7 +53,11 @@ class Seq2SeqDataset(Dataset):
         if args["use_multiprocessing"]:
             with Pool(args["process_count"]) as p:
                 self.examples = list(
-                    tqdm(p.imap(preprocess_data, data, chunksize=500), total=len(data), disable=args["silent"],)
+                    tqdm(
+                        p.imap(preprocess_data, data, chunksize=args["multiprocessing_chunksize"]),
+                        total=len(data),
+                        disable=args["silent"],
+                    )
                 )
         else:
             self.examples = [preprocess_data(d) for d in tqdm(data, disable=args["silent"])]
@@ -113,7 +117,11 @@ class SimpleSummarizationDataset(Dataset):
         if args["use_multiprocessing"]:
             with Pool(args["process_count"]) as p:
                 self.examples = list(
-                    tqdm(p.imap(preprocess_data_bart, data, chunksize=500), total=len(data), disable=args["silent"],)
+                    tqdm(
+                        p.imap(preprocess_data_bart, data, chunksize=args["multiprocessing_chunksize"]),
+                        total=len(data),
+                        disable=args["silent"],
+                    )
                 )
         else:
             self.examples = [preprocess_data_bart(d) for d in tqdm(data, disable=args["silent"])]

@@ -908,6 +908,7 @@ class NERModel:
                 process_count=process_count,
                 silent=args["silent"],
                 use_multiprocessing=args["use_multiprocessing"],
+                chunksize=args["multiprocessing_chunksize"],
             )
 
             if not no_cache:
