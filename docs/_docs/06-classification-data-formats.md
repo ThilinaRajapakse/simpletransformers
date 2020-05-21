@@ -35,7 +35,7 @@ train_df.columns = ["text", "labels"]
 
 ### Multi-class classification
 
-Identical to binary classification, except the labels start from `0` and go up to `n`, where `n` is the number of labels.
+Identical to binary classification, except the labels start from `0` and go up to `n`-1, where `n` is the number of labels.
 
 | text                            | labels |
 | ------------------------------- | ------ |
