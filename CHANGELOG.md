@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.28.9] - 2020-05-19
+
+### Fixed
+
+- Fixed bug where final model was not being saved automatically.
+
+## [0.28.8] - 2020-05-19
+
+### Fixed
+
+- Fixed bug where some models were not using `multiprocessing_chunksize` argument.
+
 ## [0.28.7] - 2020-05-19
 
 ### Fixed
@@ -729,7 +741,11 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.28.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9077ebb...HEAD
+[0.28.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/08a3b4c...HEAD
+
+[0.28.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4e66cb8...08a3b4c
+
+[0.28.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9077ebb...4e66cb8
 
 [0.28.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/68d62b1...9077ebb
 

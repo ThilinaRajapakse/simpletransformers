@@ -222,7 +222,7 @@ class ConvAIModel:
             **kwargs,
         )
 
-        self._save_model()
+        self._save_model(model=self.model)
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))

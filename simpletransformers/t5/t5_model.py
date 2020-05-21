@@ -174,7 +174,7 @@ class T5Model:
             **kwargs,
         )
 
-        self._save_model()
+        self._save_model(model=self.model)
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_name"], output_dir))

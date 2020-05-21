@@ -296,7 +296,7 @@ class QuestionAnsweringModel:
             train_dataset, output_dir, show_running_loss=show_running_loss, eval_data=eval_data, **kwargs
         )
 
-        self._save_model()
+        self._save_model(model=self.model)
 
         logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
