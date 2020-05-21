@@ -234,33 +234,42 @@ class ClassificationModel:
 
         self._move_model_to_device()
 
-        if "text" in train_df.columns and "labels" in train_df.columns:
-            train_examples = [
-                InputExample(i, text, None, label)
-                for i, (text, label) in enumerate(zip(train_df["text"], train_df["labels"]))
-            ]
-        elif "text_a" in train_df.columns and "text_b" in train_df.columns:
-            train_examples = [
-                InputExample(i, text_a, text_b, label)
-                for i, (text_a, text_b, label) in enumerate(
-                    zip(train_df["text_a"], train_df["text_b"], train_df["labels"])
-                )
-            ]
-        else:
-            warnings.warn(
-                "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
-            )
-            train_examples = [
-                InputExample(i, text, None, label)
-                for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))
-            ]
+        if isinstance(train_df, str):
+            from simpletransformers.classification.classification_utils import LazyTextDataset
 
-        train_dataset = self.load_and_cache_examples(train_examples, verbose=verbose)
+            train_dataset = LazyTextDataset(train_df, self.tokenizer, self.args, text_column=3, labels_column=1)
+        else:
+            if "text" in train_df.columns and "labels" in train_df.columns:
+                train_examples = [
+                    InputExample(i, text, None, label)
+                    for i, (text, label) in enumerate(zip(train_df["text"], train_df["labels"]))
+                ]
+            elif "text_a" in train_df.columns and "text_b" in train_df.columns:
+                train_examples = [
+                    InputExample(i, text_a, text_b, label)
+                    for i, (text_a, text_b, label) in enumerate(
+                        zip(train_df["text_a"], train_df["text_b"], train_df["labels"])
+                    )
+                ]
+            else:
+                warnings.warn(
+                    "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
+                )
+                train_examples = [
+                    InputExample(i, text, None, label)
+                    for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))
+                ]
+
+            train_dataset = self.load_and_cache_examples(train_examples, verbose=verbose)
+        train_sampler = RandomSampler(train_dataset)
+        train_dataloader = DataLoader(
+            train_dataset, sampler=train_sampler, batch_size=self.args["train_batch_size"], num_workers=14
+        )
 
         os.makedirs(output_dir, exist_ok=True)
 
         global_step, tr_loss = self.train(
-            train_dataset,
+            train_dataloader,
             output_dir,
             multi_label=multi_label,
             show_running_loss=show_running_loss,
@@ -280,7 +289,7 @@ class ClassificationModel:
 
     def train(
         self,
-        train_dataset,
+        train_dataloader,
         output_dir,
         multi_label=False,
         show_running_loss=True,
@@ -294,13 +303,10 @@ class ClassificationModel:
         Utility function to be used by the train_model() method. Not intended to be used directly.
         """
 
-        device = self.device
         model = self.model
         args = self.args
 
         tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
-        train_sampler = RandomSampler(train_dataset)
-        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
 
         t_total = len(train_dataloader) // args["gradient_accumulation_steps"] * args["num_train_epochs"]
 
@@ -383,7 +389,6 @@ class ClassificationModel:
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
-                batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
                 outputs = model(**inputs)
@@ -1045,11 +1050,17 @@ class ClassificationModel:
         self.model.to(self.device)
 
     def _get_inputs_dict(self, batch):
-        inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
+        if isinstance(batch[0], dict):
+            inputs = {key: value.squeeze().to(self.device) for key, value in batch[0].items()}
+            inputs["labels"] = batch[1].to(self.device)
+        else:
+            batch = tuple(t.to(self.device) for t in batch)
 
-        # XLM, DistilBERT and RoBERTa don't use segment_ids
-        if self.args["model_type"] != "distilbert":
-            inputs["token_type_ids"] = batch[2] if self.args["model_type"] in ["bert", "xlnet", "albert"] else None
+            inputs = {"input_ids": batch[0], "attention_mask": batch[1], "labels": batch[3]}
+
+            # XLM, DistilBERT and RoBERTa don't use segment_ids
+            if self.args["model_type"] != "distilbert":
+                inputs["token_type_ids"] = batch[2] if self.args["model_type"] in ["bert", "xlnet", "albert"] else None
 
         return inputs
 

@@ -33,6 +33,7 @@ try:
 except ImportError:
     torchvision_available = False
 
+import linecache
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
 from tqdm.auto import tqdm
@@ -533,3 +534,42 @@ def get_image_transforms():
             transforms.Normalize(mean=[0.46777044, 0.44531429, 0.40661017], std=[0.12221994, 0.12145835, 0.14380469],),
         ]
     )
+
+
+class LazyTextDataset(Dataset):
+    def __init__(self, fin, tokenizer, args, text_column=0, labels_column=1, delimiter="\t"):
+        # get absolute path
+        self.fin = fin
+        self.num_entries = self._get_n_lines(self.fin)
+        self.tokenizer = tokenizer
+        self.args = args
+        self.delimiter = delimiter
+        self.text_column = text_column
+        self.labels_column = labels_column
+
+    @staticmethod
+    def _get_n_lines(fin):
+        with open(fin, encoding="utf-8") as fhin:
+            for line_idx, _ in enumerate(fhin, 1):
+                pass
+
+        return line_idx
+
+    def __getitem__(self, idx):
+        # linecache starts counting from one, not zero, +1 the given index
+        line = linecache.getline(self.fin, idx + 1).split(self.delimiter)
+        text = line[self.text_column]
+        label = line[self.labels_column]
+
+        return (
+            self.tokenizer.encode_plus(
+                text,
+                max_length=self.args["max_seq_length"],
+                pad_to_max_length=self.args["max_seq_length"],
+                return_tensors="pt",
+            ),
+            torch.tensor(int(label), dtype=torch.long),
+        )
+
+    def __len__(self):
+        return self.num_entries
