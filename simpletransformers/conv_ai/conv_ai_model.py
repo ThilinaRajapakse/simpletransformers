@@ -96,9 +96,8 @@ class ConvAIModel:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
-        if 'tokenizer_name' in args:
-            tokenizer_name = args['tokenizer_name']
-            _, _, tokenizer_class = MODEL_CLASSES[tokenizer_name]
+        if self.args["tokenizer_name"]:
+            _, _, tokenizer_class = MODEL_CLASSES[self.args["tokenizer_name"]]
         self.__dict__.update(kwargs)
 
         if use_cuda:
