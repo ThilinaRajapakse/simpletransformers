@@ -5,7 +5,7 @@ excerpt: "Regression tasks."
 last_modified_at: 2020-05-02 17:58:39
 ---
 
-The goal of regression  in natural language processing is to predict a single, continuos target value for each example in the dataset. A transformer-based regression model typically consists of a transformer model with a fully-connected layer on top of it. The fully-connected layer will have a single output neuron which predicts the target.
+The goal of regression  in natural language processing is to predict a single, continuous target value for each example in the dataset. A transformer-based regression model typically consists of a transformer model with a fully-connected layer on top of it. The fully-connected layer will have a single output neuron which predicts the target.
 
 **Note:** You must configure the model's args dict and set `regression` to `True`.
 {: .notice--info}

@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-28-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-29-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -3291,6 +3291,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/galtay"><img src="https://avatars2.githubusercontent.com/u/663051?v=4" width="100px;" alt=""/><br /><sub><b>Gabriel Altay</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=galtay" title="Code">💻</a></td>
     <td align="center"><a href="https://a-ware.io"><img src="https://avatars1.githubusercontent.com/u/47894090?v=4" width="100px;" alt=""/><br /><sub><b>flozi00</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flozi00" title="Documentation">📖</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flozi00" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/alexysdussier"><img src="https://avatars3.githubusercontent.com/u/60175018?v=4" width="100px;" alt=""/><br /><sub><b>alexysdussier</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=alexysdussier" title="Code">💻</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/jqueguiner"><img src="https://avatars1.githubusercontent.com/u/690878?v=4" width="100px;" alt=""/><br /><sub><b>Jean-Louis Queguiner</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=jqueguiner" title="Documentation">📖</a></td>
   </tr>
 </table>
 
