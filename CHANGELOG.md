@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.28.10] - 2020-05-23
+
+### Added
+
+- Added more generation/decoding parameters for T5 models.
+
+### Fixed
+
+- Fixed bug with cached features not being used with T5 models.
 
 ## [0.28.9] - 2020-05-19
 
@@ -741,7 +750,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.28.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/08a3b4c...HEAD
+[0.28.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a1a6473...HEAD
+
+[0.28.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/08a3b4c...a1a6473
 
 [0.28.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4e66cb8...08a3b4c
 

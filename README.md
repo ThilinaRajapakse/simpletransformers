@@ -141,6 +141,8 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*max_lemgth: int*](#maxlemgth-int)
       - [*repetition_penalty: float*](#repetitionpenalty-float-1)
       - [*length_penalty: float*](#lengthpenalty-float)
+      - [*top_k: int*](#topk-int)
+      - [*top_p: float*](#topp-float)
       - [*early_stopping: bool*](#earlystopping-bool)
       - [*preprocess_inputs: bool*](#preprocessinputs-bool)
   - [Sequence-to-Sequence Models](#sequence-to-sequence-models)
@@ -182,8 +184,8 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*max_length: int*](#maxlength-int)
       - [*min_length: int*](#minlength-int)
       - [*temperature: float*](#temperature-float-1)
-      - [*top_k: float*](#topk-float)
-      - [*top_p: float*](#topp-float)
+      - [*top_k: int*](#topk-int-1)
+      - [*top_p: float*](#topp-float-1)
   - [Multi-Modal Classification](#multi-modal-classification)
     - [Data format](#data-format-5)
       - [1 - Directory based](#1---directory-based)
@@ -1811,6 +1813,9 @@ Returns:
     "max_length": 20,
     "repetition_penalty": 1.0,
     "length_penalty": 2.0,
+    "top_k": None,
+    "top_p": None,
+    "num_return_sequences": 1,
     "early_stopping": True,
     "preprocess_inputs": True,
 }
@@ -1847,6 +1852,14 @@ The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no pen
 #### *length_penalty: float*
 
 Exponential penalty to the length. Default to 1.
+
+#### *top_k: int*
+
+Filter top-k tokens before sampling (<=0: no filtering)
+
+#### *top_p: float*
+
+Nucleus filtering (top-p) before sampling (<=0.0: no filtering)
 
 #### *early_stopping: bool*
 
@@ -2650,7 +2663,7 @@ Minimum length of the output utterances
 
 Sampling softmax temperature
 
-#### *top_k: float*
+#### *top_k: int*
 
 Filter top-k tokens before sampling (<=0: no filtering)
 

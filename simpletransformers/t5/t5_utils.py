@@ -58,26 +58,26 @@ class T5Dataset(Dataset):
         else:
             logger.info(" Creating features from dataset file at %s", args["cache_dir"])
 
-        data = [
-            (prefix, input_text, target_text, tokenizer, args)
-            for prefix, input_text, target_text in zip(data["prefix"], data["input_text"], data["target_text"])
-        ]
+            data = [
+                (prefix, input_text, target_text, tokenizer, args)
+                for prefix, input_text, target_text in zip(data["prefix"], data["input_text"], data["target_text"])
+            ]
 
-        if args["use_multiprocessing"]:
-            with Pool(args["process_count"]) as p:
-                self.examples = list(
-                    tqdm(
-                        p.imap(preprocess_data, data, chunksize=args["multiprocessing_chunksize"]),
-                        total=len(data),
-                        disable=args["silent"],
+            if args["use_multiprocessing"]:
+                with Pool(args["process_count"]) as p:
+                    self.examples = list(
+                        tqdm(
+                            p.imap(preprocess_data, data, chunksize=args["multiprocessing_chunksize"]),
+                            total=len(data),
+                            disable=args["silent"],
+                        )
                     )
-                )
-        else:
-            self.examples = [preprocess_data(d) for d in tqdm(data, disable=args["silent"])]
+            else:
+                self.examples = [preprocess_data(d) for d in tqdm(data, disable=args["silent"])]
 
-        logger.info(" Saving features into cached file %s", cached_features_file)
-        with open(cached_features_file, "wb") as handle:
-            pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            logger.info(" Saving features into cached file %s", cached_features_file)
+            with open(cached_features_file, "wb") as handle:
+                pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def __len__(self):
         return len(self.examples)
