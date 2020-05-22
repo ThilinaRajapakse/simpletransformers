@@ -131,6 +131,7 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [Prediction data format](#prediction-data-format)
     - [Minimal Start](#minimal-start-2)
     - [Evaluating with custom metrics](#evaluating-with-custom-metrics)
+    - [Training a T5 Model on a new task](#training-a-t5-model-on-a-new-task)
     - [T5Model](#t5model)
     - [Additional attributes for T5 Model](#additional-attributes-for-t5-model)
       - [*dataset_class: Subclass of Pytorch Dataset*](#datasetclass-subclass-of-pytorch-dataset-1)
@@ -1683,6 +1684,11 @@ model.train_model(train_df, eval_data=eval_df, matches=count_matches)
 print(model.eval_model(eval_df, matches=count_matches))
 
 ```
+
+### Training a T5 Model on a new task
+
+- [Question Generation With T5](https://medium.com/@chaturangarajapakshe/asking-the-right-questions-training-a-t5-transformer-model-on-a-new-task-691ebba2d72c?source=friends_link&sk=9f88c539546eca32b702cc0243abd0dd)
+
 
 ### T5Model
 
