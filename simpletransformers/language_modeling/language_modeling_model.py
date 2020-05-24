@@ -150,6 +150,7 @@ class LanguageModelingModel:
             "dataset_class": None,
             "dataset_type": "None",
             "discriminator_config": {},
+            "discriminator_loss_weight": 50,
             "generator_config": {},
             "max_steps": -1,
             "min_frequency": 2,
@@ -526,7 +527,12 @@ class LanguageModelingModel:
 
                 outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
                 # model outputs are always tuple in pytorch-transformers (see doc)
-                loss = outputs[0]
+                if args["model_type"] == "electra":
+                    g_loss = outputs[0]
+                    d_loss = outputs[1]
+                    loss = g_loss + args["discriminator_loss_weight"] * d_loss
+                else:
+                    loss = outputs[0]
                 # if loss.item() < 1:
                 #     masked = (labels[0] != -100).nonzero()
                 #     print(labels[0][masked])
@@ -806,7 +812,12 @@ class LanguageModelingModel:
             labels = labels.to(self.device)
             with torch.no_grad():
                 outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
-                lm_loss = outputs[0]
+                if args["model_type"] == "electra":
+                    g_loss = outputs[0]
+                    d_loss = outputs[1]
+                    lm_loss = g_loss + args["discriminator_loss_weight"] * d_loss
+                else:
+                    lm_loss = outputs[0]
                 eval_loss += lm_loss.mean().item()
             nb_eval_steps += 1
 
