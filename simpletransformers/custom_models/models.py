@@ -417,9 +417,7 @@ class ElectraPooler(nn.Module):
 
 
 class ElectraForLanguageModelingModel(PreTrainedModel):
-    def __init__(
-        self, config, tie_generator_and_discriminator_embeddings=False, **kwargs
-        ):
+    def __init__(self, config, **kwargs):
         super(ElectraForLanguageModelingModel, self).__init__(config, **kwargs)
         if "generator_config" in kwargs:
             generator_config = kwargs["generator_config"]
@@ -432,7 +430,7 @@ class ElectraForLanguageModelingModel(PreTrainedModel):
             discriminator_config = config
         self.discriminator_model = ElectraForPreTraining(discriminator_config)
         self.vocab_size = config.vocab_size
-        if tie_generator_and_discriminator_embeddings:
+        if kwargs.get("tie_generator_and_discriminator_embeddings", True):
             self.tie_generator_and_discriminator_embeddings()
 
 
