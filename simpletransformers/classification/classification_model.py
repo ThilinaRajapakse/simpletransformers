@@ -35,6 +35,7 @@ from simpletransformers.classification.transformer_models.xlm_model import XLMFo
 from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
 from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
 from simpletransformers.config.global_args import global_args
+from simpletransformers.classification.classification_utils import LazyTextDataset
 from simpletransformers.custom_models.models import ElectraForSequenceClassification
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -119,6 +120,10 @@ class ClassificationModel:
             "tie_value": 1,
             "stride": 0.8,
             "regression": False,
+            "lazy_text_column": 0,
+            "lazy_text_a_column": None,
+            "lazy_text_b_column": None,
+            "lazy_labels_column": 1,
         }
 
         self.args.update(global_args)
@@ -235,9 +240,7 @@ class ClassificationModel:
         self._move_model_to_device()
 
         if isinstance(train_df, str):
-            from simpletransformers.classification.classification_utils import LazyTextDataset
-
-            train_dataset = LazyTextDataset(train_df, self.tokenizer, self.args, text_column=3, labels_column=1)
+            train_dataset = LazyTextDataset(train_df, self.tokenizer, self.args, text_column=self.args["lazy_text_column"], labels_column=self.args["lazy_labels_column"])
         else:
             if "text" in train_df.columns and "labels" in train_df.columns:
                 train_examples = [
@@ -656,34 +659,37 @@ class ClassificationModel:
         eval_output_dir = output_dir
 
         results = {}
-
-        if "text" in eval_df.columns and "labels" in eval_df.columns:
-            eval_examples = [
-                InputExample(i, text, None, label)
-                for i, (text, label) in enumerate(zip(eval_df["text"], eval_df["labels"]))
-            ]
-        elif "text_a" in eval_df.columns and "text_b" in eval_df.columns:
-            eval_examples = [
-                InputExample(i, text_a, text_b, label)
-                for i, (text_a, text_b, label) in enumerate(
-                    zip(eval_df["text_a"], eval_df["text_b"], eval_df["labels"])
+        if isinstance(eval_df, str):
+            eval_dataset = LazyTextDataset(eval_df, self.tokenizer, self.args, text_column=self.args["lazy_text_column"], labels_column=self.args["lazy_labels_column"])
+            eval_examples = None
+        else:
+            if "text" in eval_df.columns and "labels" in eval_df.columns:
+                eval_examples = [
+                    InputExample(i, text, None, label)
+                    for i, (text, label) in enumerate(zip(eval_df["text"], eval_df["labels"]))
+                ]
+            elif "text_a" in eval_df.columns and "text_b" in eval_df.columns:
+                eval_examples = [
+                    InputExample(i, text_a, text_b, label)
+                    for i, (text_a, text_b, label) in enumerate(
+                        zip(eval_df["text_a"], eval_df["text_b"], eval_df["labels"])
+                    )
+                ]
+            else:
+                warnings.warn(
+                    "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
                 )
-            ]
-        else:
-            warnings.warn(
-                "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
-            )
-            eval_examples = [
-                InputExample(i, text, None, label)
-                for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))
-            ]
+                eval_examples = [
+                    InputExample(i, text, None, label)
+                    for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))
+                ]
 
-        if args["sliding_window"]:
-            eval_dataset, window_counts = self.load_and_cache_examples(
-                eval_examples, evaluate=True, verbose=verbose, silent=silent
-            )
-        else:
-            eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, verbose=verbose, silent=silent)
+            if args["sliding_window"]:
+                eval_dataset, window_counts = self.load_and_cache_examples(
+                    eval_examples, evaluate=True, verbose=verbose, silent=silent
+                )
+            else:
+                eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, verbose=verbose, silent=silent)
         os.makedirs(eval_output_dir, exist_ok=True)
 
         eval_sampler = SequentialSampler(eval_dataset)
@@ -696,7 +702,7 @@ class ClassificationModel:
         model.eval()
 
         for batch in tqdm(eval_dataloader, disable=args["silent"] or silent):
-            batch = tuple(t.to(device) for t in batch)
+            # batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
                 inputs = self._get_inputs_dict(batch)
@@ -858,7 +864,7 @@ class ClassificationModel:
         else:
             return dataset
 
-    def compute_metrics(self, preds, labels, eval_examples, multi_label=False, **kwargs):
+    def compute_metrics(self, preds, labels, eval_examples=None, multi_label=False, **kwargs):
         """
         Computes the evaluation metrics for the model predictions.
 
@@ -882,7 +888,10 @@ class ClassificationModel:
 
         mismatched = labels != preds
 
-        wrong = [i for (i, v) in zip(eval_examples, mismatched) if v.any()]
+        if eval_examples:
+            wrong = [i for (i, v) in zip(eval_examples, mismatched) if v.any()]
+        else:
+            wrong = ["NA"]
 
         if multi_label:
             label_ranking_score = label_ranking_average_precision_score(labels, preds)
@@ -946,7 +955,7 @@ class ClassificationModel:
         if self.config.output_hidden_states:
             for batch in tqdm(eval_dataloader, disable=args["silent"]):
                 model.eval()
-                batch = tuple(t.to(device) for t in batch)
+                # batch = tuple(t.to(device) for t in batch)
 
                 with torch.no_grad():
                     inputs = self._get_inputs_dict(batch)
@@ -976,7 +985,7 @@ class ClassificationModel:
         else:
             for batch in tqdm(eval_dataloader, disable=args["silent"]):
                 model.eval()
-                batch = tuple(t.to(device) for t in batch)
+                # batch = tuple(t.to(device) for t in batch)
 
                 with torch.no_grad():
                     inputs = self._get_inputs_dict(batch)
