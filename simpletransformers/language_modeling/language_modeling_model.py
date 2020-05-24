@@ -145,20 +145,21 @@ class LanguageModelingModel:
         self.results = {}
 
         self.args = {
-            "dataset_type": "None",
-            "dataset_class": None,
             "block_size": -1,
+            "config_name": None,
+            "dataset_class": None,
+            "dataset_type": "None",
+            "discriminator_config": {},
+            "discriminator_loss_weight": 50,
+            "generator_config": {},
+            "max_steps": -1,
+            "min_frequency": 2,
             "mlm": True,
             "mlm_probability": 0.15,
-            "max_steps": -1,
-            "config_name": None,
-            "tokenizer_name": None,
-            "min_frequency": 2,
-            "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
             "sliding_window": False,
+            "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
             "stride": 0.8,
-            "generator_config": {},
-            "discriminator_config": {},
+            "tokenizer_name": None,
             "vocab_size": None,
         }
 
@@ -521,7 +522,12 @@ class LanguageModelingModel:
 
                 outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
                 # model outputs are always tuple in pytorch-transformers (see doc)
-                loss = outputs[0]
+                if args["model_type"] == "electra":
+                    g_loss = outputs[0]
+                    d_loss = outputs[1]
+                    loss = g_loss + args["discriminator_loss_weight"] * d_loss
+                else:
+                    loss = outputs[0]
                 # if loss.item() < 1:
                 #     masked = (labels[0] != -100).nonzero()
                 #     print(labels[0][masked])
@@ -801,7 +807,12 @@ class LanguageModelingModel:
             labels = labels.to(self.device)
             with torch.no_grad():
                 outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
-                lm_loss = outputs[0]
+                if args["model_type"] == "electra":
+                    g_loss = outputs[0]
+                    d_loss = outputs[1]
+                    lm_loss = g_loss + args["discriminator_loss_weight"] * d_loss
+                else:
+                    lm_loss = outputs[0]
                 eval_loss += lm_loss.mean().item()
             nb_eval_steps += 1
 
@@ -1066,8 +1077,8 @@ class LanguageModelingModel:
                 )
                 model_to_save.save_pretrained(output_dir)
                 self.tokenizer.save_pretrained(output_dir)
-            else:
-                raise ValueError("Model must be of ElectraForLanguageModelingModel type")
+        else:
+            raise ValueError("Model must be of ElectraForLanguageModelingModel type")
 
     def save_generator(self, output_dir=None):
         if self.args["model_type"] == "electra":
