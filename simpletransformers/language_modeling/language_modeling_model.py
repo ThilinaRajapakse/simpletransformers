@@ -1066,8 +1066,8 @@ class LanguageModelingModel:
                 )
                 model_to_save.save_pretrained(output_dir)
                 self.tokenizer.save_pretrained(output_dir)
-            else:
-                raise ValueError("Model must be of ElectraForLanguageModelingModel type")
+        else:
+            raise ValueError("Model must be of ElectraForLanguageModelingModel type")
 
     def save_generator(self, output_dir=None):
         if self.args["model_type"] == "electra":
