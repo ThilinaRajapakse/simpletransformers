@@ -145,20 +145,21 @@ class LanguageModelingModel:
         self.results = {}
 
         self.args = {
-            "dataset_type": "None",
-            "dataset_class": None,
             "block_size": -1,
+            "config_name": None,
+            "dataset_class": None,
+            "dataset_type": "None",
+            "discriminator_config": {},
+            "generator_config": {},
+            "max_steps": -1,
+            "min_frequency": 2,
             "mlm": True,
             "mlm_probability": 0.15,
-            "max_steps": -1,
-            "config_name": None,
-            "tokenizer_name": None,
-            "min_frequency": 2,
-            "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
             "sliding_window": False,
+            "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
             "stride": 0.8,
-            "generator_config": {},
-            "discriminator_config": {},
+            "tie_generator_and_discriminator_embeddings": True,
+            "tokenizer_name": None,
             "vocab_size": None,
         }
 
@@ -259,6 +260,9 @@ class LanguageModelingModel:
                         discriminator_model=discriminator_model,
                         generator_config=self.generator_config,
                         discriminator_config=self.discriminator_config,
+                        tie_generator_and_discriminator_embeddings=self.args[
+                            "tie_generator_and_discriminator_embeddings"
+                        ],
                     )
                     model_to_resize = (
                         self.model.generator_model.module
@@ -300,6 +304,7 @@ class LanguageModelingModel:
                     discriminator_model=discriminator_model,
                     generator_config=self.generator_config,
                     discriminator_config=self.discriminator_config,
+                    tie_generator_and_discriminator_embeddings=self.args["tie_generator_and_discriminator_embeddings"],
                 )
                 model_to_resize = (
                     self.model.generator_model.module

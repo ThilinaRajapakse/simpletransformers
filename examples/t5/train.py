@@ -20,7 +20,6 @@ model_args = {
     "evaluate_during_training_steps": 15000,
     "evaluate_during_training_verbose": True,
     "fp16": False,
-
     "wandb_project": "Question Generation with T5",
 }
 

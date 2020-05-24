@@ -431,6 +431,15 @@ class ElectraForLanguageModelingModel(PreTrainedModel):
         self.discriminator_model = ElectraForPreTraining(discriminator_config)
         self.vocab_size = config.vocab_size
 
+    def tie_generator_and_discriminator_embeddings(self):
+        gen_embeddings = self.generator_model.electra.embeddings
+        disc_embeddings = self.discriminator_model.electra.embeddings
+
+        # tie word, position and token_type embeddings
+        gen_embeddings.word_embeddings.weight = disc_embeddings.word_embeddings.weight
+        gen_embeddings.position_embeddings.weight = disc_embeddings.position_embeddings.weight
+        gen_embeddings.token_type_embeddings.weight = disc_embeddings.token_type_embeddings.weight
+
     def forward(self, inputs, masked_lm_labels, attention_mask=None, token_type_ids=None):
         d_inputs = inputs.clone()
 

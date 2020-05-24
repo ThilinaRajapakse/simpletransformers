@@ -6,7 +6,7 @@ from tqdm.auto import tqdm
 
 
 def parse(path):
-    g = gzip.open(path, 'rb')
+    g = gzip.open(path, "rb")
     for l in g:
         yield eval(l)
 
@@ -18,16 +18,18 @@ def getDF(path):
         df[i] = d
         i += 1
 
-    return pd.DataFrame.from_dict(df, orient='index')
+    return pd.DataFrame.from_dict(df, orient="index")
 
 
-categories = [category[3:] for category in os.listdir("data") if category.endswith(".gz") and category.startswith("qa")]
+categories = [
+    category[3:] for category in os.listdir("data") if category.endswith(".gz") and category.startswith("qa")
+]
 
 for category in tqdm(categories):
     if not os.path.isfile(f"data/{category.split('.')[0]}.tsv"):
         try:
-            df1 = getDF(f'data/qa_{category}')
-            df2 = getDF(f'data/meta_{category}')
+            df1 = getDF(f"data/qa_{category}")
+            df2 = getDF(f"data/meta_{category}")
 
             df = pd.merge(df1, df2, on="asin", how="left")
             df = df[["question", "answer", "description"]]
