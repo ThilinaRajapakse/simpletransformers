@@ -417,7 +417,9 @@ class ElectraPooler(nn.Module):
 
 
 class ElectraForLanguageModelingModel(PreTrainedModel):
-    def __init__(self, config, **kwargs):
+    def __init__(
+        self, config, tie_generator_and_discriminator_embeddings=False, **kwargs
+        ):
         super(ElectraForLanguageModelingModel, self).__init__(config, **kwargs)
         if "generator_config" in kwargs:
             generator_config = kwargs["generator_config"]
@@ -430,7 +432,24 @@ class ElectraForLanguageModelingModel(PreTrainedModel):
             discriminator_config = config
         self.discriminator_model = ElectraForPreTraining(discriminator_config)
         self.vocab_size = config.vocab_size
+        if tie_generator_and_discriminator_embeddings:
+            self.tie_generator_and_discriminator_embeddings()
 
+
+    def tie_generator_and_discriminator_embeddings(self):
+        gen_embeddings = self.generator_model.electra.embeddings
+        disc_embeddings = self.discriminator_model.electra.embeddings
+
+        # tie word, position and token_type embeddings
+        gen_embeddings.word_embeddings.weight = disc_embeddings.word_embeddings.weight
+        gen_embeddings.position_embeddings.weight = (
+            disc_embeddings.position_embeddings.weight
+        )
+        gen_embeddings.token_type_embeddings.weight = (
+            disc_embeddings.token_type_embeddings.weight
+        )
+
+    
     def forward(self, inputs, masked_lm_labels, attention_mask=None, token_type_ids=None):
         d_inputs = inputs.clone()
 
