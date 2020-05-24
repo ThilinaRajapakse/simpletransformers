@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-29-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-30-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -3300,6 +3300,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/jqueguiner"><img src="https://avatars1.githubusercontent.com/u/690878?v=4" width="100px;" alt=""/><br /><sub><b>Jean-Louis Queguiner</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=jqueguiner" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/aced125"><img src="https://avatars2.githubusercontent.com/u/44452903?v=4" width="100px;" alt=""/><br /><sub><b>aced125</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=aced125" title="Code">💻</a></td>
   </tr>
 </table>
 
