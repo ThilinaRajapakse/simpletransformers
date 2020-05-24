@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.29.0] - 2020-05-24
+
+### Fixed
+
+- Fixed issues with training ELECTRA language models from scratch. [@aced125](https://github.com/aced125) [@Laksh1997](https://github.com/Laksh1997)
+- Fixed bug in save_discriminator() method.
+
+### Changed
+
+- The parallel process count is now limited to 61 by default on Windows systems. [@leungi](https://github.com/leungi)
+
 ## [0.28.10] - 2020-05-23
 
 ### Added
@@ -750,7 +761,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.28.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a1a6473...HEAD
+[0.29.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/858d2b9...HEAD
+
+[0.28.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a1a6473...858d2b9
 
 [0.28.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/08a3b4c...a1a6473
 
