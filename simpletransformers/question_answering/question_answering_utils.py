@@ -18,6 +18,8 @@ from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
+from transformers import XLMTokenizer
+
 
 logger = logging.getLogger(__name__)
 
@@ -1431,7 +1433,10 @@ def get_best_predictions_extended(
             tok_text = " ".join(tok_text.split())
             orig_text = " ".join(orig_tokens)
 
-            final_text = get_final_text(tok_text, orig_text, tokenizer.do_lower_case, verbose_logging)
+            if isinstance(tokenizer, XLMTokenizer):
+                final_text = get_final_text(tok_text, orig_text, verbose_logging)
+            else:
+                final_text = get_final_text(tok_text, orig_text, tokenizer.do_lower_case, verbose_logging)
 
             if final_text in seen_predictions:
                 continue
