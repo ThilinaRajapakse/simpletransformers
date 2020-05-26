@@ -21,7 +21,7 @@ from tqdm.auto import tqdm, trange
 import pandas as pd
 import torch
 from simpletransformers.config.global_args import global_args
-from simpletransformers.custom_models.models import ElectraForQuestionAnswering
+from simpletransformers.custom_models.models import ElectraForQuestionAnswering, XLMRobertaForQuestionAnswering
 from simpletransformers.question_answering.question_answering_utils import (
     RawResult,
     RawResultExtended,
@@ -60,6 +60,8 @@ from transformers import (
     XLMConfig,
     XLMForQuestionAnswering,
     XLMTokenizer,
+    XLMRobertaConfig,
+    XLMRobertaTokenizer,
     XLNetConfig,
     XLNetForQuestionAnswering,
     XLNetTokenizer,
@@ -100,6 +102,7 @@ class QuestionAnsweringModel:
             "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
             "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
+            "xlmroberta": (XLMRobertaConfig, XLMRobertaForQuestionAnswering, XLMRobertaTokenizer),
             "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
         }
 
@@ -694,7 +697,7 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra"]:
+                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
@@ -824,7 +827,7 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra"]:
+                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
@@ -873,7 +876,10 @@ class QuestionAnsweringModel:
                 examples, features, all_results, n_best_size, args["max_answer_length"], False, False, True, False,
             )
 
-        return answers
+        answer_list = [{"id": answer["id"], "answer": answer["answer"]} for answer in answers]
+        probability_list = [{"id": answer["id"], "probability": answer["probability"]} for answer in answers]
+
+        return answer_list, probability_list
 
     def calculate_results(self, truth, predictions, **kwargs):
         truth_dict = {}
@@ -945,7 +951,7 @@ class QuestionAnsweringModel:
             "end_positions": batch[4],
         }
 
-        if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra"]:
+        if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
             del inputs["token_type_ids"]
 
         if self.args["model_type"] in ["xlnet", "xlm"]:
@@ -978,7 +984,7 @@ class QuestionAnsweringModel:
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            if optimizer and scheduler:
+            if optimizer and scheduler and self.args["save_optimizer_and_scheduler"]:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                 torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
             self._save_model_args(output_dir)

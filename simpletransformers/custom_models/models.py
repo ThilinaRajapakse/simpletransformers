@@ -28,6 +28,7 @@ from transformers.modeling_electra import (
 from transformers.modeling_roberta import ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP, RobertaClassificationHead
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
 from transformers.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.modeling_roberta import RobertaForQuestionAnswering
 
 
 class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
@@ -652,3 +653,8 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
             outputs = (total_loss,) + outputs
 
         return outputs  # (loss), start_logits, end_logits, (hidden_states), (attentions)
+
+
+class XLMRobertaForQuestionAnswering(RobertaForQuestionAnswering):
+    config_class = XLMRobertaConfig
+    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP

@@ -39,6 +39,7 @@ global_args = {
     "save_eval_checkpoints": True,
     "save_model_every_epoch": True,
     "save_steps": 2000,
+    "save_optimizer_and_scheduler": True,
     "silent": False,
     "tensorboard_dir": None,
     "train_batch_size": 8,

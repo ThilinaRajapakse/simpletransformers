@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.0] - 2020-05-27
+
+### Added
+
+- Added XLM-RoBERTa support for question answering tasks.
+- Added `save_optimizer_and_scheduler` (default 1) to `global_args` which controls whether optimizer and scheduler is saved along with the model. Disabling significantly reduces the disk space used by saved models. 
+
+### Fixed
+
+- Bug in XLM tokenizer when preprocessing QA datasets.
+- `QuestionAnsweringModel.predict(n_best_size=n)` now correctly returns `n` answers per question (along with `n` probabilities).
+
+## BREAKING CHANGE
+
+- `QuestionAnsweringModel.predict()` now returns two lists (a list of dicts with question ids mapped to answers and a list of dicts with question ids mapped to the answer probabilities). 
+
 ## [0.29.0] - 2020-05-24
 
 ### Fixed
