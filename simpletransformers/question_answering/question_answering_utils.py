@@ -1309,7 +1309,7 @@ def get_best_predictions(
                 all_predictions[example.qas_id] = best_non_null_entry.text
         all_nbest_json[example.qas_id] = nbest_json
 
-    all_best = [{"id": id, "answer": answers[0]["text"]} for id, answers in all_nbest_json.items()]
+    all_best = [{"id": id, "answer": answers[0]["text"], "prob": round(answers[0]["probability"],4)} for id, answers in all_nbest_json.items()]
     return all_best
 
 
@@ -1481,7 +1481,7 @@ def get_best_predictions_extended(
 
         all_nbest_json[example.qas_id] = nbest_json
 
-        all_best = [{"id": id, "answer": answers[0]["text"]} for id, answers in all_nbest_json.items()]
+        all_best = [{"id": id, "answer": answers[0]["text"], "prob": round(answers[0]["probability"],4)} for id, answers in all_nbest_json.items()]
     return all_best
 
 
