@@ -35,7 +35,7 @@ from simpletransformers.classification.transformer_models.xlm_model import XLMFo
 from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
 from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
 from simpletransformers.config.global_args import global_args
-from simpletransformers.classification.classification_utils import LazyTextDataset
+from simpletransformers.classification.classification_utils import LazyClassificationDataset
 from simpletransformers.custom_models.models import ElectraForSequenceClassification
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -124,6 +124,8 @@ class ClassificationModel:
             "lazy_text_a_column": None,
             "lazy_text_b_column": None,
             "lazy_labels_column": 1,
+            "lazy_header_row": True,
+            "lazy_delimiter": "\t",
         }
 
         self.args.update(global_args)
@@ -240,7 +242,7 @@ class ClassificationModel:
         self._move_model_to_device()
 
         if isinstance(train_df, str):
-            train_dataset = LazyTextDataset(train_df, self.tokenizer, self.args, text_column=self.args["lazy_text_column"], labels_column=self.args["lazy_labels_column"])
+            train_dataset = LazyClassificationDataset(train_df, self.tokenizer, self.args)
         else:
             if "text" in train_df.columns and "labels" in train_df.columns:
                 train_examples = [
@@ -660,7 +662,7 @@ class ClassificationModel:
 
         results = {}
         if isinstance(eval_df, str):
-            eval_dataset = LazyTextDataset(eval_df, self.tokenizer, self.args, text_column=self.args["lazy_text_column"], labels_column=self.args["lazy_labels_column"])
+            eval_dataset = LazyClassificationDataset(eval_df, self.tokenizer, self.args)
             eval_examples = None
         else:
             if "text" in eval_df.columns and "labels" in eval_df.columns:

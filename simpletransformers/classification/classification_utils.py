@@ -536,28 +536,32 @@ def get_image_transforms():
     )
 
 
-class LazyTextDataset(Dataset):
-    def __init__(self, fin, tokenizer, args, text_column=0, labels_column=1, delimiter="\t"):
+class LazyClassificationDataset(Dataset):
+    def __init__(self, data_file, tokenizer, args):
         # get absolute path
-        self.fin = fin
-        self.num_entries = self._get_n_lines(self.fin)
+        self.data_file = data_file
+        self.num_entries = self._get_n_lines(self.data_file)
         self.tokenizer = tokenizer
         self.args = args
-        self.delimiter = delimiter
-        self.text_column = text_column
-        self.labels_column = labels_column
+        self.delimiter = args["lazy_delimiter"]
+        if args["lazy_text_a_column"] and args["lazy_text_b_column"]:
+            self.text_a_column = args["lazy_text_a_column"]
+            self.text_b_column = args["lazy_text_b_column"]
+        else:
+            self.text_column = args["lazy_text_column"]
+        self.labels_column = args["lazy_text_a_column"]
+        self.start_row = 1 if args["lazy_header_row"] else 0
 
     @staticmethod
-    def _get_n_lines(fin):
-        with open(fin, encoding="utf-8") as fhin:
-            for line_idx, _ in enumerate(fhin, 1):
+    def _get_n_lines(data_file):
+        with open(data_file, encoding="utf-8") as f:
+            for line_idx, _ in enumerate(f, 1):
                 pass
 
         return line_idx
 
     def __getitem__(self, idx):
-        # linecache starts counting from one, not zero, +1 the given index
-        line = linecache.getline(self.fin, idx + 1).split(self.delimiter)
+        line = linecache.getline(self.data_file, idx + 1 + self.start_row).split(self.delimiter)
         text = line[self.text_column]
         label = line[self.labels_column]
 
