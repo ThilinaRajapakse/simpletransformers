@@ -27,11 +27,11 @@ pip show transformers
 You can update a pip package with the following command.
 
 ```shell
-pip install --uprade simpletransformers
+pip install --upgrade simpletransformers
 ```
 
 This should upgrade the Transformers package to the required version as well. However, you can also update Transformers manually via;
 
 ```shell
-pip install --uprade transformers
+pip install --upgrade transformers
 ```
