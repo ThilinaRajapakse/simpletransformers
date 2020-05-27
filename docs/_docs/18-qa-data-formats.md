@@ -25,7 +25,7 @@ Questions and answers are represented as dictionaries. Each dictionary in `qas` 
 - `answers`: *(list)* The list of correct answers to the question.
 
 A single answer is represented by a dictionary with the following attributes.
-- `answer`: *(string)* The answer to the question. Must be a substring of the context.
+- `text`: *(string)* The answer to the question. Must be a substring of the context.
 - `answer_start`: *(int)* Starting index of the answer in the context.
 
 
