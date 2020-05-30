@@ -20,7 +20,10 @@ from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, Tenso
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
 from transformers import XLMTokenizer, SquadExample
-from transformers.data.processors.squad import squad_convert_example_to_features_init, squad_convert_example_to_features
+from transformers.data.processors.squad import (
+    squad_convert_example_to_features_init,
+    squad_convert_example_to_features,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -209,7 +209,7 @@ class QuestionAnsweringModel:
                 is_training=not evaluate,
                 tqdm_enabled=not args["silent"],
                 threads=args["process_count"],
-                args=args
+                args=args,
             )
 
             # if not no_cache:
