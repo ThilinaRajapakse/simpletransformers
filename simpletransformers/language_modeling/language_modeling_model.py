@@ -68,6 +68,9 @@ from transformers import (
     RobertaConfig,
     RobertaForMaskedLM,
     RobertaTokenizer,
+    LongformerConfig,
+    LongformerForMaskedLM,
+    LongformerTokenizer,
     get_linear_schedule_with_warmup,
 )
 
@@ -87,6 +90,7 @@ MODEL_CLASSES = {
     "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
     "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
     "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
+    "longformer": (LongformerConfig, LongformerForMaskedLM, LongformerTokenizer),
     "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
 }
@@ -525,7 +529,10 @@ class LanguageModelingModel:
                 inputs = inputs.to(self.device)
                 labels = labels.to(self.device)
 
-                outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
+                if args["model_type"] == "longformer":
+                    outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
+                else:
+                    outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
                 # model outputs are always tuple in pytorch-transformers (see doc)
                 if args["model_type"] == "electra":
                     g_loss = outputs[0]
@@ -862,7 +869,7 @@ class LanguageModelingModel:
                 return LineByLineTextDataset(tokenizer, args, file_path, args["block_size"])
             else:
                 special_tokens_count = 3 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 2
-                if self.args["max_seq_length"] > 509:
+                if self.args["max_seq_length"] > 509 and self.args["model_type"] != "longformer":
                     self.args["max_seq_length"] = (
                         509 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 510
                     )
@@ -878,112 +885,6 @@ class LanguageModelingModel:
                     special_tokens_count,
                     sliding_window=args["sliding_window"],
                 )
-
-    # def predict(self, to_predict, multi_label=False):
-    #     """
-    #     Performs predictions on a list of text.
-
-    #     Args:
-    #         to_predict: A python list of text (str) to be sent to the model for prediction.
-
-    #     Returns:
-    #         preds: A python list of the predictions (0 or 1) for each text.
-    #         model_outputs: A python list of the raw model outputs for each text.
-    #     """
-
-    #     device = self.device
-    #     model = self.model
-    #     args = self.args
-
-    #     self._move_model_to_device()
-
-    #     if multi_label:
-    #         eval_examples = [
-    #             InputExample(i, text, None, [0 for i in range(self.num_labels)]) for i, text in enumerate(to_predict)
-    #         ]
-    #     else:
-    #         if isinstance(to_predict[0], list):
-    #             eval_examples = [InputExample(i, text[0], text[1], 0) for i, text in enumerate(to_predict)]
-    #         else:
-    #             eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
-    #     if args["sliding_window"]:
-    #         eval_dataset, window_counts = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
-    #     else:
-    #         eval_dataset = self.load_and_cache_examples(
-    #             eval_examples, evaluate=True, multi_label=multi_label, no_cache=True
-    #         )
-
-    #     eval_sampler = SequentialSampler(eval_dataset)
-    #     eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
-
-    #     eval_loss = 0.0
-    #     nb_eval_steps = 0
-    #     preds = None
-    #     out_label_ids = None
-
-    #     for batch in tqdm(eval_dataloader, disable=args["silent"]):
-    #         model.eval()
-    #         batch = tuple(t.to(device) for t in batch)
-
-    #         with torch.no_grad():
-    #             inputs = self._get_inputs_dict(batch)
-    #             outputs = model(**inputs)
-    #             tmp_eval_loss, logits = outputs[:2]
-
-    #             if multi_label:
-    #                 logits = logits.sigmoid()
-
-    #             eval_loss += tmp_eval_loss.mean().item()
-
-    #         nb_eval_steps += 1
-
-    #         if preds is None:
-    #             preds = logits.detach().cpu().numpy()
-    #             out_label_ids = inputs["labels"].detach().cpu().numpy()
-    #         else:
-    #             preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-    #             out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
-
-    #     eval_loss = eval_loss / nb_eval_steps
-
-    #     if args["sliding_window"]:
-    #         count = 0
-    #         window_ranges = []
-    #         for n_windows in window_counts:
-    #             window_ranges.append([count, count + n_windows])
-    #             count += n_windows
-
-    #         preds = [preds[window_range[0] : window_range[1]] for window_range in window_ranges]
-
-    #         model_outputs = preds
-
-    #         preds = [np.argmax(pred, axis=1) for pred in preds]
-    #         final_preds = []
-    #         for pred_row in preds:
-    #             mode_pred, counts = mode(pred_row)
-    #             if len(counts) > 1 and counts[0] == counts[1]:
-    #                 final_preds.append(args["tie_value"])
-    #             else:
-    #                 final_preds.append(mode_pred[0])
-    #         preds = np.array(final_preds)
-    #     elif not multi_label and args["regression"] is True:
-    #         preds = np.squeeze(preds)
-    #         model_outputs = preds
-    #     else:
-    #         model_outputs = preds
-    #         if multi_label:
-    #             if isinstance(args["threshold"], list):
-    #                 threshold_values = args["threshold"]
-    #                 preds = [
-    #                     [self._threshold(pred, threshold_values[i]) for i, pred in enumerate(example)]
-    #                     for example in preds
-    #                 ]
-    #             else:
-    #                 preds = [[self._threshold(pred, args["threshold"]) for pred in example] for example in preds]
-    #         else:
-    #             preds = np.argmax(preds, axis=1)
-
-    #     return preds, model_outputs
 
     def train_tokenizer(self, train_files, tokenizer_name=None, output_dir=None, use_trained_tokenizer=True):
         """
