@@ -33,6 +33,7 @@ from simpletransformers.question_answering.question_answering_utils import (
     to_list,
     write_predictions,
     write_predictions_extended,
+    squad_convert_examples_to_features,
 )
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -198,46 +199,44 @@ class QuestionAnsweringModel:
             logger.info(f" Features loaded from cache at {cached_features_file}")
         else:
             logger.info(f" Converting to features started.")
-            features = convert_examples_to_features(
+
+            features, dataset = squad_convert_examples_to_features(
                 examples=examples,
                 tokenizer=tokenizer,
                 max_seq_length=args["max_seq_length"],
                 doc_stride=args["doc_stride"],
                 max_query_length=args["max_query_length"],
                 is_training=not evaluate,
-                cls_token_segment_id=2 if args["model_type"] in ["xlnet"] else 0,
-                pad_token_segment_id=3 if args["model_type"] in ["xlnet"] else 0,
-                cls_token_at_end=True if args["model_type"] in ["xlnet"] else False,
-                sequence_a_is_doc=True if args["model_type"] in ["xlnet"] else False,
-                silent=args["silent"],
-                args=args,
+                tqdm_enabled=not args["silent"],
+                threads=args["process_count"],
+                args=args
             )
 
-            if not no_cache:
-                torch.save(features, cached_features_file)
+            # if not no_cache:
+            #     torch.save(features, cached_features_file)
 
-        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
-        all_cls_index = torch.tensor([f.cls_index for f in features], dtype=torch.long)
-        all_p_mask = torch.tensor([f.p_mask for f in features], dtype=torch.float)
-        all_example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
-        if evaluate:
-            dataset = TensorDataset(
-                all_input_ids, all_input_mask, all_segment_ids, all_example_index, all_cls_index, all_p_mask,
-            )
-        else:
-            all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
-            all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
-            dataset = TensorDataset(
-                all_input_ids,
-                all_input_mask,
-                all_segment_ids,
-                all_start_positions,
-                all_end_positions,
-                all_cls_index,
-                all_p_mask,
-            )
+        # all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+        # all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+        # all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+        # all_cls_index = torch.tensor([f.cls_index for f in features], dtype=torch.long)
+        # all_p_mask = torch.tensor([f.p_mask for f in features], dtype=torch.float)
+        # all_example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
+        # if evaluate:
+        #     dataset = TensorDataset(
+        #         all_input_ids, all_input_mask, all_segment_ids, all_example_index, all_cls_index, all_p_mask,
+        #     )
+        # else:
+        #     all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
+        #     all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
+        #     dataset = TensorDataset(
+        #         all_input_ids,
+        #         all_input_mask,
+        #         all_segment_ids,
+        #         all_start_positions,
+        #         all_end_positions,
+        #         all_cls_index,
+        #         all_p_mask,
+        #     )
 
         if output_examples:
             return dataset, examples, features

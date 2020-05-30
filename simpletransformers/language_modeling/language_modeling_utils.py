@@ -221,10 +221,13 @@ class SimpleDataset(Dataset):
                     self.examples = [encode(line) for line in lines]
 
                 self.examples = [token for tokens in self.examples for token in tokens]
-                self.examples = [
-                    tokenizer.build_inputs_with_special_tokens(self.examples[i : i + block_size])
-                    for i in tqdm(range(0, len(self.examples) - block_size + 1, block_size))
-                ]
+                if len(self.examples) > block_size:
+                    self.examples = [
+                        tokenizer.build_inputs_with_special_tokens(self.examples[i : i + block_size])
+                        for i in tqdm(range(0, len(self.examples) - block_size + 1, block_size))
+                    ]
+                else:
+                    self.examples = [tokenizer.build_inputs_with_special_tokens(self.examples)]
 
             logger.info(" Saving features into cached file %s", cached_features_file)
             with open(cached_features_file, "wb") as handle:
