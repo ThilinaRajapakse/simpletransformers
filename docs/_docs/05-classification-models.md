@@ -122,17 +122,24 @@ model = ClassificationModel(
 )
 ```
 
-### Configuring a model
+### Configuring a Classification model
 
 `ClassificationModel` has the following task-specific configuration options.
 
 
-| Argument       | Type       | Default | Description                                                                                                                                           |
-| -------------- | ---------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| sliding_window | bool       | `False` | Whether to use sliding window technique to prevent truncating longer sequences                                                                        |
-| tie_value      | int        | `1`     | The tie_value will be used as the prediction label for any samples where the sliding window predictions are tied                                      |
-| stride         | float/int  | `0.8`   | The distance to move the window when generating sub-sequences using a sliding window. Can be a fraction of the `max_seq_length` OR a number of tokens |
-| regression     | int | `False` | Set True when doing regression. `num_labels` parameter in the model must also be set to `1`.                                                          |
+| Argument           | Type      | Default | Description                                                                                                                                           |
+| ------------------ | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| lazy_delimiter     | str       | `\t`    | The delimiter used to separate column in the file containing the lazy loading dataset                                                                 |
+| lazy_header_row    | bool      | `True`  | Set to True if the file for lazy loading contains a header row                                                                                        |
+| lazy_labels_column | int       | `0`     | The column (based on the delimiter) containing the labels for lazy loading single sentence datasets                                                   |
+| lazy_text_a_column | int       | `None`  | The column (based on the delimiter) containing the first sentence (text_a) for lazy loading single sentence datasets                                  |
+| lazy_text_b_column | int       | `None`  | The column (based on the delimiter) containing the second sentence (text_a) for lazy loading single sentence datasets                                 |
+| lazy_text_column   | int       | `0`     | The column (based on the delimiter) containing text for lazy loading single sentence datasets                                                         |
+| regression         | int       | `False` | Set True when doing regression. `num_labels` parameter in the model must also be set to `1`.                                                          |
+| sliding_window     | bool      | `False` | Whether to use sliding window technique to prevent truncating longer sequences                                                                        |
+| stride             | float/int | `0.8`   | The distance to move the window when generating sub-sequences using a sliding window. Can be a fraction of the `max_seq_length` OR a number of tokens |
+| tie_value          | int       | `1`     | The tie_value will be used as the prediction label for any samples where the sliding window predictions are tied                                      |
+
 
 ```python
 model_args = {
@@ -236,13 +243,13 @@ model = MultiLabelClassificationModel(
     pos_weight=[1, 0.5, 1, 2]
 )
 ```
-### Configuring a model
+### Configuring a Multi-Label Classification Model
 
 `MultiLabelClassificationModel` has the following task-specific configuration options.
 
 | Argument  | Type  | Default | Description                                                                                                                                                                                                                                                 |
-|-----------|-------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| threshold | float | `0.5`     | The threshold is the value at which a given label flips from 0 to 1 when predicting. The threshold may be a single value or a list of value with the same length as the number of labels. This enables the use of separate threshold values for each label. |
+| --------- | ----- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| threshold | float | `0.5`   | The threshold is the value at which a given label flips from 0 to 1 when predicting. The threshold may be a single value or a list of value with the same length as the number of labels. This enables the use of separate threshold values for each label. |
 
 ```python
 model_args = {

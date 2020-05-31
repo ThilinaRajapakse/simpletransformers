@@ -191,3 +191,44 @@ to_predict = [
 ```
 
 Everything else is identical to the single sentence data formats.
+
+
+## Lazy Loading Data Format
+
+If the path to a file (as a string) is provided instead of a dataframe, the data will be lazy loaded from the disk.
+
+**Warning:** Not currently implemented for Multi-label tasks.
+{: .notice--warning}
+
+The format is similar to the structure of corresponding dataframes in the normal input formats.
+
+
+
+### Binary Classification
+
+```text
+Aragorn was the heir of Isildur    1 
+Frodo was the heir of Isildur    0
+```
+
+### Multi-class classification
+
+```text
+Aragorn was the heir of Isildur    1 
+Frodo was the heir of Isildur    0
+Pippin is stronger than Merry    2
+```
+
+### Regression
+
+```text
+Aragorn was the heir of Isildur    1.0 
+Frodo was the heir of Isildur    0.0
+Pippin is stronger than Merry    0.3
+```
+
+### Sentence-Pair Classification
+```text
+Gimli fought with a battle axe    Gimli's preferred weapon was a battle axe    1
+Legolas was an expert archer    Legolas was taller than Gimli    0
+```
