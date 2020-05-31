@@ -1,4 +1,6 @@
 from multiprocessing import cpu_count
+import sys
+
 
 global_args = {
     "adam_epsilon": 1e-8,
@@ -37,6 +39,7 @@ global_args = {
     "save_eval_checkpoints": True,
     "save_model_every_epoch": True,
     "save_steps": 2000,
+    "save_optimizer_and_scheduler": True,
     "silent": False,
     "tensorboard_dir": None,
     "train_batch_size": 8,
@@ -49,3 +52,6 @@ global_args = {
     "warmup_steps": 0,
     "weight_decay": 0,
 }
+
+if sys.platform == "win32":
+    global_args["process_count"] = min(global_args["process_count"], 61)

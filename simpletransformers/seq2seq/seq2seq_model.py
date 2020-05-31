@@ -885,9 +885,8 @@ class Seq2SeqModel:
                 self.decoder_tokenizer.save_pretrained(os.path.join(output_dir, "decoder"))
 
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            if optimizer:
+            if optimizer and scheduler and self.args["save_optimizer_and_scheduler"]:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-            if scheduler:
                 torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
 
         if results:

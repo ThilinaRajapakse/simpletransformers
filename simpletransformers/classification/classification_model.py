@@ -289,7 +289,7 @@ class ClassificationModel:
         # model_to_save.save_pretrained(output_dir)
         # self.tokenizer.save_pretrained(output_dir)
         # torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-        self._save_model()
+        self._save_model(model=self.model)
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
@@ -1130,7 +1130,7 @@ class ClassificationModel:
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            if optimizer and scheduler:
+            if optimizer and scheduler and self.args["save_optimizer_and_scheduler"]:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                 torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
             self._save_model_args(output_dir)

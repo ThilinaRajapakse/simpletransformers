@@ -28,6 +28,7 @@ from transformers.modeling_electra import (
 from transformers.modeling_roberta import ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP, RobertaClassificationHead
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
 from transformers.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.modeling_roberta import RobertaForQuestionAnswering
 
 
 class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
@@ -430,6 +431,17 @@ class ElectraForLanguageModelingModel(PreTrainedModel):
             discriminator_config = config
         self.discriminator_model = ElectraForPreTraining(discriminator_config)
         self.vocab_size = config.vocab_size
+        if kwargs.get("tie_generator_and_discriminator_embeddings", True):
+            self.tie_generator_and_discriminator_embeddings()
+
+    def tie_generator_and_discriminator_embeddings(self):
+        gen_embeddings = self.generator_model.electra.embeddings
+        disc_embeddings = self.discriminator_model.electra.embeddings
+
+        # tie word, position and token_type embeddings
+        gen_embeddings.word_embeddings.weight = disc_embeddings.word_embeddings.weight
+        gen_embeddings.position_embeddings.weight = disc_embeddings.position_embeddings.weight
+        gen_embeddings.token_type_embeddings.weight = disc_embeddings.token_type_embeddings.weight
 
     def forward(self, inputs, masked_lm_labels, attention_mask=None, token_type_ids=None):
         d_inputs = inputs.clone()
@@ -641,3 +653,8 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
             outputs = (total_loss,) + outputs
 
         return outputs  # (loss), start_logits, end_logits, (hidden_states), (attentions)
+
+
+class XLMRobertaForQuestionAnswering(RobertaForQuestionAnswering):
+    config_class = XLMRobertaConfig
+    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP

@@ -21,7 +21,7 @@ from tqdm.auto import tqdm, trange
 import pandas as pd
 import torch
 from simpletransformers.config.global_args import global_args
-from simpletransformers.custom_models.models import ElectraForQuestionAnswering
+from simpletransformers.custom_models.models import ElectraForQuestionAnswering, XLMRobertaForQuestionAnswering
 from simpletransformers.question_answering.question_answering_utils import (
     RawResult,
     RawResultExtended,
@@ -33,6 +33,7 @@ from simpletransformers.question_answering.question_answering_utils import (
     to_list,
     write_predictions,
     write_predictions_extended,
+    squad_convert_examples_to_features,
 )
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -60,6 +61,8 @@ from transformers import (
     XLMConfig,
     XLMForQuestionAnswering,
     XLMTokenizer,
+    XLMRobertaConfig,
+    XLMRobertaTokenizer,
     XLNetConfig,
     XLNetForQuestionAnswering,
     XLNetTokenizer,
@@ -100,6 +103,7 @@ class QuestionAnsweringModel:
             "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
             "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
+            "xlmroberta": (XLMRobertaConfig, XLMRobertaForQuestionAnswering, XLMRobertaTokenizer),
             "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
         }
 
@@ -195,46 +199,44 @@ class QuestionAnsweringModel:
             logger.info(f" Features loaded from cache at {cached_features_file}")
         else:
             logger.info(f" Converting to features started.")
-            features = convert_examples_to_features(
+
+            features, dataset = squad_convert_examples_to_features(
                 examples=examples,
                 tokenizer=tokenizer,
                 max_seq_length=args["max_seq_length"],
                 doc_stride=args["doc_stride"],
                 max_query_length=args["max_query_length"],
                 is_training=not evaluate,
-                cls_token_segment_id=2 if args["model_type"] in ["xlnet"] else 0,
-                pad_token_segment_id=3 if args["model_type"] in ["xlnet"] else 0,
-                cls_token_at_end=True if args["model_type"] in ["xlnet"] else False,
-                sequence_a_is_doc=True if args["model_type"] in ["xlnet"] else False,
-                silent=args["silent"],
-                args=args,
+                tqdm_enabled=not args["silent"],
+                threads=args["process_count"],
+                args=args
             )
 
-            if not no_cache:
-                torch.save(features, cached_features_file)
+            # if not no_cache:
+            #     torch.save(features, cached_features_file)
 
-        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
-        all_cls_index = torch.tensor([f.cls_index for f in features], dtype=torch.long)
-        all_p_mask = torch.tensor([f.p_mask for f in features], dtype=torch.float)
-        all_example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
-        if evaluate:
-            dataset = TensorDataset(
-                all_input_ids, all_input_mask, all_segment_ids, all_example_index, all_cls_index, all_p_mask,
-            )
-        else:
-            all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
-            all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
-            dataset = TensorDataset(
-                all_input_ids,
-                all_input_mask,
-                all_segment_ids,
-                all_start_positions,
-                all_end_positions,
-                all_cls_index,
-                all_p_mask,
-            )
+        # all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+        # all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+        # all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+        # all_cls_index = torch.tensor([f.cls_index for f in features], dtype=torch.long)
+        # all_p_mask = torch.tensor([f.p_mask for f in features], dtype=torch.float)
+        # all_example_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
+        # if evaluate:
+        #     dataset = TensorDataset(
+        #         all_input_ids, all_input_mask, all_segment_ids, all_example_index, all_cls_index, all_p_mask,
+        #     )
+        # else:
+        #     all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
+        #     all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
+        #     dataset = TensorDataset(
+        #         all_input_ids,
+        #         all_input_mask,
+        #         all_segment_ids,
+        #         all_start_positions,
+        #         all_end_positions,
+        #         all_cls_index,
+        #         all_p_mask,
+        #     )
 
         if output_examples:
             return dataset, examples, features
@@ -296,7 +298,7 @@ class QuestionAnsweringModel:
             train_dataset, output_dir, show_running_loss=show_running_loss, eval_data=eval_data, **kwargs
         )
 
-        self._save_model()
+        self._save_model(model=self.model)
 
         logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
@@ -694,7 +696,7 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra"]:
+                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
@@ -824,7 +826,7 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra"]:
+                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
@@ -873,7 +875,10 @@ class QuestionAnsweringModel:
                 examples, features, all_results, n_best_size, args["max_answer_length"], False, False, True, False,
             )
 
-        return answers
+        answer_list = [{"id": answer["id"], "answer": answer["answer"]} for answer in answers]
+        probability_list = [{"id": answer["id"], "probability": answer["probability"]} for answer in answers]
+
+        return answer_list, probability_list
 
     def calculate_results(self, truth, predictions, **kwargs):
         truth_dict = {}
@@ -945,7 +950,7 @@ class QuestionAnsweringModel:
             "end_positions": batch[4],
         }
 
-        if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra"]:
+        if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
             del inputs["token_type_ids"]
 
         if self.args["model_type"] in ["xlnet", "xlm"]:
@@ -978,7 +983,7 @@ class QuestionAnsweringModel:
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            if optimizer and scheduler:
+            if optimizer and scheduler and self.args["save_optimizer_and_scheduler"]:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                 torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
             self._save_model_args(output_dir)

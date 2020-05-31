@@ -68,6 +68,9 @@ class T5Model:
             "max_length": 20,
             "repetition_penalty": 1.0,
             "length_penalty": 2.0,
+            "top_k": None,
+            "top_p": None,
+            "num_return_sequences": 1,
             "early_stopping": True,
             "preprocess_inputs": True,
         }
@@ -174,7 +177,7 @@ class T5Model:
             **kwargs,
         )
 
-        self._save_model()
+        self._save_model(model=self.model)
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_name"], output_dir))
@@ -617,10 +620,12 @@ class T5Model:
 
         all_outputs = []
         # Batching
-        for batch in [
-            to_predict[i : i + self.args["eval_batch_size"]]
-            for i in range(0, len(to_predict), self.args["eval_batch_size"])
-        ]:
+        for batch in tqdm(
+            [
+                to_predict[i : i + self.args["eval_batch_size"]]
+                for i in range(0, len(to_predict), self.args["eval_batch_size"])
+            ]
+        ):
             if self.args["preprocess_inputs"]:
                 input_ids = self.tokenizer.batch_encode_plus(
                     [t + " </s>" for t in batch],
@@ -641,13 +646,24 @@ class T5Model:
                 early_stopping=self.args["early_stopping"],
                 repetition_penalty=self.args["repetition_penalty"],
                 do_sample=self.args["do_sample"],
+                top_k=self.args["top_k"],
+                top_p=self.args["top_p"],
+                num_return_sequences=self.args["num_return_sequences"],
             )
             all_outputs.extend(outputs)
 
-        return [
+        outputs = [
             self.tokenizer.decode(output_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
             for output_id in all_outputs
         ]
+
+        if self.args["num_return_sequences"] > 1:
+            return [
+                outputs[i : i + self.args["num_return_sequences"]]
+                for i in range(0, len(outputs), self.args["num_return_sequences"])
+            ]
+        else:
+            return outputs
 
     def compute_metrics(self, labels, preds, **kwargs):
         """
@@ -732,7 +748,7 @@ class T5Model:
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            if optimizer and scheduler:
+            if optimizer and scheduler and self.args["save_optimizer_and_scheduler"]:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                 torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
             self._save_model_args(output_dir)

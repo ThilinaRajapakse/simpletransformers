@@ -9,6 +9,7 @@ import re
 import string
 from io import open
 from multiprocessing import Pool, cpu_count
+from functools import partial
 from pprint import pprint
 
 from tqdm import tqdm, trange
@@ -18,6 +19,8 @@ from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
+from transformers import XLMTokenizer, SquadExample
+from transformers.data.processors.squad import squad_convert_example_to_features_init, squad_convert_example_to_features
 
 logger = logging.getLogger(__name__)
 
@@ -116,66 +119,36 @@ def get_examples(examples_to_process, is_training=True, version_2_with_negative=
 
     examples = []
     for paragraph in examples_to_process:
-        paragraph_text = paragraph["context"]
-        doc_tokens = []
-        char_to_word_offset = []
-        prev_is_whitespace = True
-        for c in paragraph_text:
-            if is_whitespace(c):
-                prev_is_whitespace = True
-            else:
-                if prev_is_whitespace:
-                    doc_tokens.append(c)
-                else:
-                    doc_tokens[-1] += c
-                prev_is_whitespace = False
-            char_to_word_offset.append(len(doc_tokens) - 1)
-
+        context_text = paragraph["context"]
         for qa in paragraph["qas"]:
             qas_id = qa["id"]
             question_text = qa["question"]
-            start_position = None
-            end_position = None
-            orig_answer_text = None
-            is_impossible = qa.get("is_impossible")
-            if is_training:
-                if version_2_with_negative:
-                    is_impossible = qa["is_impossible"]
-                if (len(qa["answers"]) != 1) and (not is_impossible):
-                    raise ValueError("For training, each question should have exactly 1 answer.")
-                if not is_impossible:
-                    answer = qa["answers"][0]
-                    orig_answer_text = answer["text"]
-                    answer_offset = answer["answer_start"]
-                    answer_length = len(orig_answer_text)
-                    start_position = char_to_word_offset[answer_offset]
-                    end_position = char_to_word_offset[answer_offset + answer_length - 1]
-                    # Only add answers where the text can be exactly recovered from the
-                    # document. If this CAN'T happen it's likely due to weird Unicode
-                    # stuff so we will just skip the example.
-                    #
-                    # Note that this means for training mode, every example is NOT
-                    # guaranteed to be preserved.
-                    actual_text = " ".join(doc_tokens[start_position : (end_position + 1)])
-                    cleaned_answer_text = " ".join(whitespace_tokenize(orig_answer_text))
-                    if actual_text.find(cleaned_answer_text) == -1:
-                        logger.warning(
-                            "Could not find answer: '%s' vs. '%s'", actual_text, cleaned_answer_text,
-                        )
-                        continue
-                else:
-                    start_position = -1
-                    end_position = -1
-                    orig_answer_text = ""
+            start_position_character = None
+            answer_text = None
+            answers = []
 
-            example = InputExample(
+            if "is_impossible" in qa:
+                is_impossible = qa["is_impossible"]
+            else:
+                is_impossible = False
+
+            if not is_impossible:
+                if is_training:
+                    answer = qa["answers"][0]
+                    answer_text = answer["text"]
+                    start_position_character = answer["answer_start"]
+                else:
+                    answers = qa["answers"]
+
+            example = SquadExample(
                 qas_id=qas_id,
                 question_text=question_text,
-                doc_tokens=doc_tokens,
-                orig_answer_text=orig_answer_text,
-                start_position=start_position,
-                end_position=end_position,
+                context_text=context_text,
+                answer_text=answer_text,
+                start_position_character=start_position_character,
+                title=None,
                 is_impossible=is_impossible,
+                answers=answers,
             )
             examples.append(example)
     return examples
@@ -404,6 +377,129 @@ def convert_example_to_feature(example_row):
         )
 
         return feature
+
+
+def squad_convert_examples_to_features(
+    examples,
+    tokenizer,
+    max_seq_length,
+    doc_stride,
+    max_query_length,
+    is_training,
+    return_dataset=False,
+    threads=1,
+    tqdm_enabled=True,
+    args=None,
+):
+    """
+    Converts a list of examples into a list of features that can be directly given as input to a model.
+    It is model-dependant and takes advantage of many of the tokenizer's features to create the model's inputs.
+
+    Args:
+        examples: list of :class:`~transformers.data.processors.squad.SquadExample`
+        tokenizer: an instance of a child of :class:`~transformers.PreTrainedTokenizer`
+        max_seq_length: The maximum sequence length of the inputs.
+        doc_stride: The stride used when the context is too large and is split across several features.
+        max_query_length: The maximum length of the query.
+        is_training: whether to create features for model evaluation or model training.
+        return_dataset: Default False. Either 'pt' or 'tf'.
+            if 'pt': returns a torch.data.TensorDataset,
+            if 'tf': returns a tf.data.Dataset
+        threads: multiple processing threadsa-smi
+
+
+    Returns:
+        list of :class:`~transformers.data.processors.squad.SquadFeatures`
+
+    Example::
+
+        processor = SquadV2Processor()
+        examples = processor.get_dev_examples(data_dir)
+
+        features = squad_convert_examples_to_features(
+            examples=examples,
+            tokenizer=tokenizer,
+            max_seq_length=args.max_seq_length,
+            doc_stride=args.doc_stride,
+            max_query_length=args.max_query_length,
+            is_training=not evaluate,
+        )
+    """
+
+    # Defining helper methods
+    features = []
+    threads = min(threads, cpu_count())
+    if args["use_multiprocessing"]:
+        with Pool(threads, initializer=squad_convert_example_to_features_init, initargs=(tokenizer,)) as p:
+            annotate_ = partial(
+                squad_convert_example_to_features,
+                max_seq_length=max_seq_length,
+                doc_stride=doc_stride,
+                max_query_length=max_query_length,
+                is_training=is_training,
+            )
+            features = list(
+                tqdm(
+                    p.imap(annotate_, examples, chunksize=args["multiprocessing_chunksize"]),
+                    total=len(examples),
+                    desc="convert squad examples to features",
+                    disable=not tqdm_enabled,
+                )
+            )
+    else:
+        annotate_ = partial(
+            squad_convert_example_to_features,
+            max_seq_length=max_seq_length,
+            doc_stride=doc_stride,
+            max_query_length=max_query_length,
+            is_training=is_training,
+        )
+        features = [annotate_(example) for example in tqdm(examples, disable=not tqdm_enabled)]
+    new_features = []
+    unique_id = 1000000000
+    example_index = 0
+    for example_features in tqdm(
+        features, total=len(features), desc="add example index and unique id", disable=not tqdm_enabled
+    ):
+        if not example_features:
+            continue
+        for example_feature in example_features:
+            example_feature.example_index = example_index
+            example_feature.unique_id = unique_id
+            new_features.append(example_feature)
+            unique_id += 1
+        example_index += 1
+    features = new_features
+    del new_features
+
+    # Convert to Tensors and build dataset
+    all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+    all_attention_masks = torch.tensor([f.attention_mask for f in features], dtype=torch.long)
+    all_token_type_ids = torch.tensor([f.token_type_ids for f in features], dtype=torch.long)
+    all_cls_index = torch.tensor([f.cls_index for f in features], dtype=torch.long)
+    all_p_mask = torch.tensor([f.p_mask for f in features], dtype=torch.float)
+    all_is_impossible = torch.tensor([f.is_impossible for f in features], dtype=torch.float)
+
+    if not is_training:
+        all_feature_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
+        dataset = TensorDataset(
+            all_input_ids, all_attention_masks, all_token_type_ids, all_feature_index, all_cls_index, all_p_mask
+        )
+    else:
+        all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
+        all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
+        dataset = TensorDataset(
+            all_input_ids,
+            all_attention_masks,
+            all_token_type_ids,
+            all_start_positions,
+            all_end_positions,
+            all_cls_index,
+            all_p_mask,
+            all_is_impossible,
+        )
+
+    return features, dataset
 
 
 def convert_examples_to_features(
@@ -1307,7 +1403,14 @@ def get_best_predictions(
                 all_predictions[example.qas_id] = best_non_null_entry.text
         all_nbest_json[example.qas_id] = nbest_json
 
-    all_best = [{"id": id, "answer": answers[0]["text"]} for id, answers in all_nbest_json.items()]
+    all_best = [
+        {
+            "id": id,
+            "answer": [answer["text"] for answer in answers],
+            "probability": [answer["probability"] for answer in answers],
+        }
+        for id, answers in all_nbest_json.items()
+    ]
     return all_best
 
 
@@ -1431,7 +1534,10 @@ def get_best_predictions_extended(
             tok_text = " ".join(tok_text.split())
             orig_text = " ".join(orig_tokens)
 
-            final_text = get_final_text(tok_text, orig_text, tokenizer.do_lower_case, verbose_logging)
+            if isinstance(tokenizer, XLMTokenizer):
+                final_text = get_final_text(tok_text, orig_text, verbose_logging)
+            else:
+                final_text = get_final_text(tok_text, orig_text, tokenizer.do_lower_case, verbose_logging)
 
             if final_text in seen_predictions:
                 continue
@@ -1476,7 +1582,14 @@ def get_best_predictions_extended(
 
         all_nbest_json[example.qas_id] = nbest_json
 
-        all_best = [{"id": id, "answer": answers[0]["text"]} for id, answers in all_nbest_json.items()]
+        all_best = [
+            {
+                "id": id,
+                "answer": [answer["text"] for answer in answers],
+                "probability": [answer["probability"] for answer in answers],
+            }
+            for id, answers in all_nbest_json.items()
+        ]
     return all_best
 
 
