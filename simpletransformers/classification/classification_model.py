@@ -242,6 +242,8 @@ class ClassificationModel:
         self._move_model_to_device()
 
         if isinstance(train_df, str):
+            if self.args["sliding_window"]:
+                raise ValueError("Lazy loading cannot be used with sliding window.")
             train_dataset = LazyClassificationDataset(train_df, self.tokenizer, self.args)
         else:
             if "text" in train_df.columns and "labels" in train_df.columns:
@@ -655,7 +657,6 @@ class ClassificationModel:
         Utility function to be used by the eval_model() method. Not intended to be used directly.
         """
 
-        device = self.device
         model = self.model
         args = self.args
         eval_output_dir = output_dir
@@ -924,7 +925,6 @@ class ClassificationModel:
             model_outputs: A python list of the raw model outputs for each text.
         """
 
-        device = self.device
         model = self.model
         args = self.args
 
