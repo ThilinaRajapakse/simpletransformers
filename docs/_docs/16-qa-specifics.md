@@ -23,15 +23,16 @@ The process of performing Question Answering in Simple Transformers does not dev
 
 New model types are regularly added to the library. Question Answering tasks currently supports the model types given below.
 
-| Model      | Model code for `QuestionAnsweringModel` |
-| ---------- | ------------------------- |
-| ALBERT     | albert                    |
-| BERT       | bert                      |
-| DistilBERT | distilbert                |
-| ELECTRA    | electra                   |
-| RoBERTa    | roberta                   |
-| XLM        | xlm                       |
-| XLNet      | xlnet                     |
+| Model       | Model code for `QuestionAnsweringModel` |
+| ----------- | --------------------------------------- |
+| ALBERT      | albert                                  |
+| BERT        | bert                                    |
+| DistilBERT  | distilbert                              |
+| ELECTRA     | electra                                 |
+| RoBERTa     | roberta                                 |
+| XLM         | xlm                                     |
+| XLM-RoBERTa | xlmroberta                              |
+| XLNet       | xlnet                                   |
 
 **Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
 {: .notice--success}

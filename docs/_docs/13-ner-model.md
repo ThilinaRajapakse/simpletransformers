@@ -199,5 +199,4 @@ Performs predictions on a list of text `to_predict`.
 {: .returns}
 
 * **preds** *(`list`)* - A Python list of lists of dicts containing each word mapped to its NER tag.
-* **model_outputs** *(`list`)* - A python list of the raw model outputs for each text.
-{: .return-list}
+* **model_outputs** *(`list`)* - A Python list of lists with dicts containing each word mapped to its list with raw model output.

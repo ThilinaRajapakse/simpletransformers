@@ -224,5 +224,6 @@ Performs predictions on a list of text `to_predict`.
 > Returns
 {: .returns}
 
-* **answers** *(`list`)* - A Python list of dicts containing each question id mapped to its answer.
+* **answer_list** *(`list`)* - A Python list of dicts containing each question id mapped to its answer (or a list of answers if `n_best_size > 1`).
+* **probability_list** *(`list`)* - A Python list of dicts containing each question id mapped to the probability score for the answer (or a list of probability scores if `n_best_size > 1`).
 {: .return-list}

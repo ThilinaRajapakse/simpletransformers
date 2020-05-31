@@ -54,6 +54,7 @@ New model types are regularly added to the library. Language Modeling tasks curr
 | DistilBERT | distilbert                             |
 | ELECTRA    | electra                                |
 | GPT-2      | gpt2                                   |
+| Longformer | longformer                             |
 | OpenAI GPT | openai-gpt                             |
 | RoBERTa    | roberta                                |
 
