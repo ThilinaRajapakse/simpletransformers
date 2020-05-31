@@ -254,7 +254,8 @@
       "profile": "https://a-ware.io",
       "contributions": [
         "doc",
-        "code"
+        "code",
+        "maintenance"
       ]
     },
     {
@@ -262,6 +263,42 @@
       "name": "alexysdussier",
       "avatar_url": "https://avatars3.githubusercontent.com/u/60175018?v=4",
       "profile": "https://github.com/alexysdussier",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "jqueguiner",
+      "name": "Jean-Louis Queguiner",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/690878?v=4",
+      "profile": "https://github.com/jqueguiner",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "aced125",
+      "name": "aced125",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/44452903?v=4",
+      "profile": "https://github.com/aced125",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Laksh1997",
+      "name": "Laksh1997",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/59830552?v=4",
+      "profile": "https://github.com/Laksh1997",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "alexucb",
+      "name": "Changlin_NLP",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/29640620?v=4",
+      "profile": "https://www.linkedin.com/in/changlinz/",
       "contributions": [
         "code"
       ]
