@@ -1,28 +1,34 @@
 import torch
 from torch import nn
-
-from transformers import BertPreTrainedModel, BertModel
-from transformers import XLNetPreTrainedModel, XLNetModel
-from transformers import XLMPreTrainedModel, XLMModel
-from transformers import DistilBertModel
-from transformers.configuration_distilbert import DistilBertConfig
-from transformers.modeling_utils import SequenceSummary, PreTrainedModel
-from transformers import RobertaModel
-from transformers.configuration_roberta import RobertaConfig
-from transformers import FlaubertModel
-from transformers.configuration_xlm_roberta import XLMRobertaConfig
-from transformers import ElectraForMaskedLM, ElectraForPreTraining
-from torch.nn import BCEWithLogitsLoss
-
-from transformers.modeling_albert import (
-    AlbertConfig,
-    AlbertPreTrainedModel,
-    AlbertModel,
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+from transformers import (
+    BertModel,
+    BertPreTrainedModel,
+    DistilBertModel,
+    ElectraForMaskedLM,
+    ElectraForPreTraining,
+    FlaubertModel,
+    RobertaModel,
+    XLMModel,
+    XLMPreTrainedModel,
+    XLNetModel,
+    XLNetPreTrainedModel,
 )
-
-from transformers.modeling_roberta import ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.configuration_distilbert import DistilBertConfig
+from transformers.configuration_roberta import RobertaConfig
+from transformers.configuration_xlm_roberta import XLMRobertaConfig
+from transformers.modeling_albert import AlbertConfig, AlbertModel, AlbertPreTrainedModel
 from transformers.modeling_distilbert import DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.modeling_electra import (
+    ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP,
+    ElectraConfig,
+    ElectraModel,
+    ElectraPreTrainedModel,
+)
+from transformers.modeling_roberta import ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP, RobertaClassificationHead
+from transformers.modeling_utils import PreTrainedModel, SequenceSummary
 from transformers.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.modeling_roberta import RobertaForQuestionAnswering
 
 
 class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
@@ -65,25 +71,6 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
             outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
-
-
-class RobertaClassificationHead(nn.Module):
-    """Head for sentence-level classification tasks."""
-
-    def __init__(self, config):
-        super(RobertaClassificationHead, self).__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.out_proj = nn.Linear(config.hidden_size, config.num_labels)
-
-    def forward(self, features, **kwargs):
-        x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
-        x = self.dropout(x)
-        x = self.dense(x)
-        x = torch.tanh(x)
-        x = self.dropout(x)
-        x = self.out_proj(x)
-        return x
 
 
 class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
@@ -415,6 +402,21 @@ class XLMRobertaForMultiLabelSequenceClassification(RobertaForMultiLabelSequence
     pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
 
 
+class ElectraPooler(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.activation = nn.Tanh()
+
+    def forward(self, hidden_states):
+        # We "pool" the model by simply taking the hidden state corresponding
+        # to the first token.
+        first_token_tensor = hidden_states[:, 0]
+        pooled_output = self.dense(first_token_tensor)
+        pooled_output = self.activation(pooled_output)
+        return pooled_output
+
+
 class ElectraForLanguageModelingModel(PreTrainedModel):
     def __init__(self, config, **kwargs):
         super(ElectraForLanguageModelingModel, self).__init__(config, **kwargs)
@@ -429,6 +431,17 @@ class ElectraForLanguageModelingModel(PreTrainedModel):
             discriminator_config = config
         self.discriminator_model = ElectraForPreTraining(discriminator_config)
         self.vocab_size = config.vocab_size
+        if kwargs.get("tie_generator_and_discriminator_embeddings", True):
+            self.tie_generator_and_discriminator_embeddings()
+
+    def tie_generator_and_discriminator_embeddings(self):
+        gen_embeddings = self.generator_model.electra.embeddings
+        disc_embeddings = self.discriminator_model.electra.embeddings
+
+        # tie word, position and token_type embeddings
+        gen_embeddings.word_embeddings.weight = disc_embeddings.word_embeddings.weight
+        gen_embeddings.position_embeddings.weight = disc_embeddings.position_embeddings.weight
+        gen_embeddings.token_type_embeddings.weight = disc_embeddings.token_type_embeddings.weight
 
     def forward(self, inputs, masked_lm_labels, attention_mask=None, token_type_ids=None):
         d_inputs = inputs.clone()
@@ -467,3 +480,181 @@ class ElectraForLanguageModelingModel(PreTrainedModel):
         g_scores = g_out[1]
         d_scores = d_out[1]
         return g_loss, d_loss, g_scores, d_scores, d_labels
+
+
+class ElectraForSequenceClassification(ElectraPreTrainedModel):
+    r"""
+    Mostly the ssame as BertForSequenceClassification. A notable difference is that this class contains a pooler while
+    BertForSequenceClassification doesn't. This is because pooling happens internally in a BertModel but not in an
+    ElectraModel.
+        **labels**: (`optional`) ``torch.LongTensor`` of shape ``(batch_size,)``:
+            Labels for computing the sequence classification/regression loss.
+            Indices should be in ``[0, ..., config.num_labels - 1]``.
+            If ``config.num_labels == 1`` a regression loss is computed (Mean-Square loss),
+            If ``config.num_labels > 1`` a classification loss is computed (Cross-Entropy).
+    Outputs: `Tuple` comprising various elements depending on the configuration (config) and inputs:
+        **loss**: (`optional`, returned when ``labels`` is provided) ``torch.FloatTensor`` of shape ``(1,)``:
+            Classification (or regression if config.num_labels==1) loss.
+        **logits**: ``torch.FloatTensor`` of shape ``(batch_size, config.num_labels)``
+            Classification (or regression if config.num_labels==1) scores (before SoftMax).
+        **hidden_states**: (`optional`, returned when ``config.output_hidden_states=True``)
+            list of ``torch.FloatTensor`` (one for the output of each layer + the output of the embeddings)
+            of shape ``(batch_size, sequence_length, hidden_size)``:
+            Hidden-states of the model at the output of each layer plus the initial embedding outputs.
+        **attentions**: (`optional`, returned when ``config.output_attentions=True``)
+            list of ``torch.FloatTensor`` (one for each layer) of shape ``(batch_size, num_heads, sequence_length, sequence_length)``:
+            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention heads.
+    """  # noqa
+    config_class = ElectraConfig
+    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP
+    base_model_prefix = "electra"
+
+    def __init__(self, config, weight=None):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+
+        self.electra = ElectraModel(config)
+        self.pooler = ElectraPooler(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.classifier = nn.Linear(config.hidden_size, self.config.num_labels)
+        self.weight = weight
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+    ):
+
+        outputs = self.electra(input_ids, attention_mask, token_type_ids, position_ids, head_mask, inputs_embeds)
+        sequence_output = outputs[0]
+        pooled_output = self.pooler(sequence_output)
+        pooled_output = self.dropout(pooled_output)
+        logits = self.classifier(pooled_output)
+
+        outputs = (logits,) + outputs[2:]
+        if labels is not None:
+            if self.num_labels == 1:
+                #  We are doing regression
+                loss_fct = MSELoss()
+                loss = loss_fct(logits.view(-1), labels.view(-1))
+            else:
+                loss_fct = CrossEntropyLoss(weight=self.weight)
+                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+            outputs = (loss,) + outputs
+
+        return outputs  # (loss), logits, (hidden_states), (attentions)
+
+
+class ElectraForMultiLabelSequenceClassification(ElectraPreTrainedModel):
+    """
+    ElectraForSequenceClassification model adapted for multi-label sequence classification
+    """
+
+    config_class = ElectraConfig
+    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP
+    base_model_prefix = "electra"
+
+    def __init__(self, config, pos_weight=None):
+        super(ElectraForMultiLabelSequenceClassification, self).__init__(config)
+        self.num_labels = config.num_labels
+        self.pos_weight = pos_weight
+
+        self.electra = ElectraModel(config)
+        self.pooler = ElectraPooler(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.classifier = nn.Linear(config.hidden_size, self.config.num_labels)
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        labels=None,
+    ):
+
+        outputs = self.electra(input_ids, attention_mask, token_type_ids, position_ids, head_mask, inputs_embeds)
+        sequence_output = outputs[0]
+        pooled_output = self.pooler(sequence_output)
+        pooled_output = self.dropout(pooled_output)
+        logits = self.classifier(pooled_output)
+
+        outputs = (logits,) + outputs[2:]
+        if labels is not None:
+            loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
+            labels = labels.float()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1, self.num_labels))
+            outputs = (loss,) + outputs
+
+        return outputs
+
+
+class ElectraForQuestionAnswering(ElectraPreTrainedModel):
+    """
+    Identical to BertForQuestionAnswering other than using an ElectraModel
+    """
+
+    config_class = ElectraConfig
+    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP
+    base_model_prefix = "electra"
+
+    def __init__(self, config, weight=None):
+        super().__init__(config)
+        self.num_labels = config.num_labels
+
+        self.electra = ElectraModel(config)
+        self.qa_outputs = nn.Linear(config.hidden_size, config.num_labels)
+
+        self.init_weights()
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        start_positions=None,
+        end_positions=None,
+    ):
+
+        outputs = self.electra(input_ids, attention_mask, token_type_ids, position_ids, head_mask, inputs_embeds)
+        sequence_output = outputs[0]
+        logits = self.qa_outputs(sequence_output)
+
+        start_logits, end_logits = logits.split(1, dim=-1)
+        start_logits = start_logits.squeeze(-1)
+        end_logits = end_logits.squeeze(-1)
+
+        outputs = (start_logits, end_logits,) + outputs[2:]
+        if start_positions is not None and end_positions is not None:
+            # If we are on multi-GPU, split add a dimension
+            if len(start_positions.size()) > 1:
+                start_positions = start_positions.squeeze(-1)
+            if len(end_positions.size()) > 1:
+                end_positions = end_positions.squeeze(-1)
+            # sometimes the start/end positions are outside our model inputs, we ignore these terms
+            ignored_index = start_logits.size(1)
+            start_positions.clamp_(0, ignored_index)
+            end_positions.clamp_(0, ignored_index)
+
+            loss_fct = CrossEntropyLoss(ignore_index=ignored_index)
+            start_loss = loss_fct(start_logits, start_positions)
+            end_loss = loss_fct(end_logits, end_positions)
+            total_loss = (start_loss + end_loss) / 2
+            outputs = (total_loss,) + outputs
+
+        return outputs  # (loss), start_logits, end_logits, (hidden_states), (attentions)
+
+
+class XLMRobertaForQuestionAnswering(RobertaForQuestionAnswering):
+    config_class = XLMRobertaConfig
+    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP

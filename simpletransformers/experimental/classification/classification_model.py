@@ -4,57 +4,38 @@
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import math
 import json
+import math
+import os
 import random
 import warnings
-
 from multiprocessing import cpu_count
 
-import torch
 import numpy as np
-
 from scipy.stats import pearsonr
 from sklearn.metrics import (
-    mean_squared_error,
-    matthews_corrcoef,
     confusion_matrix,
     label_ranking_average_precision_score,
+    matthews_corrcoef,
+    mean_squared_error,
 )
-from tensorboardX import SummaryWriter
-from tqdm.auto import trange, tqdm
+from tqdm.auto import tqdm, trange
 
-from torch.utils.data.distributed import DistributedSampler
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-
-from torch.nn.utils.rnn import pad_sequence
-
-from transformers import AdamW, get_linear_schedule_with_warmup
-from transformers import (
-    WEIGHTS_NAME,
-    BertConfig,
-    BertTokenizer,
-    XLNetConfig,
-    XLNetTokenizer,
-    XLMConfig,
-    XLMTokenizer,
-    RobertaConfig,
-    RobertaTokenizer,
-    DistilBertConfig,
-    DistilBertTokenizer,
-    AlbertConfig,
-    AlbertTokenizer,
-    CamembertConfig,
-    CamembertTokenizer,
-)
-
+import torch
 from simpletransformers.experimental.classification.classification_utils import (
     InputExample,
     convert_examples_to_features,
 )
-
+from simpletransformers.experimental.classification.transformer_models.albert_model import (
+    AlbertForSequenceClassification,
+)
 from simpletransformers.experimental.classification.transformer_models.bert_model import BertForSequenceClassification
+from simpletransformers.experimental.classification.transformer_models.camembert_model import (
+    CamembertForSequenceClassification,
+)
+from simpletransformers.experimental.classification.transformer_models.distilbert_model import (
+    DistilBertForSequenceClassification,
+)
 from simpletransformers.experimental.classification.transformer_models.roberta_model import (
     RobertaForSequenceClassification,
 )
@@ -62,14 +43,28 @@ from simpletransformers.experimental.classification.transformer_models.xlm_model
 from simpletransformers.experimental.classification.transformer_models.xlnet_model import (
     XLNetForSequenceClassification,
 )
-from simpletransformers.experimental.classification.transformer_models.distilbert_model import (
-    DistilBertForSequenceClassification,
-)
-from simpletransformers.experimental.classification.transformer_models.albert_model import (
-    AlbertForSequenceClassification,
-)
-from simpletransformers.experimental.classification.transformer_models.camembert_model import (
-    CamembertForSequenceClassification,
+from tensorboardX import SummaryWriter
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from torch.utils.data.distributed import DistributedSampler
+from transformers import (
+    WEIGHTS_NAME,
+    AdamW,
+    AlbertConfig,
+    AlbertTokenizer,
+    BertConfig,
+    BertTokenizer,
+    CamembertConfig,
+    CamembertTokenizer,
+    DistilBertConfig,
+    DistilBertTokenizer,
+    RobertaConfig,
+    RobertaTokenizer,
+    XLMConfig,
+    XLMTokenizer,
+    XLNetConfig,
+    XLNetTokenizer,
+    get_linear_schedule_with_warmup,
 )
 
 

@@ -4,37 +4,46 @@
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import math
 import json
+import logging
+import math
+import os
 import random
 import warnings
-import logging
-from typing import Dict, List
 from multiprocessing import cpu_count
+from typing import Dict, List
 
-import torch
 import numpy as np
-import pandas as pd
-
 from sklearn.metrics import (
-    mean_squared_error,
-    matthews_corrcoef,
     confusion_matrix,
     label_ranking_average_precision_score,
+    matthews_corrcoef,
+    mean_squared_error,
+)
+from tqdm.auto import tqdm, trange
+
+import pandas as pd
+import torch
+from simpletransformers.config.global_args import global_args
+from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
+from simpletransformers.language_modeling.language_modeling_utils import (
+    LineByLineTextDataset,
+    SimpleDataset,
+    TextDataset,
+    mask_tokens,
 )
 from tensorboardX import SummaryWriter
-from tqdm.auto import trange, tqdm
-
+from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
+from tokenizers.processors import BertProcessing
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-
-from tokenizers import ByteLevelBPETokenizer, BertWordPieceTokenizer
-from tokenizers.processors import BertProcessing
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelWithLMHead,
     BertConfig,
     BertForMaskedLM,
     BertTokenizer,
@@ -44,6 +53,10 @@ from transformers import (
     DistilBertConfig,
     DistilBertForMaskedLM,
     DistilBertTokenizer,
+    ElectraConfig,
+    ElectraForMaskedLM,
+    ElectraForPreTraining,
+    ElectraTokenizer,
     GPT2Config,
     GPT2LMHeadModel,
     GPT2Tokenizer,
@@ -55,21 +68,11 @@ from transformers import (
     RobertaConfig,
     RobertaForMaskedLM,
     RobertaTokenizer,
-    ElectraConfig,
-    ElectraTokenizer,
-    ElectraForMaskedLM,
-    ElectraForPreTraining,
+    LongformerConfig,
+    LongformerForMaskedLM,
+    LongformerTokenizer,
     get_linear_schedule_with_warmup,
 )
-
-from simpletransformers.config.global_args import global_args
-from simpletransformers.language_modeling.language_modeling_utils import (
-    LineByLineTextDataset,
-    TextDataset,
-    mask_tokens,
-    SimpleDataset,
-)
-from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
 
 try:
     import wandb
@@ -81,13 +84,15 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 MODEL_CLASSES = {
-    "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
-    "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
+    "auto": (AutoConfig, AutoModelWithLMHead, AutoTokenizer),
     "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
-    "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
     "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
+    "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
     "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
+    "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
+    "longformer": (LongformerConfig, LongformerForMaskedLM, LongformerTokenizer),
+    "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
+    "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
 }
 
 
@@ -144,25 +149,33 @@ class LanguageModelingModel:
         self.results = {}
 
         self.args = {
-            "dataset_type": "None",
-            "dataset_class": None,
-            "custom_tokenizer": None,
             "block_size": -1,
+            "config_name": None,
+            "dataset_class": None,
+            "dataset_type": "None",
+            "discriminator_config": {},
+            "discriminator_loss_weight": 50,
+            "generator_config": {},
+            "max_steps": -1,
+            "min_frequency": 2,
             "mlm": True,
             "mlm_probability": 0.15,
-            "max_steps": -1,
-            "config_name": None,
-            "tokenizer_name": None,
-            "min_frequency": 2,
-            "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
             "sliding_window": False,
+            "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
             "stride": 0.8,
-            "generator_config": {},
-            "discriminator_config": {},
+            "tie_generator_and_discriminator_embeddings": True,
+            "tokenizer_name": None,
             "vocab_size": None,
         }
 
         self.args.update(global_args)
+
+        saved_model_args = self._load_model_args(model_name)
+        if saved_model_args:
+            self.args.update(saved_model_args)
+
+        if args:
+            self.args.update(args)
 
         if not use_cuda:
             self.args["fp16"] = False
@@ -182,8 +195,16 @@ class LanguageModelingModel:
                 self.args["tokenizer_name"], cache_dir=self.args["cache_dir"]
             )
         elif self.args["model_name"]:
-            self.tokenizer = tokenizer_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
-            self.args["tokenizer_name"] = self.args["model_name"]
+            if self.args["model_name"] == "electra":
+                self.tokenizer = tokenizer_class.from_pretrained(
+                    generator_name, cache_dir=self.args["cache_dir"], **kwargs
+                )
+                self.args["tokenizer_name"] = self.args["model_name"]
+            else:
+                self.tokenizer = tokenizer_class.from_pretrained(
+                    model_name, cache_dir=self.args["cache_dir"], **kwargs
+                )
+                self.args["tokenizer_name"] = self.args["model_name"]
         else:
             if not train_files:
                 raise ValueError(
@@ -196,7 +217,7 @@ class LanguageModelingModel:
 
         if self.args["config_name"]:
             self.config = config_class.from_pretrained(self.args["config_name"], cache_dir=self.args["cache_dir"])
-        elif self.args["model_name"]:
+        elif self.args["model_name"] and self.args["model_name"] != "electra":
             self.config = config_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
         else:
             self.config = config_class(**self.args["config"], **kwargs)
@@ -235,15 +256,44 @@ class LanguageModelingModel:
 
         if self.args["model_name"]:
             if self.args["model_type"] == "electra":
-                self.model = model_class.from_pretrained(
-                    model_name,
-                    config=self.config,
-                    cache_dir=self.args["cache_dir"],
-                    generator_config=self.generator_config,
-                    discriminator_config=self.discriminator_config,
-                    **kwargs,
-                )
-                self.model.load_state_dict(torch.load(os.path.join(self.args["model_name"], "pytorch_model.bin")))
+                if self.args["model_name"] == "electra":
+                    generator_model = ElectraForMaskedLM.from_pretrained(generator_name)
+                    discriminator_model = ElectraForPreTraining.from_pretrained(discriminator_name)
+                    self.model = ElectraForLanguageModelingModel(
+                        config=self.config,
+                        generator_model=generator_model,
+                        discriminator_model=discriminator_model,
+                        generator_config=self.generator_config,
+                        discriminator_config=self.discriminator_config,
+                        tie_generator_and_discriminator_embeddings=self.args[
+                            "tie_generator_and_discriminator_embeddings"
+                        ],
+                    )
+                    model_to_resize = (
+                        self.model.generator_model.module
+                        if hasattr(self.model.generator_model, "module")
+                        else self.model.generator_model
+                    )
+                    model_to_resize.resize_token_embeddings(len(self.tokenizer))
+
+                    model_to_resize = (
+                        self.model.discriminator_model.module
+                        if hasattr(self.model.discriminator_model, "module")
+                        else self.model.discriminator_model
+                    )
+                    model_to_resize.resize_token_embeddings(len(self.tokenizer))
+                    self.model.generator_model = generator_model
+                    self.model.discriminator_model = discriminator_model
+                else:
+                    self.model = model_class.from_pretrained(
+                        model_name,
+                        config=self.config,
+                        cache_dir=self.args["cache_dir"],
+                        generator_config=self.generator_config,
+                        discriminator_config=self.discriminator_config,
+                        **kwargs,
+                    )
+                    self.model.load_state_dict(torch.load(os.path.join(self.args["model_name"], "pytorch_model.bin")))
             else:
                 self.model = model_class.from_pretrained(
                     model_name, config=self.config, cache_dir=self.args["cache_dir"], **kwargs,
@@ -259,6 +309,7 @@ class LanguageModelingModel:
                     discriminator_model=discriminator_model,
                     generator_config=self.generator_config,
                     discriminator_config=self.discriminator_config,
+                    tie_generator_and_discriminator_embeddings=self.args["tie_generator_and_discriminator_embeddings"],
                 )
                 model_to_resize = (
                     self.model.generator_model.module
@@ -478,9 +529,17 @@ class LanguageModelingModel:
                 inputs = inputs.to(self.device)
                 labels = labels.to(self.device)
 
-                outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
+                if args["model_type"] == "longformer":
+                    outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
+                else:
+                    outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
                 # model outputs are always tuple in pytorch-transformers (see doc)
-                loss = outputs[0]
+                if args["model_type"] == "electra":
+                    g_loss = outputs[0]
+                    d_loss = outputs[1]
+                    loss = g_loss + args["discriminator_loss_weight"] * d_loss
+                else:
+                    loss = outputs[0]
                 # if loss.item() < 1:
                 #     masked = (labels[0] != -100).nonzero()
                 #     print(labels[0][masked])
@@ -662,11 +721,39 @@ class LanguageModelingModel:
                         best_eval_metric = results[args["early_stopping_metric"]]
                         self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
+                    else:
+                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
+                            if early_stopping_counter < args["early_stopping_patience"]:
+                                early_stopping_counter += 1
+                                if verbose:
+                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" Current step: {early_stopping_counter}")
+                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                            else:
+                                if verbose:
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(" Training terminated.")
+                                    train_iterator.close()
+                                return global_step, tr_loss / global_step
                 else:
                     if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
                         best_eval_metric = results[args["early_stopping_metric"]]
                         self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
+                    else:
+                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
+                            if early_stopping_counter < args["early_stopping_patience"]:
+                                early_stopping_counter += 1
+                                if verbose:
+                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" Current step: {early_stopping_counter}")
+                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                            else:
+                                if verbose:
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(" Training terminated.")
+                                    train_iterator.close()
+                                return global_step, tr_loss / global_step
 
             if args["max_steps"] > 0 and global_step > args["max_steps"]:
                 return global_step, tr_loss / global_step
@@ -675,7 +762,7 @@ class LanguageModelingModel:
 
     def eval_model(self, eval_file, output_dir=None, verbose=True, silent=False, **kwargs):
         """
-        Evaluates the model on eval_df. Saves results to outpuargs['output_dir']
+        Evaluates the model on eval_df. Saves results to args['output_dir']
             result: Dictionary containing evaluation results.
         """  # noqa: ignore flake8"
 
@@ -732,7 +819,12 @@ class LanguageModelingModel:
             labels = labels.to(self.device)
             with torch.no_grad():
                 outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
-                lm_loss = outputs[0]
+                if args["model_type"] == "electra":
+                    g_loss = outputs[0]
+                    d_loss = outputs[1]
+                    lm_loss = g_loss + args["discriminator_loss_weight"] * d_loss
+                else:
+                    lm_loss = outputs[0]
                 eval_loss += lm_loss.mean().item()
             nb_eval_steps += 1
 
@@ -777,7 +869,7 @@ class LanguageModelingModel:
                 return LineByLineTextDataset(tokenizer, args, file_path, args["block_size"])
             else:
                 special_tokens_count = 3 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 2
-                if self.args["max_seq_length"] > 509:
+                if self.args["max_seq_length"] > 509 and self.args["model_type"] != "longformer":
                     self.args["max_seq_length"] = (
                         509 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 510
                     )
@@ -793,112 +885,6 @@ class LanguageModelingModel:
                     special_tokens_count,
                     sliding_window=args["sliding_window"],
                 )
-
-    # def predict(self, to_predict, multi_label=False):
-    #     """
-    #     Performs predictions on a list of text.
-
-    #     Args:
-    #         to_predict: A python list of text (str) to be sent to the model for prediction.
-
-    #     Returns:
-    #         preds: A python list of the predictions (0 or 1) for each text.
-    #         model_outputs: A python list of the raw model outputs for each text.
-    #     """
-
-    #     device = self.device
-    #     model = self.model
-    #     args = self.args
-
-    #     self._move_model_to_device()
-
-    #     if multi_label:
-    #         eval_examples = [
-    #             InputExample(i, text, None, [0 for i in range(self.num_labels)]) for i, text in enumerate(to_predict)
-    #         ]
-    #     else:
-    #         if isinstance(to_predict[0], list):
-    #             eval_examples = [InputExample(i, text[0], text[1], 0) for i, text in enumerate(to_predict)]
-    #         else:
-    #             eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
-    #     if args["sliding_window"]:
-    #         eval_dataset, window_counts = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
-    #     else:
-    #         eval_dataset = self.load_and_cache_examples(
-    #             eval_examples, evaluate=True, multi_label=multi_label, no_cache=True
-    #         )
-
-    #     eval_sampler = SequentialSampler(eval_dataset)
-    #     eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
-
-    #     eval_loss = 0.0
-    #     nb_eval_steps = 0
-    #     preds = None
-    #     out_label_ids = None
-
-    #     for batch in tqdm(eval_dataloader, disable=args["silent"]):
-    #         model.eval()
-    #         batch = tuple(t.to(device) for t in batch)
-
-    #         with torch.no_grad():
-    #             inputs = self._get_inputs_dict(batch)
-    #             outputs = model(**inputs)
-    #             tmp_eval_loss, logits = outputs[:2]
-
-    #             if multi_label:
-    #                 logits = logits.sigmoid()
-
-    #             eval_loss += tmp_eval_loss.mean().item()
-
-    #         nb_eval_steps += 1
-
-    #         if preds is None:
-    #             preds = logits.detach().cpu().numpy()
-    #             out_label_ids = inputs["labels"].detach().cpu().numpy()
-    #         else:
-    #             preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-    #             out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
-
-    #     eval_loss = eval_loss / nb_eval_steps
-
-    #     if args["sliding_window"]:
-    #         count = 0
-    #         window_ranges = []
-    #         for n_windows in window_counts:
-    #             window_ranges.append([count, count + n_windows])
-    #             count += n_windows
-
-    #         preds = [preds[window_range[0] : window_range[1]] for window_range in window_ranges]
-
-    #         model_outputs = preds
-
-    #         preds = [np.argmax(pred, axis=1) for pred in preds]
-    #         final_preds = []
-    #         for pred_row in preds:
-    #             mode_pred, counts = mode(pred_row)
-    #             if len(counts) > 1 and counts[0] == counts[1]:
-    #                 final_preds.append(args["tie_value"])
-    #             else:
-    #                 final_preds.append(mode_pred[0])
-    #         preds = np.array(final_preds)
-    #     elif not multi_label and args["regression"] is True:
-    #         preds = np.squeeze(preds)
-    #         model_outputs = preds
-    #     else:
-    #         model_outputs = preds
-    #         if multi_label:
-    #             if isinstance(args["threshold"], list):
-    #                 threshold_values = args["threshold"]
-    #                 preds = [
-    #                     [self._threshold(pred, threshold_values[i]) for i, pred in enumerate(example)]
-    #                     for example in preds
-    #                 ]
-    #             else:
-    #                 preds = [[self._threshold(pred, args["threshold"]) for pred in example] for example in preds]
-    #         else:
-    #             preds = np.argmax(preds, axis=1)
-
-    #     return preds, model_outputs
 
     def train_tokenizer(self, train_files, tokenizer_name=None, output_dir=None, use_trained_tokenizer=True):
         """
@@ -986,33 +972,35 @@ class LanguageModelingModel:
 
     def save_discriminator(self, output_dir=None):
         if self.args["model_type"] == "electra":
-            if not output_dir:
-                output_dir = os.path.join(self.args["output_dir"], "discriminator_model")
-            os.makedirs(output_dir, exist_ok=True)
-            model_to_save = (
-                self.model.discriminator_model.module
-                if hasattr(self.model.discriminator_model, "module")
-                else self.model.discriminator_model
-            )
-            model_to_save.save_pretrained(output_dir)
-            self.tokenizer.save_pretrained(output_dir)
+            if not self.args["no_save"]:
+                if not output_dir:
+                    output_dir = os.path.join(self.args["output_dir"], "discriminator_model")
+                os.makedirs(output_dir, exist_ok=True)
+                model_to_save = (
+                    self.model.discriminator_model.module
+                    if hasattr(self.model.discriminator_model, "module")
+                    else self.model.discriminator_model
+                )
+                model_to_save.save_pretrained(output_dir)
+                self.tokenizer.save_pretrained(output_dir)
         else:
-            raise ValueError("Model must be of ElectraForLanguageModelingModel")
+            raise ValueError("Model must be of ElectraForLanguageModelingModel type")
 
     def save_generator(self, output_dir=None):
         if self.args["model_type"] == "electra":
-            if not output_dir:
-                output_dir = os.path.join(self.args["output_dir"], "generator_model")
-            os.makedirs(output_dir, exist_ok=True)
-            model_to_save = (
-                self.model.generator_model.module
-                if hasattr(self.model.generator_model, "module")
-                else self.model.generator_model
-            )
-            model_to_save.save_pretrained(output_dir)
-            self.tokenizer.save_pretrained(output_dir)
+            if not self.args["no_save"]:
+                if not output_dir:
+                    output_dir = os.path.join(self.args["output_dir"], "generator_model")
+                os.makedirs(output_dir, exist_ok=True)
+                model_to_save = (
+                    self.model.generator_model.module
+                    if hasattr(self.model.generator_model, "module")
+                    else self.model.generator_model
+                )
+                model_to_save.save_pretrained(output_dir)
+                self.tokenizer.save_pretrained(output_dir)
         else:
-            raise ValueError("Model must be of ElectraForLanguageModelingModel")
+            raise ValueError("Model must be of ElectraForLanguageModelingModel type")
 
     def _threshold(self, x, threshold):
         if x >= threshold:
@@ -1037,10 +1025,12 @@ class LanguageModelingModel:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def _save_model(self, output_dir, optimizer=None, scheduler=None, model=None, results=None):
+    def _save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
+        if not output_dir:
+            output_dir = self.args["output_dir"]
         os.makedirs(output_dir, exist_ok=True)
 
-        if model:
+        if model and not self.args["no_save"]:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
             if self.args["model_type"] in "electra":
@@ -1051,13 +1041,28 @@ class LanguageModelingModel:
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            if optimizer:
+            if optimizer and scheduler and self.args["save_optimizer_and_scheduler"]:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-            if scheduler:
                 torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+            self._save_model_args(output_dir)
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
             with open(output_eval_file, "w") as writer:
                 for key in sorted(results.keys()):
                     writer.write("{} = {}\n".format(key, str(results[key])))
+
+    def _save_model_args(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
+            json.dump(self.args, f)
+
+    def _load_model_args(self, input_dir):
+        if input_dir:
+            input_dir, filename = os.path.split(input_dir)
+
+            model_args_file = os.path.join(input_dir, "model_args.json")
+            if os.path.isfile(model_args_file):
+                with open(model_args_file, "r") as f:
+                    model_args = json.load(f)
+                return model_args

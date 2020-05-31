@@ -1,62 +1,57 @@
 from __future__ import absolute_import, division, print_function
 
-import os
-import math
 import json
+import logging
+import math
+import os
 import random
 import warnings
-import logging
 from multiprocessing import cpu_count
 
-import torch
 import numpy as np
-import pandas as pd
-
 from scipy.stats import pearsonr
-from seqeval.metrics import precision_score, recall_score, f1_score, classification_report
-from tensorboardX import SummaryWriter
-from tqdm.auto import trange, tqdm
+from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
+from tqdm.auto import tqdm, trange
 
-from torch.nn import CrossEntropyLoss
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-
-from transformers import AdamW, get_linear_schedule_with_warmup
-from transformers import (
-    WEIGHTS_NAME,
-    BertConfig,
-    BertForTokenClassification,
-    BertTokenizer,
-)
-from transformers import (
-    DistilBertConfig,
-    DistilBertForTokenClassification,
-    DistilBertTokenizer,
-)
-from transformers import RobertaConfig, RobertaForTokenClassification, RobertaTokenizer
-from transformers import (
-    XLMRobertaConfig,
-    XLMRobertaForTokenClassification,
-    XLMRobertaTokenizer,
-)
-
+import pandas as pd
+import torch
+from simpletransformers.config.global_args import global_args
 from simpletransformers.ner.ner_utils import (
     InputExample,
     convert_examples_to_features,
+    get_examples_from_df,
     get_labels,
     read_examples_from_file,
-    get_examples_from_df,
 )
+from tensorboardX import SummaryWriter
+from torch.nn import CrossEntropyLoss
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from transformers import (
+    WEIGHTS_NAME,
+    AdamW,
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelForTokenClassification,
+    BertConfig,
+    BertForTokenClassification,
+    BertTokenizer,
     CamembertConfig,
     CamembertForTokenClassification,
     CamembertTokenizer,
-)
-from transformers import (
+    DistilBertConfig,
+    DistilBertForTokenClassification,
+    DistilBertTokenizer,
     ElectraConfig,
     ElectraForTokenClassification,
     ElectraTokenizer,
+    RobertaConfig,
+    RobertaForTokenClassification,
+    RobertaTokenizer,
+    XLMRobertaConfig,
+    XLMRobertaForTokenClassification,
+    XLMRobertaTokenizer,
+    get_linear_schedule_with_warmup,
 )
-from simpletransformers.config.global_args import global_args
 
 try:
     import wandb
@@ -82,6 +77,7 @@ class NERModel:
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
+            **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """  # noqa: ignore flake8"
 
         if args and "manual_seed" in args:
@@ -111,6 +107,13 @@ class NERModel:
         self.args = {"classification_report": False}
         self.args.update(global_args)
 
+        saved_model_args = self._load_model_args(model_name)
+        if saved_model_args:
+            self.args.update(saved_model_args)
+
+        if args:
+            self.args.update(args)
+
         if not use_cuda:
             self.args["fp16"] = False
 
@@ -118,12 +121,13 @@ class NERModel:
             self.args.update(args)
 
         MODEL_CLASSES = {
+            "auto": (AutoConfig, AutoTokenizer, AutoModelForTokenClassification),
             "bert": (BertConfig, BertForTokenClassification, BertTokenizer),
-            "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
-            "distilbert": (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
             "camembert": (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer),
-            "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
+            "distilbert": (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForTokenClassification, ElectraTokenizer),
+            "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
+            "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
@@ -172,7 +176,9 @@ class NERModel:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args["wandb_project"] = None
 
-    def train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None, verbose=True):
+    def train_model(
+        self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs
+    ):
         """
         Trains the model using 'train_data'
 
@@ -181,10 +187,12 @@ class NERModel:
                         If a text file is given the data should be in the CoNLL format. i.e. One word per line, with sentences seperated by an empty line.
                         The first word of the line should be a word, and the last should be a Name Entity Tag.
                         If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
-
+            eval_data: Evaluation data (same format as train_data) against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
             None
@@ -196,11 +204,18 @@ class NERModel:
         if self.args["silent"]:
             show_running_loss = False
 
-        if self.args["evaluate_during_training"] and eval_df is None:
-            raise ValueError(
-                "evaluate_during_training is enabled but eval_df is not specified."
-                " Pass eval_df to model.train_model() if using evaluate_during_training."
-            )
+        if self.args["evaluate_during_training"] and eval_data is None:
+            if "eval_df" in kwargs:
+                warnings.warn(
+                    "The eval_df parameter has been renamed to eval_data."
+                    " Using eval_df will raise an error in a future version."
+                )
+                eval_data = kwargs.pop("eval_df")
+            else:
+                raise ValueError(
+                    "evaluate_during_training is enabled but eval_data is not specified."
+                    " Pass eval_data to model.train_model() if using evaluate_during_training."
+                )
 
         if not output_dir:
             output_dir = self.args["output_dir"]
@@ -218,17 +233,14 @@ class NERModel:
         os.makedirs(output_dir, exist_ok=True)
 
         global_step, tr_loss = self.train(
-            train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df
+            train_dataset, output_dir, show_running_loss=show_running_loss, eval_data=eval_data, **kwargs
         )
 
-        model_to_save = self.model.module if hasattr(self.model, "module") else self.model
-        model_to_save.save_pretrained(output_dir)
-        self.tokenizer.save_pretrained(output_dir)
-        torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
+        self._save_model(model=self.model)
 
         logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
 
-    def train(self, train_dataset, output_dir, show_running_loss=True, eval_df=None, verbose=True):
+    def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True, **kwargs):
         """
         Trains the model on train_dataset.
 
@@ -308,7 +320,7 @@ class NERModel:
                 logger.info("   Starting fine-tuning.")
 
         if args["evaluate_during_training"]:
-            training_progress_scores = self._create_training_progress_scores()
+            training_progress_scores = self._create_training_progress_scores(**kwargs)
         if args["wandb_project"]:
             wandb.init(project=args["wandb_project"], config={**args}, **args["wandb_kwargs"])
             wandb.watch(self.model)
@@ -392,7 +404,9 @@ class NERModel:
                         and global_step % args["evaluate_during_training_steps"] == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results, _, _ = self.eval_model(eval_df, verbose=True)
+                        results, _, _ = self.eval_model(
+                            eval_data, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs
+                        )
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
@@ -483,7 +497,9 @@ class NERModel:
                 self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args["evaluate_during_training"]:
-                results, _, _ = self.eval_model(eval_df, verbose=True)
+                results, _, _ = self.eval_model(
+                    eval_data, verbose=verbose and args["evaluate_during_training_verbose"], **kwargs
+                )
 
                 self._save_model(output_dir_current, optimizer, scheduler, results=results)
 
@@ -505,15 +521,44 @@ class NERModel:
                         best_eval_metric = results[args["early_stopping_metric"]]
                         self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
+                    else:
+                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
+                            if early_stopping_counter < args["early_stopping_patience"]:
+                                early_stopping_counter += 1
+                                if verbose:
+                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" Current step: {early_stopping_counter}")
+                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                            else:
+                                if verbose:
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(" Training terminated.")
+                                    train_iterator.close()
+                                return global_step, tr_loss / global_step
                 else:
                     if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
                         best_eval_metric = results[args["early_stopping_metric"]]
                         self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
+                        early_stopping_counter = 0
+                    else:
+                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
+                            if early_stopping_counter < args["early_stopping_patience"]:
+                                early_stopping_counter += 1
+                                if verbose:
+                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" Current step: {early_stopping_counter}")
+                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                            else:
+                                if verbose:
+                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(" Training terminated.")
+                                    train_iterator.close()
+                                return global_step, tr_loss / global_step
 
         return global_step, tr_loss / global_step
 
-    def eval_model(self, eval_data, output_dir=None, verbose=True):
+    def eval_model(self, eval_data, output_dir=None, verbose=True, silent=False, **kwargs):
         """
         Evaluates the model on eval_data. Saves results to output_dir.
 
@@ -525,6 +570,8 @@ class NERModel:
 
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
+                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
             result: Dictionary containing evaluation results. (eval_loss, precision, recall, f1_score)
@@ -538,7 +585,9 @@ class NERModel:
 
         eval_dataset = self.load_and_cache_examples(eval_data, evaluate=True)
 
-        result, model_outputs, preds_list = self.evaluate(eval_dataset, output_dir)
+        result, model_outputs, preds_list = self.evaluate(
+            eval_dataset, output_dir, verbose=verbose, silent=silent, **kwargs
+        )
         self.results.update(result)
 
         if verbose:
@@ -546,7 +595,7 @@ class NERModel:
 
         return result, model_outputs, preds_list
 
-    def evaluate(self, eval_dataset, output_dir):
+    def evaluate(self, eval_dataset, output_dir, verbose=True, silent=False, **kwargs):
         """
         Evaluates the model on eval_dataset.
 
@@ -570,7 +619,7 @@ class NERModel:
         out_label_ids = None
         model.eval()
 
-        for batch in tqdm(eval_dataloader, disable=args["silent"]):
+        for batch in tqdm(eval_dataloader, disable=args["silent"] or silent):
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
@@ -611,11 +660,16 @@ class NERModel:
                     out_label_list[i].append(label_map[out_label_ids[i][j]])
                     preds_list[i].append(label_map[preds[i][j]])
 
+        extra_metrics = {}
+        for metric, func in kwargs.items():
+            extra_metrics[metric] = func(out_label_list, preds_list)
+
         result = {
             "eval_loss": eval_loss,
             "precision": precision_score(out_label_list, preds_list),
             "recall": recall_score(out_label_list, preds_list),
             "f1_score": f1_score(out_label_list, preds_list),
+            **extra_metrics,
         }
 
         results.update(result)
@@ -630,17 +684,21 @@ class NERModel:
 
         return results, model_outputs, preds_list
 
-    def predict(self, to_predict):
+    def predict(self, to_predict, split_on_space=True):
         """
         Performs predictions on a list of text.
 
         Args:
             to_predict: A python list of text (str) to be sent to the model for prediction.
+            split_on_space: If True, each sequence will be split by spaces for assigning labels.
+                            If False, to_predict must be a a list of lists, with the inner list being a
+                            list of strings consisting of the split sequences. The outer list is the list of sequences to
+                            predict on.
 
         Returns:
-            preds: A Python list of lists with dicts containg each word mapped to its NER tag.
-            model_outputs: A python list of the raw model outputs for each text.
-        """
+            preds: A Python list of lists with dicts containing each word mapped to its NER tag.
+            model_outputs: A Python list of lists with dicts containing each word mapped to its list with raw model output.
+        """  # noqa: ignore flake8"
 
         device = self.device
         model = self.model
@@ -649,10 +707,16 @@ class NERModel:
 
         self._move_model_to_device()
 
-        predict_examples = [
-            InputExample(i, sentence.split(), [self.labels[0] for word in sentence.split()])
-            for i, sentence in enumerate(to_predict)
-        ]
+        if split_on_space:
+            predict_examples = [
+                InputExample(i, sentence.split(), [self.labels[0] for word in sentence.split()])
+                for i, sentence in enumerate(to_predict)
+            ]
+        else:
+            predict_examples = [
+                InputExample(i, sentence, [self.labels[0] for word in sentence])
+                for i, sentence in enumerate(to_predict)
+            ]
 
         eval_dataset = self.load_and_cache_examples(None, to_predict=predict_examples)
 
@@ -687,12 +751,18 @@ class NERModel:
             if preds is None:
                 preds = logits.detach().cpu().numpy()
                 out_label_ids = inputs["labels"].detach().cpu().numpy()
+                out_input_ids = inputs["input_ids"].detach().cpu().numpy()
+                out_attention_mask = inputs["attention_mask"].detach().cpu().numpy()
             else:
                 preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
                 out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+                out_input_ids = np.append(out_input_ids, inputs["input_ids"].detach().cpu().numpy(), axis=0)
+                out_attention_mask = np.append(
+                    out_attention_mask, inputs["attention_mask"].detach().cpu().numpy(), axis=0,
+                )
 
         eval_loss = eval_loss / nb_eval_steps
-        model_outputs = preds
+        token_logits = preds
         preds = np.argmax(preds, axis=2)
 
         label_map = {i: label for i, label in enumerate(self.labels)}
@@ -706,12 +776,67 @@ class NERModel:
                     out_label_list[i].append(label_map[out_label_ids[i][j]])
                     preds_list[i].append(label_map[preds[i][j]])
 
-        preds = [
-            [{word: preds_list[i][j]} for j, word in enumerate(sentence.split()[: len(preds_list[i])])]
-            for i, sentence in enumerate(to_predict)
-        ]
+        if split_on_space:
+            preds = [
+                [{word: preds_list[i][j]} for j, word in enumerate(sentence.split()[: len(preds_list[i])])]
+                for i, sentence in enumerate(to_predict)
+            ]
+        else:
+            preds = [
+                [{word: preds_list[i][j]} for j, word in enumerate(sentence[: len(preds_list[i])])]
+                for i, sentence in enumerate(to_predict)
+            ]
+
+        word_tokens = []
+        for n, sentence in enumerate(to_predict):
+            w_log = self._convert_tokens_to_word_logits(
+                out_input_ids[n], out_label_ids[n], out_attention_mask[n], token_logits[n],
+            )
+            word_tokens.append(w_log)
+
+        if split_on_space:
+            model_outputs = [
+                [{word: word_tokens[i][j]} for j, word in enumerate(sentence.split()[: len(preds_list[i])])]
+                for i, sentence in enumerate(to_predict)
+            ]
+        else:
+            model_outputs = [
+                [{word: word_tokens[i][j]} for j, word in enumerate(sentence[: len(preds_list[i])])]
+                for i, sentence in enumerate(to_predict)
+            ]
 
         return preds, model_outputs
+
+    def _convert_tokens_to_word_logits(self, input_ids, label_ids, attention_mask, logits):
+
+        ignore_ids = [
+            self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token),
+            self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token),
+            self.tokenizer.convert_tokens_to_ids(self.tokenizer.cls_token),
+        ]
+
+        # Remove unuseful positions
+        masked_ids = input_ids[(1 == attention_mask)]
+        masked_labels = label_ids[(1 == attention_mask)]
+        masked_logits = logits[(1 == attention_mask)]
+        for id in ignore_ids:
+            masked_labels = masked_labels[(id != masked_ids)]
+            masked_logits = masked_logits[(id != masked_ids)]
+            masked_ids = masked_ids[(id != masked_ids)]
+
+        # Map to word logits
+        word_logits = []
+        tmp = []
+        for n, lab in enumerate(masked_labels):
+            if lab != self.pad_token_label_id:
+                if n != 0:
+                    word_logits.append(tmp)
+                tmp = [list(masked_logits[n])]
+            else:
+                tmp.append(list(masked_logits[n]))
+        word_logits.append(tmp)
+
+        return word_logits
 
     def load_and_cache_examples(self, data, evaluate=False, no_cache=False, to_predict=None):
         """
@@ -783,6 +908,7 @@ class NERModel:
                 process_count=process_count,
                 silent=args["silent"],
                 use_multiprocessing=args["use_multiprocessing"],
+                chunksize=args["multiprocessing_chunksize"],
             )
 
             if not no_cache:
@@ -815,7 +941,8 @@ class NERModel:
 
         return inputs
 
-    def _create_training_progress_scores(self):
+    def _create_training_progress_scores(self, **kwargs):
+        extra_metrics = {key: [] for key in kwargs}
         training_progress_scores = {
             "global_step": [],
             "precision": [],
@@ -823,24 +950,41 @@ class NERModel:
             "f1_score": [],
             "train_loss": [],
             "eval_loss": [],
+            **extra_metrics,
         }
 
         return training_progress_scores
 
-    def _save_model(self, output_dir, optimizer, scheduler, model=None, results=None):
+    def _save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
+        if not output_dir:
+            output_dir = self.args["output_dir"]
         os.makedirs(output_dir, exist_ok=True)
 
-        if model:
+        if model and not self.args["no_save"]:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-            torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+            if optimizer and scheduler:
+                torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+                torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+            self._save_model_args(output_dir)
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
             with open(output_eval_file, "w") as writer:
                 for key in sorted(results.keys()):
                     writer.write("{} = {}\n".format(key, str(results[key])))
+
+    def _save_model_args(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
+            json.dump(self.args, f)
+
+    def _load_model_args(self, input_dir):
+        model_args_file = os.path.join(input_dir, "model_args.json")
+        if os.path.isfile(model_args_file):
+            with open(model_args_file, "r") as f:
+                model_args = json.load(f)
+            return model_args

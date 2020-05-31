@@ -1,6 +1,5 @@
-from simpletransformers.classification import ClassificationModel
 import pandas as pd
-
+from simpletransformers.classification import ClassificationModel
 
 # Train and Evaluation data needs to be in a Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column is the text with type str, and the second column in the label with type int.
 train_data = [

@@ -1,15 +1,17 @@
+import logging
 import os
 import pickle
-import logging
-from typing import Tuple
 from multiprocessing import Pool
+from typing import Tuple
+
+from tqdm.auto import tqdm
 
 import torch
-from torch.utils.data import Dataset
-from transformers import PreTrainedTokenizer
 from tokenizers.implementations import ByteLevelBPETokenizer
 from tokenizers.processors import BertProcessing
-from tqdm.auto import tqdm
+from torch.utils.data import Dataset
+from transformers import PreTrainedTokenizer
+
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +64,11 @@ class TextDataset(Dataset):
             with Pool(args["process_count"]) as p:
                 self.examples = list(
                     tqdm(
-                        p.imap(tokenizer.build_inputs_with_special_tokens, tokenized_text_split, chunksize=500),
+                        p.imap(
+                            tokenizer.build_inputs_with_special_tokens,
+                            tokenized_text_split,
+                            chunksize=args["multiprocessing_chunksize"],
+                        ),
                         total=len(tokenized_text_split),
                         # disable=silent,
                     )
@@ -187,7 +193,7 @@ class SimpleDataset(Dataset):
                     with Pool(args["process_count"]) as p:
                         self.examples = list(
                             tqdm(
-                                p.imap(encode_sliding_window, lines, chunksize=50),
+                                p.imap(encode_sliding_window, lines, chunksize=args["multiprocessing_chunksize"]),
                                 total=len(lines),
                                 # disable=silent,
                             )
@@ -206,7 +212,7 @@ class SimpleDataset(Dataset):
                     with Pool(args["process_count"]) as p:
                         self.examples = list(
                             tqdm(
-                                p.imap(encode, lines, chunksize=500),
+                                p.imap(encode, lines, chunksize=args["multiprocessing_chunksize"]),
                                 total=len(lines),
                                 # disable=silent,
                             )
@@ -215,10 +221,13 @@ class SimpleDataset(Dataset):
                     self.examples = [encode(line) for line in lines]
 
                 self.examples = [token for tokens in self.examples for token in tokens]
-                self.examples = [
-                    tokenizer.build_inputs_with_special_tokens(self.examples[i : i + block_size])
-                    for i in tqdm(range(0, len(self.examples) - block_size + 1, block_size))
-                ]
+                if len(self.examples) > block_size:
+                    self.examples = [
+                        tokenizer.build_inputs_with_special_tokens(self.examples[i : i + block_size])
+                        for i in tqdm(range(0, len(self.examples) - block_size + 1, block_size))
+                    ]
+                else:
+                    self.examples = [tokenizer.build_inputs_with_special_tokens(self.examples)]
 
             logger.info(" Saving features into cached file %s", cached_features_file)
             with open(cached_features_file, "wb") as handle:

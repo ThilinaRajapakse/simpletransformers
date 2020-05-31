@@ -1,8 +1,8 @@
-from transformers.modeling_utils import SequenceSummary
-from transformers.modeling_flaubert import FlaubertModel
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
+from transformers.modeling_flaubert import FlaubertModel
+from transformers.modeling_utils import SequenceSummary
 
 
 class FlaubertForSequenceClassification(FlaubertModel):

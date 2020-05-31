@@ -1,5 +1,6 @@
-from simpletransformers.ner import NERModel
 import pandas as pd
+import pytest
+from simpletransformers.ner import NERModel
 
 
 def test_named_entity_recognition():
@@ -40,7 +41,10 @@ def test_named_entity_recognition():
 
     # Create a NERModel
     model = NERModel(
-        "bert", "bert-base-cased", args={"overwrite_output_dir": True, "reprocess_input_data": False}, use_cuda=False,
+        "bert",
+        "bert-base-cased",
+        args={"no_save": True, "overwrite_output_dir": True, "reprocess_input_data": False},
+        use_cuda=False,
     )
 
     # Train the model

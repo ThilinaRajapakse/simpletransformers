@@ -21,7 +21,9 @@ import logging
 import os
 from io import open
 from multiprocessing import Pool, cpu_count
+
 from tqdm.auto import tqdm
+
 import pandas as pd
 
 
