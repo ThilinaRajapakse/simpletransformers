@@ -4,6 +4,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.30.0] - 2020-05-27
+
+### Added
+
+- Added XLM-RoBERTa support for question answering tasks.
+- Added `save_optimizer_and_scheduler` (default 1) to `global_args` which controls whether optimizer and scheduler is saved along with the model. Disabling significantly reduces the disk space used by saved models. 
+
+### Fixed
+
+- Bug in XLM tokenizer when preprocessing QA datasets.
+- `QuestionAnsweringModel.predict(n_best_size=n)` now correctly returns `n` answers per question (along with `n` probabilities).
+
+## BREAKING CHANGE
+
+- `QuestionAnsweringModel.predict()` now returns two lists (a list of dicts with question ids mapped to answers and a list of dicts with question ids mapped to the answer probabilities). 
+
+## [0.29.0] - 2020-05-24
+
+### Fixed
+
+- Fixed issues with training ELECTRA language models from scratch. [@aced125](https://github.com/aced125) [@Laksh1997](https://github.com/Laksh1997)
+- Fixed bug in save_discriminator() method.
+
+### Changed
+
+- The parallel process count is now limited to 61 by default on Windows systems. [@leungi](https://github.com/leungi)
+
+## [0.28.10] - 2020-05-23
+
+### Added
+
+- Added more generation/decoding parameters for T5 models.
+
+### Fixed
+
+- Fixed bug with cached features not being used with T5 models.
+
+## [0.28.9] - 2020-05-19
+
+### Fixed
+
+- Fixed bug where final model was not being saved automatically.
+
+## [0.28.8] - 2020-05-19
+
+### Fixed
+
+- Fixed bug where some models were not using `multiprocessing_chunksize` argument.
 
 ## [0.28.7] - 2020-05-19
 
@@ -729,7 +777,17 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.28.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9077ebb...HEAD
+[0.30.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9699a0c...HEAD
+
+[0.29.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/858d2b9...9699a0c
+
+[0.28.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a1a6473...858d2b9
+
+[0.28.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/08a3b4c...a1a6473
+
+[0.28.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4e66cb8...08a3b4c
+
+[0.28.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9077ebb...4e66cb8
 
 [0.28.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/68d62b1...9077ebb
 

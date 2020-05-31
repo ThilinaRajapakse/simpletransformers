@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-28-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-32-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -131,6 +131,7 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [Prediction data format](#prediction-data-format)
     - [Minimal Start](#minimal-start-2)
     - [Evaluating with custom metrics](#evaluating-with-custom-metrics)
+    - [Training a T5 Model on a new task](#training-a-t5-model-on-a-new-task)
     - [T5Model](#t5model)
     - [Additional attributes for T5 Model](#additional-attributes-for-t5-model)
       - [*dataset_class: Subclass of Pytorch Dataset*](#datasetclass-subclass-of-pytorch-dataset-1)
@@ -141,6 +142,8 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*max_lemgth: int*](#maxlemgth-int)
       - [*repetition_penalty: float*](#repetitionpenalty-float-1)
       - [*length_penalty: float*](#lengthpenalty-float)
+      - [*top_k: int*](#topk-int)
+      - [*top_p: float*](#topp-float)
       - [*early_stopping: bool*](#earlystopping-bool)
       - [*preprocess_inputs: bool*](#preprocessinputs-bool)
   - [Sequence-to-Sequence Models](#sequence-to-sequence-models)
@@ -182,8 +185,8 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*max_length: int*](#maxlength-int)
       - [*min_length: int*](#minlength-int)
       - [*temperature: float*](#temperature-float-1)
-      - [*top_k: float*](#topk-float)
-      - [*top_p: float*](#topp-float)
+      - [*top_k: int*](#topk-int-1)
+      - [*top_p: float*](#topp-float-1)
   - [Multi-Modal Classification](#multi-modal-classification)
     - [Data format](#data-format-5)
       - [1 - Directory based](#1---directory-based)
@@ -1682,6 +1685,11 @@ print(model.eval_model(eval_df, matches=count_matches))
 
 ```
 
+### Training a T5 Model on a new task
+
+- [Question Generation With T5](https://medium.com/@chaturangarajapakshe/asking-the-right-questions-training-a-t5-transformer-model-on-a-new-task-691ebba2d72c?source=friends_link&sk=9f88c539546eca32b702cc0243abd0dd)
+
+
 ### T5Model
 
 `class simpletransformers.t5.t5_model.T5Model (self, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`  
@@ -1811,6 +1819,9 @@ Returns:
     "max_length": 20,
     "repetition_penalty": 1.0,
     "length_penalty": 2.0,
+    "top_k": None,
+    "top_p": None,
+    "num_return_sequences": 1,
     "early_stopping": True,
     "preprocess_inputs": True,
 }
@@ -1847,6 +1858,14 @@ The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no pen
 #### *length_penalty: float*
 
 Exponential penalty to the length. Default to 1.
+
+#### *top_k: int*
+
+Filter top-k tokens before sampling (<=0: no filtering)
+
+#### *top_p: float*
+
+Nucleus filtering (top-p) before sampling (<=0.0: no filtering)
 
 #### *early_stopping: bool*
 
@@ -2650,7 +2669,7 @@ Minimum length of the output utterances
 
 Sampling softmax temperature
 
-#### *top_k: float*
+#### *top_k: int*
 
 Filter top-k tokens before sampling (<=0: no filtering)
 
@@ -3276,8 +3295,14 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/Pradhy729"><img src="https://avatars3.githubusercontent.com/u/49659913?v=4" width="100px;" alt=""/><br /><sub><b>Pradhy729</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Pradhy729" title="Code">💻</a></td>
     <td align="center"><a href="https://iknoorjobs.github.io/"><img src="https://avatars2.githubusercontent.com/u/22852967?v=4" width="100px;" alt=""/><br /><sub><b>Iknoor Singh</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=iknoorjobs" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/galtay"><img src="https://avatars2.githubusercontent.com/u/663051?v=4" width="100px;" alt=""/><br /><sub><b>Gabriel Altay</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=galtay" title="Code">💻</a></td>
-    <td align="center"><a href="https://a-ware.io"><img src="https://avatars1.githubusercontent.com/u/47894090?v=4" width="100px;" alt=""/><br /><sub><b>flozi00</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flozi00" title="Documentation">📖</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flozi00" title="Code">💻</a></td>
+    <td align="center"><a href="https://a-ware.io"><img src="https://avatars1.githubusercontent.com/u/47894090?v=4" width="100px;" alt=""/><br /><sub><b>flozi00</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flozi00" title="Documentation">📖</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flozi00" title="Code">💻</a> <a href="#maintenance-flozi00" title="Maintenance">🚧</a></td>
     <td align="center"><a href="https://github.com/alexysdussier"><img src="https://avatars3.githubusercontent.com/u/60175018?v=4" width="100px;" alt=""/><br /><sub><b>alexysdussier</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=alexysdussier" title="Code">💻</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/jqueguiner"><img src="https://avatars1.githubusercontent.com/u/690878?v=4" width="100px;" alt=""/><br /><sub><b>Jean-Louis Queguiner</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=jqueguiner" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/aced125"><img src="https://avatars2.githubusercontent.com/u/44452903?v=4" width="100px;" alt=""/><br /><sub><b>aced125</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=aced125" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/Laksh1997"><img src="https://avatars0.githubusercontent.com/u/59830552?v=4" width="100px;" alt=""/><br /><sub><b>Laksh1997</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Laksh1997" title="Code">💻</a></td>
+    <td align="center"><a href="https://www.linkedin.com/in/changlinz/"><img src="https://avatars0.githubusercontent.com/u/29640620?v=4" width="100px;" alt=""/><br /><sub><b>Changlin_NLP</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=alexucb" title="Code">💻</a></td>
   </tr>
 </table>
 
