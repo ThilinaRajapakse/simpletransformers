@@ -8,6 +8,14 @@ clean:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f  {} +
 
+clean-test:
+	rm -r .coverage*
+	rm -r data
+	rm -r runs
+	rm -r outputs
+	rm -r cache_dir
+	rm -r wandb
+
 formatter:
 	black --line-length 119 simpletransformers tests --exclude simpletransformers/experimental\
 	

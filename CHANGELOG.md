@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.1] - 2020-06-01
+
+### Fixed
+
+- Fixed bug when using `output_hidden_states` with `ClassificationModel`. [@jpotniec](https://github.com/jpotoniec)
+
 ## [0.32.0] - 2020-06-01
 
 ### Added
@@ -789,7 +795,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.32.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b196267...HEAD
+[0.32.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d009aa1...HEAD
+
+[0.32.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b196267...d009aa1
 
 [0.31.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d38e086...b196267
 

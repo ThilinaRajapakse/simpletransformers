@@ -692,7 +692,9 @@ class ClassificationModel:
                     eval_examples, evaluate=True, verbose=verbose, silent=silent
                 )
             else:
-                eval_dataset = self.load_and_cache_examples(eval_examples, evaluate=True, verbose=verbose, silent=silent)
+                eval_dataset = self.load_and_cache_examples(
+                    eval_examples, evaluate=True, verbose=verbose, silent=silent
+                )
         os.makedirs(eval_output_dir, exist_ok=True)
 
         eval_sampler = SequentialSampler(eval_dataset)
@@ -980,10 +982,14 @@ class ClassificationModel:
                 else:
                     preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
                     out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
-                    all_layer_hidden_states = np.append(all_layer_hidden_states,
-                        np.array([state.detach().cpu().numpy() for state in layer_hidden_states]), axis=1
+                    all_layer_hidden_states = np.append(
+                        all_layer_hidden_states,
+                        np.array([state.detach().cpu().numpy() for state in layer_hidden_states]),
+                        axis=1,
                     )
-                    all_embedding_outputs = np.append(all_embedding_outputs, embedding_outputs.detach().cpu().numpy(), axis=0)
+                    all_embedding_outputs = np.append(
+                        all_embedding_outputs, embedding_outputs.detach().cpu().numpy(), axis=0
+                    )
         else:
             for batch in tqdm(eval_dataloader, disable=args["silent"]):
                 model.eval()
