@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-32-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-33-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -3303,6 +3303,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/aced125"><img src="https://avatars2.githubusercontent.com/u/44452903?v=4" width="100px;" alt=""/><br /><sub><b>aced125</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=aced125" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/Laksh1997"><img src="https://avatars0.githubusercontent.com/u/59830552?v=4" width="100px;" alt=""/><br /><sub><b>Laksh1997</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Laksh1997" title="Code">💻</a></td>
     <td align="center"><a href="https://www.linkedin.com/in/changlinz/"><img src="https://avatars0.githubusercontent.com/u/29640620?v=4" width="100px;" alt=""/><br /><sub><b>Changlin_NLP</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=alexucb" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/jpotoniec"><img src="https://avatars0.githubusercontent.com/u/11078342?v=4" width="100px;" alt=""/><br /><sub><b>jpotoniec</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=jpotoniec" title="Code">💻</a></td>
   </tr>
 </table>
 
