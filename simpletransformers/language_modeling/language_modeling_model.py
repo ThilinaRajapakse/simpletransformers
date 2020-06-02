@@ -27,9 +27,9 @@ import torch
 from simpletransformers.config.global_args import global_args
 from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
 from simpletransformers.language_modeling.language_modeling_utils import (
-    LineByLineTextDataset,
+    # LineByLineTextDataset,
     SimpleDataset,
-    TextDataset,
+    # TextDataset,
     mask_tokens,
 )
 from tensorboardX import SummaryWriter
@@ -73,6 +73,8 @@ from transformers import (
     LongformerTokenizer,
     get_linear_schedule_with_warmup,
 )
+
+from transformers.data.datasets.language_modeling import TextDataset, LineByLineTextDataset
 
 try:
     import wandb
@@ -864,9 +866,11 @@ class LanguageModelingModel:
         else:
             dataset_type = args["dataset_type"]
             if dataset_type == "text":
-                return TextDataset(tokenizer, args, file_path, mode, args["block_size"])
+                # return TextDataset(tokenizer, args, file_path, mode, args["block_size"])
+                return TextDataset(tokenizer, file_path, args["block_size"], overwrite_cache=True)
             elif dataset_type == "line_by_line":
-                return LineByLineTextDataset(tokenizer, args, file_path, args["block_size"])
+                # return LineByLineTextDataset(tokenizer, args, file_path, args["block_size"])
+                return LineByLineTextDataset(tokenizer, file_path, args["block_size"])
             else:
                 special_tokens_count = 3 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 2
                 if self.args["max_seq_length"] > 509 and self.args["model_type"] != "longformer":
