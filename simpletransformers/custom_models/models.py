@@ -25,9 +25,9 @@ from transformers.modeling_electra import (
     ElectraModel,
     ElectraPreTrainedModel,
 )
-from transformers.modeling_roberta import ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP, RobertaClassificationHead
+from transformers.modeling_roberta import ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST, RobertaClassificationHead
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
-from transformers.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
 from transformers.modeling_roberta import RobertaForQuestionAnswering
 
 
@@ -79,7 +79,7 @@ class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
     """
 
     config_class = RobertaConfig
-    pretrained_model_archive_map = ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+    pretrained_model_archive_map = ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "roberta"
 
     def __init__(self, config, pos_weight=None):
@@ -399,7 +399,7 @@ class FlaubertForMultiLabelSequenceClassification(FlaubertModel):
 
 class XLMRobertaForMultiLabelSequenceClassification(RobertaForMultiLabelSequenceClassification):
     config_class = XLMRobertaConfig
-    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
 
 
 class ElectraPooler(nn.Module):
@@ -657,4 +657,4 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
 
 class XLMRobertaForQuestionAnswering(RobertaForQuestionAnswering):
     config_class = XLMRobertaConfig
-    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
