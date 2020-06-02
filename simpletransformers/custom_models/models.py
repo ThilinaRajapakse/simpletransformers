@@ -18,9 +18,9 @@ from transformers.configuration_distilbert import DistilBertConfig
 from transformers.configuration_roberta import RobertaConfig
 from transformers.configuration_xlm_roberta import XLMRobertaConfig
 from transformers.modeling_albert import AlbertConfig, AlbertModel, AlbertPreTrainedModel
-from transformers.modeling_distilbert import DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP
+from transformers.modeling_distilbert import DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST
 from transformers.modeling_electra import (
-    ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP,
+    ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
     ElectraConfig,
     ElectraModel,
     ElectraPreTrainedModel,
@@ -234,7 +234,7 @@ class DistilBertPreTrainedModel(PreTrainedModel):
     """
 
     config_class = DistilBertConfig
-    pretrained_model_archive_map = DISTILBERT_PRETRAINED_MODEL_ARCHIVE_MAP
+    pretrained_model_archive_map = DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST
     load_tf_weights = None
     base_model_prefix = "distilbert"
 
@@ -506,7 +506,7 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention heads.
     """  # noqa
     config_class = ElectraConfig
-    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP
+    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "electra"
 
     def __init__(self, config, weight=None):
@@ -556,7 +556,7 @@ class ElectraForMultiLabelSequenceClassification(ElectraPreTrainedModel):
     """
 
     config_class = ElectraConfig
-    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP
+    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "electra"
 
     def __init__(self, config, pos_weight=None):
@@ -602,7 +602,7 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
     """
 
     config_class = ElectraConfig
-    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_MAP
+    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "electra"
 
     def __init__(self, config, weight=None):
