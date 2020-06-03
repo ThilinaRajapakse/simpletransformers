@@ -172,6 +172,7 @@ class LanguageModelingModel:
             "tie_generator_and_discriminator_embeddings": True,
             "tokenizer_name": None,
             "vocab_size": None,
+            "local_rank": -1,
         }
 
         self.args.update(global_args)
@@ -1100,4 +1101,5 @@ class LanguageModelingModel:
         This will be True only in one process, even in distributed mode,
         even when training on multiple machines.
         """
+        print("local rank: ", self.args.local_rank)
         return self.args.local_rank == -1 or torch.distributed.get_rank() == 0
