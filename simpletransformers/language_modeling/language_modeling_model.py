@@ -437,8 +437,8 @@ class LanguageModelingModel:
                 device_ids=[args["local_rank"]],
                 output_device=args["local_rank"],
             )
-
-        tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
+        if self.is_world_master():
+            tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
         train_sampler = (
             RandomSampler(train_dataset)
             if args["local_rank"] == -1

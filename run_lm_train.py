@@ -50,8 +50,8 @@ args = parser.parse_args()
 
 train_args["local_rank"] = args.local_rank
 
-train_file = "data/train.txt"
-test_file = "data/test.txt"
+train_file = "/mnt/mldata/data/LM/ulmfit/wiki/id-2/valid.txt"
+test_file = "/mnt/mldata/data/LM/ulmfit/wiki/id-2/test.txt"
 
 model = LanguageModelingModel(
     "gpt2",
