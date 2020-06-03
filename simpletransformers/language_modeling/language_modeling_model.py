@@ -602,8 +602,9 @@ class LanguageModelingModel:
 
                     if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
                         # Log metrics
-                        tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args["logging_steps"], global_step)
+                        if self.is_world_master():
+                            tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
+                            tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args["logging_steps"], global_step)
                         logging_loss = tr_loss
                         if args["wandb_project"]:
                             wandb.log(
@@ -632,7 +633,8 @@ class LanguageModelingModel:
                             **kwargs,
                         )
                         for key, value in results.items():
-                            tb_writer.add_scalar("eval_{}".format(key), value, global_step)
+                            if self.is_world_master():
+                                tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
