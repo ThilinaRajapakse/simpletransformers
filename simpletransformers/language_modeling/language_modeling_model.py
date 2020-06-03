@@ -134,6 +134,10 @@ class LanguageModelingModel:
             if "n_gpu" in args and args["n_gpu"] > 0:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
+        if args["local_rank"] != -1:
+            print(f'local_rank: {args["local_rank"]}')
+            cuda_device = args["local_rank"]
+
         if use_cuda:
             if torch.cuda.is_available():
                 if cuda_device == -1:
@@ -475,6 +479,15 @@ class LanguageModelingModel:
 
         if args["n_gpu"] > 1:
             model = torch.nn.DataParallel(model)
+
+        # Distributed training (should be after apex fp16 initialization)
+        if args["local_rank"] != -1:
+            torch.distributed.init_process_group(backend="nccl")
+            model = torch.nn.parallel.DistributedDataParallel(
+                model,
+                device_ids=[args["local_rank"]],
+                output_device=args["local_rank"],
+            )
 
         logger.info(" Training started")
 
