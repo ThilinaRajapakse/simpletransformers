@@ -1101,5 +1101,4 @@ class LanguageModelingModel:
         This will be True only in one process, even in distributed mode,
         even when training on multiple machines.
         """
-        print("local rank: ", self.args.local_rank)
-        return self.args.local_rank == -1 or torch.distributed.get_rank() == 0
+        return self.args["local_rank"] == -1 or torch.distributed.get_rank() == 0
