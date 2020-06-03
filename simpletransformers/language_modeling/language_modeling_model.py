@@ -430,9 +430,16 @@ class LanguageModelingModel:
             return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
 
         tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
-        train_sampler = RandomSampler(train_dataset)
+        train_sampler = (
+            RandomSampler(train_dataset)
+            if args["local_rank"] == -1
+            else DistributedSampler(train_dataset)
+        )
         train_dataloader = DataLoader(
-            train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"], collate_fn=collate
+            train_dataset,
+            batch_size=args["train_batch_size"],
+            sampler=train_sampler,
+            collate_fn=collate,
         )
 
         if args["max_steps"] > 0:
@@ -531,6 +538,8 @@ class LanguageModelingModel:
 
         model.train()
         for current_epoch in train_iterator:
+            if isinstance(train_dataloader, DataLoader) and isinstance(train_dataloader.sampler, DistributedSampler):
+                train_dataloader.sampler.set_epoch(current_epoch)
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue
@@ -1043,6 +1052,8 @@ class LanguageModelingModel:
         return {metric: values[-1] for metric, values in metric_values.items()}
 
     def _save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
+        if not self.is_world_master():
+            return
         if not output_dir:
             output_dir = self.args["output_dir"]
         os.makedirs(output_dir, exist_ok=True)
@@ -1083,3 +1094,10 @@ class LanguageModelingModel:
                 with open(model_args_file, "r") as f:
                     model_args = json.load(f)
                 return model_args
+
+    def is_world_master(self) -> bool:
+        """
+        This will be True only in one process, even in distributed mode,
+        even when training on multiple machines.
+        """
+        return self.args.local_rank == -1 or torch.distributed.get_rank() == 0
