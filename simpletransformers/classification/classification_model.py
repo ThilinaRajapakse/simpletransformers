@@ -55,6 +55,9 @@ from transformers import (
     ElectraTokenizer,
     FlaubertConfig,
     FlaubertTokenizer,
+    LongformerConfig,
+    LongformerForSequenceClassification,
+    LongformerTokenizer,
     RobertaConfig,
     RobertaTokenizer,
     XLMConfig,
@@ -96,16 +99,17 @@ class ClassificationModel:
         """  # noqa: ignore flake8"
 
         MODEL_CLASSES = {
+            "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
             "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
+            "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
+            "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
+            "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
+            "flaubert": (FlaubertConfig, FlaubertForSequenceClassification, FlaubertTokenizer),
+            "longformer": (LongformerConfig, LongformerForSequenceClassification, LongformerTokenizer),
+            "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
             "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
-            "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-            "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
-            "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
-            "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
-            "flaubert": (FlaubertConfig, FlaubertForSequenceClassification, FlaubertTokenizer),
-            "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
         }
 
         if args and "manual_seed" in args:

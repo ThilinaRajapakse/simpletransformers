@@ -36,6 +36,9 @@ from transformers import (
     ElectraConfig,
     ElectraModel,
     ElectraTokenizer,
+    LongformerConfig,
+    LongformerModel,
+    LongformerTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
     RobertaConfig,
@@ -60,13 +63,14 @@ logger = logging.getLogger(__name__)
 
 MODEL_CLASSES = {
     "auto": (AutoConfig, AutoModel, AutoTokenizer),
-    "bert": (BertConfig, BertModel, BertTokenizer),
-    "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
-    "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
-    "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
     "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
+    "bert": (BertConfig, BertModel, BertTokenizer),
+    "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
+    "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
+    "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
+    "longformer": (LongformerConfig, LongformerModel, LongformerTokenizer),
     "marian": (MarianConfig, MarianMTModel, MarianTokenizer),
+    "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
 }
 
 
