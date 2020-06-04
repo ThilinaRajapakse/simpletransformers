@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
 from transformers.modeling_roberta import (
-    ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP,
+    ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
     BertPreTrainedModel,
     RobertaClassificationHead,
     RobertaConfig,
@@ -38,7 +38,7 @@ class RobertaForSequenceClassification(BertPreTrainedModel):
         loss, logits = outputs[:2]
     """  # noqa: ignore flake8"
     config_class = RobertaConfig
-    pretrained_model_archive_map = ROBERTA_PRETRAINED_MODEL_ARCHIVE_MAP
+    pretrained_model_archive_map = ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "roberta"
 
     def __init__(self, config, weight=None):

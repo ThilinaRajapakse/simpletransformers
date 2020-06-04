@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
-from transformers.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP, CamembertConfig, CamembertModel
+from transformers.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST, CamembertConfig, CamembertModel
 from transformers.modeling_roberta import RobertaClassificationHead, RobertaForSequenceClassification
 
 
@@ -33,7 +33,7 @@ class CamembertForSequenceClassification(RobertaForSequenceClassification):
         loss, logits = outputs[:2]
     """
     config_class = CamembertConfig
-    pretrained_model_archive_map = CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP
+    pretrained_model_archive_map = CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "camembert"
 
     def __init__(self, config, weight=None, sliding_window=False):

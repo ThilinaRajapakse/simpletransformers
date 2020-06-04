@@ -48,8 +48,6 @@ except ImportError:
     wandb_available = False
 
 
-ALL_MODELS = sum((tuple(conf.pretrained_config_archive_map.keys()) for conf in [BertConfig]), (),)
-
 logger = logging.getLogger(__name__)
 
 
@@ -155,21 +153,20 @@ class MultiModalClassificationModel:
         self.img_encoder = ImageEncoder(self.args)
         self.model = MMBTForClassification(self.config, self.transformer, self.img_encoder)
 
-        if model_name not in ALL_MODELS:
-            try:
-                self.model.load_state_dict(torch.load(os.path.join(model_name, "pytorch_model.bin")))
-            except EnvironmentError:
-                msg = (
-                    "Model name '{}' was not found in model name list ({}). "
-                    "We assumed '{}' was a path or url to model weight files named one of {} but "
-                    "couldn't find any such file at this path or url.".format(
-                        model_name,
-                        ", ".join(model_class.pretrained_model_archive_map.keys()),
-                        model_name,
-                        "pytorch_model.bin",
-                    )
+        try:
+            self.model.load_state_dict(torch.load(os.path.join(model_name, "pytorch_model.bin")))
+        except EnvironmentError:
+            msg = (
+                "Model name '{}' was not found in model name list ({}). "
+                "We assumed '{}' was a path or url to model weight files named one of {} but "
+                "couldn't find any such file at this path or url.".format(
+                    model_name,
+                    ", ".join(model_class.pretrained_model_archive_map.keys()),
+                    model_name,
+                    "pytorch_model.bin",
                 )
-                raise EnvironmentError(msg)
+            )
+            raise EnvironmentError(msg)
 
         self.tokenizer = tokenizer_class.from_pretrained(
             model_name, do_lower_case=self.args["do_lower_case"], **kwargs

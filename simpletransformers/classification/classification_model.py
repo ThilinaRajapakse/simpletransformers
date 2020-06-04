@@ -249,13 +249,13 @@ class ClassificationModel:
             if "text" in train_df.columns and "labels" in train_df.columns:
                 train_examples = [
                     InputExample(i, text, None, label)
-                    for i, (text, label) in enumerate(zip(train_df["text"], train_df["labels"]))
+                    for i, (text, label) in enumerate(zip(train_df["text"].astype(str), train_df["labels"]))
                 ]
             elif "text_a" in train_df.columns and "text_b" in train_df.columns:
                 train_examples = [
                     InputExample(i, text_a, text_b, label)
                     for i, (text_a, text_b, label) in enumerate(
-                        zip(train_df["text_a"], train_df["text_b"], train_df["labels"])
+                        zip(train_df["text_a"].astype(str), train_df["text_b"].astype(str), train_df["labels"])
                     )
                 ]
             else:
@@ -669,13 +669,13 @@ class ClassificationModel:
             if "text" in eval_df.columns and "labels" in eval_df.columns:
                 eval_examples = [
                     InputExample(i, text, None, label)
-                    for i, (text, label) in enumerate(zip(eval_df["text"], eval_df["labels"]))
+                    for i, (text, label) in enumerate(zip(eval_df["text"].astype(str), eval_df["labels"]))
                 ]
             elif "text_a" in eval_df.columns and "text_b" in eval_df.columns:
                 eval_examples = [
                     InputExample(i, text_a, text_b, label)
                     for i, (text_a, text_b, label) in enumerate(
-                        zip(eval_df["text_a"], eval_df["text_b"], eval_df["labels"])
+                        zip(eval_df["text_a"].astype(str), eval_df["text_b"].astype(str), eval_df["labels"])
                     )
                 ]
             else:
