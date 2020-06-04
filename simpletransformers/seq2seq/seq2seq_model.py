@@ -478,7 +478,7 @@ class Seq2SeqModel:
                         results = self.eval_model(
                             eval_data,
                             verbose=verbose and args["evaluate_during_training_verbose"],
-                            silent=True,
+                            silent=args["evaluate_during_training_silent"],
                             **kwargs,
                         )
                         for key, value in results.items():
@@ -573,7 +573,7 @@ class Seq2SeqModel:
 
             if args["evaluate_during_training"]:
                 results = self.eval_model(
-                    eval_data, verbose=verbose and args["evaluate_during_training_verbose"], silent=True, **kwargs
+                    eval_data, verbose=verbose and args["evaluate_during_training_verbose"], silent=args["evaluate_during_training_silent"], **kwargs
                 )
 
                 if args["save_eval_checkpoints"]:

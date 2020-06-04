@@ -370,7 +370,7 @@ class ConvAIModel:
                         results, _, _ = self.eval_model(
                             eval_dataloader,
                             verbose=verbose and args["evaluate_during_training_verbose"],
-                            silent=True,
+                            silent=args["evaluate_during_training_silent"],
                             **kwargs,
                         )
                         for key, value in results.items():

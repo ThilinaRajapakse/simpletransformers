@@ -16,6 +16,7 @@ global_args = {
     "encoding": None,
     "eval_batch_size": 8,
     "evaluate_during_training": False,
+    "evaluate_during_training_silent": True,
     "evaluate_during_training_steps": 2000,
     "evaluate_during_training_verbose": False,
     "fp16": True,
