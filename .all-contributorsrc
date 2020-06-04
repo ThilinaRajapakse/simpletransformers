@@ -302,6 +302,25 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "jpotoniec",
+      "name": "jpotoniec",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/11078342?v=4",
+      "profile": "https://github.com/jpotoniec",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "fcggamou",
+      "name": "fcggamou",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/20055856?v=4",
+      "profile": "https://github.com/fcggamou",
+      "contributions": [
+        "code",
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,

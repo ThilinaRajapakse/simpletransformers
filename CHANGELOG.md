@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.32.3] - 2020-06-04
+
+### Fixed
+
+- Fixed compatibility issues with breaking changes in transformers==2.11.0. [@fcggamou](https://github.com/fcggamou)
+
+## [0.32.1] - 2020-06-01
+
+### Fixed
+
+- Fixed bug when using `output_hidden_states` with `ClassificationModel`. [@jpotniec](https://github.com/jpotoniec)
+
+## [0.32.0] - 2020-06-01
+
+### Added
+
+- Added Lazy Loading support for classification tasks (except multi-label). ([Docs](https://simpletransformers.ai/docs/classification-specifics/#lazy-loading-data))
+
 ## [0.31.0] - 2020-05-30
 
 ### Added
@@ -783,7 +801,13 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.31.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d38e086...HEAD
+[0.32.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f5cee79...HEAD
+
+[0.32.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d009aa1...f5cee79
+
+[0.32.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b196267...d009aa1
+
+[0.31.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d38e086...b196267
 
 [0.30.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9699a0c...d38e086
 

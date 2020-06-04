@@ -33,6 +33,7 @@ try:
 except ImportError:
     torchvision_available = False
 
+import linecache
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
 from tqdm.auto import tqdm
@@ -533,3 +534,70 @@ def get_image_transforms():
             transforms.Normalize(mean=[0.46777044, 0.44531429, 0.40661017], std=[0.12221994, 0.12145835, 0.14380469],),
         ]
     )
+
+
+class LazyClassificationDataset(Dataset):
+    def __init__(self, data_file, tokenizer, args):
+        self.data_file = data_file
+        self.start_row = 1 if args["lazy_header_row"] else 0
+        self.num_entries = self._get_n_lines(self.data_file, self.start_row)
+        self.tokenizer = tokenizer
+        self.args = args
+        self.delimiter = args["lazy_delimiter"]
+        if args["lazy_text_a_column"] is not None and args["lazy_text_b_column"] is not None:
+            self.text_a_column = args["lazy_text_a_column"]
+            self.text_b_column = args["lazy_text_b_column"]
+            self.text_column = None
+        else:
+            self.text_column = args["lazy_text_column"]
+        self.labels_column = args["lazy_labels_column"]
+
+    @staticmethod
+    def _get_n_lines(data_file, start_row):
+        with open(data_file, encoding="utf-8") as f:
+            for line_idx, _ in enumerate(f, 1):
+                pass
+
+        return line_idx - start_row
+
+    def __getitem__(self, idx):
+        line = linecache.getline(self.data_file, idx + 1 + self.start_row).rstrip("\n").split(self.delimiter)
+        if self.text_column:
+            text = line[self.text_column]
+            label = line[self.labels_column]
+            if self.args["regression"]:
+                label = torch.tensor(float(label), dtype=torch.float)
+            else:
+                label = torch.tensor(int(label), dtype=torch.long)
+
+            return (
+                self.tokenizer.encode_plus(
+                    text,
+                    max_length=self.args["max_seq_length"],
+                    pad_to_max_length=self.args["max_seq_length"],
+                    return_tensors="pt",
+                ),
+                label,
+            )
+        else:
+            text_a = line[self.text_a_column]
+            text_b = line[self.text_b_column]
+            label = line[self.labels_column]
+            if self.args["regression"]:
+                label = torch.tensor(float(label), dtype=torch.float)
+            else:
+                label = torch.tensor(int(label), dtype=torch.long)
+
+            return (
+                self.tokenizer.encode_plus(
+                    text_a,
+                    text_pair=text_b,
+                    max_length=self.args["max_seq_length"],
+                    pad_to_max_length=self.args["max_seq_length"],
+                    return_tensors="pt",
+                ),
+                label,
+            )
+
+    def __len__(self):
+        return self.num_entries

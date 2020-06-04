@@ -90,3 +90,20 @@ In the case of a tie, the predicted label will be assigned the `tie_value` (defa
 
 **Note:** Sliding window technique is not currently implemented for multi-label classification.
 {: .notice--warning}
+
+
+## Lazy Loading Data
+
+When working with very large datasets, the available memory may prevent keeping the entire dataset in memory during training or evaluation of a model. In such cases, the data can be lazy loaded from disk to minimize memory consumption.
+
+**Note:** This will typically be slower as the feature conversion is done on the fly. However, the tradeoff between speed and memory consumption should be reasonable.
+{: .notice--info}
+
+**Tip:** See [Lazy Loading Data Formats](/docs/classification-data-formats/#lazy-loading-data-format) for information on the data formats.
+{: .notice--success}
+
+**Tip:** See [Configuring a Classification model](/docs/classification-models/#configuring-a-classification-model) for information on the configuring the model to read the lazy loading data file correctly.
+{: .notice--success}
+
+**Tip:** You can find minimal example scripts in the `examples/text_classification` directory.
+{: .notice--success}
