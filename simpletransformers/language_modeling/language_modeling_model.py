@@ -632,8 +632,9 @@ class LanguageModelingModel:
                             silent=True,
                             **kwargs,
                         )
-                        for key, value in results.items():
-                            if self.is_world_master():
+
+                        if self.is_world_master():
+                            for key, value in results.items():
                                 tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
