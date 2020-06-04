@@ -3,7 +3,22 @@ import pytest
 from simpletransformers.ner import NERModel
 
 
-def test_named_entity_recognition():
+@pytest.mark.parametrize(
+    "model_type, model_name",
+    [
+        ("bert", "bert-base-uncased"),
+        ("longformer", "allenai/longformer-base-4096")
+        # ("xlnet", "xlnet-base-cased"),
+        # ("xlm", "xlm-mlm-17-1280"),
+        # ("roberta", "roberta-base"),
+        # ("distilbert", "distilbert-base-uncased"),
+        # ("albert", "albert-base-v1"),
+        # ("camembert", "camembert-base"),
+        # ("xlmroberta", "xlm-roberta-base"),
+        # ("flaubert", "flaubert-base-cased"),
+    ],
+)
+def test_named_entity_recognition(model_type, model_name):
     # Creating train_df  and eval_df for demonstration
     train_data = [
         [0, "Simple", "B-MISC"],
@@ -41,8 +56,8 @@ def test_named_entity_recognition():
 
     # Create a NERModel
     model = NERModel(
-        "bert",
-        "bert-base-cased",
+        model_type,
+        model_name,
         args={"no_save": True, "overwrite_output_dir": True, "reprocess_input_data": False},
         use_cuda=False,
     )

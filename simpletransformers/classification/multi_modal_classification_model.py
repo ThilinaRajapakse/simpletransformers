@@ -558,7 +558,10 @@ class MultiModalClassificationModel:
 
             if args["evaluate_during_training"]:
                 results, _ = self.eval_model(
-                    eval_data, verbose=verbose and args["evaluate_during_training_verbose"], silent=args["evaluate_during_training_silent"], **kwargs
+                    eval_data,
+                    verbose=verbose and args["evaluate_during_training_verbose"],
+                    silent=args["evaluate_during_training_silent"],
+                    **kwargs,
                 )
 
                 self._save_model(output_dir_current, results=results)
