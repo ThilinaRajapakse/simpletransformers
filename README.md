@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-33-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-34-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -421,7 +421,7 @@ transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
 # Train and Evaluation data needs to be in a Pandas Dataframe containing at least two columns, a 'text' and a 'labels' column. The `labels` column should contain multi-hot encoded lists.
-train_data = [['Example sentence 1 for multilabel classification.', [1, 1, 1, 1, 0, 1]]], [['This is another example sentence. ', [0, 1, 1, 0, 0, 0]]]
+train_data = [['Example sentence 1 for multilabel classification.', [1, 1, 1, 1, 0, 1]], ['This is another example sentence. ', [0, 1, 1, 0, 0, 0]]]
 train_df = pd.DataFrame(train_data, columns=['text', 'labels'])
 
 eval_data = [['Example eval sentence for multilabel classification.', [1, 1, 1, 1, 0, 1]], ['Example eval senntence belonging to class 2', [0, 1, 1, 0, 0, 0]]]
@@ -3304,6 +3304,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/Laksh1997"><img src="https://avatars0.githubusercontent.com/u/59830552?v=4" width="100px;" alt=""/><br /><sub><b>Laksh1997</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Laksh1997" title="Code">💻</a></td>
     <td align="center"><a href="https://www.linkedin.com/in/changlinz/"><img src="https://avatars0.githubusercontent.com/u/29640620?v=4" width="100px;" alt=""/><br /><sub><b>Changlin_NLP</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=alexucb" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/jpotoniec"><img src="https://avatars0.githubusercontent.com/u/11078342?v=4" width="100px;" alt=""/><br /><sub><b>jpotoniec</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=jpotoniec" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/fcggamou"><img src="https://avatars0.githubusercontent.com/u/20055856?v=4" width="100px;" alt=""/><br /><sub><b>fcggamou</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=fcggamou" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=fcggamou" title="Documentation">📖</a></td>
   </tr>
 </table>
 
