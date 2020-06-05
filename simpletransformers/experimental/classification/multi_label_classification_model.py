@@ -1,30 +1,29 @@
-import torch
-
 from multiprocessing import cpu_count
 
+import torch
 from simpletransformers.classification import ClassificationModel
 from simpletransformers.custom_models.models import (
-    BertForMultiLabelSequenceClassification,
-    RobertaForMultiLabelSequenceClassification,
-    XLNetForMultiLabelSequenceClassification,
-    XLMForMultiLabelSequenceClassification,
-    DistilBertForMultiLabelSequenceClassification,
     AlbertForMultiLabelSequenceClassification,
+    BertForMultiLabelSequenceClassification,
+    DistilBertForMultiLabelSequenceClassification,
+    RobertaForMultiLabelSequenceClassification,
+    XLMForMultiLabelSequenceClassification,
+    XLNetForMultiLabelSequenceClassification,
 )
 from transformers import (
     WEIGHTS_NAME,
-    BertConfig,
-    BertTokenizer,
-    XLNetConfig,
-    XLNetTokenizer,
-    XLMConfig,
-    XLMTokenizer,
-    RobertaConfig,
-    RobertaTokenizer,
-    DistilBertConfig,
-    DistilBertTokenizer,
     AlbertConfig,
     AlbertTokenizer,
+    BertConfig,
+    BertTokenizer,
+    DistilBertConfig,
+    DistilBertTokenizer,
+    RobertaConfig,
+    RobertaTokenizer,
+    XLMConfig,
+    XLMTokenizer,
+    XLNetConfig,
+    XLNetTokenizer,
 )
 
 

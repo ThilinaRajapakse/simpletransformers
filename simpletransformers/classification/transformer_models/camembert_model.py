@@ -1,6 +1,6 @@
-from transformers.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP
-from transformers.configuration_camembert import CamembertConfig
 from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
+from transformers.configuration_camembert import CamembertConfig
+from transformers.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
 
 
 class CamembertForSequenceClassification(RobertaForSequenceClassification):
@@ -31,4 +31,4 @@ class CamembertForSequenceClassification(RobertaForSequenceClassification):
         loss, logits = outputs[:2]
     """  # noqa: ignore flake8"
     config_class = CamembertConfig
-    pretrained_model_archive_map = CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_MAP
+    pretrained_model_archive_map = CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST

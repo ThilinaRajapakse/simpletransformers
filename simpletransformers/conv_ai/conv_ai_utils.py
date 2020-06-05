@@ -1,18 +1,18 @@
 # Copyright (c) 2019-present, HuggingFace Inc.
 # All rights reserved. This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
-from datetime import datetime
 import json
 import logging
 import os
+import socket
 import tarfile
 import tempfile
-import socket
+from datetime import datetime
 from multiprocessing import Pool
 
 from tqdm.auto import tqdm
-import torch
 
+import torch
 from transformers import cached_path
 
 PERSONACHAT_URL = "https://s3.amazonaws.com/datasets.huggingface.co/personachat/personachat_self_original.json"
@@ -43,7 +43,15 @@ def tokenize_multi(data):
 
 
 def get_dataset(
-    tokenizer, dataset_path, dataset_cache, process_count, proxies, evaluate=False, interact=False, no_cache=False
+    tokenizer,
+    dataset_path,
+    dataset_cache,
+    process_count,
+    proxies,
+    evaluate=False,
+    interact=False,
+    no_cache=False,
+    args=None,
 ):
     """ Get tokenized PERSONACHAT dataset from S3 or cache."""
     dataset_path = dataset_path or PERSONACHAT_URL
@@ -70,14 +78,13 @@ def get_dataset(
             if isinstance(obj, str):
                 return tokenizer.convert_tokens_to_ids(tokenizer.tokenize(obj))
             if isinstance(obj, dict):
-                # data = [(d, tokenizer) for d in obj.values()]
-                # with Pool(process_count) as p:
-                #     tokenized_data = list(tqdm(p.imap(tokenize_multi, data, chunksize=500), total=len(data)))
                 return dict((n, tokenize(o)) for n, o in obj.items())
 
             data = [(d, tokenizer) for d in obj]
             with Pool(process_count) as p:
-                tokenized_data = list(tqdm(p.imap(tokenize_multi, data, chunksize=500), total=len(data)))
+                tokenized_data = list(
+                    tqdm(p.imap(tokenize_multi, data, chunksize=args["multiprocessing_chunksize"]), total=len(data))
+                )
             return tokenized_data
 
         if not interact and dataset_path == PERSONACHAT_URL:

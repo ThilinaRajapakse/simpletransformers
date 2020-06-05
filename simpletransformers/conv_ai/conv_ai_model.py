@@ -4,54 +4,48 @@
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import math
 import json
-import random
-import warnings
 import logging
+import math
+import os
+import random
+import statistics
+import warnings
 from collections import defaultdict
 from itertools import chain
-import statistics
 from multiprocessing import cpu_count
 
+import numpy as np
+from scipy.stats import mode, pearsonr
+from sklearn.metrics import (
+    confusion_matrix,
+    f1_score,
+    label_ranking_average_precision_score,
+    matthews_corrcoef,
+    mean_squared_error,
+)
+from tqdm.auto import tqdm, trange
+
+import pandas as pd
 import torch
 import torch.nn.functional as F
-import numpy as np
-import pandas as pd
-
-from scipy.stats import pearsonr, mode
-from sklearn.metrics import (
-    mean_squared_error,
-    matthews_corrcoef,
-    confusion_matrix,
-    label_ranking_average_precision_score,
-    f1_score,
-)
-from tensorboardX import SummaryWriter
-from tqdm.auto import trange, tqdm
-
-from torch.utils.data.distributed import DistributedSampler
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-
-from transformers import AdamW, get_linear_schedule_with_warmup
-from transformers import (
-    WEIGHTS_NAME,
-    GPT2Tokenizer,
-    GPT2DoubleHeadsModel,
-    GPT2Config,
-    OpenAIGPTDoubleHeadsModel,
-    OpenAIGPTTokenizer,
-    OpenAIGPTConfig,
-)
-
-from simpletransformers.classification.classification_utils import (
-    InputExample,
-    convert_examples_to_features,
-)
-
+from simpletransformers.classification.classification_utils import InputExample, convert_examples_to_features
 from simpletransformers.config.global_args import global_args
 from simpletransformers.conv_ai.conv_ai_utils import get_dataset
+from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from torch.utils.data.distributed import DistributedSampler
+from transformers import (
+    WEIGHTS_NAME,
+    AdamW,
+    GPT2Config,
+    GPT2DoubleHeadsModel,
+    GPT2Tokenizer,
+    OpenAIGPTConfig,
+    OpenAIGPTDoubleHeadsModel,
+    OpenAIGPTTokenizer,
+    get_linear_schedule_with_warmup,
+)
 
 try:
     import wandb
@@ -140,6 +134,13 @@ class ConvAIModel:
 
         self.args.update(global_args)
 
+        saved_model_args = self._load_model_args(model_name)
+        if saved_model_args:
+            self.args.update(saved_model_args)
+
+        if args:
+            self.args.update(args)
+
         if not use_cuda:
             self.args["fp16"] = False
 
@@ -221,10 +222,7 @@ class ConvAIModel:
             **kwargs,
         )
 
-        model_to_save = self.model.module if hasattr(self.model, "module") else self.model
-        model_to_save.save_pretrained(output_dir)
-        self.tokenizer.save_pretrained(output_dir)
-        torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
+        self._save_model(model=self.model)
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
@@ -372,7 +370,7 @@ class ConvAIModel:
                         results, _, _ = self.eval_model(
                             eval_dataloader,
                             verbose=verbose and args["evaluate_during_training_verbose"],
-                            silent=True,
+                            silent=args["evaluate_during_training_silent"],
                             **kwargs,
                         )
                         for key, value in results.items():
@@ -608,6 +606,7 @@ class ConvAIModel:
             proxies=self.__dict__.get("proxies", None),
             evaluate=evaluate,
             no_cache=no_cache,
+            args=args,
         )
         # logger.info(personachat.keys())
         # datasets = {"train": defaultdict(list), "valid": defaultdict(list)}
@@ -704,7 +703,15 @@ class ConvAIModel:
         self._move_model_to_device()
 
         if not personality:
-            dataset = get_dataset(tokenizer, None, args["cache_dir"], process_count=process_count,proxies=self.__dict__.get("proxies", None), interact=True)
+            dataset = get_dataset(
+                tokenizer,
+                None,
+                args["cache_dir"],
+                process_count=process_count,
+                proxies=self.__dict__.get("proxies", None),
+                interact=True,
+                args=args,
+            )
             personalities = [dialog["personality"] for dataset in dataset.values() for dialog in dataset]
             personality = random.choice(personalities)
         else:
@@ -751,14 +758,16 @@ class ConvAIModel:
 
         return training_progress_scores
 
-    def _save_model(self, output_dir, model=None, results=None):
-        os.makedirs(output_dir, exist_ok=True)
+    def _save_model(self, output_dir=None, model=None, results=None):
+        if not output_dir:
+            output_dir = self.args["output_dir"]
 
-        if model:
+        if model and not self.args["no_save"]:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
+            self._save_model_args(output_dir)
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
@@ -868,3 +877,15 @@ class ConvAIModel:
             current_output.append(prev.item())
 
         return current_output
+
+    def _save_model_args(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
+            json.dump(self.args, f)
+
+    def _load_model_args(self, input_dir):
+        model_args_file = os.path.join(input_dir, "model_args.json")
+        if os.path.isfile(model_args_file):
+            with open(model_args_file, "r") as f:
+                model_args = json.load(f)
+            return model_args

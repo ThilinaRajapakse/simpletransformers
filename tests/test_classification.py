@@ -1,24 +1,21 @@
 import pandas as pd
 import pytest
-
-from simpletransformers.classification import (
-    ClassificationModel,
-    MultiLabelClassificationModel,
-)
+from simpletransformers.classification import ClassificationModel, MultiLabelClassificationModel
 
 
 @pytest.mark.parametrize(
     "model_type, model_name",
     [
         ("bert", "bert-base-uncased"),
-        ("xlnet", "xlnet-base-cased"),
-        ("xlm", "xlm-mlm-17-1280"),
-        ("roberta", "roberta-base"),
-        ("distilbert", "distilbert-base-uncased"),
-        ("albert", "albert-base-v1"),
-        ("camembert", "camembert-base"),
-        ("xlmroberta", "xlm-roberta-base"),
-        ("flaubert", "flaubert-base-cased"),
+        ("longformer", "allenai/longformer-base-4096")
+        # ("xlnet", "xlnet-base-cased"),
+        # ("xlm", "xlm-mlm-17-1280"),
+        # ("roberta", "roberta-base"),
+        # ("distilbert", "distilbert-base-uncased"),
+        # ("albert", "albert-base-v1"),
+        # ("camembert", "camembert-base"),
+        # ("xlmroberta", "xlm-roberta-base"),
+        # ("flaubert", "flaubert-base-cased"),
     ],
 )
 def test_binary_classification(model_type, model_name):
@@ -39,7 +36,10 @@ def test_binary_classification(model_type, model_name):
 
     # Create a ClassificationModel
     model = ClassificationModel(
-        model_type, model_name, use_cuda=False, args={"reprocess_input_data": True, "overwrite_output_dir": True},
+        model_type,
+        model_name,
+        use_cuda=False,
+        args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True},
     )
 
     # Train the model
@@ -52,15 +52,15 @@ def test_binary_classification(model_type, model_name):
 @pytest.mark.parametrize(
     "model_type, model_name",
     [
-        ("bert", "bert-base-uncased"),
-        ("xlnet", "xlnet-base-cased"),
-        ("xlm", "xlm-mlm-17-1280"),
+        # ("bert", "bert-base-uncased"),
+        # ("xlnet", "xlnet-base-cased"),
+        # ("xlm", "xlm-mlm-17-1280"),
         ("roberta", "roberta-base"),
-        ("distilbert", "distilbert-base-uncased"),
-        ("albert", "albert-base-v1"),
-        ("camembert", "camembert-base"),
-        ("xlmroberta", "xlm-roberta-base"),
-        ("flaubert", "flaubert-base-cased"),
+        # ("distilbert", "distilbert-base-uncased"),
+        # ("albert", "albert-base-v1"),
+        # ("camembert", "camembert-base"),
+        # ("xlmroberta", "xlm-roberta-base"),
+        # ("flaubert", "flaubert-base-cased"),
     ],
 )
 def test_multiclass_classification(model_type, model_name):
@@ -88,7 +88,7 @@ def test_multiclass_classification(model_type, model_name):
         model_type,
         model_name,
         num_labels=3,
-        args={"reprocess_input_data": True, "overwrite_output_dir": True},
+        args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True},
         use_cuda=False,
     )
 
@@ -104,12 +104,12 @@ def test_multiclass_classification(model_type, model_name):
 @pytest.mark.parametrize(
     "model_type, model_name",
     [
-        ("bert", "bert-base-uncased"),
+        # ("bert", "bert-base-uncased"),
         ("xlnet", "xlnet-base-cased"),
-        ("xlm", "xlm-mlm-17-1280"),
-        ("roberta", "roberta-base"),
-        ("distilbert", "distilbert-base-uncased"),
-        ("albert", "albert-base-v1"),
+        #     ("xlm", "xlm-mlm-17-1280"),
+        #     ("roberta", "roberta-base"),
+        #     ("distilbert", "distilbert-base-uncased"),
+        #     ("albert", "albert-base-v1"),
     ],
 )
 def test_multilabel_classification(model_type, model_name):
@@ -132,7 +132,7 @@ def test_multilabel_classification(model_type, model_name):
         model_type,
         model_name,
         num_labels=6,
-        args={"reprocess_input_data": True, "overwrite_output_dir": True, "num_train_epochs": 1},
+        args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True, "num_train_epochs": 1},
         use_cuda=False,
     )
 

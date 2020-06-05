@@ -8,6 +8,15 @@ clean:
 	find . -name '*.pyo' -exec rm -f {} +
 	find . -name '*~' -exec rm -f  {} +
 
+clean-test:
+	-rm -r .coverage*
+	-rm -r data
+	-rm -r runs
+	-rm -r outputs
+	-rm -r cache_dir
+	-rm -r wandb
+	-rm train.txt
+
 formatter:
 	black --line-length 119 simpletransformers tests --exclude simpletransformers/experimental\
 	
@@ -19,7 +28,7 @@ types:
 	pytype --keep-going simpletransformers --exclude simpletransformers/experimental 
 
 test: clean 
-	pytest tests --cov simpletransformers/classification simpletransformers/ner simpletransformers/question_answering
+	pytest tests --cov simpletransformers/classification simpletransformers/ner simpletransformers/question_answering simpletransformers/language_modeling simpletransformers/t5
 
 # if this runs through we can be sure the readme is properly shown on pypi
 check-readme:
