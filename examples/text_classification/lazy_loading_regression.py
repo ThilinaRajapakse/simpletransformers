@@ -5,20 +5,20 @@ from simpletransformers.classification import ClassificationModel
 
 
 train_data = [
-    ['Example sentence belonging to class 1', 'Yep, this is 1', 0.8],
-    ['Example sentence belonging to class 0', 'Yep, this is 0', 0.2],
-    ['This is an entirely different phrase altogether and should be treated so.', 'Is this being picked up?', 1000.5]
+    ["Example sentence belonging to class 1", "Yep, this is 1", 0.8],
+    ["Example sentence belonging to class 0", "Yep, this is 0", 0.2],
+    ["This is an entirely different phrase altogether and should be treated so.", "Is this being picked up?", 1000.5],
 ]
 
-train_df = pd.DataFrame(train_data, columns=['text_a', 'text_b', 'labels'])
+train_df = pd.DataFrame(train_data, columns=["text_a", "text_b", "labels"])
 
 eval_data = [
-    ['Example sentence belonging to class 1', 'Yep, this is 1', 1.9],
-    ['Example sentence belonging to class 0', 'Yep, this is 0', 0.1],
-    ['Example  2 sentence belonging to class 0', 'Yep, this is 0', 5]
+    ["Example sentence belonging to class 1", "Yep, this is 1", 1.9],
+    ["Example sentence belonging to class 0", "Yep, this is 0", 0.1],
+    ["Example  2 sentence belonging to class 0", "Yep, this is 0", 5],
 ]
 
-eval_df = pd.DataFrame(eval_data, columns=['text_a', 'text_b', 'labels'])
+eval_df = pd.DataFrame(eval_data, columns=["text_a", "text_b", "labels"])
 
 os.makedirs("data", exist_ok=True)
 

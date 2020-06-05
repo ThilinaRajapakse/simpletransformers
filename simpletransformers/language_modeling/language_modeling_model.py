@@ -603,7 +603,7 @@ class LanguageModelingModel:
                         results = self.eval_model(
                             eval_file,
                             verbose=verbose and args["evaluate_during_training_verbose"],
-                            silent=True,
+                            silent=args["evaluate_during_training_silent"],
                             **kwargs,
                         )
                         for key, value in results.items():
@@ -698,7 +698,10 @@ class LanguageModelingModel:
 
             if args["evaluate_during_training"]:
                 results = self.eval_model(
-                    eval_file, verbose=verbose and args["evaluate_during_training_verbose"], silent=True, **kwargs
+                    eval_file,
+                    verbose=verbose and args["evaluate_during_training_verbose"],
+                    silent=args["evaluate_during_training_silent"],
+                    **kwargs,
                 )
 
                 self._save_model(output_dir_current, optimizer, scheduler, results=results)

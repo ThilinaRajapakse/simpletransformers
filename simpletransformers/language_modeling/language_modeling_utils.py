@@ -123,7 +123,7 @@ class LineByLineTextDataset(Dataset):
 
 def encode(data):
     tokenizer, line = data
-    return tokenizer.convert_tokens_to_ids(tokenizer.tokenize(line))
+    return tokenizer.encode(line)
 
 
 def encode_sliding_window(data):

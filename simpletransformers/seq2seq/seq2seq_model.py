@@ -36,6 +36,9 @@ from transformers import (
     ElectraConfig,
     ElectraModel,
     ElectraTokenizer,
+    LongformerConfig,
+    LongformerModel,
+    LongformerTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
     RobertaConfig,
@@ -60,13 +63,14 @@ logger = logging.getLogger(__name__)
 
 MODEL_CLASSES = {
     "auto": (AutoConfig, AutoModel, AutoTokenizer),
-    "bert": (BertConfig, BertModel, BertTokenizer),
-    "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
-    "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
-    "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
     "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
+    "bert": (BertConfig, BertModel, BertTokenizer),
+    "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
+    "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
+    "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
+    "longformer": (LongformerConfig, LongformerModel, LongformerTokenizer),
     "marian": (MarianConfig, MarianMTModel, MarianTokenizer),
+    "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
 }
 
 
@@ -478,7 +482,7 @@ class Seq2SeqModel:
                         results = self.eval_model(
                             eval_data,
                             verbose=verbose and args["evaluate_during_training_verbose"],
-                            silent=True,
+                            silent=args["evaluate_during_training_silent"],
                             **kwargs,
                         )
                         for key, value in results.items():
@@ -573,7 +577,10 @@ class Seq2SeqModel:
 
             if args["evaluate_during_training"]:
                 results = self.eval_model(
-                    eval_data, verbose=verbose and args["evaluate_during_training_verbose"], silent=True, **kwargs
+                    eval_data,
+                    verbose=verbose and args["evaluate_during_training_verbose"],
+                    silent=args["evaluate_during_training_silent"],
+                    **kwargs,
                 )
 
                 if args["save_eval_checkpoints"]:

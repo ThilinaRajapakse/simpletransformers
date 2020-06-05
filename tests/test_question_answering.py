@@ -5,7 +5,22 @@ import os
 from simpletransformers.question_answering import QuestionAnsweringModel
 
 
-def test_question_answering():
+@pytest.mark.parametrize(
+    "model_type, model_name",
+    [
+        ("bert", "bert-base-uncased"),
+        ("longformer", "allenai/longformer-base-4096")
+        # ("xlnet", "xlnet-base-cased"),
+        # ("xlm", "xlm-mlm-17-1280"),
+        # ("roberta", "roberta-base"),
+        # ("distilbert", "distilbert-base-uncased"),
+        # ("albert", "albert-base-v1"),
+        # ("camembert", "camembert-base"),
+        # ("xlmroberta", "xlm-roberta-base"),
+        # ("flaubert", "flaubert-base-cased"),
+    ],
+)
+def test_question_answering(model_type, model_name):
     # Create dummy data to use for training.
     train_data = [
         {
@@ -49,8 +64,8 @@ def test_question_answering():
 
     # Create the QuestionAnsweringModel
     model = QuestionAnsweringModel(
-        "distilbert",
-        "distilbert-base-uncased-distilled-squad",
+        model_type,
+        model_name,
         args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True},
         use_cuda=False,
     )
