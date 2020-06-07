@@ -10,12 +10,12 @@ This section describes how Text Classification tasks are organized and conducted
 
 ## Sub-Tasks Falling Under Text Classification
 
-| Task                                                      | Model                           |
-| --------------------------------------------------------- | ------------------------------- |
-| Binary and multi-class text classification                | `ClassificationModel`           |
-| Multi-label text classification                           | `MultiLabelClassificationModel` |
-| Regression                                                | `ClassificationModel`           |
-| Sentence-pair classification                              | `ClassificationModel`           |
+| Task                                       | Model                           |
+| ------------------------------------------ | ------------------------------- |
+| Binary and multi-class text classification | `ClassificationModel`           |
+| Multi-label text classification            | `MultiLabelClassificationModel` |
+| Regression                                 | `ClassificationModel`           |
+| Sentence-pair classification               | `ClassificationModel`           |
 
 
 ## Usage Steps
@@ -33,7 +33,7 @@ The process of performing text classification in Simple Transformers does not de
 New model types are regularly added to the library. Text classification tasks currently supports the model types given below.
 
 | Model       | Model code for `ClassificationModel` |
-|-------------|--------------------------------------|
+| ----------- | ------------------------------------ |
 | ALBERT      | albert                               |
 | BERT        | bert                                 |
 | *CamemBERT  | camembert                            |
@@ -41,6 +41,7 @@ New model types are regularly added to the library. Text classification tasks cu
 | DistilBERT  | distilbert                           |
 | ELECTRA     | electra                              |
 | FlauBERT    | flaubert                             |
+| *Longformer | longformer                           |
 | XLM         | xlm                                  |
 | XLM-RoBERTa | xlmroberta                           |
 | XLNet       | xlnet                                |
