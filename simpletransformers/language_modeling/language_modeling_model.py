@@ -135,7 +135,8 @@ class LanguageModelingModel:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
         if args["local_rank"] != -1:
-            print(f'local_rank: {args["local_rank"]}')
+            logger.info(f'local_rank: {args["local_rank"]}')
+            torch.distributed.init_process_group(backend="nccl")
             cuda_device = args["local_rank"]
 
         if use_cuda:
@@ -430,14 +431,6 @@ class LanguageModelingModel:
                 return pad_sequence(examples, batch_first=True)
             return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
 
-        # Distributed training (should be after apex fp16 initialization)
-        if args["local_rank"] != -1:
-            torch.distributed.init_process_group(backend="nccl")
-            model = torch.nn.parallel.DistributedDataParallel(
-                model,
-                device_ids=[args["local_rank"]],
-                output_device=args["local_rank"],
-            )
         if self.is_world_master():
             tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
         train_sampler = (
@@ -496,6 +489,15 @@ class LanguageModelingModel:
 
         if args["n_gpu"] > 1:
             model = torch.nn.DataParallel(model)
+
+        # Distributed training (should be after apex fp16 initialization)
+        if args["local_rank"] != -1:
+            model = torch.nn.parallel.DistributedDataParallel(
+                model,
+                device_ids=[args["local_rank"]],
+                output_device=args["local_rank"],
+                find_unused_parameters=True,
+            )
 
         logger.info(" Training started")
 
