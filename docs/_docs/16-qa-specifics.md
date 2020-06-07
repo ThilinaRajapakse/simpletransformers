@@ -29,6 +29,7 @@ New model types are regularly added to the library. Question Answering tasks cur
 | BERT        | bert                                    |
 | DistilBERT  | distilbert                              |
 | ELECTRA     | electra                                 |
+| Longformer  | longformer                           |
 | RoBERTa     | roberta                                 |
 | XLM         | xlm                                     |
 | XLM-RoBERTa | xlmroberta                              |
