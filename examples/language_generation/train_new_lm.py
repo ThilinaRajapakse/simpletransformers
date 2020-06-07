@@ -1,5 +1,6 @@
 from simpletransformers.language_modeling import LanguageModelingModel
 import logging
+import argparse
 
 
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +31,16 @@ train_args = {
     "vocab_size": 10000,
     "output_dir": f"outputs/from_scratch_",
     "best_model_dir": f"outputs/from_scratch/best_model",
+    "fp16": False,
+    "local_rank": -1,
 }
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--local_rank", type=int, default=-1,
+                    help="Local rank. Necessary for using the torch.distributed.launch utility.")
+args = parser.parse_args()
+
+train_args["local_rank"] = args.local_rank
 
 train_file = f"data/train.txt"
 test_file = f"data/test.txt"
