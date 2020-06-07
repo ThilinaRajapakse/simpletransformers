@@ -30,6 +30,7 @@ New model types are regularly added to the library. Named Entity Recognition tas
 | RoBERTa     | roberta                              |
 | DistilBERT  | distilbert                           |
 | ELECTRA     | electra                              |
+| Longformer  | longformer                           |
 | XLM-RoBERTa | xlmroberta                           |
 
 **Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
