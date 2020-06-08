@@ -321,6 +321,15 @@
         "code",
         "doc"
       ]
+    },
+    {
+      "login": "guy-mor",
+      "name": "guy-mor",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/44950985?v=4",
+      "profile": "https://github.com/guy-mor",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
