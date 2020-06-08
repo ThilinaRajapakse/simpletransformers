@@ -848,6 +848,7 @@ class ClassificationModel:
                 sliding_window=args["sliding_window"],
                 flatten=not evaluate,
                 stride=args["stride"],
+                add_prefix_space=bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]),
                 args=args,
             )
             if verbose and args["sliding_window"]:
