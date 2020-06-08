@@ -102,13 +102,21 @@ def convert_example_to_feature(
         sep_token_extra,
         multi_label,
         stride,
+        pad_token,
+        add_prefix_space,
     ) = example_row
 
-    tokens_a = tokenizer.tokenize(example.text_a)
+    if add_prefix_space and example.text_a.startswith(" "):
+        tokens_a = tokenizer.tokenize(" " + example.text_a)
+    else:
+        tokens_a = tokenizer.tokenize(example.text_a)
 
     tokens_b = None
     if example.text_b:
-        tokens_b = tokenizer.tokenize(example.text_b)
+        if add_prefix_space and example.text_a.startswith(" "):
+            tokens_b = tokenizer.tokenize(" " + example.tokens_b)
+        else:
+            tokens_b = tokenizer.tokenize(example.tokens_b)
         # Modifies `tokens_a` and `tokens_b` in place so that the total
         # length is less than the specified length.
         # Account for [CLS], [SEP], [SEP] with "- 3". " -4" for RoBERTa.
@@ -215,6 +223,8 @@ def convert_example_to_feature_sliding_window(
         sep_token_extra,
         multi_label,
         stride,
+        pad_token,
+        add_prefix_space,
     ) = example_row
 
     if stride < 1:
@@ -223,7 +233,10 @@ def convert_example_to_feature_sliding_window(
     bucket_size = max_seq_length - (3 if sep_token_extra else 2)
     token_sets = []
 
-    tokens_a = tokenizer.tokenize(example.text_a)
+    if add_prefix_space and example.text_a.startswith(" "):
+        tokens_a = tokenizer.tokenize(" " + example.text_a)
+    else:
+        tokens_a = tokenizer.tokenize(example.text_a)
 
     if len(tokens_a) > bucket_size:
         token_sets = [tokens_a[i : i + bucket_size] for i in range(0, len(tokens_a), stride)]
@@ -322,6 +335,7 @@ def convert_examples_to_features(
     sliding_window=False,
     flatten=False,
     stride=None,
+    add_prefix_space=False,
     args=None,
 ):
     """ Loads a data file into a list of `InputBatch`s
@@ -346,6 +360,8 @@ def convert_examples_to_features(
             sep_token_extra,
             multi_label,
             stride,
+            pad_token,
+            add_prefix_space,
         )
         for example in examples
     ]
