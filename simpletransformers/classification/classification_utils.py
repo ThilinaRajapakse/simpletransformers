@@ -106,14 +106,14 @@ def convert_example_to_feature(
         add_prefix_space,
     ) = example_row
 
-    if add_prefix_space and example.text_a.startswith(" "):
+    if add_prefix_space and not example.text_a.startswith(" "):
         tokens_a = tokenizer.tokenize(" " + example.text_a)
     else:
         tokens_a = tokenizer.tokenize(example.text_a)
 
     tokens_b = None
     if example.text_b:
-        if add_prefix_space and example.text_a.startswith(" "):
+        if add_prefix_space and not example.text_b.startswith(" "):
             tokens_b = tokenizer.tokenize(" " + example.tokens_b)
         else:
             tokens_b = tokenizer.tokenize(example.tokens_b)
@@ -233,7 +233,7 @@ def convert_example_to_feature_sliding_window(
     bucket_size = max_seq_length - (3 if sep_token_extra else 2)
     token_sets = []
 
-    if add_prefix_space and example.text_a.startswith(" "):
+    if add_prefix_space and not example.text_a.startswith(" "):
         tokens_a = tokenizer.tokenize(" " + example.text_a)
     else:
         tokens_a = tokenizer.tokenize(example.text_a)
