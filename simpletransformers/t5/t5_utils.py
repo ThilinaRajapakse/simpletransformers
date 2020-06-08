@@ -45,7 +45,7 @@ def preprocess_data(data):
 class T5Dataset(Dataset):
     def __init__(self, tokenizer, args, data, mode):
         cached_features_file = os.path.join(
-            args["cache_dir"], args["model_name"] + "_cached_" + str(args["max_seq_length"]) + str(len(data))
+            args["cache_dir"], args["model_name"].replace("/", "_") + "_cached_" + str(args["max_seq_length"]) + str(len(data))
         )
 
         if os.path.exists(cached_features_file) and (

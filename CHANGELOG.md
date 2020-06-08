@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.33.1] - 2020-06-08
 
+### Fixed
+
+- Fixed bug in adding prefix space. Included longformer in list of models where prefix spaces are added. [@guy-mor](https://github.com/guy-mor)
+
+## [0.33.1] - 2020-06-08
+
 ### Changed
 
 - Changed the tokenization logic of RoBERTa (and other models using GPT-2 tokenizer) so that a prefix space will be added to input sentences.
@@ -817,7 +823,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.33.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f40331b...HEAD
+[0.33.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb83151...HEAD
+
+[0.33.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f40331b...bb83151
 
 [0.33.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e96aacd...f40331b
 
