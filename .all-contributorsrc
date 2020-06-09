@@ -331,6 +331,15 @@
         "bug",
         "code"
       ]
+    },
+    {
+      "login": "cahya-wirawan",
+      "name": "Cahya Wirawan",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/7669893?v=4",
+      "profile": "https://github.com/cahya-wirawan",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
