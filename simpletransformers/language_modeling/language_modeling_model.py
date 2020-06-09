@@ -428,16 +428,9 @@ class LanguageModelingModel:
 
         if self.is_world_master():
             tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
-        train_sampler = (
-            RandomSampler(train_dataset)
-            if args["local_rank"] == -1
-            else DistributedSampler(train_dataset)
-        )
+        train_sampler = RandomSampler(train_dataset) if args["local_rank"] == -1 else DistributedSampler(train_dataset)
         train_dataloader = DataLoader(
-            train_dataset,
-            batch_size=args["train_batch_size"],
-            sampler=train_sampler,
-            collate_fn=collate,
+            train_dataset, batch_size=args["train_batch_size"], sampler=train_sampler, collate_fn=collate,
         )
 
         if args["max_steps"] > 0:
@@ -488,10 +481,7 @@ class LanguageModelingModel:
         # Distributed training (should be after apex fp16 initialization)
         if args["local_rank"] != -1:
             model = torch.nn.parallel.DistributedDataParallel(
-                model,
-                device_ids=[args["local_rank"]],
-                output_device=args["local_rank"],
-                find_unused_parameters=True,
+                model, device_ids=[args["local_rank"]], output_device=args["local_rank"], find_unused_parameters=True,
             )
 
         logger.info(" Training started")

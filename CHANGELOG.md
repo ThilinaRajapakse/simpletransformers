@@ -4,7 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.33.1] - 2020-06-08
+## [0.34.0] - 2020-06-09
+
+### Added
+
+- Added distributed training support for language model training. [@cahya-wirawan](https://github.com/cahya-wirawan)
+- Added multiprocessed decoding support for T5 models.
+
+
+## [0.33.2] - 2020-06-08
 
 ### Fixed
 
@@ -823,7 +831,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.33.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb83151...HEAD
+[0.34.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4789a1d...HEAD
+
+[0.33.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb83151...4789a1d
 
 [0.33.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f40331b...bb83151
 

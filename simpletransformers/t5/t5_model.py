@@ -629,7 +629,7 @@ class T5Model:
                 to_predict[i : i + self.args["eval_batch_size"]]
                 for i in range(0, len(to_predict), self.args["eval_batch_size"])
             ],
-            desc="Generating outputs"
+            desc="Generating outputs",
         ):
             if self.args["preprocess_inputs"]:
                 input_ids = self.tokenizer.batch_encode_plus(
@@ -666,7 +666,7 @@ class T5Model:
                         p.imap(self._decode, all_outputs, chunksize=self.args["multiprocessing_chunksize"]),
                         total=len(all_outputs),
                         desc="Decoding outputs",
-                        disable=self.args["silent"]
+                        disable=self.args["silent"],
                     )
                 )
             self._move_model_to_device()
