@@ -132,27 +132,6 @@ class LanguageModelingModel:
             if "n_gpu" in args and args["n_gpu"] > 0:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
-        if args["local_rank"] != -1:
-            logger.info(f'local_rank: {args["local_rank"]}')
-            torch.distributed.init_process_group(backend="nccl")
-            cuda_device = args["local_rank"]
-
-        if use_cuda:
-            if torch.cuda.is_available():
-                if cuda_device == -1:
-                    self.device = torch.device("cuda")
-                else:
-                    self.device = torch.device(f"cuda:{cuda_device}")
-            else:
-                raise ValueError(
-                    "'use_cuda' set to True when cuda is unavailable."
-                    " Make sure CUDA is available or set use_cuda=False."
-                )
-        else:
-            self.device = "cpu"
-
-        self.results = {}
-
         self.args = {
             "block_size": -1,
             "config_name": None,
@@ -183,11 +162,29 @@ class LanguageModelingModel:
         if args:
             self.args.update(args)
 
+        if self.args["local_rank"] != -1:
+            logger.info(f'local_rank: {self.args["local_rank"]}')
+            torch.distributed.init_process_group(backend="nccl")
+            cuda_device = self.args["local_rank"]
+
+        if use_cuda:
+            if torch.cuda.is_available():
+                if cuda_device == -1:
+                    self.device = torch.device("cuda")
+                else:
+                    self.device = torch.device(f"cuda:{cuda_device}")
+            else:
+                raise ValueError(
+                    "'use_cuda' set to True when cuda is unavailable."
+                    " Make sure CUDA is available or set use_cuda=False."
+                )
+        else:
+            self.device = "cpu"
+
+        self.results = {}
+
         if not use_cuda:
             self.args["fp16"] = False
-
-        if args:
-            self.args.update(args)
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
