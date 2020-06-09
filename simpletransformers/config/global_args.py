@@ -52,6 +52,7 @@ global_args = {
     "warmup_ratio": 0.06,
     "warmup_steps": 0,
     "weight_decay": 0,
+    "img_encoder": "resnet152",
 }
 
 if sys.platform == "win32":
