@@ -4,7 +4,7 @@ import math
 import os
 import random
 import warnings
-from multiprocessing import cpu_count
+from multiprocessing import cpu_count, Pool
 from pathlib import Path
 
 import numpy as np
@@ -73,6 +73,7 @@ class T5Model:
             "num_return_sequences": 1,
             "early_stopping": True,
             "preprocess_inputs": True,
+            "use_multiprocessed_decoding": True,
         }
 
         self.args.update(global_args)
@@ -627,7 +628,8 @@ class T5Model:
             [
                 to_predict[i : i + self.args["eval_batch_size"]]
                 for i in range(0, len(to_predict), self.args["eval_batch_size"])
-            ]
+            ],
+            desc="Generating outputs",
         ):
             if self.args["preprocess_inputs"]:
                 input_ids = self.tokenizer.batch_encode_plus(
@@ -653,12 +655,26 @@ class T5Model:
                 top_p=self.args["top_p"],
                 num_return_sequences=self.args["num_return_sequences"],
             )
-            all_outputs.extend(outputs)
+            all_outputs.extend(outputs.cpu().numpy())
 
-        outputs = [
-            self.tokenizer.decode(output_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
-            for output_id in all_outputs
-        ]
+        self.model.to("cpu")
+
+        if self.args["use_multiprocessed_decoding"]:
+            with Pool(self.args["process_count"]) as p:
+                outputs = list(
+                    tqdm(
+                        p.imap(self._decode, all_outputs, chunksize=self.args["multiprocessing_chunksize"]),
+                        total=len(all_outputs),
+                        desc="Decoding outputs",
+                        disable=self.args["silent"],
+                    )
+                )
+            self._move_model_to_device()
+        else:
+            outputs = [
+                self.tokenizer.decode(output_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+                for output_id in all_outputs
+            ]
 
         if self.args["num_return_sequences"] > 1:
             return [
@@ -667,6 +683,9 @@ class T5Model:
             ]
         else:
             return outputs
+
+    def _decode(self, output_id):
+        return self.tokenizer.decode(output_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
 
     def compute_metrics(self, labels, preds, **kwargs):
         """

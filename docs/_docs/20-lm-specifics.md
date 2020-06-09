@@ -136,3 +136,16 @@ classification_model = ClassificationModel("electra", "outputs/checkpoint-1-epoc
 
 **Note:** Both `save_discriminator()` and `save_generator()` methods takes in an optional `output_dir` argument which specifies where the model should be saved.
 {: .notice--info}
+
+
+## Distributed Training
+
+Simple Transformers supports distributed language model training.
+
+**Tip:** You can find an example script [here](https://github.com/ThilinaRajapakse/simpletransformers/blob/master/examples/language_generation/train_new_lm.py).
+{: .notice--success}
+
+You can launch distributed training as shown below.
+```bash
+python -m torch.distributed.launch --nproc_per_node=4 train_new_lm.py
+```
