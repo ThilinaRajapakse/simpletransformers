@@ -27,9 +27,7 @@ import torch
 from simpletransformers.config.global_args import global_args
 from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
 from simpletransformers.language_modeling.language_modeling_utils import (
-    # LineByLineTextDataset,
     SimpleDataset,
-    # TextDataset,
     mask_tokens,
 )
 from tensorboardX import SummaryWriter
@@ -135,7 +133,8 @@ class LanguageModelingModel:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
         if args["local_rank"] != -1:
-            print(f'local_rank: {args["local_rank"]}')
+            logger.info(f'local_rank: {args["local_rank"]}')
+            torch.distributed.init_process_group(backend="nccl")
             cuda_device = args["local_rank"]
 
         if use_cuda:
@@ -430,14 +429,6 @@ class LanguageModelingModel:
                 return pad_sequence(examples, batch_first=True)
             return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
 
-        # Distributed training (should be after apex fp16 initialization)
-        if args["local_rank"] != -1:
-            torch.distributed.init_process_group(backend="nccl")
-            model = torch.nn.parallel.DistributedDataParallel(
-                model,
-                device_ids=[args["local_rank"]],
-                output_device=args["local_rank"],
-            )
         if self.is_world_master():
             tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
         train_sampler = (
@@ -496,6 +487,15 @@ class LanguageModelingModel:
 
         if args["n_gpu"] > 1:
             model = torch.nn.DataParallel(model)
+
+        # Distributed training (should be after apex fp16 initialization)
+        if args["local_rank"] != -1:
+            model = torch.nn.parallel.DistributedDataParallel(
+                model,
+                device_ids=[args["local_rank"]],
+                output_device=args["local_rank"],
+                find_unused_parameters=True,
+            )
 
         logger.info(" Training started")
 
@@ -892,10 +892,8 @@ class LanguageModelingModel:
         else:
             dataset_type = args["dataset_type"]
             if dataset_type == "text":
-                # return TextDataset(tokenizer, args, file_path, mode, args["block_size"])
                 return TextDataset(tokenizer, file_path, args["block_size"], overwrite_cache=True)
             elif dataset_type == "line_by_line":
-                # return LineByLineTextDataset(tokenizer, args, file_path, args["block_size"])
                 return LineByLineTextDataset(tokenizer, file_path, args["block_size"])
             else:
                 special_tokens_count = 3 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 2
