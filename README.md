@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-35-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-36-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -3311,6 +3311,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/jpotoniec"><img src="https://avatars0.githubusercontent.com/u/11078342?v=4" width="100px;" alt=""/><br /><sub><b>jpotoniec</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=jpotoniec" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/fcggamou"><img src="https://avatars0.githubusercontent.com/u/20055856?v=4" width="100px;" alt=""/><br /><sub><b>fcggamou</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=fcggamou" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=fcggamou" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/guy-mor"><img src="https://avatars2.githubusercontent.com/u/44950985?v=4" width="100px;" alt=""/><br /><sub><b>guy-mor</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/issues?q=author%3Aguy-mor" title="Bug reports">🐛</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=guy-mor" title="Code">💻</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/cahya-wirawan"><img src="https://avatars1.githubusercontent.com/u/7669893?v=4" width="100px;" alt=""/><br /><sub><b>Cahya Wirawan</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=cahya-wirawan" title="Code">💻</a></td>
   </tr>
 </table>
 
