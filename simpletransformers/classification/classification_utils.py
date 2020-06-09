@@ -428,7 +428,28 @@ POOLING_BREAKDOWN = {1: (1, 1), 2: (2, 1), 3: (3, 1), 4: (2, 2), 5: (5, 1), 6: (
 class ImageEncoder(nn.Module):
     def __init__(self, args):
         super().__init__()
-        model = torchvision.models.resnet152(pretrained=True)
+        if(args["img_encoder"] == "resnet152"):
+            model = torchvision.models.resnet152(pretrained=True)
+        elif(args["img_encoder"] == "resnet101"):
+            model = torchvision.models.resnet101(pretrained=True)
+        elif(args["img_encoder"] == "resnet18"):
+            model = torchvision.models.resnet18(pretrained=True)
+        elif(args["img_encoder"] == "resnet34"):
+            model = torchvision.models.resnet34(pretrained=True)
+        elif(args["img_encoder"] == "resnet50"):
+            model = torchvision.models.resnet50(pretrained=True)
+        elif(args["img_encoder"] == "resnext101"):
+            model = torchvision.models.resnext101_32x8d(pretrained=True)
+        elif(args["img_encoder"] == "resnext50"):
+            model = torchvision.models.resnext50_32x4d(pretrained=True)
+        elif(args["img_encoder"] == "wide_resnet101"):
+            model = torchvision.models.wide_resnet101_2(pretrained=True)
+        elif(args["img_encoder"] == "wide_resnet50"):
+            model = torchvision.models.wide_resnet50_2(pretrained=True)
+        else:
+            model = torchvision.models.resnet152(pretrained=True)
+            
+
         modules = list(model.children())[:-2]
         self.model = nn.Sequential(*modules)
         self.pool = nn.AdaptiveAvgPool2d(POOLING_BREAKDOWN[args["num_image_embeds"]])
