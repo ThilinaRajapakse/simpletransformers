@@ -37,7 +37,15 @@ from simpletransformers.config.global_args import global_args
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
-from transformers import WEIGHTS_NAME, AdamW, BertConfig, BertModel, BertTokenizer, get_linear_schedule_with_warmup
+from transformers import (
+    WEIGHTS_NAME,
+    AdamW,
+    BertConfig,
+    BertModel,
+    BertTokenizer,
+    get_linear_schedule_with_warmup,
+    BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+)
 from transformers.configuration_mmbt import MMBTConfig
 
 try:
@@ -153,20 +161,18 @@ class MultiModalClassificationModel:
         self.img_encoder = ImageEncoder(self.args)
         self.model = MMBTForClassification(self.config, self.transformer, self.img_encoder)
 
-        try:
-            self.model.load_state_dict(torch.load(os.path.join(model_name, "pytorch_model.bin")))
-        except EnvironmentError:
-            msg = (
-                "Model name '{}' was not found in model name list ({}). "
-                "We assumed '{}' was a path or url to model weight files named one of {} but "
-                "couldn't find any such file at this path or url.".format(
-                    model_name,
-                    ", ".join(model_class.pretrained_model_archive_map.keys()),
-                    model_name,
-                    "pytorch_model.bin",
+        if model_name not in BERT_PRETRAINED_MODEL_ARCHIVE_LIST:
+            try:
+                self.model.load_state_dict(torch.load(os.path.join(model_name, "pytorch_model.bin")))
+            except EnvironmentError:
+                msg = (
+                    "Model name '{}' was not found in model name list ({}). "
+                    "We assumed '{}' was a path or url to model weight files named one of {} but "
+                    "couldn't find any such file at this path or url.".format(
+                        model_name, ", ".join(BERT_PRETRAINED_MODEL_ARCHIVE_LIST), model_name, "pytorch_model.bin",
+                    )
                 )
-            )
-            raise EnvironmentError(msg)
+                raise EnvironmentError(msg)
 
         self.tokenizer = tokenizer_class.from_pretrained(
             model_name, do_lower_case=self.args["do_lower_case"], **kwargs
