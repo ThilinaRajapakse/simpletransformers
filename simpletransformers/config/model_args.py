@@ -1,6 +1,8 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, asdict
 from multiprocessing import cpu_count
+import json
 import sys
+import os
 
 
 def get_default_process_count():
@@ -64,9 +66,32 @@ class ModelArgs:
     warmup_steps: int = 0
     weight_decay: int = 0
 
+    def update_from_dict(self, new_values):
+        if isinstance(new_values, dict):
+            for key, value in new_values.items():
+                setattr(self, key, value)
+        else:
+            raise(TypeError(f"{new_values} is not a Python dict."))
+
+    def save(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
+            json.dump(asdict(self), f)
+
+    def load(self, input_dir):
+        model_args_file = os.path.join(input_dir, "model_args.json")
+        if os.path.isfile(model_args_file):
+            with open(model_args_file, "r") as f:
+                model_args = json.load(f)
+
+            self.update_from_dict(model_args)
+
 
 @dataclass
 class ClassificationArgs(ModelArgs):
+    """
+    Model args for a ClassificationModel
+    """
     lazy_delimiter: str = "\t"
     lazy_header_row: bool = True
     lazy_labels_column: int = 1
@@ -76,4 +101,15 @@ class ClassificationArgs(ModelArgs):
     regression: bool = False
     sliding_window: bool = False
     stride: float = 0.8
+    tie_value: int = 1
+
+
+@dataclass
+class MultiLabelClassificationArgs(ModelArgs):
+    """
+    Model args for a ClassificationModel
+    """
+    sliding_window: bool = False
+    stride: float = 0.8
+    threshold: float = 0.8
     tie_value: int = 1
