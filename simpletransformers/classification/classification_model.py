@@ -214,7 +214,7 @@ class ClassificationModel:
         Args:
             train_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present,
             the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             eval_df (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
@@ -510,13 +510,13 @@ class ClassificationModel:
                                     if early_stopping_counter < args.early_stopping_patience:
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" No improvement in {args.early_stopping_metric}")
                                             logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
                                             logger.info(
-                                                f" Patience of {args['early_stopping_patience']} steps reached"
+                                                f" Patience of {args.early_stopping_patience} steps reached"
                                             )
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
@@ -533,13 +533,13 @@ class ClassificationModel:
                                     if early_stopping_counter < args.early_stopping_patience:
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" No improvement in {args.early_stopping_metric}")
                                             logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
                                             logger.info(
-                                                f" Patience of {args['early_stopping_patience']} steps reached"
+                                                f" Patience of {args.early_stopping_patience} steps reached"
                                             )
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
@@ -588,12 +588,12 @@ class ClassificationModel:
                             if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
-                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" No improvement in {args.early_stopping_metric}")
                                     logger.info(f" Current step: {early_stopping_counter}")
-                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                             else:
                                 if verbose:
-                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
@@ -607,12 +607,12 @@ class ClassificationModel:
                             if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
-                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" No improvement in {args.early_stopping_metric}")
                                     logger.info(f" Current step: {early_stopping_counter}")
-                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                             else:
                                 if verbose:
-                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
@@ -626,7 +626,7 @@ class ClassificationModel:
         Args:
             eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present,
             the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
@@ -774,7 +774,7 @@ class ClassificationModel:
             for key in sorted(result.keys()):
                 writer.write("{} = {}\n".format(key, str(result[key])))
 
-        if self.args.wandb_project and wandb_log:
+        if self.args.wandb_project and wandb_log and not multi_label:
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             if not args.labels_map:
                 self.args.labels_map = {i: i for i in range(self.num_labels)}
@@ -782,23 +782,24 @@ class ClassificationModel:
             labels_map = list(self.args.labels_map.keys())
             inverse_labels_map = {value: key for key, value in self.args.labels_map.items()}
 
+            truth = [inverse_labels_map[out] for out in out_label_ids]
             # ROC
             wandb.log(
-                {"roc": wandb.plots.ROC([inverse_labels_map[out] for out in out_label_ids], model_outputs, labels_map)}
+                {"roc": wandb.plots.ROC(truth, model_outputs, labels_map)}
             )
 
             # Precision Recall
             wandb.log(
                 {
                     "pr": wandb.plots.precision_recall(
-                        [inverse_labels_map[out] for out in out_label_ids], model_outputs, labels_map
+                        truth, model_outputs, labels_map
                     )
                 }
             )
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
-                [inverse_labels_map[out] for out in out_label_ids],
+                truth,
                 [inverse_labels_map[np.argmax(out)] for out in model_outputs],
                 labels=labels_map,
             )
