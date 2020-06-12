@@ -114,9 +114,9 @@ def convert_example_to_feature(
     tokens_b = None
     if example.text_b:
         if add_prefix_space and not example.text_b.startswith(" "):
-            tokens_b = tokenizer.tokenize(" " + example.tokens_b)
+            tokens_b = tokenizer.tokenize(" " + example.text_b)
         else:
-            tokens_b = tokenizer.tokenize(example.tokens_b)
+            tokens_b = tokenizer.tokenize(example.text_b)
         # Modifies `tokens_a` and `tokens_b` in place so that the total
         # length is less than the specified length.
         # Account for [CLS], [SEP], [SEP] with "- 3". " -4" for RoBERTa.
