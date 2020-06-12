@@ -133,6 +133,19 @@ class ClassificationModel:
             if self.args.n_gpu > 0:
                 torch.cuda.manual_seed_all(self.args.manual_seed)
 
+        if self.args.labels_list:
+            if num_labels:
+                assert num_labels == len(self.args.labels_list)
+            else:
+                assert len(self.args.labels_list) == 2
+            if self.args.labels_map:
+                assert list(self.args.labels_map.keys()) == self.args.labels_list
+            else:
+                self.args.labels_map = {label: i for i, label in enumerate(self.args.labels_list)}
+        else:
+            len_labels_list = 2 if not num_labels else num_labels
+            self.args.labels_list = [i for i in range(len_labels_list)]
+
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
             self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **self.args.config)
@@ -168,9 +181,7 @@ class ClassificationModel:
         if not use_cuda:
             self.args.fp16 = False
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args.do_lower_case, **kwargs
-        )
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
         self.args.model_name = model_name
         self.args.model_type = model_type
@@ -262,7 +273,6 @@ class ClassificationModel:
                     InputExample(i, text, None, label)
                     for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))
                 ]
-
             train_dataset = self.load_and_cache_examples(train_examples, verbose=verbose)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
@@ -462,6 +472,7 @@ class ClassificationModel:
                             eval_df,
                             verbose=verbose and args.evaluate_during_training_verbose,
                             silent=args.evaluate_during_training_silent,
+                            wandb_log=False,
                             **kwargs,
                         )
                         for key, value in results.items():
@@ -486,14 +497,9 @@ class ClassificationModel:
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
-                            self._save_model(
-                                args.best_model_dir, optimizer, scheduler, model=model, results=results
-                            )
+                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         if best_eval_metric and args.early_stopping_metric_minimize:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                < args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -516,10 +522,7 @@ class ClassificationModel:
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                > args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -556,6 +559,7 @@ class ClassificationModel:
                     eval_df,
                     verbose=verbose and args.evaluate_during_training_verbose,
                     silent=args.evaluate_during_training_silent,
+                    wandb_log=False,
                     **kwargs,
                 )
 
@@ -615,7 +619,7 @@ class ClassificationModel:
 
         return global_step, tr_loss / global_step
 
-    def eval_model(self, eval_df, multi_label=False, output_dir=None, verbose=True, silent=False, **kwargs):
+    def eval_model(self, eval_df, multi_label=False, output_dir=None, verbose=True, silent=False, wandb_log=True, **kwargs):
         """
         Evaluates the model on eval_df. Saves results to output_dir.
 
@@ -640,7 +644,7 @@ class ClassificationModel:
         self._move_model_to_device()
 
         result, model_outputs, wrong_preds = self.evaluate(
-            eval_df, output_dir, multi_label=multi_label, verbose=verbose, silent=silent, **kwargs
+            eval_df, output_dir, multi_label=multi_label, verbose=verbose, silent=silent, wandb_log=wandb_log, **kwargs
         )
         self.results.update(result)
 
@@ -649,7 +653,7 @@ class ClassificationModel:
 
         return result, model_outputs, wrong_preds
 
-    def evaluate(self, eval_df, output_dir, multi_label=False, prefix="", verbose=True, silent=False, **kwargs):
+    def evaluate(self, eval_df, output_dir, multi_label=False, prefix="", verbose=True, silent=False, wandb_log=True, **kwargs):
         """
         Evaluates the model on eval_df.
 
@@ -770,6 +774,35 @@ class ClassificationModel:
             for key in sorted(result.keys()):
                 writer.write("{} = {}\n".format(key, str(result[key])))
 
+        if self.args.wandb_project and wandb_log:
+            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+            if not args.labels_map:
+                self.args.labels_map = {i: i for i in range(self.num_labels)}
+
+            labels_map = list(self.args.labels_map.keys())
+            inverse_labels_map = {value: key for key, value in self.args.labels_map.items()}
+
+            # ROC
+            wandb.log(
+                {"roc": wandb.plots.ROC([inverse_labels_map[out] for out in out_label_ids], model_outputs, labels_map)}
+            )
+
+            # Precision Recall
+            wandb.log(
+                {
+                    "pr": wandb.plots.precision_recall(
+                        [inverse_labels_map[out] for out in out_label_ids], model_outputs, labels_map
+                    )
+                }
+            )
+
+            # Confusion Matrix
+            wandb.sklearn.plot_confusion_matrix(
+                [inverse_labels_map[out] for out in out_label_ids],
+                [inverse_labels_map[np.argmax(out)] for out in model_outputs],
+                labels=labels_map,
+            )
+
         return results, model_outputs, wrong
 
     def load_and_cache_examples(
@@ -816,6 +849,15 @@ class ClassificationModel:
                 logger.info(f" Converting to features started. Cache is not used.")
                 if args.sliding_window:
                     logger.info(" Sliding window enabled")
+
+            # If labels_map is defined, then labels need to be replaced with ints
+            if self.args.labels_map:
+                for example in examples:
+                    if multi_label:
+                        example.label = [self.args.labels_map[l] for l in example.label]
+                    else:
+                        example.label = self.args.labels_map[example.label]
+
             features = convert_examples_to_features(
                 examples,
                 args.max_seq_length,

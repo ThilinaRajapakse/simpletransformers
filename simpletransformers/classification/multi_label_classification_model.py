@@ -139,9 +139,7 @@ class MultiLabelClassificationModel(ClassificationModel):
 
         self.results = {}
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args.do_lower_case, **kwargs
-        )
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
         self.args.model_name = model_name
         self.args.model_type = model_type
