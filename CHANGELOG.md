@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## UNRELEASED
+
+### Added
+
+ - Dataclass args added in the following models
+   - classification
+   - ner
+ - wandb sweeps added in the following models
+   - classification
+   - ner
+ - eval_model now logs to wandb in the following models
+   - classification
+   - NER
+ - NER labels can be given as self.args.labels_list (persists through args saving: CHECK THIS)
+ - eval_model logging to wandb can be turned off with wandb_log=False
+
+### Changed
+
+- Changed NERModel.eval_model() to return usable model_outputs
+
+### TODO:
+
+- Add NER classification report to docs
+
 ## [0.34.2] - 2020-06-13
 
 ### Fixed

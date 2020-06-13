@@ -119,3 +119,12 @@ class MultiLabelClassificationArgs(ModelArgs):
     tie_value: int = 1
     labels_list: list = field(default_factory=list)
     labels_map: dict = field(default_factory=dict)
+
+
+@dataclass
+class NERArgs(ModelArgs):
+    """
+    Model args for a NERModel
+    """
+    classification_report: bool = False
+    labels_list: list = field(default_factory=list)

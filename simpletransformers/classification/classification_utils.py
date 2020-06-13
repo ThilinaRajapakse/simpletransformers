@@ -578,9 +578,14 @@ class LazyClassificationDataset(Dataset):
 
     def __getitem__(self, idx):
         line = linecache.getline(self.data_file, idx + 1 + self.start_row).rstrip("\n").split(self.delimiter)
+
         if self.text_column:
             text = line[self.text_column]
             label = line[self.labels_column]
+
+            # If labels_map is defined, then labels need to be replaced with ints
+            if self.args.labels_map:
+                label = self.args.labels_map[label]
             if self.args.regression:
                 label = torch.tensor(float(label), dtype=torch.float)
             else:

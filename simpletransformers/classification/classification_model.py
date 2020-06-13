@@ -398,7 +398,7 @@ class ClassificationModel:
                 epochs_trained -= 1
                 continue
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args.silent)):
+            for step, batch in enumerate(tqdm(train_dataloader, desc=f"Iteration {epoch_number}", disable=args.silent)):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
@@ -629,6 +629,7 @@ class ClassificationModel:
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
+            wandb_log: If True, evaluation results will be logged to wandb.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
@@ -779,20 +780,20 @@ class ClassificationModel:
             if not args.labels_map:
                 self.args.labels_map = {i: i for i in range(self.num_labels)}
 
-            labels_map = list(self.args.labels_map.keys())
+            labels_list = list(self.args.labels_map.keys())
             inverse_labels_map = {value: key for key, value in self.args.labels_map.items()}
 
             truth = [inverse_labels_map[out] for out in out_label_ids]
             # ROC
             wandb.log(
-                {"roc": wandb.plots.ROC(truth, model_outputs, labels_map)}
+                {"roc": wandb.plots.ROC(truth, model_outputs, labels_list)}
             )
 
             # Precision Recall
             wandb.log(
                 {
                     "pr": wandb.plots.precision_recall(
-                        truth, model_outputs, labels_map
+                        truth, model_outputs, labels_list
                     )
                 }
             )
@@ -801,7 +802,7 @@ class ClassificationModel:
             wandb.sklearn.plot_confusion_matrix(
                 truth,
                 [inverse_labels_map[np.argmax(out)] for out in model_outputs],
-                labels=labels_map,
+                labels=labels_list,
             )
 
         return results, model_outputs, wrong
@@ -974,16 +975,17 @@ class ClassificationModel:
         args = self.args
 
         self._move_model_to_device()
+        dummy_label = 0 if not self.args.labels_map else next(iter(self.args.labels_map.keys()))
 
         if multi_label:
             eval_examples = [
-                InputExample(i, text, None, [0 for i in range(self.num_labels)]) for i, text in enumerate(to_predict)
+                InputExample(i, text, None, [dummy_label for i in range(self.num_labels)]) for i, text in enumerate(to_predict)
             ]
         else:
             if isinstance(to_predict[0], list):
-                eval_examples = [InputExample(i, text[0], text[1], 0) for i, text in enumerate(to_predict)]
+                eval_examples = [InputExample(i, text[0], text[1], dummy_label) for i, text in enumerate(to_predict)]
             else:
-                eval_examples = [InputExample(i, text, None, 0) for i, text in enumerate(to_predict)]
+                eval_examples = [InputExample(i, text, None, dummy_label) for i, text in enumerate(to_predict)]
         if args.sliding_window:
             eval_dataset, window_counts = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
         else:
@@ -1096,6 +1098,10 @@ class ClassificationModel:
             else:
                 preds = np.argmax(preds, axis=1)
 
+        if self.args.labels_map:
+            inverse_labels_map = {value: key for key, value in self.args.labels_map.items()}
+            preds = [inverse_labels_map[pred] for pred in preds]
+
         if self.config.output_hidden_states:
             return preds, model_outputs, all_embedding_outputs, all_layer_hidden_states
         else:
@@ -1191,6 +1197,7 @@ class ClassificationModel:
                     writer.write("{} = {}\n".format(key, str(results[key])))
 
     def _save_model_args(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
         self.args.save(output_dir)
 
     def _load_model_args(self, input_dir):
