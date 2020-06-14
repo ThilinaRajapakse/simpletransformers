@@ -10,13 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
  - Dataclass args added in the following models
    - classification
+   - multilabel classification
    - ner
  - wandb sweeps added in the following models
    - classification
    - ner
  - eval_model now logs to wandb in the following models
    - classification
+   - multilabel classification
    - NER
+ - Better tqdm descriptions
+   - current iteration improved in all models
+   - epoch number improved in
+     - classification
+     - NER
  - NER labels can be given as self.args.labels_list (persists through args saving: CHECK THIS)
  - eval_model logging to wandb can be turned off with wandb_log=False
 

@@ -162,9 +162,7 @@ class NERModel:
 
         self.results = {}
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args.do_lower_case, **kwargs
-        )
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
         self.args.model_name = model_name
         self.args.model_type = model_type
@@ -337,7 +335,9 @@ class NERModel:
                 epochs_trained -= 1
                 continue
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args.silent)):
+            for step, batch in enumerate(
+                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
+            ):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
@@ -411,7 +411,10 @@ class NERModel:
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, _, _ = self.eval_model(
-                            eval_data, verbose=verbose and args.evaluate_during_training_verbose, wandb_log=False, **kwargs
+                            eval_data,
+                            verbose=verbose and args.evaluate_during_training_verbose,
+                            wandb_log=False,
+                            **kwargs,
                         )
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
@@ -437,14 +440,9 @@ class NERModel:
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
-                            self._save_model(
-                                args.best_model_dir, optimizer, scheduler, model=model, results=results
-                            )
+                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         if best_eval_metric and args.early_stopping_metric_minimize:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                < args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -460,17 +458,12 @@ class NERModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                > args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -486,9 +479,7 @@ class NERModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
@@ -681,10 +672,7 @@ class NERModel:
             )
             word_tokens.append(w_log)
 
-        model_outputs = [
-            [word_tokens[i][j] for j in range(len(preds_list[i]))]
-            for i in range(len(preds_list))
-        ]
+        model_outputs = [[word_tokens[i][j] for j in range(len(preds_list[i]))] for i in range(len(preds_list))]
 
         extra_metrics = {}
         for metric, func in kwargs.items():
@@ -716,24 +704,14 @@ class NERModel:
             outputs = [np.mean(logits, axis=0) for output in model_outputs for logits in output]
 
             # ROC
-            wandb.log(
-                {"roc": wandb.plots.ROC(truth, outputs, self.args.labels_list)}
-            )
+            wandb.log({"roc": wandb.plots.ROC(truth, outputs, self.args.labels_list)})
 
             # Precision Recall
-            wandb.log(
-                {
-                    "pr": wandb.plots.precision_recall(
-                        truth, outputs, self.args.labels_list
-                    )
-                }
-            )
+            wandb.log({"pr": wandb.plots.precision_recall(truth, outputs, self.args.labels_list)})
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
-                truth,
-                preds,
-                labels=self.args.labels_list,
+                truth, preds, labels=self.args.labels_list,
             )
 
         return results, model_outputs, preds_list

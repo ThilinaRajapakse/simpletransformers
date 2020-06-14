@@ -397,8 +397,10 @@ class ClassificationModel:
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue
-            # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(tqdm(train_dataloader, desc=f"Iteration {epoch_number}", disable=args.silent)):
+            train_iterator.set_description(f"Epoch {epoch_number} of {args.num_train_epochs}")
+            for step, batch in enumerate(
+                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
+            ):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
@@ -515,9 +517,7 @@ class ClassificationModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
@@ -538,9 +538,7 @@ class ClassificationModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
@@ -619,7 +617,9 @@ class ClassificationModel:
 
         return global_step, tr_loss / global_step
 
-    def eval_model(self, eval_df, multi_label=False, output_dir=None, verbose=True, silent=False, wandb_log=True, **kwargs):
+    def eval_model(
+        self, eval_df, multi_label=False, output_dir=None, verbose=True, silent=False, wandb_log=True, **kwargs
+    ):
         """
         Evaluates the model on eval_df. Saves results to output_dir.
 
@@ -654,7 +654,9 @@ class ClassificationModel:
 
         return result, model_outputs, wrong_preds
 
-    def evaluate(self, eval_df, output_dir, multi_label=False, prefix="", verbose=True, silent=False, wandb_log=True, **kwargs):
+    def evaluate(
+        self, eval_df, output_dir, multi_label=False, prefix="", verbose=True, silent=False, wandb_log=True, **kwargs
+    ):
         """
         Evaluates the model on eval_df.
 
@@ -785,24 +787,14 @@ class ClassificationModel:
 
             truth = [inverse_labels_map[out] for out in out_label_ids]
             # ROC
-            wandb.log(
-                {"roc": wandb.plots.ROC(truth, model_outputs, labels_list)}
-            )
+            wandb.log({"roc": wandb.plots.ROC(truth, model_outputs, labels_list)})
 
             # Precision Recall
-            wandb.log(
-                {
-                    "pr": wandb.plots.precision_recall(
-                        truth, model_outputs, labels_list
-                    )
-                }
-            )
+            wandb.log({"pr": wandb.plots.precision_recall(truth, model_outputs, labels_list)})
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
-                truth,
-                [inverse_labels_map[np.argmax(out)] for out in model_outputs],
-                labels=labels_list,
+                truth, [inverse_labels_map[np.argmax(out)] for out in model_outputs], labels=labels_list,
             )
 
         return results, model_outputs, wrong
@@ -979,7 +971,8 @@ class ClassificationModel:
 
         if multi_label:
             eval_examples = [
-                InputExample(i, text, None, [dummy_label for i in range(self.num_labels)]) for i, text in enumerate(to_predict)
+                InputExample(i, text, None, [dummy_label for i in range(self.num_labels)])
+                for i, text in enumerate(to_predict)
             ]
         else:
             if isinstance(to_predict[0], list):

@@ -404,8 +404,10 @@ class MultiModalClassificationModel:
 
         model.train()
         for _ in train_iterator:
-            # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])):
+            train_iterator.set_description(f"Epoch {epoch_number} of {args.num_train_epochs}")
+            for step, batch in enumerate(
+                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args["silent"])
+            ):
                 batch = tuple(t.to(device) for t in batch)
                 labels = batch[5]
 

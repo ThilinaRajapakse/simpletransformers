@@ -97,6 +97,11 @@ class MultiLabelClassificationModel(ClassificationModel):
         elif isinstance(args, MultiLabelClassificationArgs):
             self.args = args
 
+        if "sweep_config" in kwargs:
+            sweep_config = kwargs.pop("sweep_config")
+            sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
+            self.args.update_from_dict(sweep_values)
+
         if self.args.manual_seed:
             random.seed(self.args.manual_seed)
             np.random.seed(self.args.manual_seed)

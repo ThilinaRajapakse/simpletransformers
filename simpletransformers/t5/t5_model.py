@@ -291,7 +291,9 @@ class T5Model:
                 epochs_trained -= 1
                 continue
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])):
+            for step, batch in enumerate(
+                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args["silent"])
+            ):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue

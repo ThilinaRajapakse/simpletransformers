@@ -126,5 +126,6 @@ class NERArgs(ModelArgs):
     """
     Model args for a NERModel
     """
+
     classification_report: bool = False
     labels_list: list = field(default_factory=list)
