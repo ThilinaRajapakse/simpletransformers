@@ -704,7 +704,7 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
+                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta","bart]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
@@ -834,7 +834,7 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
+                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta","bart"]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
@@ -958,7 +958,7 @@ class QuestionAnsweringModel:
             "end_positions": batch[4],
         }
 
-        if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
+        if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta","bart"]:
             del inputs["token_type_ids"]
 
         if self.args["model_type"] in ["xlnet", "xlm"]:
