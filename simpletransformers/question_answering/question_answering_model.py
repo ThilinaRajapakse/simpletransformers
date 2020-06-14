@@ -47,6 +47,9 @@ from transformers import (
     AlbertConfig,
     AlbertForQuestionAnswering,
     AlbertTokenizer,
+    BartConfig,
+    BartForQuestionAnswering,
+    BartTokenizer,
     BertConfig,
     BertForQuestionAnswering,
     BertTokenizer,
@@ -101,6 +104,7 @@ class QuestionAnsweringModel:
         MODEL_CLASSES = {
             "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
             "auto": (AutoConfig, AutoTokenizer, AutoModelForQuestionAnswering),
+            "bart": (BartConfig, BartForQuestionAnswering, BartTokenizer),
             "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
