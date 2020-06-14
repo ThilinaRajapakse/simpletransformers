@@ -15,9 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
  - wandb sweeps added in the following models
    - classification
    - ner
+   - multilabel
  - eval_model now logs to wandb in the following models
    - classification
-   - multilabel classification
    - NER
  - Better tqdm descriptions
    - current iteration improved in all models
