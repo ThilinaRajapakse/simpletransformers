@@ -450,6 +450,7 @@ def squad_convert_examples_to_features(
                 )
             )
     else:
+        squad_convert_example_to_features_init(tokenizer)
         annotate_ = partial(
             squad_convert_example_to_features,
             max_seq_length=max_seq_length,
