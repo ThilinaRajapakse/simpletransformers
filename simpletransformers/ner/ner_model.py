@@ -699,19 +699,21 @@ class NERModel:
         if self.args.wandb_project and wandb_log:
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
 
+            labels_list = sorted(self.args.labels_list)
+
             truth = [tag for out in out_label_list for tag in out]
             preds = [tag for pred_out in preds_list for tag in pred_out]
             outputs = [np.mean(logits, axis=0) for output in model_outputs for logits in output]
 
             # ROC
-            wandb.log({"roc": wandb.plots.ROC(truth, outputs, self.args.labels_list)})
+            wandb.log({"roc": wandb.plots.ROC(truth, outputs, labels_list)})
 
             # Precision Recall
-            wandb.log({"pr": wandb.plots.precision_recall(truth, outputs, self.args.labels_list)})
+            wandb.log({"pr": wandb.plots.precision_recall(truth, outputs, labels_list)})
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
-                truth, preds, labels=self.args.labels_list,
+                truth, preds, labels=labels_list,
             )
 
         return results, model_outputs, preds_list

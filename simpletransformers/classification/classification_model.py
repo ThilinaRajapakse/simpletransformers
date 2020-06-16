@@ -782,7 +782,7 @@ class ClassificationModel:
             if not args.labels_map:
                 self.args.labels_map = {i: i for i in range(self.num_labels)}
 
-            labels_list = list(self.args.labels_map.keys())
+            labels_list = sorted(list(self.args.labels_map.keys()))
             inverse_labels_map = {value: key for key, value in self.args.labels_map.items()}
 
             truth = [inverse_labels_map[out] for out in out_label_ids]
