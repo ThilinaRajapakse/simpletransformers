@@ -27,9 +27,7 @@ import torch
 from simpletransformers.config.global_args import global_args
 from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
 from simpletransformers.language_modeling.language_modeling_utils import (
-    LineByLineTextDataset,
     SimpleDataset,
-    TextDataset,
     mask_tokens,
 )
 from tensorboardX import SummaryWriter
@@ -73,6 +71,8 @@ from transformers import (
     LongformerTokenizer,
     get_linear_schedule_with_warmup,
 )
+
+from transformers.data.datasets.language_modeling import TextDataset, LineByLineTextDataset
 
 try:
     import wandb
@@ -132,22 +132,6 @@ class LanguageModelingModel:
             if "n_gpu" in args and args["n_gpu"] > 0:
                 torch.cuda.manual_seed_all(args["manual_seed"])
 
-        if use_cuda:
-            if torch.cuda.is_available():
-                if cuda_device == -1:
-                    self.device = torch.device("cuda")
-                else:
-                    self.device = torch.device(f"cuda:{cuda_device}")
-            else:
-                raise ValueError(
-                    "'use_cuda' set to True when cuda is unavailable."
-                    " Make sure CUDA is available or set use_cuda=False."
-                )
-        else:
-            self.device = "cpu"
-
-        self.results = {}
-
         self.args = {
             "block_size": -1,
             "config_name": None,
@@ -166,6 +150,7 @@ class LanguageModelingModel:
             "tie_generator_and_discriminator_embeddings": True,
             "tokenizer_name": None,
             "vocab_size": None,
+            "local_rank": -1,
         }
 
         self.args.update(global_args)
@@ -177,11 +162,29 @@ class LanguageModelingModel:
         if args:
             self.args.update(args)
 
+        if self.args["local_rank"] != -1:
+            logger.info(f'local_rank: {self.args["local_rank"]}')
+            torch.distributed.init_process_group(backend="nccl")
+            cuda_device = self.args["local_rank"]
+
+        if use_cuda:
+            if torch.cuda.is_available():
+                if cuda_device == -1:
+                    self.device = torch.device("cuda")
+                else:
+                    self.device = torch.device(f"cuda:{cuda_device}")
+            else:
+                raise ValueError(
+                    "'use_cuda' set to True when cuda is unavailable."
+                    " Make sure CUDA is available or set use_cuda=False."
+                )
+        else:
+            self.device = "cpu"
+
+        self.results = {}
+
         if not use_cuda:
             self.args["fp16"] = False
-
-        if args:
-            self.args.update(args)
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
@@ -423,10 +426,11 @@ class LanguageModelingModel:
                 return pad_sequence(examples, batch_first=True)
             return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
 
-        tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
-        train_sampler = RandomSampler(train_dataset)
+        if self.is_world_master():
+            tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
+        train_sampler = RandomSampler(train_dataset) if args["local_rank"] == -1 else DistributedSampler(train_dataset)
         train_dataloader = DataLoader(
-            train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"], collate_fn=collate
+            train_dataset, batch_size=args["train_batch_size"], sampler=train_sampler, collate_fn=collate,
         )
 
         if args["max_steps"] > 0:
@@ -474,6 +478,12 @@ class LanguageModelingModel:
         if args["n_gpu"] > 1:
             model = torch.nn.DataParallel(model)
 
+        # Distributed training (should be after apex fp16 initialization)
+        if args["local_rank"] != -1:
+            model = torch.nn.parallel.DistributedDataParallel(
+                model, device_ids=[args["local_rank"]], output_device=args["local_rank"], find_unused_parameters=True,
+            )
+
         logger.info(" Training started")
 
         global_step = 0
@@ -516,6 +526,8 @@ class LanguageModelingModel:
 
         model.train()
         for current_epoch in train_iterator:
+            if isinstance(train_dataloader, DataLoader) and isinstance(train_dataloader.sampler, DistributedSampler):
+                train_dataloader.sampler.set_epoch(current_epoch)
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue
@@ -577,8 +589,9 @@ class LanguageModelingModel:
 
                     if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
                         # Log metrics
-                        tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args["logging_steps"], global_step)
+                        if self.is_world_master():
+                            tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
+                            tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args["logging_steps"], global_step)
                         logging_loss = tr_loss
                         if args["wandb_project"]:
                             wandb.log(
@@ -606,8 +619,10 @@ class LanguageModelingModel:
                             silent=args["evaluate_during_training_silent"],
                             **kwargs,
                         )
-                        for key, value in results.items():
-                            tb_writer.add_scalar("eval_{}".format(key), value, global_step)
+
+                        if self.is_world_master():
+                            for key, value in results.items():
+                                tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
@@ -867,9 +882,9 @@ class LanguageModelingModel:
         else:
             dataset_type = args["dataset_type"]
             if dataset_type == "text":
-                return TextDataset(tokenizer, args, file_path, mode, args["block_size"])
+                return TextDataset(tokenizer, file_path, args["block_size"], overwrite_cache=True)
             elif dataset_type == "line_by_line":
-                return LineByLineTextDataset(tokenizer, args, file_path, args["block_size"])
+                return LineByLineTextDataset(tokenizer, file_path, args["block_size"])
             else:
                 special_tokens_count = 3 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 2
                 if self.args["max_seq_length"] > 509 and self.args["model_type"] != "longformer":
@@ -1029,6 +1044,8 @@ class LanguageModelingModel:
         return {metric: values[-1] for metric, values in metric_values.items()}
 
     def _save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
+        if not self.is_world_master():
+            return
         if not output_dir:
             output_dir = self.args["output_dir"]
         os.makedirs(output_dir, exist_ok=True)
@@ -1069,3 +1086,10 @@ class LanguageModelingModel:
                 with open(model_args_file, "r") as f:
                     model_args = json.load(f)
                 return model_args
+
+    def is_world_master(self) -> bool:
+        """
+        This will be True only in one process, even in distributed mode,
+        even when training on multiple machines.
+        """
+        return self.args["local_rank"] == -1 or torch.distributed.get_rank() == 0

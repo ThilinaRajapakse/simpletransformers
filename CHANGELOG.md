@@ -4,6 +4,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.34.3] - 2020-06-13
+
+### Fixed
+
+- Fixed bug in question answering when *not* using multiprocessing for feature conversion.
+
+## [0.34.2] - 2020-06-13
+
+### Fixed
+
+- Fixed bug in sentence-pair task feature conversion. 
+
+## [0.34.1] - 2020-06-12
+
+### Fixed
+
+- Fixed bug in multi-modal classification due to compatibility issues with breaking changes in transformers==2.11.0.
+  
+## [0.34.0] - 2020-06-09
+
+### Added
+
+- Added distributed training support for language model training. [@cahya-wirawan](https://github.com/cahya-wirawan)
+- Added multiprocessed decoding support for T5 models.
+
+## [0.33.2] - 2020-06-08
+
+### Fixed
+
+- Fixed bug in adding prefix space. Included longformer in list of models where prefix spaces are added. [@guy-mor](https://github.com/guy-mor)
+
+## [0.33.1] - 2020-06-08
+
+### Changed
+
+- Changed the tokenization logic of RoBERTa (and other models using GPT-2 tokenizer) so that a prefix space will be added to input sentences.
+
 ## [0.33.0] - 2020-06-08
 
 ### Added
@@ -811,7 +848,15 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.33.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e96aacd...HEAD
+[0.34.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/19ecd79...HEAD
+
+[0.34.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4789a1d...19ecd79
+
+[0.33.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb83151...4789a1d
+
+[0.33.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f40331b...bb83151
+
+[0.33.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e96aacd...f40331b
 
 [0.32.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f5cee79...e96aacd
 
