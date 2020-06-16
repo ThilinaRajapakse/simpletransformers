@@ -596,7 +596,7 @@ Returns:
 
 * model_outputs: List of model outputs for each row in eval_df  
 
-* wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
+* wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model. The text of the incorrect prediction can be obtained from the InputFeature.text_a attribute. To obtain the true label of the text, use InputFeature.label attribute.
 
 **`predict(self, to_predict)`**
 
