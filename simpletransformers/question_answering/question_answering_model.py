@@ -155,9 +155,7 @@ class QuestionAnsweringModel:
 
         self.results = {}
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args.do_lower_case, **kwargs
-        )
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
         self.args.model_name = model_name
         self.args.model_type = model_type
@@ -185,8 +183,7 @@ class QuestionAnsweringModel:
 
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(
-            args.cache_dir,
-            "cached_{}_{}_{}_{}".format(mode, args.model_type, args.max_seq_length, len(examples)),
+            args.cache_dir, "cached_{}_{}_{}_{}".format(mode, args.model_type, args.max_seq_length, len(examples)),
         )
 
         if os.path.exists(cached_features_file) and (
@@ -490,14 +487,9 @@ class QuestionAnsweringModel:
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
-                            self._save_model(
-                                args.best_model_dir, optimizer, scheduler, model=model, results=results
-                            )
+                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         if best_eval_metric and args.early_stopping_metric_minimize:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                < args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -513,17 +505,12 @@ class QuestionAnsweringModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                > args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -539,9 +526,7 @@ class QuestionAnsweringModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step

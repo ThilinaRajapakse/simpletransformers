@@ -886,7 +886,9 @@ class ClassificationModel:
                 torch.save(features, cached_features_file)
 
         if args.sliding_window and evaluate:
-            features = [[feature_set] if not isinstance(feature_set, list) else feature_set for feature_set in features]
+            features = [
+                [feature_set] if not isinstance(feature_set, list) else feature_set for feature_set in features
+            ]
             window_counts = [len(sample) for sample in features]
             features = [feature for feature_set in features for feature in feature_set]
 
