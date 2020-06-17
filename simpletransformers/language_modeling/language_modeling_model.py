@@ -151,10 +151,10 @@ class LanguageModelingModel:
             "tokenizer_name": None,
             "vocab_size": None,
             "local_rank": -1,
-            "clean_text" = True,
-            "handle_chinese_chars" = True,
-            "strip_accents" = True,
-            "lowercase" = True,
+            "clean_text" : True,
+            "handle_chinese_chars" : True,
+            "strip_accents" : True,
+            "lowercase" : True,
         }
 
         self.args.update(global_args)
