@@ -151,6 +151,10 @@ class LanguageModelingModel:
             "tokenizer_name": None,
             "vocab_size": None,
             "local_rank": -1,
+            "clean_text" = True,
+            "handle_chinese_chars" = True,
+            "strip_accents" = True,
+            "lowercase" = True,
         }
 
         self.args.update(global_args)
@@ -935,7 +939,12 @@ class LanguageModelingModel:
             output_dir = self.args["output_dir"]
 
         if self.args["model_type"] in ["bert", "electra"]:
-            tokenizer = BertWordPieceTokenizer()
+            tokenizer = BertWordPieceTokenizer(
+                clean_text = self.args["clean_text"],
+                handle_chinese_chars = self.args["handle_chinese_chars"],
+                strip_accents = self.args["strip_accents"],
+                lowercase = self.args["lowercase"],
+            )
             self.args["special_tokens"] = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
             self.args["wordpieces_prefix"] = "##"
 
@@ -947,7 +956,9 @@ class LanguageModelingModel:
                 wordpieces_prefix="##",
             )
         else:
-            tokenizer = ByteLevelBPETokenizer()
+            tokenizer = ByteLevelBPETokenizer(
+                lowercase = self.args["lowercase"]
+            )
 
             tokenizer.train(
                 files=train_files,
