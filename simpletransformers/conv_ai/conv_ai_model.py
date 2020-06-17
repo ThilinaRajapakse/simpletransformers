@@ -731,7 +731,7 @@ class ConvAIModel:
             out_text = tokenizer.decode(out_ids, skip_special_tokens=True)
             print(out_text)
     
-    def interactSingle(self, question, history=list(), personality=None):
+    def interact_single(self, question, history=list(), personality=None):
         """
         Get Response from the model based on the history and question
 
