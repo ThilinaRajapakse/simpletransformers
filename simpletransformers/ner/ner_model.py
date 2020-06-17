@@ -334,7 +334,7 @@ class NERModel:
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue
-            # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
+            train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
             for step, batch in enumerate(
                 tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
             ):
@@ -618,7 +618,7 @@ class NERModel:
         out_label_ids = None
         model.eval()
 
-        for batch in tqdm(eval_dataloader, disable=args.silent or silent):
+        for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
@@ -763,7 +763,7 @@ class NERModel:
         out_label_ids = None
         model.eval()
 
-        for batch in tqdm(eval_dataloader, disable=args.silent):
+        for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():

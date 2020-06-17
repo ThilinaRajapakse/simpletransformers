@@ -397,7 +397,7 @@ class ClassificationModel:
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue
-            train_iterator.set_description(f"Epoch {epoch_number} of {args.num_train_epochs}")
+            train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
             for step, batch in enumerate(
                 tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
             ):
@@ -712,7 +712,7 @@ class ClassificationModel:
         out_label_ids = None
         model.eval()
 
-        for batch in tqdm(eval_dataloader, disable=args.silent or silent):
+        for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
             # batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
@@ -886,6 +886,7 @@ class ClassificationModel:
                 torch.save(features, cached_features_file)
 
         if args.sliding_window and evaluate:
+            features = [[feature_set] if not isinstance(feature_set, list) else feature_set for feature_set in features]
             window_counts = [len(sample) for sample in features]
             features = [feature for feature_set in features for feature in feature_set]
 
@@ -995,7 +996,7 @@ class ClassificationModel:
         out_label_ids = None
 
         if self.config.output_hidden_states:
-            for batch in tqdm(eval_dataloader, disable=args.silent):
+            for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
                 model.eval()
                 # batch = tuple(t.to(device) for t in batch)
 

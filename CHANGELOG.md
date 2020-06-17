@@ -12,10 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - classification
    - multilabel classification
    - ner
+   - question answering
  - wandb sweeps added in the following models
    - classification
    - ner
    - multilabel
+   - question answering
  - eval_model now logs to wandb in the following models
    - classification
    - NER
@@ -24,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - epoch number improved in
      - classification
      - NER
+     - QA
+   - evaluation improved in 
+     - classification
+     - NER
+     - QA
+   - Prediction improved in 
+     - classification
+     - NER
+     - QA
  - NER labels can be given as self.args.labels_list (persists through args saving: CHECK THIS)
  - eval_model logging to wandb can be turned off with wandb_log=False
 
@@ -34,6 +45,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### TODO:
 
 - Add NER classification report to docs
+- Check if this is fixed
+```python
+  if model_type in ["camembert", "xlmroberta"]:
+    warnings.warn(
+        f"use_multiprocessing automatically disabled as {model_type}"
+        " fails when using multiprocessing for feature conversion."
+    )
+```
+-
+
+## [0.34.4] - 2020-06-17
+
+### Added
+
+- Added `num_return_sequences`, `top_k`, and `top_p` args for `Seq2SeqModel`.
+
+### Fixed
+
+- Fixed bug potential bug when using `sliding_window`. [@BjarkePedersen](https://github.com/BjarkePedersen)
+
+### Changed
+
+- Cleaned `language_modeling_utils`. [@Pradhy729](https://github.com/Pradhy729)
+
+## [0.34.3] - 2020-06-13
+
+### Fixed
+
+- Fixed bug in question answering when *not* using multiprocessing for feature conversion.
 
 ## [0.34.2] - 2020-06-13
 
@@ -873,7 +913,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.34.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/19ecd79...HEAD
+[0.34.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e112de...HEAD
+
+[0.34.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/19ecd79...3e112de
 
 [0.34.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4789a1d...19ecd79
 

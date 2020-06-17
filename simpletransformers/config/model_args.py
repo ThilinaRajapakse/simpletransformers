@@ -129,3 +129,18 @@ class NERArgs(ModelArgs):
 
     classification_report: bool = False
     labels_list: list = field(default_factory=list)
+
+
+@dataclass
+class QuestionAnsweringArgs(ModelArgs):
+    """
+    Model args for a QuestionAnsweringModel
+    """
+
+    doc_stride: int = 384
+    max_query_length: int = 64
+    n_best_size: int = 20
+    max_answer_length: int = 100
+    null_score_diff_threshold: float = 0.0
+    early_stopping_metric: str = "correct"
+    early_stopping_metric_minimize: bool = False

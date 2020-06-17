@@ -131,13 +131,16 @@ class Seq2SeqModel:
         self.args = {
             "dataset_class": None,
             "do_sample": False,
-            "max_steps": -1,
-            "evaluate_generated_text": False,
-            "num_beams": 1,
-            "max_length": 20,
-            "repetition_penalty": 1.0,
-            "length_penalty": 2.0,
             "early_stopping": True,
+            "evaluate_generated_text": False,
+            "length_penalty": 2.0,
+            "max_length": 20,
+            "max_steps": -1,
+            "num_beams": 1,
+            "num_return_sequences": 1,
+            "repetition_penalty": 1.0,
+            "top_k": None,
+            "top_p": None,
         }
 
         self.args.update(global_args)
@@ -772,6 +775,9 @@ class Seq2SeqModel:
                     early_stopping=self.args["early_stopping"],
                     repetition_penalty=self.args["repetition_penalty"],
                     do_sample=self.args["do_sample"],
+                    top_k=self.args["top_k"],
+                    top_p=self.args["top_p"],
+                    num_return_sequences=self.args["num_return_sequences"],
                 )
             else:
                 outputs = self.model.generate(
@@ -783,6 +789,9 @@ class Seq2SeqModel:
                     early_stopping=self.args["early_stopping"],
                     repetition_penalty=self.args["repetition_penalty"],
                     do_sample=self.args["do_sample"],
+                    top_k=self.args["top_k"],
+                    top_p=self.args["top_p"],
+                    num_return_sequences=self.args["num_return_sequences"],
                 )
 
             all_outputs.extend(outputs)
@@ -806,7 +815,7 @@ class Seq2SeqModel:
         Returns:
             result: Dictionary containing evaluation results.
         """  # noqa: ignore flake8"
-        assert len(labels) == len(preds)
+        # assert len(labels) == len(preds)
 
         results = {}
         for metric, func in kwargs.items():
