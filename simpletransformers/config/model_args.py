@@ -4,6 +4,8 @@ import json
 import sys
 import os
 
+from torch.utils.data import Dataset
+
 
 def get_default_process_count():
     process_count = cpu_count() - 2 if cpu_count() > 2 else 1
@@ -11,6 +13,10 @@ def get_default_process_count():
         process_count = min(process_count, 61)
 
     return process_count
+
+
+def get_special_tokens():
+    return ["<s>", "<pad>", "</s>", "<unk>", "<mask>"]
 
 
 @dataclass
@@ -79,12 +85,13 @@ class ModelArgs:
             json.dump(asdict(self), f)
 
     def load(self, input_dir):
-        model_args_file = os.path.join(input_dir, "model_args.json")
-        if os.path.isfile(model_args_file):
-            with open(model_args_file, "r") as f:
-                model_args = json.load(f)
+        if input_dir:
+            model_args_file = os.path.join(input_dir, "model_args.json")
+            if os.path.isfile(model_args_file):
+                with open(model_args_file, "r") as f:
+                    model_args = json.load(f)
 
-            self.update_from_dict(model_args)
+                self.update_from_dict(model_args)
 
 
 @dataclass
@@ -144,3 +151,52 @@ class QuestionAnsweringArgs(ModelArgs):
     null_score_diff_threshold: float = 0.0
     early_stopping_metric: str = "correct"
     early_stopping_metric_minimize: bool = False
+
+
+@dataclass
+class T5Args(ModelArgs):
+    """
+    Model args for a T5Model
+    """
+
+    dataset_class: Dataset = None
+    do_sample: bool = False
+    early_stopping: bool = True
+    evaluate_generated_text: bool = False
+    length_penalty: float = 2.0
+    max_length: int = 20
+    max_steps: int = -1
+    num_beams: int = 1
+    num_return_sequences: int = 1
+    preprocess_inputs: bool = True
+    repetition_penalty: float = 1.0
+    top_k: float = None
+    top_p: float = None
+    use_multiprocessed_decoding: bool = True
+
+
+@dataclass
+class LanguageModelingArgs(ModelArgs):
+    """
+    Model args for a LanguageModelingModel
+    """
+
+    block_size: int = -1
+    config_name: str = None
+    dataset_class: Dataset = None
+    dataset_type: str = "None"
+    discriminator_config: dict = field(default_factory=dict)
+    discriminator_loss_weight: float = 50.0
+    generator_config: dict = field(default_factory=dict)
+    max_steps: int = -1
+    min_frequency: int = 2
+    mlm: bool = True
+    mlm_probability: float = 0.15
+    sliding_window: bool = False
+    special_tokens: list = field(default_factory=get_special_tokens)
+    stride: float = 0.8
+    tie_generator_and_discriminator_embeddings: bool = True
+    tokenizer_name: str = None
+    vocab_size: int = None
+    local_rank: int = -1
+

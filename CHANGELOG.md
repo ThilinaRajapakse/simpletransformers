@@ -13,11 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - multilabel classification
    - ner
    - question answering
+   - T5
+   - LM
  - wandb sweeps added in the following models
    - classification
    - ner
    - multilabel
    - question answering
+   - T5
+   - LM
  - eval_model now logs to wandb in the following models
    - classification
    - NER
@@ -27,14 +31,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      - classification
      - NER
      - QA
+     - T5
+     - LM
    - evaluation improved in 
      - classification
      - NER
      - QA
+     - T5
+     - LM
    - Prediction improved in 
      - classification
      - NER
      - QA
+     - T5
  - NER labels can be given as self.args.labels_list (persists through args saving: CHECK THIS)
  - eval_model logging to wandb can be turned off with wandb_log=False
 
