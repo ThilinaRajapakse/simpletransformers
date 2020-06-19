@@ -81,7 +81,7 @@ logger = logging.getLogger(__name__)
 
 class ClassificationModel:
     def __init__(
-        self, model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True, cuda_device=-1, model_config = None, model_head = None, model_tokenizer = None, **kwargs,
     ):
 
         """
@@ -110,6 +110,7 @@ class ClassificationModel:
             "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
+            "custom": (model_config, model_head, model_tokenizer),
         }
 
         if args and "manual_seed" in args:
