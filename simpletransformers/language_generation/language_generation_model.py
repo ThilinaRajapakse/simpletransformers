@@ -37,7 +37,7 @@ MAX_LENGTH = int(10000)  # Hardcoded max length to avoid infinite loop
 
 class LanguageGenerationModel:
     def __init__(
-        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, model_config = None, model_head = None, model_tokenizer = None, **kwargs,
     ):
 
         """
@@ -59,6 +59,7 @@ class LanguageGenerationModel:
             "xlnet": (XLNetConfig, XLNetLMHeadModel, XLNetTokenizer),
             "transfo-xl": (TransfoXLConfig, TransfoXLLMHeadModel, TransfoXLTokenizer),
             "xlm": (XLMConfig, XLMWithLMHeadModel, XLMTokenizer),
+            "custom": (model_config, model_head, model_tokenizer),
         }
 
         if args and "manual_seed" in args:
