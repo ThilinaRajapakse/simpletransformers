@@ -84,7 +84,7 @@ logger = logging.getLogger(__name__)
 
 
 class QuestionAnsweringModel:
-    def __init__(self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs):
+    def __init__(self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, model_config = None, model_head = None, model_tokenizer = None, **kwargs):
 
         """
         Initializes a QuestionAnsweringModel model.
@@ -109,6 +109,7 @@ class QuestionAnsweringModel:
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForQuestionAnswering, XLMRobertaTokenizer),
             "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
+            "custom": (model_config, model_head, model_tokenizer),
         }
 
         if args and "manual_seed" in args:
