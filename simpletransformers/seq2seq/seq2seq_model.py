@@ -61,18 +61,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-MODEL_CLASSES = {
-    "auto": (AutoConfig, AutoModel, AutoTokenizer),
-    "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
-    "bert": (BertConfig, BertModel, BertTokenizer),
-    "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
-    "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
-    "longformer": (LongformerConfig, LongformerModel, LongformerTokenizer),
-    "marian": (MarianConfig, MarianMTModel, MarianTokenizer),
-    "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
-}
-
 
 class Seq2SeqModel:
     def __init__(
@@ -86,9 +74,25 @@ class Seq2SeqModel:
         args=None,
         use_cuda=True,
         cuda_device=-1,
+        model_config = None,
+        model_head = None,
+        model_tokenizer = None,
         **kwargs,
     ):
 
+        
+        MODEL_CLASSES = {
+            "auto": (AutoConfig, AutoModel, AutoTokenizer),
+            "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
+            "bert": (BertConfig, BertModel, BertTokenizer),
+            "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
+            "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
+            "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
+            "longformer": (LongformerConfig, LongformerModel, LongformerTokenizer),
+            "marian": (MarianConfig, MarianMTModel, MarianTokenizer),
+            "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
+            "custom": (model_config, model_head, model_tokenizer),
+        }
         """
         Initializes a Seq2SeqModel.
 
