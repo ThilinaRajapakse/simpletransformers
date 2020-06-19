@@ -83,18 +83,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-MODEL_CLASSES = {
-    "auto": (AutoConfig, AutoModelWithLMHead, AutoTokenizer),
-    "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
-    "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
-    "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
-    "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
-    "longformer": (LongformerConfig, LongformerForMaskedLM, LongformerTokenizer),
-    "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
-    "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
-}
-
 
 class LanguageModelingModel:
     def __init__(
@@ -107,6 +95,9 @@ class LanguageModelingModel:
         args=None,
         use_cuda=True,
         cuda_device=-1,
+        model_config = None, 
+        model_head = None, 
+        model_tokenizer = None,
         **kwargs,
     ):
 
@@ -124,6 +115,20 @@ class LanguageModelingModel:
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
             **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """  # noqa: ignore flake8"
+        
+        
+        MODEL_CLASSES = {
+            "auto": (AutoConfig, AutoModelWithLMHead, AutoTokenizer),
+            "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
+            "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
+            "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
+            "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
+            "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
+            "longformer": (LongformerConfig, LongformerForMaskedLM, LongformerTokenizer),
+            "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
+            "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
+            "custom": (model_config, model_head, model_tokenizer),
+        }
 
         if args and "manual_seed" in args:
             random.seed(args["manual_seed"])
