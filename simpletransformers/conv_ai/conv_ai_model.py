@@ -69,7 +69,7 @@ PADDED_INPUTS = ["input_ids", "lm_labels", "token_type_ids"]
 
 class ConvAIModel:
     def __init__(
-        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, model_config = None, model_head = None, model_tokenizer = None, **kwargs,
     ):
 
         """
@@ -87,6 +87,7 @@ class ConvAIModel:
         MODEL_CLASSES = {
             "gpt": (OpenAIGPTConfig, OpenAIGPTDoubleHeadsModel, OpenAIGPTTokenizer),
             "gpt2": (GPT2Config, GPT2DoubleHeadsModel, GPT2Tokenizer),
+            "custom": (model_config, model_head, model_tokenizer),
         }
 
         if args and "manual_seed" in args:
