@@ -68,7 +68,7 @@ logger = logging.getLogger(__name__)
 
 class NERModel:
     def __init__(
-        self, model_type, model_name, labels=None, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_type, model_name, labels=None, args=None, use_cuda=True, cuda_device=-1, model_config = None, model_head = None, model_tokenizer = None, **kwargs,
     ):
         """
         Initializes a NERModel
@@ -132,6 +132,7 @@ class NERModel:
             "longformer": (LongformerConfig, LongformerForTokenClassification, LongformerTokenizer),
             "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
+            "custom": (model_config, model_head, model_tokenizer),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
