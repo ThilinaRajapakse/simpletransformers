@@ -47,6 +47,9 @@ from transformers import (
     LongformerConfig,
     LongformerForTokenClassification,
     LongformerTokenizer,
+    MobileBertConfig,
+    MobileBertTokenizer,
+    MobileBertForTokenClassification,
     RobertaConfig,
     RobertaForTokenClassification,
     RobertaTokenizer,
@@ -130,6 +133,7 @@ class NERModel:
             "distilbert": (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForTokenClassification, ElectraTokenizer),
             "longformer": (LongformerConfig, LongformerForTokenClassification, LongformerTokenizer),
+            "mobilebert": (MobileBertConfig, MobileBertForTokenClassification, MobileBertTokenizer),
             "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
         }
