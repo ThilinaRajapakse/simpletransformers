@@ -167,7 +167,7 @@ class QuestionAnsweringModel:
         self.results = {}
 
         self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args["do_lower_case"], **kwargs
+            model_name, do_lower_case=self.args["do_lower_case"], truncation = True, **kwargs
         )
 
         self.args["model_name"] = model_name
