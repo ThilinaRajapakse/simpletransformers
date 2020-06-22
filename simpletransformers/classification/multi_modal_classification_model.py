@@ -11,6 +11,7 @@ import os
 import random
 import warnings
 from multiprocessing import cpu_count
+from dataclasses import asdict
 
 import numpy as np
 from scipy.stats import mode, pearsonr
@@ -33,6 +34,7 @@ from simpletransformers.classification.classification_utils import (
     get_image_transforms,
 )
 from simpletransformers.classification.transformer_models.mmbt_model import MMBTForClassification
+from simpletransformers.config.model_args import MultiModalClassificationArgs
 from simpletransformers.config.global_args import global_args
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -94,12 +96,24 @@ class MultiModalClassificationModel:
             "bert": (BertConfig, BertModel, BertTokenizer),
         }
 
-        if args and "manual_seed" in args:
-            random.seed(args["manual_seed"])
-            np.random.seed(args["manual_seed"])
-            torch.manual_seed(args["manual_seed"])
-            if "n_gpu" in args and args["n_gpu"] > 0:
-                torch.cuda.manual_seed_all(args["manual_seed"])
+        self.args = self._load_model_args(model_name)
+
+        if isinstance(args, dict):
+            self.args.update_from_dict(args)
+        elif isinstance(args, MultiModalClassificationArgs):
+            self.args = args
+
+        if "sweep_config" in kwargs:
+            sweep_config = kwargs.pop("sweep_config")
+            sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
+            self.args.update_from_dict(sweep_values)
+
+        if self.args.manual_seed:
+            random.seed(self.args.manual_seed)
+            np.random.seed(self.args.manual_seed)
+            torch.manual_seed(self.args.manual_seed)
+            if self.args.n_gpu > 0:
+                torch.cuda.manual_seed_all(self.args.manual_seed)
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
 
@@ -140,24 +154,6 @@ class MultiModalClassificationModel:
         self.config = MMBTConfig(self.transformer_config, num_labels=self.num_labels)
         self.results = {}
 
-        self.args = {
-            "regression": False,
-            "num_image_embeds": 1,
-            "text_label": "text",
-            "labels_label": "labels",
-            "images_label": "images",
-            "image_type_extension": "",
-            "data_type_extension": "",
-        }
-
-        self.args.update(global_args)
-
-        if not use_cuda:
-            self.args["fp16"] = False
-
-        if args:
-            self.args.update(args)
-
         self.img_encoder = ImageEncoder(self.args)
         self.model = MMBTForClassification(self.config, self.transformer, self.img_encoder)
 
@@ -174,33 +170,31 @@ class MultiModalClassificationModel:
                 )
                 raise EnvironmentError(msg)
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args["do_lower_case"], **kwargs
-        )
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
-        self.args["model_name"] = model_name
-        self.args["model_type"] = model_type
+        self.args.model_name = model_name
+        self.args.model_type = model_type
 
         if model_type in ["camembert", "xlmroberta"]:
             warnings.warn(
                 f"use_multiprocessing automatically disabled as {model_type}"
                 " fails when using multiprocessing for feature conversion."
             )
-            self.args["use_multiprocessing"] = False
+            self.args.use_multiprocessing = False
 
-        self.args["model_name"] = model_name
-        self.args["model_type"] = model_type
+        self.args.model_name = model_name
+        self.args.model_type = model_type
 
         if model_type in ["camembert", "xlmroberta"]:
             warnings.warn(
                 f"use_multiprocessing automatically disabled as {model_type}"
                 " fails when using multiprocessing for feature conversion."
             )
-            self.args["use_multiprocessing"] = False
+            self.args.use_multiprocessing = False
 
-        if self.args["wandb_project"] and not wandb_available:
+        if self.args.wandb_project and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
-            self.args["wandb_project"] = None
+            self.args.wandb_project = None
 
         if multi_label:
             self.criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
@@ -249,7 +243,7 @@ class MultiModalClassificationModel:
             image_type_extension (optional): If given, this will be added to the end of each value in "images".
             data_type_extension (optional): If given, this will be added to the end of each value in "files_list".
             auto_weights (optional): If True, weights will be used to balance the classes. Only implemented for multi label tasks currently.
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             eval_data (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
@@ -264,33 +258,33 @@ class MultiModalClassificationModel:
             self.args.update(args)
 
         if text_label:
-            self.args["text_label"] = text_label
+            self.args.text_label = text_label
 
         if text_label:
-            self.args["labels_label"] = labels_label
+            self.args.labels_label = labels_label
 
         if text_label:
-            self.args["images_label"] = images_label
+            self.args.images_label = images_label
 
         if text_label:
-            self.args["image_type_extension"] = image_type_extension
+            self.args.image_type_extension = image_type_extension
 
         if text_label:
-            self.args["data_type_extension"] = data_type_extension
+            self.args.data_type_extension = data_type_extension
 
-        if self.args["silent"]:
+        if self.args.silent:
             show_running_loss = False
 
-        if self.args["evaluate_during_training"] and eval_data is None:
+        if self.args.evaluate_during_training and eval_data is None:
             raise ValueError(
                 "evaluate_during_training is enabled but eval_df is not specified."
                 " Pass eval_df to model.train_model() if using evaluate_during_training."
             )
 
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
 
-        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args["overwrite_output_dir"]:
+        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args.overwrite_output_dir:
             raise ValueError(
                 "Output directory ({}) already exists and is not empty."
                 " Set overwrite_output_dir to True to overcome.".format(output_dir)
@@ -302,11 +296,11 @@ class MultiModalClassificationModel:
             train_data,
             files_list=files_list,
             image_path=image_path,
-            text_label=self.args["text_label"],
-            labels_label=self.args["labels_label"],
-            images_label=self.args["images_label"],
-            image_type_extension=self.args["image_type_extension"],
-            data_type_extension=self.args["data_type_extension"],
+            text_label=self.args.text_label,
+            labels_label=self.args.labels_label,
+            images_label=self.args.images_label,
+            image_type_extension=self.args.image_type_extension,
+            data_type_extension=self.args.data_type_extension,
             verbose=verbose,
         )
 
@@ -328,7 +322,7 @@ class MultiModalClassificationModel:
         self._save_model(output_dir, model=self.model)
 
         if verbose:
-            logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+            logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_type, output_dir))
 
     def train(
         self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True, **kwargs,
@@ -344,23 +338,23 @@ class MultiModalClassificationModel:
         args = self.args
         multi_label = self.multi_label
 
-        tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
+        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
             sampler=train_sampler,
-            batch_size=args["train_batch_size"],
+            batch_size=args.train_batch_size,
             collate_fn=collate_fn,
-            num_workers=args["process_count"],
+            num_workers=args.process_count,
         )
 
-        t_total = len(train_dataloader) // args["gradient_accumulation_steps"] * args["num_train_epochs"]
+        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
                 "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": args["weight_decay"],
+                "weight_decay": args.weight_decay,
             },
             {
                 "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
@@ -368,45 +362,45 @@ class MultiModalClassificationModel:
             },
         ]
 
-        warmup_steps = math.ceil(t_total * args["warmup_ratio"])
-        args["warmup_steps"] = warmup_steps if args["warmup_steps"] == 0 else args["warmup_steps"]
+        warmup_steps = math.ceil(t_total * args.warmup_ratio)
+        args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
 
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args["learning_rate"], eps=args["adam_epsilon"])
+        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
         scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=args["warmup_steps"], num_training_steps=t_total
+            optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
         )
 
-        if args["fp16"]:
+        if args.fp16:
             try:
                 from apex import amp
             except ImportError:
                 raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
+            model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
 
-        if args["n_gpu"] > 1:
+        if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
-        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
+        train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.silent)
         epoch_number = 0
         best_eval_metric = None
         early_stopping_counter = 0
 
-        if args["evaluate_during_training"]:
+        if args.evaluate_during_training:
             training_progress_scores = self._create_training_progress_scores(multi_label, **kwargs)
 
-        if args["wandb_project"]:
-            wandb.init(project=args["wandb_project"], config={**args}, **args["wandb_kwargs"])
+        if args.wandb_project:
+            wandb.init(project=args.wandb_project, config={**args}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         model.train()
         for _ in train_iterator:
             train_iterator.set_description(f"Epoch {epoch_number} of {args.num_train_epochs}")
             for step, batch in enumerate(
-                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args["silent"])
+                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
             ):
                 batch = tuple(t.to(device) for t in batch)
                 labels = batch[5]
@@ -417,7 +411,7 @@ class MultiModalClassificationModel:
                 logits = outputs[0]  # Different from default behaviour
                 loss = self.criterion(logits, labels)
 
-                if args["n_gpu"] > 1:
+                if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
 
                 current_loss = loss.item()
@@ -425,39 +419,39 @@ class MultiModalClassificationModel:
                 if show_running_loss:
                     print("\rRunning loss: %f" % loss, end="")
 
-                if args["gradient_accumulation_steps"] > 1:
-                    loss = loss / args["gradient_accumulation_steps"]
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
 
-                if args["fp16"]:
+                if args.fp16:
                     with amp.scale_loss(loss, optimizer) as scaled_loss:
                         scaled_loss.backward()
                     # torch.nn.utils.clip_grad_norm_(
-                    #     amp.master_params(optimizer), args["max_grad_norm"]
+                    #     amp.master_params(optimizer), args.max_grad_norm
                     # )
                 else:
                     loss.backward()
                     # torch.nn.utils.clip_grad_norm_(
-                    #     model.parameters(), args["max_grad_norm"]
+                    #     model.parameters(), args.max_grad_norm
                     # )
 
                 tr_loss += loss.item()
-                if (step + 1) % args["gradient_accumulation_steps"] == 0:
-                    if args["fp16"]:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args["max_grad_norm"])
+                if (step + 1) % args.gradient_accumulation_steps == 0:
+                    if args.fp16:
+                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
                     else:
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args["max_grad_norm"])
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                     optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1
 
-                    if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
+                    if args.logging_steps > 0 and global_step % args.logging_steps == 0:
                         # Log metrics
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args["logging_steps"], global_step)
+                        tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args.logging_steps, global_step)
                         logging_loss = tr_loss
-                        if args["wandb_project"]:
+                        if args.wandb_project:
                             wandb.log(
                                 {
                                     "Training loss": current_loss,
@@ -466,21 +460,21 @@ class MultiModalClassificationModel:
                                 }
                             )
 
-                    if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
+                    if args.save_steps > 0 and global_step % args.save_steps == 0:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
                         self._save_model(output_dir_current, model=model)
 
-                    if args["evaluate_during_training"] and (
-                        args["evaluate_during_training_steps"] > 0
-                        and global_step % args["evaluate_during_training_steps"] == 0
+                    if args.evaluate_during_training and (
+                        args.evaluate_during_training_steps > 0
+                        and global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, _ = self.eval_model(
                             eval_data,
-                            verbose=verbose and args["evaluate_during_training_verbose"],
-                            silent=args["evaluate_during_training_silent"],
+                            verbose=verbose and args.evaluate_during_training_verbose,
+                            silent=args.evaluate_during_training_silent,
                             **kwargs,
                         )
                         for key, value in results.items():
@@ -488,7 +482,7 @@ class MultiModalClassificationModel:
 
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        if args["save_eval_checkpoints"]:
+                        if args.save_eval_checkpoints:
                             self._save_model(output_dir_current, model=model, results=results)
 
                         training_progress_scores["global_step"].append(global_step)
@@ -497,60 +491,50 @@ class MultiModalClassificationModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                         )
 
-                        if args["wandb_project"]:
+                        if args.wandb_project:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
                         if not best_eval_metric:
-                            best_eval_metric = results[args["early_stopping_metric"]]
-                            self._save_model(args["best_model_dir"], model=model, results=results)
-                        if best_eval_metric and args["early_stopping_metric_minimize"]:
-                            if (
-                                results[args["early_stopping_metric"]] - best_eval_metric
-                                < args["early_stopping_delta"]
-                            ):
-                                best_eval_metric = results[args["early_stopping_metric"]]
-                                self._save_model(args["best_model_dir"], model=model, results=results)
+                            best_eval_metric = results[args.early_stopping_metric]
+                            self._save_model(args.best_model_dir, model=model, results=results)
+                        if best_eval_metric and args.early_stopping_metric_minimize:
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                                best_eval_metric = results[args.early_stopping_metric]
+                                self._save_model(args.best_model_dir, model=model, results=results)
                                 early_stopping_counter = 0
                             else:
-                                if args["use_early_stopping"]:
-                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                if args.use_early_stopping:
+                                    if early_stopping_counter < args.early_stopping_patience:
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" No improvement in {args.early_stopping_metric}")
                                             logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args['early_stopping_patience']} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args["early_stopping_metric"]] - best_eval_metric
-                                > args["early_stopping_delta"]
-                            ):
-                                best_eval_metric = results[args["early_stopping_metric"]]
-                                self._save_model(args["best_model_dir"], model=model, results=results)
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                                best_eval_metric = results[args.early_stopping_metric]
+                                self._save_model(args.best_model_dir, model=model, results=results)
                                 early_stopping_counter = 0
                             else:
-                                if args["use_early_stopping"]:
-                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                if args.use_early_stopping:
+                                    if early_stopping_counter < args.early_stopping_patience:
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" No improvement in {args.early_stopping_metric}")
                                             logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args['early_stopping_patience']} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
@@ -558,17 +542,17 @@ class MultiModalClassificationModel:
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
-            if args["save_model_every_epoch"] or args["evaluate_during_training"]:
+            if args.save_model_every_epoch or args.evaluate_during_training:
                 os.makedirs(output_dir_current, exist_ok=True)
 
-            if args["save_model_every_epoch"]:
+            if args.save_model_every_epoch:
                 self._save_model(output_dir_current, model=model)
 
-            if args["evaluate_during_training"]:
+            if args.evaluate_during_training:
                 results, _ = self.eval_model(
                     eval_data,
-                    verbose=verbose and args["evaluate_during_training_verbose"],
-                    silent=args["evaluate_during_training_silent"],
+                    verbose=verbose and args.evaluate_during_training_verbose,
+                    silent=args.evaluate_during_training_silent,
                     **kwargs,
                 )
 
@@ -580,47 +564,47 @@ class MultiModalClassificationModel:
                     training_progress_scores[key].append(results[key])
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(
-                    os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False,
+                    os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                 )
 
                 if not best_eval_metric:
-                    best_eval_metric = results[args["early_stopping_metric"]]
-                    self._save_model(args["best_model_dir"], model=model, results=results)
-                if best_eval_metric and args["early_stopping_metric_minimize"]:
-                    if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
-                        best_eval_metric = results[args["early_stopping_metric"]]
-                        self._save_model(args["best_model_dir"], model=model, results=results)
+                    best_eval_metric = results[args.early_stopping_metric]
+                    self._save_model(args.best_model_dir, model=model, results=results)
+                if best_eval_metric and args.early_stopping_metric_minimize:
+                    if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                        best_eval_metric = results[args.early_stopping_metric]
+                        self._save_model(args.best_model_dir, model=model, results=results)
                         early_stopping_counter = 0
                     else:
-                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
-                            if early_stopping_counter < args["early_stopping_patience"]:
+                        if args.use_early_stopping and args.early_stopping_consider_epochs:
+                            if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
-                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" No improvement in {args.early_stopping_metric}")
                                     logger.info(f" Current step: {early_stopping_counter}")
-                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                             else:
                                 if verbose:
-                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
                 else:
-                    if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
-                        best_eval_metric = results[args["early_stopping_metric"]]
-                        self._save_model(args["best_model_dir"], model=model, results=results)
+                    if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                        best_eval_metric = results[args.early_stopping_metric]
+                        self._save_model(args.best_model_dir, model=model, results=results)
                         early_stopping_counter = 0
                     else:
-                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
-                            if early_stopping_counter < args["early_stopping_patience"]:
+                        if args.use_early_stopping and args.early_stopping_consider_epochs:
+                            if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
-                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" No improvement in {args.early_stopping_metric}")
                                     logger.info(f" Current step: {early_stopping_counter}")
-                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                             else:
                                 if verbose:
-                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
@@ -663,7 +647,7 @@ class MultiModalClassificationModel:
             images_label (optional): Column name to look for instead of the default "images"
             image_type_extension (optional): If given, this will be added to the end of each value in "images".
             data_type_extension (optional): If given, this will be added to the end of each value in "files_list".
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
@@ -675,22 +659,22 @@ class MultiModalClassificationModel:
         """  # noqa: ignore flake8"
 
         if text_label:
-            self.args["text_label"] = text_label
+            self.args.text_label = text_label
 
         if text_label:
-            self.args["labels_label"] = labels_label
+            self.args.labels_label = labels_label
 
         if text_label:
-            self.args["images_label"] = images_label
+            self.args.images_label = images_label
 
         if text_label:
-            self.args["image_type_extension"] = image_type_extension
+            self.args.image_type_extension = image_type_extension
 
         if text_label:
-            self.args["data_type_extension"] = data_type_extension
+            self.args.data_type_extension = data_type_extension
 
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
 
         self._move_model_to_device()
 
@@ -703,11 +687,11 @@ class MultiModalClassificationModel:
             data,
             files_list=files_list,
             image_path=image_path,
-            text_label=self.args["text_label"],
-            labels_label=self.args["labels_label"],
-            images_label=self.args["images_label"],
-            image_type_extension=self.args["image_type_extension"],
-            data_type_extension=self.args["data_type_extension"],
+            text_label=self.args.text_label,
+            labels_label=self.args.labels_label,
+            images_label=self.args.images_label,
+            image_type_extension=self.args.image_type_extension,
+            data_type_extension=self.args.data_type_extension,
             verbose=verbose,
             silent=silent,
         )
@@ -742,9 +726,9 @@ class MultiModalClassificationModel:
         eval_dataloader = DataLoader(
             eval_dataset,
             sampler=eval_sampler,
-            batch_size=args["eval_batch_size"],
+            batch_size=args.eval_batch_size,
             collate_fn=collate_fn,
-            num_workers=args["process_count"],
+            num_workers=args.process_count,
         )
 
         eval_loss = 0.0
@@ -753,7 +737,7 @@ class MultiModalClassificationModel:
         out_label_ids = None
         model.eval()
 
-        for batch in tqdm(eval_dataloader, disable=args["silent"] or silent):
+        for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
             batch = tuple(t.to(device) for t in batch)
             labels = batch[5]
             with torch.no_grad():
@@ -777,7 +761,7 @@ class MultiModalClassificationModel:
         eval_loss = eval_loss / nb_eval_steps
         model_outputs = preds
 
-        if args["regression"] is True:
+        if args.regression is True:
             preds = np.squeeze(preds)
             model_outputs = preds
 
@@ -861,7 +845,7 @@ class MultiModalClassificationModel:
             tokenizer,
             transforms,
             labels,
-            args["max_seq_length"] - args["num_image_embeds"] - 2,
+            args.max_seq_length - args.num_image_embeds - 2,
             files_list=files_list,
             image_path=image_path,
             text_label=text_label,
@@ -894,7 +878,7 @@ class MultiModalClassificationModel:
         for metric, func in kwargs.items():
             extra_metrics[metric] = func(labels, preds)
 
-        if self.args["regression"]:
+        if self.args.regression:
             return {**extra_metrics}
 
         if multi_label:
@@ -942,9 +926,9 @@ class MultiModalClassificationModel:
         eval_dataloader = DataLoader(
             eval_dataset,
             sampler=eval_sampler,
-            batch_size=args["eval_batch_size"],
+            batch_size=args.eval_batch_size,
             collate_fn=collate_fn,
-            num_workers=args["process_count"],
+            num_workers=args.process_count,
         )
 
         eval_loss = 0.0
@@ -952,7 +936,7 @@ class MultiModalClassificationModel:
         preds = None
         out_label_ids = None
 
-        for batch in tqdm(eval_dataloader, disable=args["silent"]):
+        for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
             batch = tuple(t.to(device) for t in batch)
             labels = batch[5]
             with torch.no_grad():
@@ -985,7 +969,7 @@ class MultiModalClassificationModel:
 
     def calculate_weights(self, train_dataset):
         label_frequences = train_dataset.get_label_frequencies()
-        label_frequences = [label_frequences[l] if label_frequences[l] > 0 else 1 for l in self.label_list]
+        label_frequences = [label_frequences[label] if label_frequences[label] > 0 else 1 for label in self.label_list]
         label_weights = (
             torch.tensor(label_frequences, device=self.device, dtype=torch.float) / len(train_dataset)
         ) ** -1
@@ -1059,7 +1043,7 @@ class MultiModalClassificationModel:
     def _save_model(self, output_dir, model=None, results=None):
         os.makedirs(output_dir, exist_ok=True)
 
-        if model:
+        if model and not self.args.no_save:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
             torch.save(model_to_save.state_dict(), os.path.join(output_dir, "pytorch_model.bin"))
@@ -1067,9 +1051,19 @@ class MultiModalClassificationModel:
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
             self.transformer_config.architectures = [model_to_save.__class__.__name__]
             self.transformer_config.save_pretrained(output_dir)
+            self._save_model_args(output_dir)
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
             with open(output_eval_file, "w") as writer:
                 for key in sorted(results.keys()):
                     writer.write("{} = {}\n".format(key, str(results[key])))
+
+    def _save_model_args(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        self.args.save(output_dir)
+
+    def _load_model_args(self, input_dir):
+        args = MultiModalClassificationArgs()
+        args.load(input_dir)
+        return args

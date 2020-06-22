@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - Seq2Seq
    - Language generation
    - Conv AI
+   - Multi modal
  - wandb sweeps added in the following models
    - classification
    - ner
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - Seq2Seq
    - Language generation
    - Conv AI
+   - Multi modal
  - eval_model now logs to wandb in the following models
    - classification
    - NER
@@ -42,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      - LM
      - Seq2Seq
      - Conv AI
+     - Multi modal
    - evaluation improved in 
      - classification
      - NER
@@ -50,12 +53,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      - LM
      - Seq2Seq
      - Conv AI
+     - Multi modal
    - Prediction improved in 
      - classification
      - NER
      - QA
      - T5
      - Seq2Seq
+     - Multi modal
  - multiprocessed decoding added to Seq2Seq models
  - NER labels can be given as self.args.labels_list (persists through args saving: CHECK THIS)
  - eval_model logging to wandb can be turned off with wandb_log=False

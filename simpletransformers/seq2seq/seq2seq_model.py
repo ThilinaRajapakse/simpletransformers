@@ -307,9 +307,7 @@ class Seq2SeqModel:
 
         if args.max_steps > 0:
             t_total = args.max_steps
-            args.num_train_epochs = (
-                args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
-            )
+            args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
         else:
             t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
@@ -503,10 +501,7 @@ class Seq2SeqModel:
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
                                 )
                         if best_eval_metric and args.early_stopping_metric_minimize:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                < args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 if args.save_best_model:
                                     self._save_model(
@@ -523,17 +518,12 @@ class Seq2SeqModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                > args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 if args.save_best_model:
                                     self._save_model(
@@ -550,9 +540,7 @@ class Seq2SeqModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
@@ -595,9 +583,7 @@ class Seq2SeqModel:
                     if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
                         if args.save_best_model:
-                            self._save_model(
-                                args.best_model_dir, optimizer, scheduler, model=model, results=results
-                            )
+                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                     else:
                         if args.use_early_stopping and args.early_stopping_consider_epochs:
@@ -617,9 +603,7 @@ class Seq2SeqModel:
                     if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
                         if args.save_best_model:
-                            self._save_model(
-                                args.best_model_dir, optimizer, scheduler, model=model, results=results
-                            )
+                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                     else:
                         if args.use_early_stopping and args.early_stopping_consider_epochs:
@@ -739,8 +723,7 @@ class Seq2SeqModel:
         all_outputs = []
         # Batching
         for batch in [
-            to_predict[i : i + self.args.eval_batch_size]
-            for i in range(0, len(to_predict), self.args.eval_batch_size)
+            to_predict[i : i + self.args.eval_batch_size] for i in range(0, len(to_predict), self.args.eval_batch_size)
         ]:
             if self.args.model_type == "marian":
                 input_ids = self.encoder_tokenizer.prepare_translation_batch(

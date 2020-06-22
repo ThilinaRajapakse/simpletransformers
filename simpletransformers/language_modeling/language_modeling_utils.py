@@ -102,9 +102,7 @@ class LineByLineTextDataset(Dataset):
         with open(file_path, encoding="utf-8") as f:
             lines = [line for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())]
 
-        tokenizer = ByteLevelBPETokenizer(
-            f"{args.tokenizer_name}/vocab.json", f"{args.tokenizer_name}/merges.txt",
-        )
+        tokenizer = ByteLevelBPETokenizer(f"{args.tokenizer_name}/vocab.json", f"{args.tokenizer_name}/merges.txt",)
         tokenizer._tokenizer.post_processor = BertProcessing(
             ("</s>", tokenizer.token_to_id("</s>")), ("<s>", tokenizer.token_to_id("<s>")),
         )

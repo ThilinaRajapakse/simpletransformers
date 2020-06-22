@@ -192,7 +192,7 @@ class QuestionAnsweringModel:
             features = torch.load(cached_features_file)
             logger.info(f" Features loaded from cache at {cached_features_file}")
         else:
-            logger.info(f" Converting to features started.")
+            logger.info(" Converting to features started.")
 
             features, dataset = squad_convert_examples_to_features(
                 examples=examples,

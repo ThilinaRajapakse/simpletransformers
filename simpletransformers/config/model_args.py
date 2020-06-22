@@ -266,3 +266,18 @@ class ConvAIArgs(ModelArgs):
     temperature: float = 0.7
     top_k: float = 0
     top_p: float = 0.9
+
+
+@dataclass
+class MultiModalClassificationArgs(ModelArgs):
+    """
+    Model args for a MultiModalClassificationModel
+    """
+
+    regression: bool = False
+    num_image_embeds: int = 1
+    text_label: str = "text"
+    labels_label: str = "labels"
+    images_label: str = "images"
+    image_type_extension: str = ""
+    data_type_extension: str = ""

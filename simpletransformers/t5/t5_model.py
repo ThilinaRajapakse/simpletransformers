@@ -187,9 +187,7 @@ class T5Model:
 
         if args.max_steps > 0:
             t_total = args.max_steps
-            args.num_train_epochs = (
-                args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
-            )
+            args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
         else:
             t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
@@ -377,14 +375,9 @@ class T5Model:
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
-                            self._save_model(
-                                args.best_model_dir, optimizer, scheduler, model=model, results=results
-                            )
+                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         if best_eval_metric and args.early_stopping_metric_minimize:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                < args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -400,17 +393,12 @@ class T5Model:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                > args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -426,9 +414,7 @@ class T5Model:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step

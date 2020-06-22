@@ -840,7 +840,7 @@ class ClassificationModel:
                 logger.info(f" Features loaded from cache at {cached_features_file}")
         else:
             if verbose:
-                logger.info(f" Converting to features started. Cache is not used.")
+                logger.info(" Converting to features started. Cache is not used.")
                 if args.sliding_window:
                     logger.info(" Sliding window enabled")
 
@@ -848,7 +848,7 @@ class ClassificationModel:
             if self.args.labels_map:
                 for example in examples:
                     if multi_label:
-                        example.label = [self.args.labels_map[l] for l in example.label]
+                        example.label = [self.args.labels_map[label] for label in example.label]
                     else:
                         example.label = self.args.labels_map[example.label]
 

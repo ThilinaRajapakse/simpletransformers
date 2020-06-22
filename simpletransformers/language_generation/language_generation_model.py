@@ -101,9 +101,7 @@ class LanguageGenerationModel:
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
 
         if self.args.tokenizer_name:
-            self.tokenizer = tokenizer_class.from_pretrained(
-                self.args.tokenizer_name, cache_dir=self.args.cache_dir
-            )
+            self.tokenizer = tokenizer_class.from_pretrained(self.args.tokenizer_name, cache_dir=self.args.cache_dir)
         else:
             self.tokenizer = tokenizer_class.from_pretrained(model_name, cache_dir=self.args.cache_dir, **kwargs)
             self.args.tokenizer_name = model_name

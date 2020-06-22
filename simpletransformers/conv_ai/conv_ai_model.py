@@ -188,9 +188,7 @@ class ConvAIModel:
         self._move_model_to_device()
 
         train_dataloader, train_sampler = self.load_and_cache_examples(
-            dataset_path=train_file,
-            verbose=verbose,
-            no_cache=self.args.no_cache or self.args.reprocess_input_data,
+            dataset_path=train_file, verbose=verbose, no_cache=self.args.no_cache or self.args.reprocess_input_data,
         )
 
         if self.args.evaluate_during_training:
@@ -386,10 +384,7 @@ class ConvAIModel:
                             best_eval_metric = results[args.early_stopping_metric]
                             self._save_model(args.best_model_dir, model=model, results=results)
                         if best_eval_metric and args.early_stopping_metric_minimize:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                < args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(args.best_model_dir, model=model, results=results)
                                 early_stopping_counter = 0
@@ -403,17 +398,12 @@ class ConvAIModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                > args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(args.best_model_dir, model=model, results=results)
                                 early_stopping_counter = 0
@@ -427,9 +417,7 @@ class ConvAIModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
@@ -445,10 +433,7 @@ class ConvAIModel:
 
             if args.evaluate_during_training:
                 results, _, _ = self.eval_model(
-                    eval_dataloader,
-                    verbose=verbose and args.evaluate_during_training_verbose,
-                    silent=True,
-                    **kwargs,
+                    eval_dataloader, verbose=verbose and args.evaluate_during_training_verbose, silent=True, **kwargs,
                 )
 
                 self._save_model(output_dir_current, results=results)

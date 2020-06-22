@@ -154,7 +154,7 @@ class LanguageModelingModel:
                 torch.cuda.manual_seed_all(self.args.manual_seed)
 
         if self.args.local_rank != -1:
-            logger.info(f'local_rank: {self.args.local_rank}')
+            logger.info(f"local_rank: {self.args.local_rank}")
             torch.distributed.init_process_group(backend="nccl")
             cuda_device = self.args.local_rank
 
@@ -185,9 +185,7 @@ class LanguageModelingModel:
         new_tokenizer = False
 
         if self.args.tokenizer_name:
-            self.tokenizer = tokenizer_class.from_pretrained(
-                self.args.tokenizer_name, cache_dir=self.args.cache_dir
-            )
+            self.tokenizer = tokenizer_class.from_pretrained(self.args.tokenizer_name, cache_dir=self.args.cache_dir)
         elif self.args.model_name:
             if self.args.model_name == "electra":
                 self.tokenizer = tokenizer_class.from_pretrained(
@@ -195,9 +193,7 @@ class LanguageModelingModel:
                 )
                 self.args.tokenizer_name = self.args.model_name
             else:
-                self.tokenizer = tokenizer_class.from_pretrained(
-                    model_name, cache_dir=self.args.cache_dir, **kwargs
-                )
+                self.tokenizer = tokenizer_class.from_pretrained(model_name, cache_dir=self.args.cache_dir, **kwargs)
                 self.args.tokenizer_name = self.args.model_name
         else:
             if not train_files:
@@ -426,9 +422,7 @@ class LanguageModelingModel:
 
         if args.max_steps > 0:
             t_total = args.max_steps
-            args.num_train_epochs = (
-                args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
-            )
+            args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
         else:
             t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
@@ -636,14 +630,9 @@ class LanguageModelingModel:
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
-                            self._save_model(
-                                args.best_model_dir, optimizer, scheduler, model=model, results=results
-                            )
+                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         if best_eval_metric and args.early_stopping_metric_minimize:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                < args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -659,17 +648,12 @@ class LanguageModelingModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached."
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached.")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                > args.early_stopping_delta
-                            ):
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -685,9 +669,7 @@ class LanguageModelingModel:
                                             logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args.early_stopping_patience} steps reached."
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached.")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
