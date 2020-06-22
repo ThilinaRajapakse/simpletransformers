@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+ - Label list options in Classifcation tasks
  - Dataclass args added in the following models
    - classification
    - multilabel classification
@@ -15,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - question answering
    - T5
    - LM
+   - Seq2Seq
+   - Language generation
+   - Conv AI
  - wandb sweeps added in the following models
    - classification
    - ner
@@ -22,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
    - question answering
    - T5
    - LM
+   - Seq2Seq
+   - Language generation
+   - Conv AI
  - eval_model now logs to wandb in the following models
    - classification
    - NER
@@ -33,19 +40,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      - QA
      - T5
      - LM
+     - Seq2Seq
+     - Conv AI
    - evaluation improved in 
      - classification
      - NER
      - QA
      - T5
      - LM
+     - Seq2Seq
+     - Conv AI
    - Prediction improved in 
      - classification
      - NER
      - QA
      - T5
+     - Seq2Seq
+ - multiprocessed decoding added to Seq2Seq models
  - NER labels can be given as self.args.labels_list (persists through args saving: CHECK THIS)
  - eval_model logging to wandb can be turned off with wandb_log=False
+ - conv_ai "no_sample" renamed to "do_sample" for consistency
 
 ### Changed
 
@@ -62,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
         " fails when using multiprocessing for feature conversion."
     )
 ```
--
+- Check if all args.updates correctly replaced
 
 ## [0.34.4] - 2020-06-17
 

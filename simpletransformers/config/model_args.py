@@ -200,3 +200,69 @@ class LanguageModelingArgs(ModelArgs):
     vocab_size: int = None
     local_rank: int = -1
 
+
+@dataclass
+class Seq2SeqArgs(ModelArgs):
+    """
+    Model args for a Seq2SeqModel
+    """
+
+    base_marian_model_name: str = None
+    dataset_class: Dataset = None
+    do_sample: bool = False
+    early_stopping: bool = True
+    evaluate_generated_text: bool = False
+    length_penalty: float = 2.0
+    max_length: int = 20
+    max_steps: int = -1
+    num_beams: int = 1
+    num_return_sequences: int = 1
+    repetition_penalty: float = 1.0
+    top_k: float = None
+    top_p: float = None
+    use_multiprocessed_decoding: bool = True
+
+
+@dataclass
+class LanguageGenerationArgs(ModelArgs):
+    """
+    Model args for a LanguageGenerationModel
+    """
+
+    do_sample: bool = True
+    early_stopping: bool = True
+    evaluate_generated_text: bool = False
+    length_penalty: float = 2.0
+    max_length: int = 20
+    max_steps: int = -1
+    num_beams: int = 1
+    num_return_sequences: int = 1
+    repetition_penalty: float = 1.0
+    top_k: float = 50
+    top_p: float = 0.95
+    prompt: str = ""
+    stop_token: str = None
+    temperature: float = 1.0
+    padding_text: str = ""
+    xlm_language: str = ""
+    config_name: str = None
+    tokenizer_name: str = None
+
+
+@dataclass
+class ConvAIArgs(ModelArgs):
+    """
+    Model args for a ConvAIModel
+    """
+
+    do_sample: bool = True
+    lm_coef: float = 2.0
+    max_history: int = 2
+    max_length: int = 20
+    mc_coef: float = 1.0
+    min_length: int = 1
+    num_candidates: int = 2
+    personality_permutations: int = 1
+    temperature: float = 0.7
+    top_k: float = 0
+    top_p: float = 0.9

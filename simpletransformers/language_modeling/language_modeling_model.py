@@ -352,7 +352,7 @@ class LanguageModelingModel:
         """  # noqa: ignore flake8"
 
         if args:
-            self.args.update(args)
+            self.args.update_from_dict(args)
 
         if self.args.silent:
             show_running_loss = False
