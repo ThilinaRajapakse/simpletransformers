@@ -9,79 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
  - Label list options in Classifcation tasks
- - Dataclass args added in the following models
-   - classification
-   - multilabel classification
-   - ner
-   - question answering
-   - T5
-   - LM
-   - Seq2Seq
-   - Language generation
-   - Conv AI
-   - Multi modal
+ - Model args can now be specified through the relevant dataclass. (E.g. `ClassificationArgs`, `T5Args`, etc.)
+ - All Simple Transformers models can now be used with W&B sweeps.
  - wandb sweeps added in the following models
-   - classification
-   - ner
-   - multilabel
-   - question answering
-   - T5
-   - LM
-   - Seq2Seq
-   - Language generation
-   - Conv AI
-   - Multi modal
- - eval_model now logs to wandb in the following models
-   - classification
-   - NER
+ - `eval_model()` now logs to wandb in the following models (can be turned off with `wandb_log=False`)
+   - `ClassificationModel`
+   - `NERModel`
  - Better tqdm descriptions
-   - current iteration improved in all models
-   - epoch number improved in
-     - classification
-     - NER
-     - QA
-     - T5
-     - LM
-     - Seq2Seq
-     - Conv AI
-     - Multi modal
-   - evaluation improved in 
-     - classification
-     - NER
-     - QA
-     - T5
-     - LM
-     - Seq2Seq
-     - Conv AI
-     - Multi modal
-   - Prediction improved in 
-     - classification
-     - NER
-     - QA
-     - T5
-     - Seq2Seq
-     - Multi modal
- - multiprocessed decoding added to Seq2Seq models
+ - Multiprocessed decoding support added to Seq2Seq models
  - NER labels can be given as self.args.labels_list (persists through args saving: CHECK THIS)
- - eval_model logging to wandb can be turned off with wandb_log=False
- - conv_ai "no_sample" renamed to "do_sample" for consistency
+ - ConvAIModel arg `no_sample` renamed to `do_sample` for consistency
 
 ### Changed
 
-- Changed NERModel.eval_model() to return usable model_outputs
+- Changed `NERModel.eval_model()` to return usable model_outputs
 
 ### TODO:
 
 - Add NER classification report to docs
-- Check if this is fixed
-```python
-  if model_type in ["camembert", "xlmroberta"]:
-    warnings.warn(
-        f"use_multiprocessing automatically disabled as {model_type}"
-        " fails when using multiprocessing for feature conversion."
-    )
-```
-- Check if all args.updates correctly replaced
 
 ## [0.34.4] - 2020-06-17
 

@@ -203,7 +203,7 @@ class NERModel:
         """  # noqa: ignore flake8"
 
         if args:
-            self.args.update(args)
+            self.args.update_from_dict(args)
 
         if self.args.silent:
             show_running_loss = False
@@ -920,7 +920,7 @@ class NERModel:
             features = torch.load(cached_features_file)
             logger.info(f" Features loaded from cache at {cached_features_file}")
         else:
-            logger.info(f" Converting to features started.")
+            logger.info(" Converting to features started.")
             features = convert_examples_to_features(
                 examples,
                 self.args.labels_list,

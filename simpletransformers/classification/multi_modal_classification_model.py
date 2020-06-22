@@ -255,7 +255,7 @@ class MultiModalClassificationModel:
         """  # noqa: ignore flake8"
 
         if args:
-            self.args.update(args)
+            self.args.update_from_dict(args)
 
         if text_label:
             self.args.text_label = text_label
