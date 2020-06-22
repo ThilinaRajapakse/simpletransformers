@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## UNRELEASED
+
+### Added
+
+ - Label list options in Classifcation tasks
+ - Model args can now be specified through the relevant dataclass. (E.g. `ClassificationArgs`, `T5Args`, etc.)
+ - All Simple Transformers models can now be used with W&B sweeps.
+ - wandb sweeps added in the following models
+ - `eval_model()` now logs to wandb in the following models (can be turned off with `wandb_log=False`)
+   - `ClassificationModel`
+   - `NERModel`
+ - Better tqdm descriptions
+ - Multiprocessed decoding support added to Seq2Seq models
+ - NER labels can be given as self.args.labels_list (persists through args saving: CHECK THIS)
+ - ConvAIModel arg `no_sample` renamed to `do_sample` for consistency
+
+### Changed
+
+- Changed `NERModel.eval_model()` to return usable model_outputs
+
+### TODO:
+
+- Add NER classification report to docs
+
 ## [0.34.4] - 2020-06-17
 
 ### Added
