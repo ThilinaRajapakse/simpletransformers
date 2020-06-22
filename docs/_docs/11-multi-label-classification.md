@@ -42,7 +42,7 @@ Multi-label: A character could be a formidable warrior, a Ringbearer, and of sho
 
 ```python
 from simpletransformers.classification import (
-    MultiLabelClassificationModel,
+    MultiLabelClassificationModel, ClassificationArgs
 )
 import pandas as pd
 import logging
@@ -71,9 +71,7 @@ eval_df = pd.DataFrame(eval_data)
 eval_df.columns = ["text", "labels"]
 
 # Optional model configuration
-model_args = {
-    "num_train_epochs": 1,
-}
+model_args = ClassificationArgs(num_train_epochs=1)
 
 # Create a MultiLabelClassificationModel
 model = MultiLabelClassificationModel(

@@ -68,9 +68,7 @@ The *windows* will typically overlap each other to a certain degree to minimize 
 The `stride` can be specified in terms of either a fraction of the `max_seq_length`, or as an absolute number of tokens. The default `stride` is set to `0.8 * max_seq_length`, which results in about 20% overlap between the sub-sequences.
 
 ```python
-model_args = {
-    "sliding_window": True
-}
+model_args = ClassificationArgs(sliding_window=True)
 
 model = ClassificationModel(
     "roberta",

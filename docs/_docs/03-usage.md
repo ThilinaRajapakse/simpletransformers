@@ -133,7 +133,7 @@ model = ClassificationModel(
 
 Every task-specific Simple Transformers model comes with tons of configuration options to enable the user to easily tailor the model for their use case. These options can be categorized into two types, options common to all tasks and task-specific options. This section focuses on the common (or global) options. The task-specific options are detailed in the relevant documentation for the task.
 
-Configuration options in Simple Transformers are defined as Python dicts. The [`global_args`](https://github.com/ThilinaRajapakse/simpletransformers/blob/master/simpletransformers/config/global_args.py) dict contains all the global options set to their default values, as shown below.
+Configuration options in Simple Transformers are defined as either dataclasses or as Python dicts. The [`ModelArgs`](https://github.com/ThilinaRajapakse/simpletransformers/blob/master/simpletransformers/config/model_args.py) dataclass contains all the global options set to their default values, as shown below.
 
 | Argument                         | Type  | Default                                                   | Description                                                                                                                                                                              |
 | -------------------------------- | ----- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -186,7 +186,21 @@ Configuration options in Simple Transformers are defined as Python dicts. The [`
 | weight_decay                     | int   | 0                                                         | Adds L2 penalty.                                                                                                                                                                         |
 
 
-You can override any of these default values by passing in a Python dict containing the appropriate key-value pairs when initializing a Simple Transformers model.
+You can override any of these default values by either editing the dataclass attributes or by passing in a Python dict containing the appropriate key-value pairs when initializing a Simple Transformers model.
+
+### Using the dataclass
+
+```python
+from simpletransformers.classification import ClassificationModel, ClassificationArgs
+
+model_args = ClassificationArgs()
+model_args.num_train_epochs = 5
+model_args.learning_rate = 1e-4
+
+model = ClassficationModel("bert", "bert-base-cased", args=model_args)
+```
+
+### Using a python dictionary
 
 ```python
 from simpletransformers.classification import ClassificationModel
@@ -200,6 +214,11 @@ model_args = {
 model = ClassficationModel("bert", "bert-base-cased", args=model_args)
 ```
 
+**Tip:** Using the dataclass approach has the benefits of IDE auto-completion as well as ensuring that there are no typos in arguments that could lead to unexpected behaviour.
+{: .notice--success}
+
+**Tip:** Both the dataclass and the dictionary approaches are interchangeable.
+{: .notice--success}
 
 ## Tips and Tricks
 
@@ -215,17 +234,16 @@ The exact conditions for early stopping can be adjusted as needed using a model'
 You must set `use_early_stopping` to `True` in order to use early stopping.
 
 ```python
-from simpletransformers.classification import ClassificationModel
+from simpletransformers.classification import ClassificationModel, ClassificationArgs
 
 
-model_args = {
-    "use_early_stopping": True,
-    "early_stopping_delta": 0.01,
-    "early_stopping_metric": "mcc",
-    "early_stopping_metric_minimize": False,
-    "early_stopping_patience": 5,
-    "evaluate_during_training_steps": 1000,
-}
+model_args = ClassificationArgs()
+model_args.use_early_stopping = True
+model_args.early_stopping_delta = 0.01
+model_args.early_stopping_metric = "mcc"
+model_args.early_stopping_metric_minimize = False
+model_args.early_stopping_patience = 5
+model_args.evaluate_during_training_steps = 1000
 
 model = ClassficationModel("bert", "bert-base-cased", args=model_args)
 ```
