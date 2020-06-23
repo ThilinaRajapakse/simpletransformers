@@ -278,6 +278,257 @@ model.eval_model(eval_df, acc=sklearn.metrics.accuracy_score)
 {: .notice--success}
 
 
+### Hyperparameter optimization
+
+Machine learning models can be very sensitive to the hyperparameters used to train them. While large models like Transformers can perform well across a relatively wider hyperparameter range, they can also break completely under certain conditions (like training with large learning rates for many iterations).
+
+**Hint:** We can define two kinds of parameters used to train Transformer models. The first is the learned parameters (like the model weights) and the second is hyperparameters. To give a high-level description of the two kinds of parameters, the hyperparameters (learning rate, batch sizes, etc.) are used to control the process of *learning* learned parameters.
+{: .notice--success}
+
+Choosing a good set of hyperparameter values plays a huge role in developing a state-of-the-art model. Because of this, Simple Transformers has native support for the excellent [W&B Sweeps](https://docs.wandb.com/sweeps) feature for autometed hyperparameter optimization.
+
+How to perform hyperparameter optimization with Simple Transformers and W&B Sweeps (Adapted from W&B [docs](https://docs.wandb.com/sweeps)):
+
+#### 1. Setup the sweep
+
+The sweep can be configured through a Python dictionary (`sweep_config`). The dictionary contains at least 3 keys;
+
+1. `method` -- Specifies the search strategy
+
+    | `method` | Meaning                                                                                                                                                                                      |
+    |--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+    | grid   | Grid search iterates over all possible combinations of parameter values.                                                                                                                     |
+    | random | Random search chooses random sets of values.                                                                                                                                                 |
+    | bayes  | Bayesian Optimization uses a gaussian process to model the function and then chooses parameters to optimize probability of improvement. This strategy requires a metric key to be specified. |
+
+2. `metric` -- Specifies the metric to be optimized
+
+    *This should be a metric that is logged to W&B by the training script*
+
+    The `metric` key of the `sweep_config` points to another Python dictionary containing the `name`, `goal`, and (optionally) `target`.
+
+    | sub-key | Meaning                                                                                                                                                                                                                                                                             |
+    |---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+    | name    | Name of the metric to optimize                                                                                                                                                                                                                                                      |
+    | goal    | `"minimize"` or `"maximize"` (Default is `"minimize"`)                                                                                                                                                                                                                                          |
+    | target  | Value that you'd like to achieve for the metric you're optimizing. When any run in the sweep achieves that target value, the sweep's state will be set to "Finished." This means all agents with active runs will finish those jobs, but no new runs will be launched in the sweep. |
+
+3. `parameters` -- Specifies the hyperparameters and their values to explore
+
+    The `parameters` key of the `sweep_config` points to another Python dictionary which contains all the hyperparameters to be optimized and their possible values. Generally, these will be any combination of the `model_args` for the particular Simple Transformers model.
+
+    W&B offers a variety of ways to define the possible values for each parameter, all of which can be found in the [W&B docs](https://docs.wandb.com/sweeps/configuration#parameters). The possible values are also represented using a Python dictionary. Two common methods are given below.
+
+    1. Discrete values
+
+        A dictionary with the key `values` pointing to a Python list of discrete values.
+
+    2. Range of values
+
+        A dictionary with the two keys `min` and `max` which specifies the minimum and maximum values of the range. *The range is continuous if `min` and `max` are floats and discrete if `min` and `max` are ints.*
+
+Example `sweep_config`:
+
+```python
+sweep_config = {
+    "method": "bayes",  # grid, random
+    "metric": {"name": "train_loss", "goal": "minimize"},
+    "parameters": {
+        "num_train_epochs": {"values": [2, 3, 5]},
+        "learning_rate": {"min": 5e-5, "max": 4e-4},
+    },
+}
+```
+
+#### 2. Initialize the sweep
+
+Initialize a W&B sweep with the config defined earlier.
+
+```python
+sweep_id = wandb.sweep(sweep_config, project="Simple Sweep")
+```
+
+#### 3. Prepare the data and default model configuration
+
+In order to run our sweep, we must get our data ready. This is identical to how you would normally set up datasets for training a Simple Transformers model.
+
+For example;
+
+```python
+# Preparing train data
+train_data = [
+    ["Aragorn was the heir of Isildur", "true"],
+    ["Frodo was the heir of Isildur", "false"],
+]
+train_df = pd.DataFrame(train_data)
+train_df.columns = ["text", "labels"]
+
+# Preparing eval data
+eval_data = [
+    ["Theoden was the king of Rohan", "true"],
+    ["Merry was the king of Rohan", "false"],
+]
+eval_df = pd.DataFrame(eval_data)
+eval_df.columns = ["text", "labels"]
+```
+
+Next, we can set up the default configuration for the Simple Transformers model. This would include any `args` that are not being optimized through the sweep.
+
+**Hint:** As a rule of thumb, it might be a good idea to set all of `reprocess_input_data`, `overwrite_output_dir`, and `no_save` to `True` when running sweeps.
+{: .notice--success}
+
+```python
+model_args = ClassificationArgs()
+model_args.reprocess_input_data = True
+model_args.overwrite_output_dir = True
+model_args.evaluate_during_training = True
+model_args.manual_seed = 4
+model_args.use_multiprocessing = True
+model_args.train_batch_size = 16
+model_args.eval_batch_size = 8
+model_args.labels_list = ["true", "false"]
+```
+
+#### 4. Set up the training function
+
+W&B will call this function to run the training for a particular sweep run. This function must perform 3 critical tasks.
+
+1. Initialize the `wandb` run
+2. Initialize a Simple Transformers model and pass in `sweep_config=wandb.config` as a `kwarg`.
+3. Run the training for the Simple Transformers model.
+
+*`wandb.config` contains the hyperparameter values for the current sweeps run. Simple Transformers will update the model `args` accordingly.*
+
+An example training function is shown below.
+
+```python
+def train():
+    # Initialize a new wandb run
+    wandb.init()
+
+    # Create a TransformerModel
+    model = ClassificationModel(
+        "roberta",
+        "roberta-base",
+        use_cuda=True,
+        args=model_args,
+        sweep_config=wandb.config,
+    )
+
+    # Train the model
+    model.train_model(train_df, eval_df=eval_df)
+
+    # Evaluate the model
+    model.eval_model(eval_df)
+
+    # Sync wandb
+    wandb.join()
+
+```
+
+In addition to the 3 tasks outlined earlier, the function also performs an evaluation and manually syncs the W&B run.
+
+**Hint:** This function can be reused across any Simple Transformers task by simply replacing `ClassificationModel` with the appropriate model class.
+{: .notice--success}
+
+
+#### 5. Run the sweeps
+
+The following line will execute the sweeps.
+
+```python
+wandb.agent(sweep_id, train)
+```
+
+#### Putting it all together
+
+```python
+import logging
+
+import pandas as pd
+import sklearn
+
+import wandb
+from simpletransformers.classification import (
+    ClassificationArgs,
+    ClassificationModel,
+)
+
+sweep_config = {
+    "method": "bayes",  # grid, random
+    "metric": {"name": "train_loss", "goal": "minimize"},
+    "parameters": {
+        "num_train_epochs": {"values": [2, 3, 5]},
+        "learning_rate": {"min": 5e-5, "max": 4e-4},
+    },
+}
+
+sweep_id = wandb.sweep(sweep_config, project="Simple Sweep")
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+# Preparing train data
+train_data = [
+    ["Aragorn was the heir of Isildur", "true"],
+    ["Frodo was the heir of Isildur", "false"],
+]
+train_df = pd.DataFrame(train_data)
+train_df.columns = ["text", "labels"]
+
+# Preparing eval data
+eval_data = [
+    ["Theoden was the king of Rohan", "true"],
+    ["Merry was the king of Rohan", "false"],
+]
+eval_df = pd.DataFrame(eval_data)
+eval_df.columns = ["text", "labels"]
+
+model_args = ClassificationArgs()
+model_args.reprocess_input_data = True
+model_args.overwrite_output_dir = True
+model_args.evaluate_during_training = True
+model_args.manual_seed = 4
+model_args.use_multiprocessing = True
+model_args.train_batch_size = 16
+model_args.eval_batch_size = 8
+model_args.labels_list = ["true", "false"]
+
+
+def train():
+    # Initialize a new wandb run
+    wandb.init()
+
+    # Create a TransformerModel
+    model = ClassificationModel(
+        "roberta",
+        "roberta-base",
+        use_cuda=True,
+        args=model_args,
+        sweep_config=wandb.config,
+    )
+
+    # Train the model
+    model.train_model(train_df, eval_df=eval_df)
+
+    # Evaluate the model
+    model.eval_model(eval_df)
+
+    # Sync wandb
+    wandb.join()
+
+
+wandb.agent(sweep_id, train)
+
+```
+
+**Hint:** This script can also be found in the `examples` directory of the Github repo.
+{: .notice--success}
+
+To visualize your sweep results, open the project on W&B. Please refer to [W&B docs](https://docs.wandb.com/sweeps/visualize-sweep-results) for more details on understanding the results.
+
+
 ## Options For Downloading Pre-Trained Models
 
 Most Simple Transformers models will use the `from_pretrained()` [method](https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained) from the Hugging Face Transformers library to download pre-trained models. You can pass `kwargs` to this method to configure things like proxies and force downloading (refer to method link above).

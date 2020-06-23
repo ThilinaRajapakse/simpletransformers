@@ -48,7 +48,6 @@ model_args.manual_seed = 4
 model_args.use_multiprocessing = True
 model_args.train_batch_size = 16
 model_args.eval_batch_size = 8
-model_args.no_save = True
 model_args.labels_list = ["true", "false"]
 
 
