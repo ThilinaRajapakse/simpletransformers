@@ -115,6 +115,9 @@ class NERModel:
             if self.args.n_gpu > 0:
                 torch.cuda.manual_seed_all(self.args.manual_seed)
 
+        if not use_cuda:
+            self.args.fp16 = False
+
         if labels and self.args.labels_list:
             assert labels == self.args.labels_list
             self.args.labels_list = labels
@@ -688,6 +691,7 @@ class NERModel:
 
         results.update(result)
 
+        os.makedirs(eval_output_dir, exist_ok=True)
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
             if args.classification_report:
