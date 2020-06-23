@@ -160,3 +160,6 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 predictions, raw_outputs = model.predict(["Sam was a Wizard"])
 
 ```
+
+**Note:** Custom labels are not currently supported with multi-label classification.
+{: .notice--warning}
