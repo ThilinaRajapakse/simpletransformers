@@ -8,6 +8,7 @@ import numpy as np
 
 import torch
 from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import LanguageGenerationArgs
 from simpletransformers.language_generation.language_generation_utils import PREPROCESSING_FUNCTIONS
 from transformers import (
     CTRLConfig,
@@ -61,43 +62,24 @@ class LanguageGenerationModel:
             "xlm": (XLMConfig, XLMWithLMHeadModel, XLMTokenizer),
         }
 
-        if args and "manual_seed" in args:
-            random.seed(args["manual_seed"])
-            np.random.seed(args["manual_seed"])
-            torch.manual_seed(args["manual_seed"])
-            if "n_gpu" in args and args["n_gpu"] > 0:
-                torch.cuda.manual_seed_all(args["manual_seed"])
+        self.args = self._load_model_args(model_name)
 
-        self.args = {
-            "do_sample": True,
-            "prompt": "",
-            "length": 20,
-            "stop_token": None,
-            "temperature": 1.0,
-            "repetition_penalty": 1.0,
-            "k": 0,
-            "p": 0.9,
-            "padding_text": "",
-            "xlm_language": "",
-            "num_return_sequences": 1,
-            "config_name": None,
-            "tokenizer_name": None,
-        }
+        if isinstance(args, dict):
+            self.args.update_from_dict(args)
+        elif isinstance(args, LanguageGenerationArgs):
+            self.args = args
 
-        self.args.update(global_args)
+        if "sweep_config" in kwargs:
+            sweep_config = kwargs.pop("sweep_config")
+            sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
+            self.args.update_from_dict(sweep_values)
 
-        saved_model_args = self._load_model_args(model_name)
-        if saved_model_args:
-            self.args.update(saved_model_args)
-
-        if args:
-            self.args.update(args)
-
-        if args:
-            self.args.update(args)
-
-        self.args["model_name"] = model_name
-        self.args["model_type"] = model_type
+        if self.args.manual_seed:
+            random.seed(self.args.manual_seed)
+            np.random.seed(self.args.manual_seed)
+            torch.manual_seed(self.args.manual_seed)
+            if self.args.n_gpu > 0:
+                torch.cuda.manual_seed_all(self.args.manual_seed)
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -108,28 +90,29 @@ class LanguageGenerationModel:
             else:
                 raise ValueError(
                     "'use_cuda' set to True when cuda is unavailable."
-                    " Make sure CUDA is available or set use_cuda=False."
+                    "Make sure CUDA is available or set `use_cuda=False`."
                 )
         else:
             self.device = "cpu"
 
+        self.args.model_name = model_name
+        self.args.model_type = model_type
+
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
 
-        if self.args["tokenizer_name"]:
-            self.tokenizer = tokenizer_class.from_pretrained(
-                self.args["tokenizer_name"], cache_dir=self.args["cache_dir"]
-            )
+        if self.args.tokenizer_name:
+            self.tokenizer = tokenizer_class.from_pretrained(self.args.tokenizer_name, cache_dir=self.args.cache_dir)
         else:
-            self.tokenizer = tokenizer_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
-            self.args["tokenizer_name"] = model_name
+            self.tokenizer = tokenizer_class.from_pretrained(model_name, cache_dir=self.args.cache_dir, **kwargs)
+            self.args.tokenizer_name = model_name
 
-        if self.args["config_name"]:
-            self.config = config_class.from_pretrained(self.args["config_name"], cache_dir=self.args["cache_dir"])
+        if self.args.config_name:
+            self.config = config_class.from_pretrained(self.args.config_name, cache_dir=self.args.cache_dir)
         else:
-            self.config = config_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
+            self.config = config_class.from_pretrained(model_name, cache_dir=self.args.cache_dir, **kwargs)
 
         self.model = model_class.from_pretrained(
-            model_name, config=self.config, cache_dir=self.args["cache_dir"], **kwargs,
+            model_name, config=self.config, cache_dir=self.args.cache_dir, **kwargs,
         )
 
         self.model.to(self.device)
@@ -140,7 +123,7 @@ class LanguageGenerationModel:
         Generate text using a LanguageGenerationModel
 
         Args:
-            prompt (optional): A prompt text for the model. If given, will override args["prompt"]
+            prompt (optional): A prompt text for the model. If given, will override args.prompt
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             verbose (optional): If verbose, generated text will be logged to the console.
         Returns:
@@ -152,20 +135,20 @@ class LanguageGenerationModel:
         device = self.device
 
         if args:
-            self.args.update(args)
+            self.args.update_from_dict(args)
 
         if prompt:
-            self.args["prompt"] = prompt
-        elif not self.args["prompt"]:
-            self.args["prompt"] = input("Model prompt >>> ")
+            self.args.prompt = prompt
+        elif not self.args.prompt:
+            self.args.prompt = input("Model prompt >>> ")
 
-        prompt_text = self.args["prompt"]
+        prompt_text = self.args.prompt
         args = self.args
 
         # Different models need different input formatting and/or extra arguments
-        requires_preprocessing = args["model_type"] in PREPROCESSING_FUNCTIONS.keys()
+        requires_preprocessing = args.model_type in PREPROCESSING_FUNCTIONS.keys()
         if requires_preprocessing:
-            prepare_input = PREPROCESSING_FUNCTIONS.get(args["model_type"])
+            prepare_input = PREPROCESSING_FUNCTIONS.get(args.model_type)
             preprocessed_prompt_text = prepare_input(args, model, tokenizer, prompt_text)
             encoded_prompt = tokenizer.encode(
                 preprocessed_prompt_text,
@@ -179,13 +162,13 @@ class LanguageGenerationModel:
 
         output_sequences = model.generate(
             input_ids=encoded_prompt,
-            max_length=args["length"] + len(encoded_prompt[0]),
-            temperature=args["temperature"],
-            top_k=args["k"],
-            top_p=args["p"],
-            repetition_penalty=args["repetition_penalty"],
-            do_sample=args["do_sample"],
-            num_return_sequences=args["num_return_sequences"],
+            max_length=args.max_length + len(encoded_prompt[0]),
+            temperature=args.temperature,
+            top_k=args.top_k,
+            top_p=args.top_p,
+            repetition_penalty=args.repetition_penalty,
+            do_sample=args.do_sample,
+            num_return_sequences=args.num_return_sequences,
         )
 
         # Remove the batch dimension when returning multiple sequences
@@ -203,7 +186,7 @@ class LanguageGenerationModel:
             text = tokenizer.decode(generated_sequence, clean_up_tokenization_spaces=True)
 
             # Remove all text after the stop token
-            text = text[: text.find(args["stop_token"]) if args["stop_token"] else None]
+            text = text[: text.find(args.stop_token) if args.stop_token else None]
 
             # Add the prompt at the beginning of the sequence. Remove the excess text that was used for pre-processing
             total_sequence = (
@@ -218,12 +201,9 @@ class LanguageGenerationModel:
 
     def _save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
-        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
-            json.dump(self.args, f)
+        self.args.save(output_dir)
 
     def _load_model_args(self, input_dir):
-        model_args_file = os.path.join(input_dir, "model_args.json")
-        if os.path.isfile(model_args_file):
-            with open(model_args_file, "r") as f:
-                model_args = json.load(f)
-            return model_args
+        args = LanguageGenerationArgs()
+        args.load(input_dir)
+        return args

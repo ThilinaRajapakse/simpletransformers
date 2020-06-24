@@ -7,6 +7,7 @@ import os
 import random
 import warnings
 from multiprocessing import cpu_count
+from dataclasses import asdict
 
 import numpy as np
 from scipy.stats import pearsonr
@@ -21,6 +22,7 @@ from tqdm.auto import tqdm, trange
 import pandas as pd
 import torch
 from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import QuestionAnsweringArgs
 from simpletransformers.custom_models.models import ElectraForQuestionAnswering, XLMRobertaForQuestionAnswering
 from simpletransformers.question_answering.question_answering_utils import (
     RawResult,
@@ -111,39 +113,30 @@ class QuestionAnsweringModel:
             "xlnet": (XLNetConfig, XLNetForQuestionAnswering, XLNetTokenizer),
         }
 
-        if args and "manual_seed" in args:
-            random.seed(args["manual_seed"])
-            np.random.seed(args["manual_seed"])
-            torch.manual_seed(args["manual_seed"])
-            if "n_gpu" in args and args["n_gpu"] > 0:
-                torch.cuda.manual_seed_all(args["manual_seed"])
+        self.args = self._load_model_args(model_name)
 
-        self.args = {
-            "doc_stride": 384,
-            "max_query_length": 64,
-            "n_best_size": 20,
-            "max_answer_length": 100,
-            "null_score_diff_threshold": 0.0,
-        }
+        if isinstance(args, dict):
+            self.args.update_from_dict(args)
+        elif isinstance(args, QuestionAnsweringArgs):
+            self.args = args
 
-        self.args.update(global_args)
+        if "sweep_config" in kwargs:
+            sweep_config = kwargs.pop("sweep_config")
+            sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
+            self.args.update_from_dict(sweep_values)
 
-        saved_model_args = self._load_model_args(model_name)
-        if saved_model_args:
-            self.args.update(saved_model_args)
-
-        if args:
-            self.args.update(args)
-        self.args.update({"early_stopping_metric": "correct", "early_stopping_metric_minimize": False})
+        if self.args.manual_seed:
+            random.seed(self.args.manual_seed)
+            np.random.seed(self.args.manual_seed)
+            torch.manual_seed(self.args.manual_seed)
+            if self.args.n_gpu > 0:
+                torch.cuda.manual_seed_all(self.args.manual_seed)
 
         if not use_cuda:
-            self.args["fp16"] = False
-
-        if args:
-            self.args.update(args)
+            self.args.fp16 = False
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
-        self.config = config_class.from_pretrained(model_name, **self.args["config"])
+        self.config = config_class.from_pretrained(model_name, **self.args.config)
         self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
 
         if use_cuda:
@@ -162,16 +155,14 @@ class QuestionAnsweringModel:
 
         self.results = {}
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args["do_lower_case"], **kwargs
-        )
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
-        self.args["model_name"] = model_name
-        self.args["model_type"] = model_type
+        self.args.model_name = model_name
+        self.args.model_type = model_type
 
-        if self.args["wandb_project"] and not wandb_available:
+        if self.args.wandb_project and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
-            self.args["wandb_project"] = None
+            self.args.wandb_project = None
 
     def load_and_cache_examples(self, examples, evaluate=False, no_cache=False, output_examples=False):
         """
@@ -184,35 +175,34 @@ class QuestionAnsweringModel:
         args = self.args
 
         if not no_cache:
-            no_cache = args["no_cache"]
+            no_cache = args.no_cache
 
-        os.makedirs(self.args["cache_dir"], exist_ok=True)
+        os.makedirs(self.args.cache_dir, exist_ok=True)
 
         examples = get_examples(examples, is_training=not evaluate)
 
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(
-            args["cache_dir"],
-            "cached_{}_{}_{}_{}".format(mode, args["model_type"], args["max_seq_length"], len(examples)),
+            args.cache_dir, "cached_{}_{}_{}_{}".format(mode, args.model_type, args.max_seq_length, len(examples)),
         )
 
         if os.path.exists(cached_features_file) and (
-            (not args["reprocess_input_data"] and not no_cache) or (mode == "dev" and args["use_cached_eval_features"])
+            (not args.reprocess_input_data and not no_cache) or (mode == "dev" and args.use_cached_eval_features)
         ):
             features = torch.load(cached_features_file)
             logger.info(f" Features loaded from cache at {cached_features_file}")
         else:
-            logger.info(f" Converting to features started.")
+            logger.info(" Converting to features started.")
 
             features, dataset = squad_convert_examples_to_features(
                 examples=examples,
                 tokenizer=tokenizer,
-                max_seq_length=args["max_seq_length"],
-                doc_stride=args["doc_stride"],
-                max_query_length=args["max_query_length"],
+                max_seq_length=args.max_seq_length,
+                doc_stride=args.doc_stride,
+                max_query_length=args.max_query_length,
                 is_training=not evaluate,
-                tqdm_enabled=not args["silent"],
-                threads=args["process_count"],
+                tqdm_enabled=not args.silent,
+                threads=args.process_count,
                 args=args,
             )
 
@@ -254,7 +244,7 @@ class QuestionAnsweringModel:
 
         Args:
             train_data: Path to JSON file containing training data OR list of Python dicts in the correct format. The model will be trained on this data.
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             eval_data (optional): Path to JSON file containing evaluation data against which evaluation will be performed when evaluate_during_training is enabled.
@@ -266,21 +256,21 @@ class QuestionAnsweringModel:
         """  # noqa: ignore flake8"
 
         if args:
-            self.args.update(args)
+            self.args.update_from_dict(args)
 
-        if self.args["silent"]:
+        if self.args.silent:
             show_running_loss = False
 
-        if self.args["evaluate_during_training"] and eval_data is None:
+        if self.args.evaluate_during_training and eval_data is None:
             raise ValueError(
                 "evaluate_during_training is enabled but eval_data is not specified."
                 " Pass eval_data to model.train_model() if using evaluate_during_training."
             )
 
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
 
-        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args["overwrite_output_dir"]:
+        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args.overwrite_output_dir:
             raise ValueError(
                 "Output directory ({}) already exists and is not empty."
                 "Use --overwrite_output_dir to overcome.".format(output_dir)
@@ -289,7 +279,7 @@ class QuestionAnsweringModel:
         self._move_model_to_device()
 
         if isinstance(train_data, str):
-            with open(train_data, "r", encoding=self.args["encoding"]) as f:
+            with open(train_data, "r", encoding=self.args.encoding) as f:
                 train_examples = json.load(f)
         else:
             train_examples = train_data
@@ -304,7 +294,7 @@ class QuestionAnsweringModel:
 
         self._save_model(model=self.model)
 
-        logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+        logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_type, output_dir))
 
     def train(self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True, **kwargs):
         """
@@ -317,17 +307,17 @@ class QuestionAnsweringModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
+        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
-        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"])
+        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
 
-        t_total = len(train_dataloader) // args["gradient_accumulation_steps"] * args["num_train_epochs"]
+        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
                 "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": args["weight_decay"],
+                "weight_decay": args.weight_decay,
             },
             {
                 "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
@@ -335,47 +325,47 @@ class QuestionAnsweringModel:
             },
         ]
 
-        warmup_steps = math.ceil(t_total * args["warmup_ratio"])
-        args["warmup_steps"] = warmup_steps if args["warmup_steps"] == 0 else args["warmup_steps"]
+        warmup_steps = math.ceil(t_total * args.warmup_ratio)
+        args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
 
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args["learning_rate"], eps=args["adam_epsilon"],)
+        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon,)
         scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=args["warmup_steps"], num_training_steps=t_total
+            optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
         )
 
-        if args["fp16"]:
+        if args.fp16:
             try:
                 from apex import amp
             except ImportError:
                 raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
+            model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
 
-        if args["n_gpu"] > 1:
+        if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
-        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"], mininterval=0)
+        train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.silent, mininterval=0)
         epoch_number = 0
         best_eval_metric = None
         early_stopping_counter = 0
         steps_trained_in_current_epoch = 0
         epochs_trained = 0
 
-        if args["model_name"] and os.path.exists(args["model_name"]):
+        if args.model_name and os.path.exists(args.model_name):
             try:
                 # set global_step to gobal_step of last saved checkpoint from model path
-                checkpoint_suffix = args["model_name"].split("/")[-1].split("-")
+                checkpoint_suffix = args.model_name.split("/")[-1].split("-")
                 if len(checkpoint_suffix) > 2:
                     checkpoint_suffix = checkpoint_suffix[1]
                 else:
                     checkpoint_suffix = checkpoint_suffix[-1]
                 global_step = int(checkpoint_suffix)
-                epochs_trained = global_step // (len(train_dataloader) // args["gradient_accumulation_steps"])
+                epochs_trained = global_step // (len(train_dataloader) // args.gradient_accumulation_steps)
                 steps_trained_in_current_epoch = global_step % (
-                    len(train_dataloader) // args["gradient_accumulation_steps"]
+                    len(train_dataloader) // args.gradient_accumulation_steps
                 )
 
                 logger.info("   Continuing training from checkpoint, will skip to saved global_step")
@@ -385,11 +375,11 @@ class QuestionAnsweringModel:
             except ValueError:
                 logger.info("   Starting fine-tuning.")
 
-        if args["evaluate_during_training"]:
+        if args.evaluate_during_training:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
-        if args["wandb_project"]:
-            wandb.init(project=args["wandb_project"], config={**args}, **args["wandb_kwargs"])
+        if args.wandb_project:
+            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         model.train()
@@ -397,8 +387,10 @@ class QuestionAnsweringModel:
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue
-            # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])):
+            train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
+            for step, batch in enumerate(
+                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
+            ):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
@@ -410,7 +402,7 @@ class QuestionAnsweringModel:
                 # model outputs are always tuple in pytorch-transformers (see doc)
                 loss = outputs[0]
 
-                if args["n_gpu"] > 1:
+                if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
 
                 current_loss = loss.item()
@@ -418,41 +410,41 @@ class QuestionAnsweringModel:
                 if show_running_loss:
                     print("\rRunning loss: %f" % loss, end="")
 
-                if args["gradient_accumulation_steps"] > 1:
-                    loss = loss / args["gradient_accumulation_steps"]
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
 
-                if args["fp16"]:
+                if args.fp16:
                     with amp.scale_loss(loss, optimizer) as scaled_loss:
                         scaled_loss.backward()
                     # torch.nn.utils.clip_grad_norm_(
-                    #     amp.master_params(optimizer), args["max_grad_norm"]
+                    #     amp.master_params(optimizer), args.max_grad_norm
                     # )
                 else:
                     loss.backward()
                     # torch.nn.utils.clip_grad_norm_(
-                    #     model.parameters(), args["max_grad_norm"]
+                    #     model.parameters(), args.max_grad_norm
                     # )
 
                 tr_loss += loss.item()
-                if (step + 1) % args["gradient_accumulation_steps"] == 0:
-                    if args["fp16"]:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args["max_grad_norm"])
+                if (step + 1) % args.gradient_accumulation_steps == 0:
+                    if args.fp16:
+                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
                     else:
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args["max_grad_norm"])
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                     optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1
 
-                    if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
+                    if args.logging_steps > 0 and global_step % args.logging_steps == 0:
                         # Log metrics
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
                         tb_writer.add_scalar(
-                            "loss", (tr_loss - logging_loss) / args["logging_steps"], global_step,
+                            "loss", (tr_loss - logging_loss) / args.logging_steps, global_step,
                         )
                         logging_loss = tr_loss
-                        if args["wandb_project"]:
+                        if args.wandb_project:
                             wandb.log(
                                 {
                                     "Training loss": current_loss,
@@ -461,15 +453,15 @@ class QuestionAnsweringModel:
                                 }
                             )
 
-                    if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
+                    if args.save_steps > 0 and global_step % args.save_steps == 0:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
                         self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
-                    if args["evaluate_during_training"] and (
-                        args["evaluate_during_training_steps"] > 0
-                        and global_step % args["evaluate_during_training_steps"] == 0
+                    if args.evaluate_during_training and (
+                        args.evaluate_during_training_steps > 0
+                        and global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, _ = self.eval_model(eval_data, verbose=False, **kwargs)
@@ -478,7 +470,7 @@ class QuestionAnsweringModel:
 
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        if args["save_eval_checkpoints"]:
+                        if args.save_eval_checkpoints:
                             self._save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
 
                         training_progress_scores["global_step"].append(global_step)
@@ -487,66 +479,54 @@ class QuestionAnsweringModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                         )
 
-                        if args["wandb_project"]:
+                        if args.wandb_project:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
                         if not best_eval_metric:
-                            best_eval_metric = results[args["early_stopping_metric"]]
-                            self._save_model(
-                                args["best_model_dir"], optimizer, scheduler, model=model, results=results
-                            )
-                        if best_eval_metric and args["early_stopping_metric_minimize"]:
-                            if (
-                                results[args["early_stopping_metric"]] - best_eval_metric
-                                < args["early_stopping_delta"]
-                            ):
-                                best_eval_metric = results[args["early_stopping_metric"]]
+                            best_eval_metric = results[args.early_stopping_metric]
+                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                        if best_eval_metric and args.early_stopping_metric_minimize:
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                                best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
-                                    args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                                    args.best_model_dir, optimizer, scheduler, model=model, results=results
                                 )
                                 early_stopping_counter = 0
                             else:
-                                if args["use_early_stopping"]:
-                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                if args.use_early_stopping:
+                                    if early_stopping_counter < args.early_stopping_patience:
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" No improvement in {args.early_stopping_metric}")
                                             logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args['early_stopping_patience']} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args["early_stopping_metric"]] - best_eval_metric
-                                > args["early_stopping_delta"]
-                            ):
-                                best_eval_metric = results[args["early_stopping_metric"]]
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                                best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
-                                    args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                                    args.best_model_dir, optimizer, scheduler, model=model, results=results
                                 )
                                 early_stopping_counter = 0
                             else:
-                                if args["use_early_stopping"]:
-                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                if args.use_early_stopping:
+                                    if early_stopping_counter < args.early_stopping_patience:
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" No improvement in {args.early_stopping_metric}")
                                             logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args['early_stopping_patience']} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
@@ -554,13 +534,13 @@ class QuestionAnsweringModel:
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
-            if args["save_model_every_epoch"] or args["evaluate_during_training"]:
+            if args.save_model_every_epoch or args.evaluate_during_training:
                 os.makedirs(output_dir_current, exist_ok=True)
 
-            if args["save_model_every_epoch"]:
+            if args.save_model_every_epoch:
                 self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
-            if args["evaluate_during_training"]:
+            if args.evaluate_during_training:
                 results, _ = self.eval_model(eval_data, verbose=False, **kwargs)
 
                 self._save_model(output_dir_current, optimizer, scheduler, results=results)
@@ -570,49 +550,49 @@ class QuestionAnsweringModel:
                 for key in results:
                     training_progress_scores[key].append(results[key])
                 report = pd.DataFrame(training_progress_scores)
-                report.to_csv(os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False)
+                report.to_csv(os.path.join(args.output_dir, "training_progress_scores.csv"), index=False)
 
-                if args["wandb_project"]:
+                if args.wandb_project:
                     wandb.log(self._get_last_metrics(training_progress_scores))
 
                 if not best_eval_metric:
-                    best_eval_metric = results[args["early_stopping_metric"]]
-                    self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
-                if best_eval_metric and args["early_stopping_metric_minimize"]:
-                    if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
-                        best_eval_metric = results[args["early_stopping_metric"]]
-                        self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
+                    best_eval_metric = results[args.early_stopping_metric]
+                    self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                if best_eval_metric and args.early_stopping_metric_minimize:
+                    if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                        best_eval_metric = results[args.early_stopping_metric]
+                        self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                     else:
-                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
-                            if early_stopping_counter < args["early_stopping_patience"]:
+                        if args.use_early_stopping and args.early_stopping_consider_epochs:
+                            if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
-                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" No improvement in {args.early_stopping_metric}")
                                     logger.info(f" Current step: {early_stopping_counter}")
-                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                             else:
                                 if verbose:
-                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
                 else:
-                    if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
-                        best_eval_metric = results[args["early_stopping_metric"]]
-                        self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
+                    if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                        best_eval_metric = results[args.early_stopping_metric]
+                        self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                     else:
-                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
-                            if early_stopping_counter < args["early_stopping_patience"]:
+                        if args.use_early_stopping and args.early_stopping_consider_epochs:
+                            if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
-                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" No improvement in {args.early_stopping_metric}")
                                     logger.info(f" Current step: {early_stopping_counter}")
-                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                             else:
                                 if verbose:
-                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
@@ -625,7 +605,7 @@ class QuestionAnsweringModel:
 
         Args:
             eval_data: Path to JSON file containing evaluation data OR list of Python dicts in the correct format. The model will be evaluated on this data.
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             verbose_logging: Log info related to feature conversion and writing predictions.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
@@ -637,7 +617,7 @@ class QuestionAnsweringModel:
         """  # noqa: ignore flake8"
 
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
 
         self._move_model_to_device()
 
@@ -646,7 +626,7 @@ class QuestionAnsweringModel:
         )
 
         if isinstance(eval_data, str):
-            with open(eval_data, "r", encoding=self.args["encoding"]) as f:
+            with open(eval_data, "r", encoding=self.args.encoding) as f:
                 truth = json.load(f)
         else:
             truth = eval_data
@@ -673,7 +653,7 @@ class QuestionAnsweringModel:
         args = self.args
 
         if isinstance(eval_data, str):
-            with open(eval_data, "r", encoding=self.args["encoding"]) as f:
+            with open(eval_data, "r", encoding=self.args.encoding) as f:
                 eval_examples = json.load(f)
         else:
             eval_examples = eval_data
@@ -683,14 +663,14 @@ class QuestionAnsweringModel:
         )
 
         eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
+        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
         eval_loss = 0.0
         nb_eval_steps = 0
         model.eval()
 
         all_results = []
-        for batch in tqdm(eval_dataloader, disable=args["silent"]):
+        for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Evaluation"):
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
@@ -700,12 +680,12 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
+                if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
 
-                if args["model_type"] in ["xlnet", "xlm"]:
+                if args.model_type in ["xlnet", "xlm"]:
                     inputs.update({"cls_index": batch[4], "p_mask": batch[5]})
 
                 outputs = model(**inputs)
@@ -714,7 +694,7 @@ class QuestionAnsweringModel:
                 for i, example_index in enumerate(example_indices):
                     eval_feature = features[example_index.item()]
                     unique_id = int(eval_feature.unique_id)
-                    if args["model_type"] in ["xlnet", "xlm"]:
+                    if args.model_type in ["xlnet", "xlm"]:
                         # XLNet uses a more complex post-processing procedure
                         result = RawResultExtended(
                             unique_id=unique_id,
@@ -743,14 +723,14 @@ class QuestionAnsweringModel:
         output_nbest_file = os.path.join(output_dir, "nbest_predictions_{}.json".format(prefix))
         output_null_log_odds_file = os.path.join(output_dir, "null_odds_{}.json".format(prefix))
 
-        if args["model_type"] in ["xlnet", "xlm"]:
+        if args.model_type in ["xlnet", "xlm"]:
             # XLNet uses a more complex post-processing procedure
             (all_predictions, all_nbest_json, scores_diff_json,) = write_predictions_extended(
                 examples,
                 features,
                 all_results,
-                args["n_best_size"],
-                args["max_answer_length"],
+                args.n_best_size,
+                args.max_answer_length,
                 output_prediction_file,
                 output_nbest_file,
                 output_null_log_odds_file,
@@ -766,15 +746,15 @@ class QuestionAnsweringModel:
                 examples,
                 features,
                 all_results,
-                args["n_best_size"],
-                args["max_answer_length"],
+                args.n_best_size,
+                args.max_answer_length,
                 False,
                 output_prediction_file,
                 output_nbest_file,
                 output_null_log_odds_file,
                 verbose_logging,
                 True,
-                args["null_score_diff_threshold"],
+                args.null_score_diff_threshold,
             )
 
         return all_predictions, all_nbest_json, scores_diff_json, eval_loss
@@ -794,10 +774,10 @@ class QuestionAnsweringModel:
                                 ]
                             }
                         ])
-            n_best_size (Optional): Number of predictions to return. args['n_best_size'] will be used if not specified.
+            n_best_size (Optional): Number of predictions to return. args.n_best_size will be used if not specified.
 
         Returns:
-            preds: A python list containg the predicted answer, and id for each question in to_predict.
+            preds: A python list containing the predicted answer, and id for each question in to_predict.
         """  # noqa: ignore flake8"
         tokenizer = self.tokenizer
         device = self.device
@@ -805,7 +785,7 @@ class QuestionAnsweringModel:
         args = self.args
 
         if not n_best_size:
-            n_best_size = args["n_best_size"]
+            n_best_size = args.n_best_size
 
         self._move_model_to_device()
 
@@ -815,12 +795,12 @@ class QuestionAnsweringModel:
         )
 
         eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"])
+        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
         model.eval()
 
         all_results = []
-        for batch in tqdm(eval_dataloader, disable=args["silent"]):
+        for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
@@ -830,12 +810,12 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
+                if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
 
-                if args["model_type"] in ["xlnet", "xlm"]:
+                if args.model_type in ["xlnet", "xlm"]:
                     inputs.update({"cls_index": batch[4], "p_mask": batch[5]})
 
                 outputs = model(**inputs)
@@ -843,7 +823,7 @@ class QuestionAnsweringModel:
                 for i, example_index in enumerate(example_indices):
                     eval_feature = features[example_index.item()]
                     unique_id = int(eval_feature.unique_id)
-                    if args["model_type"] in ["xlnet", "xlm"]:
+                    if args.model_type in ["xlnet", "xlm"]:
                         # XLNet uses a more complex post-processing procedure
                         result = RawResultExtended(
                             unique_id=unique_id,
@@ -861,22 +841,22 @@ class QuestionAnsweringModel:
                         )
                     all_results.append(result)
 
-        if args["model_type"] in ["xlnet", "xlm"]:
+        if args.model_type in ["xlnet", "xlm"]:
             answers = get_best_predictions_extended(
                 examples,
                 features,
                 all_results,
                 n_best_size,
-                args["max_answer_length"],
+                args.max_answer_length,
                 model.config.start_n_top,
                 model.config.end_n_top,
                 True,
                 tokenizer,
-                args["null_score_diff_threshold"],
+                args.null_score_diff_threshold,
             )
         else:
             answers = get_best_predictions(
-                examples, features, all_results, n_best_size, args["max_answer_length"], False, False, True, False,
+                examples, features, all_results, n_best_size, args.max_answer_length, False, False, True, False,
             )
 
         answer_list = [{"id": answer["id"], "answer": answer["answer"]} for answer in answers]
@@ -954,10 +934,10 @@ class QuestionAnsweringModel:
             "end_positions": batch[4],
         }
 
-        if self.args["model_type"] in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
+        if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
             del inputs["token_type_ids"]
 
-        if self.args["model_type"] in ["xlnet", "xlm"]:
+        if self.args.model_type in ["xlnet", "xlm"]:
             inputs.update({"cls_index": batch[5], "p_mask": batch[6]})
 
         return inputs
@@ -978,16 +958,16 @@ class QuestionAnsweringModel:
 
     def _save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
         os.makedirs(output_dir, exist_ok=True)
 
-        if model and not self.args["no_save"]:
+        if model and not self.args.no_save:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            if optimizer and scheduler and self.args["save_optimizer_and_scheduler"]:
+            if optimizer and scheduler and self.args.save_optimizer_and_scheduler:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                 torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
             self._save_model_args(output_dir)
@@ -1000,12 +980,9 @@ class QuestionAnsweringModel:
 
     def _save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
-        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
-            json.dump(self.args, f)
+        self.args.save(output_dir)
 
     def _load_model_args(self, input_dir):
-        model_args_file = os.path.join(input_dir, "model_args.json")
-        if os.path.isfile(model_args_file):
-            with open(model_args_file, "r") as f:
-                model_args = json.load(f)
-            return model_args
+        args = QuestionAnsweringArgs()
+        args.load(input_dir)
+        return args

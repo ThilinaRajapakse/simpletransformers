@@ -27,6 +27,7 @@ import logging
 
 from simpletransformers.language_modeling import (
     LanguageModelingModel,
+    LanguageModelingArgs,
 )
 
 
@@ -34,12 +35,11 @@ logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
-model_args = {
-    "reprocess_input_data": True,
-    "overwrite_output_dir": True,
-    "num_train_epochs": 1,
-    "dataset_type": "simple",
-}
+model_args = LanguageModelingArgs()
+model_args.reprocess_input_data = True
+model_args.overwrite_output_dir = True
+model_args.num_train_epochs = 1
+model_args.dataset_type = "simple"
 
 train_file = "data/train.txt"
 test_file = "data/test.txt"
@@ -63,6 +63,7 @@ import logging
 
 from simpletransformers.language_modeling import (
     LanguageModelingModel,
+    LanguageModelingArgs,
 )
 
 
@@ -70,13 +71,12 @@ logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
-model_args = {
-    "reprocess_input_data": True,
-    "overwrite_output_dir": True,
-    "num_train_epochs": 1,
-    "dataset_type": "simple",
-    "mlm": False,  # mlm must be False for CLM
-}
+
+model_args.reprocess_input_data = True
+model_args.overwrite_output_dir = True
+model_args.num_train_epochs = 1
+model_args.dataset_type = "simple"
+model_args.mlm = False  # mlm must be False for CLM
 
 train_file = "data/train.txt"
 test_file = "data/test.txt"
@@ -101,6 +101,7 @@ import logging
 
 from simpletransformers.language_modeling import (
     LanguageModelingModel,
+    LanguageModelingArgs,
 )
 
 
@@ -108,12 +109,11 @@ logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
-model_args = {
-    "reprocess_input_data": True,
-    "overwrite_output_dir": True,
-    "num_train_epochs": 1,
-    "dataset_type": "simple",
-}
+
+model_args.reprocess_input_data = True
+model_args.overwrite_output_dir = True
+model_args.num_train_epochs = 1
+model_args.dataset_type = "simple"
 
 train_file = "data/train.txt"
 test_file = "data/test.txt"
@@ -151,6 +151,7 @@ import logging
 
 from simpletransformers.language_modeling import (
     LanguageModelingModel,
+    LanguageModelingArgs,
 )
 
 
@@ -158,13 +159,12 @@ logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
-model_args = {
-    "reprocess_input_data": True,
-    "overwrite_output_dir": True,
-    "num_train_epochs": 1,
-    "dataset_type": "simple",
-    "vocab_size": 30000
-}
+
+model_args.reprocess_input_data = True
+model_args.overwrite_output_dir = True
+model_args.num_train_epochs = 1
+model_args.dataset_type = "simple"
+model_args.vocab_size = 30000
 
 train_file = "data/train.txt"
 test_file = "data/test.txt"
@@ -188,6 +188,7 @@ import logging
 
 from simpletransformers.language_modeling import (
     LanguageModelingModel,
+    LanguageModelingArgs,
 )
 
 
@@ -195,14 +196,13 @@ logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
-model_args = {
-    "reprocess_input_data": True,
-    "overwrite_output_dir": True,
-    "num_train_epochs": 1,
-    "dataset_type": "simple",
-    "mlm": False,  # mlm must be False for CLM
-    "vocab_size": 30000
-}
+
+model_args.reprocess_input_data = True
+model_args.overwrite_output_dir = True
+model_args.num_train_epochs = 1
+model_args.dataset_type = "simple"
+model_args.mlm = False  # mlm must be False for CLM
+model_args.vocab_size = 30000
 
 train_file = "data/train.txt"
 test_file = "data/test.txt"
@@ -226,6 +226,7 @@ import logging
 
 from simpletransformers.language_modeling import (
     LanguageModelingModel,
+    LanguageModelingArgs,
 )
 
 
@@ -233,13 +234,12 @@ logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
-model_args = {
-    "reprocess_input_data": True,
-    "overwrite_output_dir": True,
-    "num_train_epochs": 1,
-    "dataset_type": "simple",
-    "vocab_size": 30000
-}
+
+model_args.reprocess_input_data = True
+model_args.overwrite_output_dir = True
+model_args.num_train_epochs = 1
+model_args.dataset_type = "simple"
+model_args.vocab_size = 30000
 
 train_file = "data/train.txt"
 test_file = "data/test.txt"

@@ -24,18 +24,18 @@ class TextDataset(Dataset):
 
         directory, filename = os.path.split(file_path)
         cached_features_file = os.path.join(
-            args["cache_dir"], args["model_type"] + "_cached_lm_" + str(block_size) + "_" + filename
+            args.cache_dir, args.model_type + "_cached_lm_" + str(block_size) + "_" + filename
         )
 
         if os.path.exists(cached_features_file) and (
-            (not args["reprocess_input_data"] and not args["no_cache"])
-            or (mode == "dev" and args["use_cached_eval_features"] and not args["no_cache"])
+            (not args.reprocess_input_data and not args.no_cache)
+            or (mode == "dev" and args.use_cached_eval_features and not args.no_cache)
         ):
             logger.info(" Loading features from cached file %s", cached_features_file)
             with open(cached_features_file, "rb") as handle:
                 self.examples = pickle.load(handle)
         else:
-            logger.info(" Creating features from dataset file at %s", args["cache_dir"])
+            logger.info(" Creating features from dataset file at %s", args.cache_dir)
 
             self.examples = []
             with open(file_path, encoding="utf-8") as f:
@@ -61,13 +61,13 @@ class TextDataset(Dataset):
                 for i in tqdm(range(0, len(tokenized_text) - block_size + 1, block_size))
             ]
 
-            with Pool(args["process_count"]) as p:
+            with Pool(args.process_count) as p:
                 self.examples = list(
                     tqdm(
                         p.imap(
                             tokenizer.build_inputs_with_special_tokens,
                             tokenized_text_split,
-                            chunksize=args["multiprocessing_chunksize"],
+                            chunksize=args.multiprocessing_chunksize,
                         ),
                         total=len(tokenized_text_split),
                         # disable=silent,
@@ -102,9 +102,7 @@ class LineByLineTextDataset(Dataset):
         with open(file_path, encoding="utf-8") as f:
             lines = [line for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())]
 
-        tokenizer = ByteLevelBPETokenizer(
-            f"{args['tokenizer_name']}/vocab.json", f"{args['tokenizer_name']}/merges.txt",
-        )
+        tokenizer = ByteLevelBPETokenizer(f"{args.tokenizer_name}/vocab.json", f"{args.tokenizer_name}/merges.txt",)
         tokenizer._tokenizer.post_processor = BertProcessing(
             ("</s>", tokenizer.token_to_id("</s>")), ("<s>", tokenizer.token_to_id("<s>")),
         )
@@ -167,33 +165,33 @@ class SimpleDataset(Dataset):
         block_size = block_size - special_tokens_count
         directory, filename = os.path.split(file_path)
         cached_features_file = os.path.join(
-            args["cache_dir"], args["model_type"] + "_cached_lm_" + str(block_size) + "_" + filename
+            args.cache_dir, args.model_type + "_cached_lm_" + str(block_size) + "_" + filename
         )
 
         if os.path.exists(cached_features_file) and (
-            (not args["reprocess_input_data"] and not args["no_cache"])
-            or (mode == "dev" and args["use_cached_eval_features"] and not args["no_cache"])
+            (not args.reprocess_input_data and not args.no_cache)
+            or (mode == "dev" and args.use_cached_eval_features and not args.no_cache)
         ):
             logger.info(" Loading features from cached file %s", cached_features_file)
             with open(cached_features_file, "rb") as handle:
                 self.examples = pickle.load(handle)
         else:
-            logger.info(" Creating features from dataset file at %s", args["cache_dir"])
+            logger.info(" Creating features from dataset file at %s", args.cache_dir)
 
             if sliding_window:
-                no_padding = True if args["model_type"] in ["gpt2", "openai-gpt"] else False
+                no_padding = True if args.model_type in ["gpt2", "openai-gpt"] else False
                 with open(file_path, encoding="utf-8") as f:
                     lines = [
-                        (tokenizer, line, args["max_seq_length"], special_tokens_count, args["stride"], no_padding)
+                        (tokenizer, line, args.max_seq_length, special_tokens_count, args.stride, no_padding)
                         for line in f.read().splitlines()
                         if (len(line) > 0 and not line.isspace())
                     ]
 
-                if args["use_multiprocessing"]:
-                    with Pool(args["process_count"]) as p:
+                if args.use_multiprocessing:
+                    with Pool(args.process_count) as p:
                         self.examples = list(
                             tqdm(
-                                p.imap(encode_sliding_window, lines, chunksize=args["multiprocessing_chunksize"]),
+                                p.imap(encode_sliding_window, lines, chunksize=args.multiprocessing_chunksize),
                                 total=len(lines),
                                 # disable=silent,
                             )
@@ -208,11 +206,11 @@ class SimpleDataset(Dataset):
                         (tokenizer, line) for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())
                     ]
 
-                if args["use_multiprocessing"]:
-                    with Pool(args["process_count"]) as p:
+                if args.use_multiprocessing:
+                    with Pool(args.process_count) as p:
                         self.examples = list(
                             tqdm(
-                                p.imap(encode, lines, chunksize=args["multiprocessing_chunksize"]),
+                                p.imap(encode, lines, chunksize=args.multiprocessing_chunksize),
                                 total=len(lines),
                                 # disable=silent,
                             )
@@ -252,7 +250,7 @@ def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, args) -> T
     labels = inputs.clone()
     # We sample a few tokens in each sequence for masked-LM training
     # (with probability args.mlm_probability defaults to 0.15 in Bert/RoBERTa)
-    probability_matrix = torch.full(labels.shape, args["mlm_probability"])
+    probability_matrix = torch.full(labels.shape, args.mlm_probability)
     special_tokens_mask = [
         tokenizer.get_special_tokens_mask(val, already_has_special_tokens=True) for val in labels.tolist()
     ]

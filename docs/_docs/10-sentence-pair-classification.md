@@ -22,7 +22,7 @@ Sentence pairs are supported in all classification subtasks.
 
 ```python
 from simpletransformers.classification import (
-    ClassificationModel,
+    ClassificationModel, ClassificationArgs
 )
 import pandas as pd
 import logging
@@ -65,9 +65,7 @@ eval_df = pd.DataFrame(eval_data)
 eval_df.columns = ["text_a", "text_b", "labels"]
 
 # Optional model configuration
-model_args = {
-    "num_train_epochs": 1,
-}
+model_args = ClassificationArgs(num_train_epochs=1)
 
 # Create a ClassificationModel
 model = ClassificationModel("roberta", "roberta-base")

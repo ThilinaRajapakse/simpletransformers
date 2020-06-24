@@ -15,7 +15,7 @@ The minimal start given below uses a `n` value of `3`. You can change `n` by cha
 ## Minimal Start
 
 ```python
-from simpletransformers.classification import ClassificationModel
+from simpletransformers.classification import ClassificationModel, ClassificationArgs
 import pandas as pd
 import logging
 
@@ -43,9 +43,7 @@ eval_df = pd.DataFrame(eval_data)
 eval_df.columns = ["text", "labels"]
 
 # Optional model configuration
-model_args = {
-    "num_train_epochs": 1,
-}
+model_args = ClassificationArgs(num_train_epochs=1)
 
 # Create a ClassificationModel
 model = ClassificationModel(

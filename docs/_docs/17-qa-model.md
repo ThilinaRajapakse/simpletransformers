@@ -50,6 +50,19 @@ model = QuestionAnsweringModel(
 | max_answer_length         | int   | `100`   | The maximum token length of an answer that can be generated.                                         |
 | null_score_diff_threshold | float | `0.0`   | If `(null_score - best_non_null)` is greater than the threshold predict null.                            |
 
+```python
+from simpletransformers.question_answering import QuestionAnsweringModel, QuestionAnsweringArgs
+
+
+model_args = QuestionAnsweringModel(n_best_size=2)
+
+model = QuestionAnsweringModel(
+    "roberta",
+    "roberta-base",
+    args=model_args,
+)
+```
+
 **Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
 {: .notice--info}
 

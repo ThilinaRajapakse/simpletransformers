@@ -8,7 +8,7 @@ last_modified_at: 2020-05-02 17:58:53
 ```python
 import logging
 
-from simpletransformers.ner import NERModel
+from simpletransformers.ner import NERModel, NERArgs
 
 
 logging.basicConfig(level=logging.INFO)
@@ -55,10 +55,10 @@ eval_data = pd.DataFrame(
     eval_data, columns=["sentence_id", "words", "labels"]
 )
 
-model_args = {
-    "train_batch_size": 16,
-    "evaluate_during_training": True,
-}
+# Configure the model
+model_args = NERArgs()
+model_args.train_batch_size = 16
+model_args.evaluate_during_training = True
 
 model = NERModel(
     "roberta", "roberta-base", args=model_args

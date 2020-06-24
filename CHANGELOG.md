@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.0] - 2020-06-23
+
+### Added
+
+ - All Simple Transformers models can now be used with W&B sweeps.
+ - `eval_model()` now logs to wandb in the following models (can be turned off with `wandb_log=False`)
+   - `ClassificationModel`
+   - `NERModel`
+ - Model args can now be specified through the relevant dataclass. (E.g. `ClassificationArgs`, `T5Args`, etc.)
+ - All model args are now saved and loaded automatically with Simple Transformers models.
+ - Multiprocessed decoding support added to Seq2Seq models
+ - Custom label support for Classification tasks (except multilabel).
+ - NER labels can be given as `NERArgs.labels_list` (persists through args saving)
+
+### Changed
+
+- Changed `NERModel.eval_model()` to return usable model_outputs
+- Improved `tqdm` descriptions in progress bars
+- ConvAIModel arg `no_sample` renamed to `do_sample` for consistency
+
 ## [0.34.4] - 2020-06-17
 
 ### Added
@@ -862,7 +882,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.34.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e112de...HEAD
+[0.40.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cf66100...HEAD
+
+[0.34.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e112de...cf66100
 
 [0.34.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/19ecd79...3e112de
 

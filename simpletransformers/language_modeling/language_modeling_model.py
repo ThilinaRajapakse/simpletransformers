@@ -12,6 +12,7 @@ import random
 import warnings
 from multiprocessing import cpu_count
 from typing import Dict, List
+from dataclasses import asdict
 
 import numpy as np
 from sklearn.metrics import (
@@ -25,6 +26,7 @@ from tqdm.auto import tqdm, trange
 import pandas as pd
 import torch
 from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import LanguageModelingArgs
 from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
 from simpletransformers.language_modeling.language_modeling_utils import (
     SimpleDataset,
@@ -126,50 +128,35 @@ class LanguageModelingModel:
         """  # noqa: ignore flake8"
 
         if args and "manual_seed" in args:
-            random.seed(args["manual_seed"])
-            np.random.seed(args["manual_seed"])
-            torch.manual_seed(args["manual_seed"])
-            if "n_gpu" in args and args["n_gpu"] > 0:
-                torch.cuda.manual_seed_all(args["manual_seed"])
+            random.seed(args.manual_seed)
+            np.random.seed(args.manual_seed)
+            torch.manual_seed(args.manual_seed)
+            if "n_gpu" in args and args.n_gpu > 0:
+                torch.cuda.manual_seed_all(args.manual_seed)
 
-        self.args = {
-            "block_size": -1,
-            "config_name": None,
-            "dataset_class": None,
-            "dataset_type": "None",
-            "discriminator_config": {},
-            "discriminator_loss_weight": 50,
-            "generator_config": {},
-            "max_steps": -1,
-            "min_frequency": 2,
-            "mlm": True,
-            "mlm_probability": 0.15,
-            "sliding_window": False,
-            "special_tokens": ["<s>", "<pad>", "</s>", "<unk>", "<mask>"],
-            "stride": 0.8,
-            "tie_generator_and_discriminator_embeddings": True,
-            "tokenizer_name": None,
-            "vocab_size": None,
-            "local_rank": -1,
-            "clean_text" : True,
-            "handle_chinese_chars" : True,
-            "strip_accents" : True,
-            "lowercase" : True,
-        }
+        self.args = self._load_model_args(model_name)
 
-        self.args.update(global_args)
+        if isinstance(args, dict):
+            self.args.update_from_dict(args)
+        elif isinstance(args, LanguageModelingArgs):
+            self.args = args
 
-        saved_model_args = self._load_model_args(model_name)
-        if saved_model_args:
-            self.args.update(saved_model_args)
+        if "sweep_config" in kwargs:
+            sweep_config = kwargs.pop("sweep_config")
+            sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
+            self.args.update_from_dict(sweep_values)
 
-        if args:
-            self.args.update(args)
+        if self.args.manual_seed:
+            random.seed(self.args.manual_seed)
+            np.random.seed(self.args.manual_seed)
+            torch.manual_seed(self.args.manual_seed)
+            if self.args.n_gpu > 0:
+                torch.cuda.manual_seed_all(self.args.manual_seed)
 
-        if self.args["local_rank"] != -1:
-            logger.info(f'local_rank: {self.args["local_rank"]}')
+        if self.args.local_rank != -1:
+            logger.info(f"local_rank: {self.args.local_rank}")
             torch.distributed.init_process_group(backend="nccl")
-            cuda_device = self.args["local_rank"]
+            cuda_device = self.args.local_rank
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -188,30 +175,26 @@ class LanguageModelingModel:
         self.results = {}
 
         if not use_cuda:
-            self.args["fp16"] = False
+            self.args.fp16 = False
 
-        self.args["model_name"] = model_name
-        self.args["model_type"] = model_type
+        self.args.model_name = model_name
+        self.args.model_type = model_type
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.tokenizer_class = tokenizer_class
         new_tokenizer = False
 
-        if self.args["tokenizer_name"]:
-            self.tokenizer = tokenizer_class.from_pretrained(
-                self.args["tokenizer_name"], cache_dir=self.args["cache_dir"]
-            )
-        elif self.args["model_name"]:
-            if self.args["model_name"] == "electra":
+        if self.args.tokenizer_name:
+            self.tokenizer = tokenizer_class.from_pretrained(self.args.tokenizer_name, cache_dir=self.args.cache_dir)
+        elif self.args.model_name:
+            if self.args.model_name == "electra":
                 self.tokenizer = tokenizer_class.from_pretrained(
-                    generator_name, cache_dir=self.args["cache_dir"], **kwargs
+                    generator_name, cache_dir=self.args.cache_dir, **kwargs
                 )
-                self.args["tokenizer_name"] = self.args["model_name"]
+                self.args.tokenizer_name = self.args.model_name
             else:
-                self.tokenizer = tokenizer_class.from_pretrained(
-                    model_name, cache_dir=self.args["cache_dir"], **kwargs
-                )
-                self.args["tokenizer_name"] = self.args["model_name"]
+                self.tokenizer = tokenizer_class.from_pretrained(model_name, cache_dir=self.args.cache_dir, **kwargs)
+                self.args.tokenizer_name = self.args.model_name
         else:
             if not train_files:
                 raise ValueError(
@@ -222,48 +205,48 @@ class LanguageModelingModel:
                 self.train_tokenizer(train_files)
                 new_tokenizer = True
 
-        if self.args["config_name"]:
-            self.config = config_class.from_pretrained(self.args["config_name"], cache_dir=self.args["cache_dir"])
-        elif self.args["model_name"] and self.args["model_name"] != "electra":
-            self.config = config_class.from_pretrained(model_name, cache_dir=self.args["cache_dir"], **kwargs)
+        if self.args.config_name:
+            self.config = config_class.from_pretrained(self.args.config_name, cache_dir=self.args.cache_dir)
+        elif self.args.model_name and self.args.model_name != "electra":
+            self.config = config_class.from_pretrained(model_name, cache_dir=self.args.cache_dir, **kwargs)
         else:
-            self.config = config_class(**self.args["config"], **kwargs)
-        if self.args["vocab_size"]:
-            self.config.vocab_size = self.args["vocab_size"]
+            self.config = config_class(**self.args.config, **kwargs)
+        if self.args.vocab_size:
+            self.config.vocab_size = self.args.vocab_size
         if new_tokenizer:
             self.config.vocab_size = len(self.tokenizer)
 
-        if self.args["model_type"] == "electra":
+        if self.args.model_type == "electra":
             if generator_name:
                 self.generator_config = ElectraConfig.from_pretrained(generator_name)
-            elif self.args["model_name"]:
+            elif self.args.model_name:
                 self.generator_config = ElectraConfig.from_pretrained(
-                    os.path.join(self.args["model_name"], "generator_config"), **kwargs,
+                    os.path.join(self.args.model_name, "generator_config"), **kwargs,
                 )
             else:
-                self.generator_config = ElectraConfig(**self.args["generator_config"], **kwargs)
+                self.generator_config = ElectraConfig(**self.args.generator_config, **kwargs)
                 if new_tokenizer:
                     self.generator_config.vocab_size = len(self.tokenizer)
 
             if discriminator_name:
                 self.discriminator_config = ElectraConfig.from_pretrained(discriminator_name)
-            elif self.args["model_name"]:
+            elif self.args.model_name:
                 self.discriminator_config = ElectraConfig.from_pretrained(
-                    os.path.join(self.args["model_name"], "discriminator_config"), **kwargs,
+                    os.path.join(self.args.model_name, "discriminator_config"), **kwargs,
                 )
             else:
-                self.discriminator_config = ElectraConfig(**self.args["discriminator_config"], **kwargs)
+                self.discriminator_config = ElectraConfig(**self.args.discriminator_config, **kwargs)
                 if new_tokenizer:
                     self.discriminator_config.vocab_size = len(self.tokenizer)
 
-        if self.args["block_size"] <= 0:
-            self.args["block_size"] = min(self.args["max_seq_length"], self.tokenizer.max_len)
+        if self.args.block_size <= 0:
+            self.args.block_size = min(self.args.max_seq_length, self.tokenizer.max_len)
         else:
-            self.args["block_size"] = min(self.args["block_size"], self.tokenizer.max_len, self.args["max_seq_length"])
+            self.args.block_size = min(self.args.block_size, self.tokenizer.max_len, self.args.max_seq_length)
 
-        if self.args["model_name"]:
-            if self.args["model_type"] == "electra":
-                if self.args["model_name"] == "electra":
+        if self.args.model_name:
+            if self.args.model_type == "electra":
+                if self.args.model_name == "electra":
                     generator_model = ElectraForMaskedLM.from_pretrained(generator_name)
                     discriminator_model = ElectraForPreTraining.from_pretrained(discriminator_name)
                     self.model = ElectraForLanguageModelingModel(
@@ -295,19 +278,19 @@ class LanguageModelingModel:
                     self.model = model_class.from_pretrained(
                         model_name,
                         config=self.config,
-                        cache_dir=self.args["cache_dir"],
+                        cache_dir=self.args.cache_dir,
                         generator_config=self.generator_config,
                         discriminator_config=self.discriminator_config,
                         **kwargs,
                     )
-                    self.model.load_state_dict(torch.load(os.path.join(self.args["model_name"], "pytorch_model.bin")))
+                    self.model.load_state_dict(torch.load(os.path.join(self.args.model_name, "pytorch_model.bin")))
             else:
                 self.model = model_class.from_pretrained(
-                    model_name, config=self.config, cache_dir=self.args["cache_dir"], **kwargs,
+                    model_name, config=self.config, cache_dir=self.args.cache_dir, **kwargs,
                 )
         else:
             logger.info(" Training language model from scratch")
-            if self.args["model_type"] == "electra":
+            if self.args.model_type == "electra":
                 generator_model = ElectraForMaskedLM(config=self.generator_config)
                 discriminator_model = ElectraForPreTraining(config=self.discriminator_config)
                 self.model = ElectraForLanguageModelingModel(
@@ -316,7 +299,7 @@ class LanguageModelingModel:
                     discriminator_model=discriminator_model,
                     generator_config=self.generator_config,
                     discriminator_config=self.discriminator_config,
-                    tie_generator_and_discriminator_embeddings=self.args["tie_generator_and_discriminator_embeddings"],
+                    tie_generator_and_discriminator_embeddings=self.args.tie_generator_and_discriminator_embeddings,
                 )
                 model_to_resize = (
                     self.model.generator_model.module
@@ -341,11 +324,11 @@ class LanguageModelingModel:
                 f"use_multiprocessing automatically disabled as {model_type}"
                 " fails when using multiprocessing for feature conversion."
             )
-            self.args["use_multiprocessing"] = False
+            self.args.use_multiprocessing = False
 
-        if self.args["wandb_project"] and not wandb_available:
+        if self.args.wandb_project and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
-            self.args["wandb_project"] = None
+            self.args.wandb_project = None
 
     def train_model(
         self, train_file, output_dir=None, show_running_loss=True, args=None, eval_file=None, verbose=True, **kwargs,
@@ -355,7 +338,7 @@ class LanguageModelingModel:
 
         Args:
             train_file: Path to text file containing the text to train the language model on.
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             eval_file (optional): Path to eval file containing the text to evaluate the language model on.
@@ -365,24 +348,24 @@ class LanguageModelingModel:
         """  # noqa: ignore flake8"
 
         if args:
-            self.args.update(args)
+            self.args.update_from_dict(args)
 
-        if self.args["silent"]:
+        if self.args.silent:
             show_running_loss = False
 
-        if self.args["evaluate_during_training"] and eval_file is None:
+        if self.args.evaluate_during_training and eval_file is None:
             raise ValueError(
                 "evaluate_during_training is enabled but eval_file is not specified."
                 " Pass eval_file to model.train_model() if using evaluate_during_training."
             )
 
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
 
-        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args["overwrite_output_dir"]:
+        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args.overwrite_output_dir:
             raise ValueError(
                 "Output directory ({}) already exists and is not empty."
-                " Set args['overwrite_output_dir'] = True to overcome.".format(output_dir)
+                " Set args.overwrite_output_dir = True to overcome.".format(output_dir)
             )
 
         self._move_model_to_device()
@@ -401,7 +384,7 @@ class LanguageModelingModel:
         )
 
         self._save_model(output_dir, model=self.model)
-        if self.args["model_type"] == "electra":
+        if self.args.model_type == "electra":
             self.save_discriminator()
             self.save_generator()
         # model_to_save = self.model.module if hasattr(self.model, "module") else self.model
@@ -410,7 +393,7 @@ class LanguageModelingModel:
         # torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
         if verbose:
-            logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+            logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_type, output_dir))
 
     def train(
         self, train_dataset, output_dir, show_running_loss=True, eval_file=None, verbose=True, **kwargs,
@@ -431,61 +414,59 @@ class LanguageModelingModel:
             return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
 
         if self.is_world_master():
-            tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
-        train_sampler = RandomSampler(train_dataset) if args["local_rank"] == -1 else DistributedSampler(train_dataset)
+            tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+        train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
         train_dataloader = DataLoader(
-            train_dataset, batch_size=args["train_batch_size"], sampler=train_sampler, collate_fn=collate,
+            train_dataset, batch_size=args.train_batch_size, sampler=train_sampler, collate_fn=collate,
         )
 
-        if args["max_steps"] > 0:
-            t_total = args["max_steps"]
-            args["num_train_epochs"] = (
-                args["max_steps"] // (len(train_dataloader) // args["gradient_accumulation_steps"]) + 1
-            )
+        if args.max_steps > 0:
+            t_total = args.max_steps
+            args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
         else:
-            t_total = len(train_dataloader) // args["gradient_accumulation_steps"] * args["num_train_epochs"]
+            t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
                 "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": args["weight_decay"],
+                "weight_decay": args.weight_decay,
             },
             {"params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)]},
         ]
 
-        warmup_steps = math.ceil(t_total * args["warmup_ratio"])
-        args["warmup_steps"] = warmup_steps if args["warmup_steps"] == 0 else args["warmup_steps"]
+        warmup_steps = math.ceil(t_total * args.warmup_ratio)
+        args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
 
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args["learning_rate"], eps=args["adam_epsilon"])
+        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
         scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=args["warmup_steps"], num_training_steps=t_total
+            optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
         )
 
         if (
-            args["model_name"]
-            and os.path.isfile(os.path.join(args["model_name"], "optimizer.pt"))
-            and os.path.isfile(os.path.join(args["model_name"], "scheduler.pt"))
+            args.model_name
+            and os.path.isfile(os.path.join(args.model_name, "optimizer.pt"))
+            and os.path.isfile(os.path.join(args.model_name, "scheduler.pt"))
         ):
             # Load in optimizer and scheduler states
-            optimizer.load_state_dict(torch.load(os.path.join(args["model_name"], "optimizer.pt")))
-            scheduler.load_state_dict(torch.load(os.path.join(args["model_name"], "scheduler.pt")))
+            optimizer.load_state_dict(torch.load(os.path.join(args.model_name, "optimizer.pt")))
+            scheduler.load_state_dict(torch.load(os.path.join(args.model_name, "scheduler.pt")))
 
-        if args["fp16"]:
+        if args.fp16:
             try:
                 from apex import amp
             except ImportError:
                 raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
+            model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
 
-        if args["n_gpu"] > 1:
+        if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
         # Distributed training (should be after apex fp16 initialization)
-        if args["local_rank"] != -1:
+        if args.local_rank != -1:
             model = torch.nn.parallel.DistributedDataParallel(
-                model, device_ids=[args["local_rank"]], output_device=args["local_rank"], find_unused_parameters=True,
+                model, device_ids=[args.local_rank], output_device=args.local_rank, find_unused_parameters=True,
             )
 
         logger.info(" Training started")
@@ -493,25 +474,25 @@ class LanguageModelingModel:
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
-        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"], mininterval=0)
+        train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.silent, mininterval=0)
         epoch_number = 0
         best_eval_metric = None
         early_stopping_counter = 0
         steps_trained_in_current_epoch = 0
         epochs_trained = 0
 
-        if args["model_name"] and os.path.exists(args["model_name"]):
+        if args.model_name and os.path.exists(args.model_name):
             try:
                 # set global_step to gobal_step of last saved checkpoint from model path
-                checkpoint_suffix = args["model_name"].split("/")[-1].split("-")
+                checkpoint_suffix = args.model_name.split("/")[-1].split("-")
                 if len(checkpoint_suffix) > 2:
                     checkpoint_suffix = checkpoint_suffix[1]
                 else:
                     checkpoint_suffix = checkpoint_suffix[-1]
                 global_step = int(checkpoint_suffix)
-                epochs_trained = global_step // (len(train_dataloader) // args["gradient_accumulation_steps"])
+                epochs_trained = global_step // (len(train_dataloader) // args.gradient_accumulation_steps)
                 steps_trained_in_current_epoch = global_step % (
-                    len(train_dataloader) // args["gradient_accumulation_steps"]
+                    len(train_dataloader) // args.gradient_accumulation_steps
                 )
 
                 logger.info("   Continuing training from checkpoint, will skip to saved global_step")
@@ -521,11 +502,11 @@ class LanguageModelingModel:
             except ValueError:
                 logger.info("   Starting fine-tuning.")
 
-        if args["evaluate_during_training"]:
+        if args.evaluate_during_training:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
-        if args["wandb_project"]:
-            wandb.init(project=args["wandb_project"], config={**args}, **args["wandb_kwargs"])
+        if args.wandb_project:
+            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         model.train()
@@ -535,25 +516,27 @@ class LanguageModelingModel:
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue
-            # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])):
+            train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
+            for step, batch in enumerate(
+                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
+            ):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
 
-                inputs, labels = mask_tokens(batch, tokenizer, args) if args["mlm"] else (batch, batch)
+                inputs, labels = mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
                 inputs = inputs.to(self.device)
                 labels = labels.to(self.device)
 
-                if args["model_type"] == "longformer":
+                if args.model_type == "longformer":
                     outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
                 else:
-                    outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
+                    outputs = model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
                 # model outputs are always tuple in pytorch-transformers (see doc)
-                if args["model_type"] == "electra":
+                if args.model_type == "electra":
                     g_loss = outputs[0]
                     d_loss = outputs[1]
-                    loss = g_loss + args["discriminator_loss_weight"] * d_loss
+                    loss = g_loss + args.discriminator_loss_weight * d_loss
                 else:
                     loss = outputs[0]
                 # if loss.item() < 1:
@@ -562,7 +545,7 @@ class LanguageModelingModel:
                 #     preds = outputs[1][0, masked, :].clone().detach().cpu().numpy()
                 #     print(np.argmax(preds, axis=2))
 
-                if args["n_gpu"] > 1:
+                if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
 
                 current_loss = loss.item()
@@ -570,34 +553,34 @@ class LanguageModelingModel:
                 if show_running_loss:
                     print("\rRunning loss: %f" % loss, end="")
 
-                if args["gradient_accumulation_steps"] > 1:
-                    loss = loss / args["gradient_accumulation_steps"]
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
 
-                if args["fp16"]:
+                if args.fp16:
                     with amp.scale_loss(loss, optimizer) as scaled_loss:
                         scaled_loss.backward()
                 else:
                     loss.backward()
 
                 tr_loss += loss.item()
-                if (step + 1) % args["gradient_accumulation_steps"] == 0:
-                    if args["fp16"]:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args["max_grad_norm"])
+                if (step + 1) % args.gradient_accumulation_steps == 0:
+                    if args.fp16:
+                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
                     else:
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args["max_grad_norm"])
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                     optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1
 
-                    if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
+                    if args.logging_steps > 0 and global_step % args.logging_steps == 0:
                         # Log metrics
                         if self.is_world_master():
                             tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
-                            tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args["logging_steps"], global_step)
+                            tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args.logging_steps, global_step)
                         logging_loss = tr_loss
-                        if args["wandb_project"]:
+                        if args.wandb_project:
                             wandb.log(
                                 {
                                     "Training loss": current_loss,
@@ -606,21 +589,21 @@ class LanguageModelingModel:
                                 }
                             )
 
-                    if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
+                    if args.save_steps > 0 and global_step % args.save_steps == 0:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
                         self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
-                    if args["evaluate_during_training"] and (
-                        args["evaluate_during_training_steps"] > 0
-                        and global_step % args["evaluate_during_training_steps"] == 0
+                    if args.evaluate_during_training and (
+                        args.evaluate_during_training_steps > 0
+                        and global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results = self.eval_model(
                             eval_file,
-                            verbose=verbose and args["evaluate_during_training_verbose"],
-                            silent=args["evaluate_during_training_silent"],
+                            verbose=verbose and args.evaluate_during_training_verbose,
+                            silent=args.evaluate_during_training_silent,
                             **kwargs,
                         )
 
@@ -630,7 +613,7 @@ class LanguageModelingModel:
 
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        if args["save_eval_checkpoints"]:
+                        if args.save_eval_checkpoints:
                             self._save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
 
                         training_progress_scores["global_step"].append(global_step)
@@ -639,87 +622,75 @@ class LanguageModelingModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                         )
 
-                        if args["wandb_project"]:
+                        if args.wandb_project:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
                         if not best_eval_metric:
-                            best_eval_metric = results[args["early_stopping_metric"]]
-                            self._save_model(
-                                args["best_model_dir"], optimizer, scheduler, model=model, results=results
-                            )
-                        if best_eval_metric and args["early_stopping_metric_minimize"]:
-                            if (
-                                results[args["early_stopping_metric"]] - best_eval_metric
-                                < args["early_stopping_delta"]
-                            ):
-                                best_eval_metric = results[args["early_stopping_metric"]]
+                            best_eval_metric = results[args.early_stopping_metric]
+                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                        if best_eval_metric and args.early_stopping_metric_minimize:
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                                best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
-                                    args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                                    args.best_model_dir, optimizer, scheduler, model=model, results=results
                                 )
                                 early_stopping_counter = 0
                             else:
-                                if args["use_early_stopping"]:
-                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                if args.use_early_stopping:
+                                    if early_stopping_counter < args.early_stopping_patience:
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" No improvement in {args.early_stopping_metric}")
                                             logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args['early_stopping_patience']} steps reached."
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached.")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args["early_stopping_metric"]] - best_eval_metric
-                                > args["early_stopping_delta"]
-                            ):
-                                best_eval_metric = results[args["early_stopping_metric"]]
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                                best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
-                                    args["best_model_dir"], optimizer, scheduler, model=model, results=results
+                                    args.best_model_dir, optimizer, scheduler, model=model, results=results
                                 )
                                 early_stopping_counter = 0
                             else:
-                                if args["use_early_stopping"]:
-                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                if args.use_early_stopping:
+                                    if early_stopping_counter < args.early_stopping_patience:
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" No improvement in {args.early_stopping_metric}")
                                             logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args['early_stopping_patience']} steps reached."
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached.")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
 
-                if args["max_steps"] > 0 and global_step > args["max_steps"]:
+                if args.max_steps > 0 and global_step > args.max_steps:
                     return global_step, tr_loss / global_step
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
-            if args["save_model_every_epoch"] or args["evaluate_during_training"]:
+            if args.save_model_every_epoch or args.evaluate_during_training:
                 os.makedirs(output_dir_current, exist_ok=True)
 
-            if args["save_model_every_epoch"]:
+            if args.save_model_every_epoch:
                 self._save_model(output_dir_current, optimizer, scheduler, model=model)
 
-            if args["evaluate_during_training"]:
+            if args.evaluate_during_training:
                 results = self.eval_model(
                     eval_file,
-                    verbose=verbose and args["evaluate_during_training_verbose"],
-                    silent=args["evaluate_during_training_silent"],
+                    verbose=verbose and args.evaluate_during_training_verbose,
+                    silent=args.evaluate_during_training_silent,
                     **kwargs,
                 )
 
@@ -730,66 +701,66 @@ class LanguageModelingModel:
                 for key in results:
                     training_progress_scores[key].append(results[key])
                 report = pd.DataFrame(training_progress_scores)
-                report.to_csv(os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False)
+                report.to_csv(os.path.join(args.output_dir, "training_progress_scores.csv"), index=False)
 
-                if args["wandb_project"]:
+                if args.wandb_project:
                     wandb.log(self._get_last_metrics(training_progress_scores))
 
                 if not best_eval_metric:
-                    best_eval_metric = results[args["early_stopping_metric"]]
-                    self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
-                if best_eval_metric and args["early_stopping_metric_minimize"]:
-                    if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
-                        best_eval_metric = results[args["early_stopping_metric"]]
-                        self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
+                    best_eval_metric = results[args.early_stopping_metric]
+                    self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                if best_eval_metric and args.early_stopping_metric_minimize:
+                    if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                        best_eval_metric = results[args.early_stopping_metric]
+                        self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                     else:
-                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
-                            if early_stopping_counter < args["early_stopping_patience"]:
+                        if args.use_early_stopping and args.early_stopping_consider_epochs:
+                            if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
-                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" No improvement in {args.early_stopping_metric}")
                                     logger.info(f" Current step: {early_stopping_counter}")
-                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                             else:
                                 if verbose:
-                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
                 else:
-                    if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
-                        best_eval_metric = results[args["early_stopping_metric"]]
-                        self._save_model(args["best_model_dir"], optimizer, scheduler, model=model, results=results)
+                    if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                        best_eval_metric = results[args.early_stopping_metric]
+                        self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                     else:
-                        if args["use_early_stopping"] and args["early_stopping_consider_epochs"]:
-                            if early_stopping_counter < args["early_stopping_patience"]:
+                        if args.use_early_stopping and args.early_stopping_consider_epochs:
+                            if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
-                                    logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                    logger.info(f" No improvement in {args.early_stopping_metric}")
                                     logger.info(f" Current step: {early_stopping_counter}")
-                                    logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                    logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                             else:
                                 if verbose:
-                                    logger.info(f" Patience of {args['early_stopping_patience']} steps reached")
+                                    logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return global_step, tr_loss / global_step
 
-            if args["max_steps"] > 0 and global_step > args["max_steps"]:
+            if args.max_steps > 0 and global_step > args.max_steps:
                 return global_step, tr_loss / global_step
 
         return global_step, tr_loss / global_step
 
     def eval_model(self, eval_file, output_dir=None, verbose=True, silent=False, **kwargs):
         """
-        Evaluates the model on eval_df. Saves results to args['output_dir']
+        Evaluates the model on eval_df. Saves results to args.output_dir
             result: Dictionary containing evaluation results.
         """  # noqa: ignore flake8"
 
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
 
         self._move_model_to_device()
 
@@ -825,26 +796,26 @@ class LanguageModelingModel:
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(
-            eval_dataset, sampler=eval_sampler, batch_size=args["eval_batch_size"], collate_fn=collate
+            eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size, collate_fn=collate
         )
 
-        if args["n_gpu"] > 1:
+        if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
         eval_loss = 0.0
         nb_eval_steps = 0
         model.eval()
 
-        for batch in tqdm(eval_dataloader, disable=args["silent"] or silent):
-            inputs, labels = mask_tokens(batch, tokenizer, args) if args["mlm"] else (batch, batch)
+        for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
+            inputs, labels = mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             with torch.no_grad():
-                outputs = model(inputs, masked_lm_labels=labels) if args["mlm"] else model(inputs, labels=labels)
-                if args["model_type"] == "electra":
+                outputs = model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
+                if args.model_type == "electra":
                     g_loss = outputs[0]
                     d_loss = outputs[1]
-                    lm_loss = g_loss + args["discriminator_loss_weight"] * d_loss
+                    lm_loss = g_loss + args.discriminator_loss_weight * d_loss
                 else:
                     lm_loss = outputs[0]
                 eval_loss += lm_loss.mean().item()
@@ -874,38 +845,38 @@ class LanguageModelingModel:
         args = self.args
 
         if not no_cache:
-            no_cache = args["no_cache"]
+            no_cache = args.no_cache
 
-        os.makedirs(self.args["cache_dir"], exist_ok=True)
+        os.makedirs(self.args.cache_dir, exist_ok=True)
 
         mode = "dev" if evaluate else "train"
 
-        if args["dataset_class"]:
-            CustomDataset = args["dataset_class"]
-            return CustomDataset(tokenizer, args, file_path, mode, args["block_size"])
+        if args.dataset_class:
+            CustomDataset = args.dataset_class
+            return CustomDataset(tokenizer, args, file_path, mode, args.block_size)
         else:
-            dataset_type = args["dataset_type"]
+            dataset_type = args.dataset_type
             if dataset_type == "text":
-                return TextDataset(tokenizer, file_path, args["block_size"], overwrite_cache=True)
+                return TextDataset(tokenizer, file_path, args.block_size, overwrite_cache=True)
             elif dataset_type == "line_by_line":
-                return LineByLineTextDataset(tokenizer, file_path, args["block_size"])
+                return LineByLineTextDataset(tokenizer, file_path, args.block_size)
             else:
-                special_tokens_count = 3 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 2
-                if self.args["max_seq_length"] > 509 and self.args["model_type"] != "longformer":
-                    self.args["max_seq_length"] = (
-                        509 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 510
+                special_tokens_count = 3 if bool(args.model_type in ["roberta", "camembert", "xlmroberta"]) else 2
+                if self.args.max_seq_length > 509 and self.args.model_type != "longformer":
+                    self.args.max_seq_length = (
+                        509 if bool(args.model_type in ["roberta", "camembert", "xlmroberta"]) else 510
                     )
-                    self.args["block_size"] = (
-                        509 if bool(args["model_type"] in ["roberta", "camembert", "xlmroberta"]) else 510
+                    self.args.block_size = (
+                        509 if bool(args.model_type in ["roberta", "camembert", "xlmroberta"]) else 510
                     )
                 return SimpleDataset(
                     tokenizer,
                     self.args,
                     file_path,
                     mode,
-                    args["block_size"],
+                    args.block_size,
                     special_tokens_count,
-                    sliding_window=args["sliding_window"],
+                    sliding_window=args.sliding_window,
                 )
 
     def train_tokenizer(self, train_files, tokenizer_name=None, output_dir=None, use_trained_tokenizer=True):
@@ -918,7 +889,7 @@ class LanguageModelingModel:
 
         - tokenizer_name: Name of a pretrained tokenizer or a path to a directory containing a tokenizer.
 
-        - output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir']
+        - output_dir (optional): The directory where model files will be saved. If not given, self.args.output_dir
         will be used.
 
         - use_trained_tokenizer (optional): Load the trained tokenizer once training completes.
@@ -926,7 +897,7 @@ class LanguageModelingModel:
         Returns: None
         """
 
-        if not self.args["vocab_size"]:
+        if not self.args.vocab_size:
             raise AttributeError(
                 "Cannot train a new tokenizer as vocab_size is not specified in args dict. "
                 "Either provide a tokenizer or specify vocab_size."
@@ -936,35 +907,35 @@ class LanguageModelingModel:
             train_files = [train_files]
 
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
 
-        if self.args["model_type"] in ["bert", "electra"]:
+        if self.args.model_type in ["bert", "electra"]:
             tokenizer = BertWordPieceTokenizer(
-                clean_text = self.args["clean_text"],
-                handle_chinese_chars = self.args["handle_chinese_chars"],
-                strip_accents = self.args["strip_accents"],
-                lowercase = self.args["lowercase"],
+                clean_text = self.args.clean_text,
+                handle_chinese_chars = self.args.handle_chinese_chars,
+                strip_accents = self.args.strip_accents,
+                lowercase = self.args.lowercase
             )
-            self.args["special_tokens"] = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
-            self.args["wordpieces_prefix"] = "##"
+            self.args.special_tokens = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
+            self.args.wordpieces_prefix = "##"
 
             tokenizer.train(
                 files=train_files,
-                vocab_size=self.args["vocab_size"],
-                min_frequency=self.args["min_frequency"],
-                special_tokens=self.args["special_tokens"],
+                vocab_size=self.args.vocab_size,
+                min_frequency=self.args.min_frequency,
+                special_tokens=self.args.special_tokens,
                 wordpieces_prefix="##",
             )
         else:
             tokenizer = ByteLevelBPETokenizer(
-                lowercase = self.args["lowercase"]
+                lowercase = self.args.lowercase
             )
 
             tokenizer.train(
                 files=train_files,
-                vocab_size=self.args["vocab_size"],
-                min_frequency=self.args["min_frequency"],
-                special_tokens=self.args["special_tokens"],
+                vocab_size=self.args.vocab_size,
+                min_frequency=self.args.min_frequency,
+                special_tokens=self.args.special_tokens,
             )
 
         os.makedirs(output_dir, exist_ok=True)
@@ -972,14 +943,14 @@ class LanguageModelingModel:
         tokenizer.save(output_dir)
         logger.info(" Training of {} tokenizer complete. Saved to {}.".format(tokenizer_name, output_dir))
 
-        _, _, tokenizer_class = MODEL_CLASSES[self.args["model_type"]]
+        _, _, tokenizer_class = MODEL_CLASSES[self.args.model_type]
         tokenizer = tokenizer_class.from_pretrained(output_dir)
 
         if use_trained_tokenizer:
             self.tokenizer = tokenizer
-            self.args["tokenizer_name"] = output_dir
+            self.args.tokenizer_name = output_dir
             try:
-                if self.args["model_type"] == "electra":
+                if self.args.model_type == "electra":
                     model_to_resize = (
                         self.model.generator_model.module
                         if hasattr(self.model.generator_model, "module")
@@ -1000,10 +971,10 @@ class LanguageModelingModel:
                 pass
 
     def save_discriminator(self, output_dir=None):
-        if self.args["model_type"] == "electra":
-            if not self.args["no_save"]:
+        if self.args.model_type == "electra":
+            if not self.args.no_save:
                 if not output_dir:
-                    output_dir = os.path.join(self.args["output_dir"], "discriminator_model")
+                    output_dir = os.path.join(self.args.output_dir, "discriminator_model")
                 os.makedirs(output_dir, exist_ok=True)
                 model_to_save = (
                     self.model.discriminator_model.module
@@ -1016,10 +987,10 @@ class LanguageModelingModel:
             raise ValueError("Model must be of ElectraForLanguageModelingModel type")
 
     def save_generator(self, output_dir=None):
-        if self.args["model_type"] == "electra":
-            if not self.args["no_save"]:
+        if self.args.model_type == "electra":
+            if not self.args.no_save:
                 if not output_dir:
-                    output_dir = os.path.join(self.args["output_dir"], "generator_model")
+                    output_dir = os.path.join(self.args.output_dir, "generator_model")
                 os.makedirs(output_dir, exist_ok=True)
                 model_to_save = (
                     self.model.generator_model.module
@@ -1058,13 +1029,13 @@ class LanguageModelingModel:
         if not self.is_world_master():
             return
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
         os.makedirs(output_dir, exist_ok=True)
 
-        if model and not self.args["no_save"]:
+        if model and not self.args.no_save:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
-            if self.args["model_type"] in "electra":
+            if self.args.model_type in "electra":
                 os.makedirs(os.path.join(output_dir, "generator_config"), exist_ok=True)
                 os.makedirs(os.path.join(output_dir, "discriminator_config"), exist_ok=True)
                 self.generator_config.save_pretrained(os.path.join(output_dir, "generator_config"))
@@ -1072,7 +1043,7 @@ class LanguageModelingModel:
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
-            if optimizer and scheduler and self.args["save_optimizer_and_scheduler"]:
+            if optimizer and scheduler and self.args.save_optimizer_and_scheduler:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                 torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
             self._save_model_args(output_dir)
@@ -1085,22 +1056,16 @@ class LanguageModelingModel:
 
     def _save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
-        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
-            json.dump(self.args, f)
+        self.args.save(output_dir)
 
     def _load_model_args(self, input_dir):
-        if input_dir:
-            input_dir, filename = os.path.split(input_dir)
-
-            model_args_file = os.path.join(input_dir, "model_args.json")
-            if os.path.isfile(model_args_file):
-                with open(model_args_file, "r") as f:
-                    model_args = json.load(f)
-                return model_args
+        args = LanguageModelingArgs()
+        args.load(input_dir)
+        return args
 
     def is_world_master(self) -> bool:
         """
         This will be True only in one process, even in distributed mode,
         even when training on multiple machines.
         """
-        return self.args["local_rank"] == -1 or torch.distributed.get_rank() == 0
+        return self.args.local_rank == -1 or torch.distributed.get_rank() == 0

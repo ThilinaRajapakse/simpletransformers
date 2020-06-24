@@ -31,6 +31,7 @@ import torch
 import torch.nn.functional as F
 from simpletransformers.classification.classification_utils import InputExample, convert_examples_to_features
 from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import ConvAIArgs
 from simpletransformers.conv_ai.conv_ai_utils import get_dataset
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -89,15 +90,35 @@ class ConvAIModel:
             "gpt2": (GPT2Config, GPT2DoubleHeadsModel, GPT2Tokenizer),
         }
 
-        if args and "manual_seed" in args:
-            random.seed(args["manual_seed"])
-            np.random.seed(args["manual_seed"])
-            torch.manual_seed(args["manual_seed"])
-            if "n_gpu" in args and args["n_gpu"] > 0:
-                torch.cuda.manual_seed_all(args["manual_seed"])
+        self.args = self._load_model_args(model_name)
+
+        if isinstance(args, dict):
+            self.args.update_from_dict(args)
+        elif isinstance(args, ConvAIArgs):
+            self.args = args
+
+        if "sweep_config" in kwargs:
+            sweep_config = kwargs.pop("sweep_config")
+            sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
+            self.args.update_from_dict(sweep_values)
+
+        if self.args.manual_seed:
+            random.seed(self.args.manual_seed)
+            np.random.seed(self.args.manual_seed)
+            torch.manual_seed(self.args.manual_seed)
+            if self.args.n_gpu > 0:
+                torch.cuda.manual_seed_all(self.args.manual_seed)
+
+        if not use_cuda:
+            self.args.fp16 = False
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.__dict__.update(kwargs)
+
+        self.model = model_class.from_pretrained(model_name, **kwargs)
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, **kwargs)
+        self.add_special_tokens_(self.model, self.tokenizer)
+        self.results = {}
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -113,46 +134,12 @@ class ConvAIModel:
         else:
             self.device = "cpu"
 
-        self.model = model_class.from_pretrained(model_name, **kwargs)
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, **kwargs)
-        self.add_special_tokens_(self.model, self.tokenizer)
-        self.results = {}
+        self.args.model_name = model_name
+        self.args.model_type = model_type
 
-        self.args = {
-            "num_candidates": 2,
-            "personality_permutations": 1,
-            "max_history": 2,
-            "lm_coef": 2.0,
-            "mc_coef": 1.0,
-            "no_sample": False,
-            "max_length": 20,
-            "min_length": 1,
-            "temperature": 0.7,
-            "top_k": 0,
-            "top_p": 0.9,
-        }
-
-        self.args.update(global_args)
-
-        saved_model_args = self._load_model_args(model_name)
-        if saved_model_args:
-            self.args.update(saved_model_args)
-
-        if args:
-            self.args.update(args)
-
-        if not use_cuda:
-            self.args["fp16"] = False
-
-        if args:
-            self.args.update(args)
-
-        self.args["model_name"] = model_name
-        self.args["model_type"] = model_type
-
-        if self.args["wandb_project"] and not wandb_available:
+        if self.args.wandb_project and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
-            self.args["wandb_project"] = None
+            self.args.wandb_project = None
 
     def train_model(
         self,
@@ -170,7 +157,7 @@ class ConvAIModel:
         Args:
             train_file: Path to a JSON file containing the training data. 
                 If not given, train dataset from PERSONA-CHAT will be used.
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             eval_file (optional): Evaluation data against which evaluation will be performed when evaluate_during_training is enabled.
@@ -181,18 +168,18 @@ class ConvAIModel:
         """  # noqa: ignore flake8"
 
         if args:
-            self.args.update(args)
+            self.args.update_from_dict(args)
 
-        if self.args["silent"]:
+        if self.args.silent:
             show_running_loss = False
 
-        if self.args["evaluate_during_training"] and eval_file is None:
+        if self.args.evaluate_during_training and eval_file is None:
             warnings.warn("eval_file not specified but evaluate_during_training is True. Using personachat eval data.")
 
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
 
-        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args["overwrite_output_dir"]:
+        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args.overwrite_output_dir:
             raise ValueError(
                 "Output directory ({}) already exists and is not empty."
                 " Use --overwrite_output_dir to overcome.".format(output_dir)
@@ -201,12 +188,10 @@ class ConvAIModel:
         self._move_model_to_device()
 
         train_dataloader, train_sampler = self.load_and_cache_examples(
-            dataset_path=train_file,
-            verbose=verbose,
-            no_cache=self.args["no_cache"] or self.args["reprocess_input_data"],
+            dataset_path=train_file, verbose=verbose, no_cache=self.args.no_cache or self.args.reprocess_input_data,
         )
 
-        if self.args["evaluate_during_training"]:
+        if self.args.evaluate_during_training:
             eval_loader, eval_sampler = self.load_and_cache_examples(verbose=verbose, evaluate=True)
         else:
             eval_loader = None
@@ -225,7 +210,7 @@ class ConvAIModel:
         self._save_model(model=self.model)
 
         if verbose:
-            logger.info(" Training of {} model complete. Saved to {}.".format(self.args["model_type"], output_dir))
+            logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_type, output_dir))
 
     def train(
         self, train_dataloader, output_dir, show_running_loss=True, eval_dataloader=None, verbose=True, **kwargs,
@@ -240,15 +225,15 @@ class ConvAIModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
+        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
 
-        t_total = len(train_dataloader) // args["gradient_accumulation_steps"] * args["num_train_epochs"]
+        t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
                 "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": args["weight_decay"],
+                "weight_decay": args.weight_decay,
             },
             {
                 "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
@@ -256,44 +241,46 @@ class ConvAIModel:
             },
         ]
 
-        warmup_steps = math.ceil(t_total * args["warmup_ratio"])
-        args["warmup_steps"] = warmup_steps if args["warmup_steps"] == 0 else args["warmup_steps"]
+        warmup_steps = math.ceil(t_total * args.warmup_ratio)
+        args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
 
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args["learning_rate"], eps=args["adam_epsilon"])
+        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
         scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=args["warmup_steps"], num_training_steps=t_total
+            optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
         )
 
-        if args["fp16"]:
+        if args.fp16:
             try:
                 from apex import amp
             except ImportError:
                 raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
+            model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
 
-        if args["n_gpu"] > 1:
+        if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
         global_step = 0
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
-        train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
+        train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.silent)
         epoch_number = 0
         best_eval_metric = None
         early_stopping_counter = 0
 
-        if args["evaluate_during_training"]:
+        if args.evaluate_during_training:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
-        if args["wandb_project"]:
-            wandb.init(project=args["wandb_project"], config={**args}, **args["wandb_kwargs"])
+        if args.wandb_project:
+            wandb.init(project=args.wandb_project, config={**args}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         model.train()
         for _ in train_iterator:
-            # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(tqdm(train_dataloader, desc="Current iteration", disable=args["silent"])):
+            train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
+            for step, batch in enumerate(
+                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
+            ):
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, mc_token_ids, lm_labels, mc_labels, token_type_ids = batch
 
@@ -305,9 +292,9 @@ class ConvAIModel:
                     lm_labels=lm_labels,
                 )
                 # model outputs are always tuple in pytorch-transformers (see doc)
-                loss = lm_loss * args["lm_coef"] + mc_loss * args["mc_coef"]
+                loss = lm_loss * args.lm_coef + mc_loss * args.mc_coef
 
-                if args["n_gpu"] > 1:
+                if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
 
                 current_loss = loss.item()
@@ -315,39 +302,39 @@ class ConvAIModel:
                 if show_running_loss:
                     print("\rRunning loss: %f" % current_loss, end="")
 
-                if args["gradient_accumulation_steps"] > 1:
-                    loss = loss / args["gradient_accumulation_steps"]
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
 
-                if args["fp16"]:
+                if args.fp16:
                     with amp.scale_loss(loss, optimizer) as scaled_loss:
                         scaled_loss.backward()
                     # torch.nn.utils.clip_grad_norm_(
-                    #     amp.master_params(optimizer), args["max_grad_norm"]
+                    #     amp.master_params(optimizer), args.max_grad_norm
                     # )
                 else:
                     loss.backward()
                     # torch.nn.utils.clip_grad_norm_(
-                    #     model.parameters(), args["max_grad_norm"]
+                    #     model.parameters(), args.max_grad_norm
                     # )
 
                 tr_loss += loss.item()
-                if (step + 1) % args["gradient_accumulation_steps"] == 0:
-                    if args["fp16"]:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args["max_grad_norm"])
+                if (step + 1) % args.gradient_accumulation_steps == 0:
+                    if args.fp16:
+                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
                     else:
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args["max_grad_norm"])
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                     optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1
 
-                    if args["logging_steps"] > 0 and global_step % args["logging_steps"] == 0:
+                    if args.logging_steps > 0 and global_step % args.logging_steps == 0:
                         # Log metrics
                         tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
-                        tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args["logging_steps"], global_step)
+                        tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args.logging_steps, global_step)
                         logging_loss = tr_loss
-                        if args["wandb_project"]:
+                        if args.wandb_project:
                             wandb.log(
                                 {
                                     "Training loss": current_loss,
@@ -356,21 +343,21 @@ class ConvAIModel:
                                 }
                             )
 
-                    if args["save_steps"] > 0 and global_step % args["save_steps"] == 0:
+                    if args.save_steps > 0 and global_step % args.save_steps == 0:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
                         self._save_model(output_dir_current, model=model)
 
-                    if args["evaluate_during_training"] and (
-                        args["evaluate_during_training_steps"] > 0
-                        and global_step % args["evaluate_during_training_steps"] == 0
+                    if args.evaluate_during_training and (
+                        args.evaluate_during_training_steps > 0
+                        and global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, _, _ = self.eval_model(
                             eval_dataloader,
-                            verbose=verbose and args["evaluate_during_training_verbose"],
-                            silent=args["evaluate_during_training_silent"],
+                            verbose=verbose and args.evaluate_during_training_verbose,
+                            silent=args.evaluate_during_training_silent,
                             **kwargs,
                         )
                         for key, value in results.items():
@@ -378,7 +365,7 @@ class ConvAIModel:
 
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        if args["save_eval_checkpoints"]:
+                        if args.save_eval_checkpoints:
                             self._save_model(output_dir_current, model=model, results=results)
 
                         training_progress_scores["global_step"].append(global_step)
@@ -387,60 +374,50 @@ class ConvAIModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                         )
 
-                        if args["wandb_project"]:
+                        if args.wandb_project:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
                         if not best_eval_metric:
-                            best_eval_metric = results[args["early_stopping_metric"]]
-                            self._save_model(args["best_model_dir"], model=model, results=results)
-                        if best_eval_metric and args["early_stopping_metric_minimize"]:
-                            if (
-                                results[args["early_stopping_metric"]] - best_eval_metric
-                                < args["early_stopping_delta"]
-                            ):
-                                best_eval_metric = results[args["early_stopping_metric"]]
-                                self._save_model(args["best_model_dir"], model=model, results=results)
+                            best_eval_metric = results[args.early_stopping_metric]
+                            self._save_model(args.best_model_dir, model=model, results=results)
+                        if best_eval_metric and args.early_stopping_metric_minimize:
+                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                                best_eval_metric = results[args.early_stopping_metric]
+                                self._save_model(args.best_model_dir, model=model, results=results)
                                 early_stopping_counter = 0
                             else:
-                                if args["use_early_stopping"]:
-                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                if args.use_early_stopping:
+                                    if early_stopping_counter < args.early_stopping_patience:
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" No improvement in {args.early_stopping_metric}")
                                             logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args['early_stopping_patience']} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
                         else:
-                            if (
-                                results[args["early_stopping_metric"]] - best_eval_metric
-                                > args["early_stopping_delta"]
-                            ):
-                                best_eval_metric = results[args["early_stopping_metric"]]
-                                self._save_model(args["best_model_dir"], model=model, results=results)
+                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                                best_eval_metric = results[args.early_stopping_metric]
+                                self._save_model(args.best_model_dir, model=model, results=results)
                                 early_stopping_counter = 0
                             else:
-                                if args["use_early_stopping"]:
-                                    if early_stopping_counter < args["early_stopping_patience"]:
+                                if args.use_early_stopping:
+                                    if early_stopping_counter < args.early_stopping_patience:
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args['early_stopping_metric']}")
+                                            logger.info(f" No improvement in {args.early_stopping_metric}")
                                             logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args['early_stopping_patience']}")
+                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
                                     else:
                                         if verbose:
-                                            logger.info(
-                                                f" Patience of {args['early_stopping_patience']} steps reached"
-                                            )
+                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return global_step, tr_loss / global_step
@@ -448,18 +425,15 @@ class ConvAIModel:
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
 
-            if args["save_model_every_epoch"] or args["evaluate_during_training"]:
+            if args.save_model_every_epoch or args.evaluate_during_training:
                 os.makedirs(output_dir_current, exist_ok=True)
 
-            if args["save_model_every_epoch"]:
+            if args.save_model_every_epoch:
                 self._save_model(output_dir_current, model=model)
 
-            if args["evaluate_during_training"]:
+            if args.evaluate_during_training:
                 results, _, _ = self.eval_model(
-                    eval_dataloader,
-                    verbose=verbose and args["evaluate_during_training_verbose"],
-                    silent=True,
-                    **kwargs,
+                    eval_dataloader, verbose=verbose and args.evaluate_during_training_verbose, silent=True, **kwargs,
                 )
 
                 self._save_model(output_dir_current, results=results)
@@ -469,23 +443,23 @@ class ConvAIModel:
                 for key in results:
                     training_progress_scores[key].append(results[key])
                 report = pd.DataFrame(training_progress_scores)
-                report.to_csv(os.path.join(args["output_dir"], "training_progress_scores.csv"), index=False)
+                report.to_csv(os.path.join(args.output_dir, "training_progress_scores.csv"), index=False)
 
-                if args["wandb_project"]:
+                if args.wandb_project:
                     wandb.log(self._get_last_metrics(training_progress_scores))
 
                 if not best_eval_metric:
-                    best_eval_metric = results[args["early_stopping_metric"]]
-                    self._save_model(args["best_model_dir"], model=model, results=results)
-                if best_eval_metric and args["early_stopping_metric_minimize"]:
-                    if results[args["early_stopping_metric"]] - best_eval_metric < args["early_stopping_delta"]:
-                        best_eval_metric = results[args["early_stopping_metric"]]
-                        self._save_model(args["best_model_dir"], model=model, results=results)
+                    best_eval_metric = results[args.early_stopping_metric]
+                    self._save_model(args.best_model_dir, model=model, results=results)
+                if best_eval_metric and args.early_stopping_metric_minimize:
+                    if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                        best_eval_metric = results[args.early_stopping_metric]
+                        self._save_model(args.best_model_dir, model=model, results=results)
                         early_stopping_counter = 0
                 else:
-                    if results[args["early_stopping_metric"]] - best_eval_metric > args["early_stopping_delta"]:
-                        best_eval_metric = results[args["early_stopping_metric"]]
-                        self._save_model(args["best_model_dir"], model=model, results=results)
+                    if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                        best_eval_metric = results[args.early_stopping_metric]
+                        self._save_model(args.best_model_dir, model=model, results=results)
                         early_stopping_counter = 0
 
         return global_step, tr_loss / global_step
@@ -497,7 +471,7 @@ class ConvAIModel:
         Args:
             eval_file: Path to a JSON file containing the evaluation data. 
                 If not given, eval dataset from PERSONA-CHAT will be used.
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+            output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
@@ -508,7 +482,7 @@ class ConvAIModel:
         """  # noqa: ignore flake8"
 
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
 
         self._move_model_to_device()
 
@@ -536,7 +510,7 @@ class ConvAIModel:
             evaluate=True,
             verbose=verbose,
             silent=silent,
-            no_cache=self.args["no_cache"] or self.args["use_cached_eval_features"],
+            no_cache=self.args.no_cache or self.args.use_cached_eval_features,
         )
         os.makedirs(eval_output_dir, exist_ok=True)
 
@@ -548,7 +522,7 @@ class ConvAIModel:
         }
         model.eval()
 
-        for batch in tqdm(eval_dataloader, disable=args["silent"] or silent):
+        for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
@@ -586,22 +560,22 @@ class ConvAIModel:
         Utility function for train() and eval() methods. Not intended to be used directly.
         """  # noqa: ignore flake8"
 
-        process_count = self.args["process_count"]
+        process_count = self.args.process_count
 
         tokenizer = self.tokenizer
         args = self.args
 
         if not no_cache:
-            no_cache = args["no_cache"]
+            no_cache = args.no_cache
 
-        os.makedirs(self.args["cache_dir"], exist_ok=True)
+        os.makedirs(self.args.cache_dir, exist_ok=True)
 
         dataset_path = dataset_path if dataset_path else ""
 
         dataset = get_dataset(
             tokenizer,
             dataset_path,
-            args["cache_dir"],
+            args.cache_dir,
             process_count=process_count,
             proxies=self.__dict__.get("proxies", None),
             evaluate=evaluate,
@@ -613,13 +587,13 @@ class ConvAIModel:
         # for dataset_name, dataset in personachat.items():
         datasets = defaultdict(list)
         num_candidates = len(dataset[0]["utterances"][0]["candidates"])
-        if args["num_candidates"] > 0 and not evaluate:
-            num_candidates = min(args["num_candidates"], num_candidates)
+        if args.num_candidates > 0 and not evaluate:
+            num_candidates = min(args.num_candidates, num_candidates)
         for dialog in dataset:
             persona = dialog["personality"].copy()
-            for _ in range(args["personality_permutations"]):
+            for _ in range(args.personality_permutations):
                 for utterance in dialog["utterances"]:
-                    history = utterance["history"][-(2 * args["max_history"] + 1) :]
+                    history = utterance["history"][-(2 * args.max_history + 1) :]
                     for j, candidate in enumerate(utterance["candidates"][-num_candidates:]):
                         lm_labels = bool(j == num_candidates - 1)
                         instance = self.build_input_from_segments(persona, history, candidate, tokenizer, lm_labels)
@@ -648,10 +622,10 @@ class ConvAIModel:
         tensor_dataset = TensorDataset(*tensor_datasets)
         if not evaluate:
             data_sampler = RandomSampler(tensor_dataset)
-            data_loader = DataLoader(tensor_dataset, sampler=data_sampler, batch_size=args["train_batch_size"])
+            data_loader = DataLoader(tensor_dataset, sampler=data_sampler, batch_size=args.train_batch_size)
         else:
             data_sampler = SequentialSampler(tensor_dataset)
-            data_loader = DataLoader(tensor_dataset, sampler=data_sampler, batch_size=args["eval_batch_size"])
+            data_loader = DataLoader(tensor_dataset, sampler=data_sampler, batch_size=args.eval_batch_size)
 
         # logger.info(" Train dataset (Batch, Candidates, Seq length): {}".format(train_dataset.tensors[0].shape))
         # logger.info(" valid dataset (Batch, Candidates, Seq length): {}".format(valid_dataset.tensors[0].shape))
@@ -698,7 +672,7 @@ class ConvAIModel:
         model = self.model
         args = self.args
         tokenizer = self.tokenizer
-        process_count = self.args["process_count"]
+        process_count = self.args.process_count
 
         self._move_model_to_device()
 
@@ -706,7 +680,7 @@ class ConvAIModel:
             dataset = get_dataset(
                 tokenizer,
                 None,
-                args["cache_dir"],
+                args.cache_dir,
                 process_count=process_count,
                 proxies=self.__dict__.get("proxies", None),
                 interact=True,
@@ -727,7 +701,7 @@ class ConvAIModel:
             with torch.no_grad():
                 out_ids = self.sample_sequence(personality, history, tokenizer, model, args)
             history.append(out_ids)
-            history = history[-(2 * args["max_history"] + 1) :]
+            history = history[-(2 * args.max_history + 1) :]
             out_text = tokenizer.decode(out_ids, skip_special_tokens=True)
             print(out_text)
 
@@ -760,9 +734,9 @@ class ConvAIModel:
 
     def _save_model(self, output_dir=None, model=None, results=None):
         if not output_dir:
-            output_dir = self.args["output_dir"]
+            output_dir = self.args.output_dir
 
-        if model and not self.args["no_save"]:
+        if model and not self.args.no_save:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
             model_to_save.save_pretrained(output_dir)
@@ -851,7 +825,7 @@ class ConvAIModel:
         if current_output is None:
             current_output = []
 
-        for i in range(args["max_length"]):
+        for i in range(args.max_length):
             instance = self.build_input_from_segments(personality, history, current_output, tokenizer, with_eos=False)
 
             input_ids = torch.tensor(instance["input_ids"], device=self.device).unsqueeze(0)
@@ -860,12 +834,12 @@ class ConvAIModel:
             logits = model(input_ids, token_type_ids=token_type_ids)
             if isinstance(logits, tuple):  # for gpt2 and maybe others
                 logits = logits[0]
-            logits = logits[0, -1, :] / args["temperature"]
-            logits = self.top_filtering(logits, top_k=args["top_k"], top_p=args["top_p"])
+            logits = logits[0, -1, :] / args.temperature
+            logits = self.top_filtering(logits, top_k=args.top_k, top_p=args.top_p)
             probs = F.softmax(logits, dim=-1)
 
-            prev = torch.topk(probs, 1)[1] if args["no_sample"] else torch.multinomial(probs, 1)
-            if i < args["min_length"] and prev.item() in special_tokens_ids:
+            prev = torch.topk(probs, 1)[1] if not args.do_sample else torch.multinomial(probs, 1)
+            if i < args.min_length and prev.item() in special_tokens_ids:
                 while prev.item() in special_tokens_ids:
                     if probs.max().item() == 1:
                         warnings.warn("Warning: model generating special token with probability 1.")
@@ -880,12 +854,9 @@ class ConvAIModel:
 
     def _save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
-        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
-            json.dump(self.args, f)
+        self.args.save(output_dir)
 
     def _load_model_args(self, input_dir):
-        model_args_file = os.path.join(input_dir, "model_args.json")
-        if os.path.isfile(model_args_file):
-            with open(model_args_file, "r") as f:
-                model_args = json.load(f)
-            return model_args
+        args = ConvAIArgs()
+        args.load(input_dir)
+        return args

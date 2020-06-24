@@ -39,7 +39,26 @@ model = NERModel(
 
 ### Configuring a `NERModel`
 
-`NERModel` does not have any task-specific configuration options.
+`NERModel` has the following task-specific configuration options.
+
+| Argument              | Type | Default                                                                            | Description                                                                  |
+| --------------------- | ---- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| classification_report | bool | `True`                                                                             | If True, a sklearn classification report will be written to the `output_dir` |
+| labels_list           | list | `["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"]` | A list of all token labels.                                                  |
+
+```python
+from simpletransformers.ner import NERModel, NERArgs
+
+
+model_args = NERArgs()
+model_args.labels_list = ["PERSON", "LOCATION", "CAREER"]
+
+model = NERModel(
+    "roberta",
+    "roberta-base",
+    args=model_args,
+)
+```
 
 **Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
 {: .notice--info}

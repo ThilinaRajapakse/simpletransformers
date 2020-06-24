@@ -19,7 +19,7 @@ The goal of regression  in natural language processing is to predict a single, c
 ## Minimal Start
 
 ```python
-from simpletransformers.classification import ClassificationModel
+from simpletransformers.classification import ClassificationModel, ClassificationArgs
 import pandas as pd
 import logging
 
@@ -48,10 +48,9 @@ eval_df.columns = ["text", "labels"]
 
 # Enabling regression
 # Setting optional model configuration
-model_args = {
-    "regression": True,
-    "num_train_epochs": 1,
-}
+model_args = ClassificationArgs()
+model_args.num_train_epochs = 1
+model_args.regression = True
 
 # Create a ClassificationModel
 model = ClassificationModel(
