@@ -199,6 +199,10 @@ class LanguageModelingArgs(ModelArgs):
     tokenizer_name: str = None
     vocab_size: int = None
     local_rank: int = -1
+    clean_text : bool = True,
+    handle_chinese_chars : bool = True,
+    strip_accents : bool = True,
+    lowercase : bool = True,
 
 
 @dataclass
