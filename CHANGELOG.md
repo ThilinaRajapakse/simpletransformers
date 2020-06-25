@@ -5,9 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## UNRELEASED
+## [0.40.1] - 2020-06-25
+
+### Added
+
+- Added `interact_single()` method to `ConvAIModel`. This accepts a message and conversation history (and an optional personality). [@Amit80007](https://github.com/Amit80007)
+
+### Fixed
 
 - Fixed bug in multi modal classification [@tekkon](https://github.com/tekkkon)
+
+### Changed
+
 - Cleaned `language_modeling_utils.py`. [@Pradhy729](https://github.com/Pradhy729)
 
 ## [0.40.0] - 2020-06-23
@@ -888,7 +897,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.40.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cf66100...HEAD
+[0.40.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/99ede24...HEAD
+
+[0.40.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cf66100...99ede24
 
 [0.34.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e112de...cf66100
 
