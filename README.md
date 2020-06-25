@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-39-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-40-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -3337,6 +3337,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/BjarkePedersen"><img src="https://avatars1.githubusercontent.com/u/29751977?v=4" width="100px;" alt=""/><br /><sub><b>BjarkePedersen</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=BjarkePedersen" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/tekkkon"><img src="https://avatars2.githubusercontent.com/u/6827543?v=4" width="100px;" alt=""/><br /><sub><b>tekkkon</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=tekkkon" title="Code">💻</a></td>
     <td align="center"><a href="https://www.linkedin.com/in/garg-amit/"><img src="https://avatars1.githubusercontent.com/u/19791871?v=4" width="100px;" alt=""/><br /><sub><b>Amit Garg</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Amit80007" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/caprone"><img src="https://avatars1.githubusercontent.com/u/15055331?v=4" width="100px;" alt=""/><br /><sub><b>caprone</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/issues?q=author%3Acaprone" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 
