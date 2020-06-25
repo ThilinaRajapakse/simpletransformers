@@ -463,7 +463,7 @@ class JsonlDataset(Dataset):
         self.labels_label = labels_label if labels_label else "labels"
         self.images_label = images_label if images_label else "images"
         self.image_type_extension = image_type_extension if image_type_extension else ""
-        self.data_type_extension = data_type_extension if image_type_extension else ""
+        self.data_type_extension = data_type_extension if data_type_extension else ""
         self.multi_label = multi_label
 
         if isinstance(files_list, str):
