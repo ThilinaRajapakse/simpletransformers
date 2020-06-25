@@ -368,6 +368,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "caprone",
+      "name": "caprone",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/15055331?v=4",
+      "profile": "https://github.com/caprone",
+      "contributions": [
+        "bug"
+      ]
     }
   ],
   "contributorsPerLine": 7,
