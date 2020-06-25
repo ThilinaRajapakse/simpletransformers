@@ -1697,6 +1697,7 @@ print(model.eval_model(eval_df, matches=count_matches))
 ### Training a T5 Model on a new task
 
 - [Question Generation With T5](https://medium.com/@chaturangarajapakshe/asking-the-right-questions-training-a-t5-transformer-model-on-a-new-task-691ebba2d72c?source=friends_link&sk=9f88c539546eca32b702cc0243abd0dd)
+- [The Guide to Multi-Tasking with the T5 Transformer](https://towardsdatascience.com/the-guide-to-multi-tasking-with-the-t5-transformer-90c70a08837b?source=friends_link&sk=ffe37deefa8dd4158f3f76e3dd46cf11)
 
 
 ### T5Model
@@ -1891,7 +1892,9 @@ Automatically add `:` and `< /s>` tokens to `train_model()` and `eval_model()` i
 
 _[Back to Table of Contents](#table-of-contents)_
 
+
 ---
+
 
 ## Sequence-to-Sequence Models
 

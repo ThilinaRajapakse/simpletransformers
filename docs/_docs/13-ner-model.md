@@ -2,7 +2,7 @@
 title: NER Model
 permalink: /docs/ner-model/
 excerpt: "NERModel for named entity recognition."
-last_modified_at: 2020-05-02 17:58:53
+last_modified_at: 2020/06/26 02:36:02
 toc: true
 ---
 
@@ -25,7 +25,7 @@ To create a `NERModel`, you must specify a `model_type` and a `model_name`.
     You may use any of these models provided the `model_type` is supported.
 
 ```python
-from simpletransformers.classification import NERModel
+from simpletransformers.ner import NERModel
 
 
 model = NERModel(
@@ -106,7 +106,7 @@ model.train_model(train_data)
 
 > *simpletransformers.ner.NERModel.train_model*{: .function-name}(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs)
 
-Trains the model using 'train_df'
+Trains the model using 'train_data'
 {: .function-text}
 
 > Parameters
@@ -218,4 +218,6 @@ Performs predictions on a list of text `to_predict`.
 {: .returns}
 
 * **preds** *(`list`)* - A Python list of lists of dicts containing each word mapped to its NER tag.
+
 * **model_outputs** *(`list`)* - A Python list of lists with dicts containing each word mapped to its list with raw model output.
+{: .return-list}

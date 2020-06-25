@@ -2,12 +2,13 @@
 title: NER Minimal Start
 permalink: /docs/ner-minimal-start/
 excerpt: "Minimal start for named entity recognition."
-last_modified_at: 2020-05-02 17:58:53
+last_modified_at: 2020/06/26 02:39:31
 ---
 
 ```python
 import logging
 
+import pandas as pd
 from simpletransformers.ner import NERModel, NERArgs
 
 
