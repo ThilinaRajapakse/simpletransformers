@@ -83,7 +83,7 @@ def get_dataset(
             data = [(d, tokenizer) for d in obj]
             with Pool(process_count) as p:
                 tokenized_data = list(
-                    tqdm(p.imap(tokenize_multi, data, chunksize=args["multiprocessing_chunksize"]), total=len(data))
+                    tqdm(p.imap(tokenize_multi, data, chunksize=args.multiprocessing_chunksize), total=len(data))
                 )
             return tokenized_data
 

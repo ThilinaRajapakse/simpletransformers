@@ -68,9 +68,7 @@ The *windows* will typically overlap each other to a certain degree to minimize 
 The `stride` can be specified in terms of either a fraction of the `max_seq_length`, or as an absolute number of tokens. The default `stride` is set to `0.8 * max_seq_length`, which results in about 20% overlap between the sub-sequences.
 
 ```python
-model_args = {
-    "sliding_window": True
-}
+model_args = ClassificationArgs(sliding_window=True)
 
 model = ClassificationModel(
     "roberta",
@@ -108,3 +106,60 @@ When working with very large datasets, the available memory may prevent keeping 
 
 **Tip:** You can find minimal example scripts in the `examples/text_classification` directory.
 {: .notice--success}
+
+
+## Custom Labels
+
+By default, `ClassificationModel` expects the labels to be ints from `0` up to `num_labels`.
+
+If your dataset contains labels in another format (e.g. string labels like `positive`, `negative`), you can provide the list of all labels to the model args. Simple Transformers will handle the label mappings internally. Note that this will also automatically set `num_labels` to the length of the labels list.
+
+```python
+from simpletransformers.classification import ClassificationModel, ClassificationArgs
+import pandas as pd
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+# Preparing train data
+train_data = [
+    ["Aragorn was the heir of Isildur", "true"],
+    ["Frodo was the heir of Isildur", "false"],
+]
+train_df = pd.DataFrame(train_data)
+train_df.columns = ["text", "labels"]
+
+# Preparing eval data
+eval_data = [
+    ["Theoden was the king of Rohan", "true"],
+    ["Merry was the king of Rohan", "false"],
+]
+eval_df = pd.DataFrame(eval_data)
+eval_df.columns = ["text", "labels"]
+
+# Optional model configuration
+model_args = ClassificationArgs()
+model_args.num_train_epochs=1
+model_args.labels_list = ["true", "false"]
+
+# Create a ClassificationModel
+model = ClassificationModel(
+    "roberta", "roberta-base", args=model_args
+)
+
+# Train the model
+model.train_model(train_df)
+
+# Evaluate the model
+result, model_outputs, wrong_predictions = model.eval_model(eval_df)
+
+# Make predictions with the model
+predictions, raw_outputs = model.predict(["Sam was a Wizard"])
+
+```
+
+**Note:** Custom labels are not currently supported with multi-label classification.
+{: .notice--warning}

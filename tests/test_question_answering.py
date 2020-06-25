@@ -1,4 +1,5 @@
 import json
+import logging
 import pytest
 import os
 
@@ -61,6 +62,10 @@ def test_question_answering(model_type, model_name):
     os.makedirs("data", exist_ok=True)
     with open("data/train.json", "w") as f:
         json.dump(train_data, f)
+
+    logging.basicConfig(level=logging.WARNING)
+    transformers_logger = logging.getLogger("transformers")
+    transformers_logger.setLevel(logging.ERROR)
 
     # Create the QuestionAnsweringModel
     model = QuestionAnsweringModel(

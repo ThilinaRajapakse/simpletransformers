@@ -111,12 +111,14 @@ If not specified, the default configurations (the base architecture) for the giv
 A custom BERT architecture:
 
 ```python
-model_args = {
-    "config": {
-        "num_hidden_layers": 2
-    },
-    "vocab_size": 5000
+from simpletransformers.language_modeling import LanguageModelingModel, LanguageModelingArgs
+
+
+model_args = LanguageModelingArgs()
+model_args.config = {
+    "num_hidden_layers": 2
 }
+ model_args.vocab_size = 5000
 
 model = LanguageModelingModel(
     "bert", None, args=model_args, train_files=train_file
@@ -127,18 +129,20 @@ model = LanguageModelingModel(
 A custom ELECTRA architecture:
 
 ```python
-model_args = {
-    "vocab_size": 30000,
-    "generator_config": {
-        "embedding_size": 512,
-        "hidden_size": 256,
-        "num_hidden_layers": 4,
-    },
-    "discriminator_config": {
-        "embedding_size": 512,
-        "hidden_size": 256,
-        "num_hidden_layers": 16,
-    },
+from simpletransformers.language_modeling import LanguageModelingModel, LanguageModelingArgs
+
+
+model_args = LanguageModelingArgs()
+model_args.vocab_size = 30000
+model_args.generator_config = {
+    "embedding_size": 512,
+    "hidden_size": 256,
+    "num_hidden_layers": 4,
+}
+model_args.discriminator_config = {
+    "embedding_size": 512,
+    "hidden_size": 256,
+    "num_hidden_layers": 16,
 }
 
 model = LanguageModelingModel(
