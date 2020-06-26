@@ -568,7 +568,8 @@ class ConvAIModel:
         if not no_cache:
             no_cache = args.no_cache
 
-        os.makedirs(self.args.cache_dir, exist_ok=True)
+        if not no_cache:
+            os.makedirs(self.args.cache_dir, exist_ok=True)
 
         dataset_path = dataset_path if dataset_path else ""
 
