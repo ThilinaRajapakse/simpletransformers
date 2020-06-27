@@ -4,6 +4,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.2] - 2020-06-25
+
+### Fixed
+
+- Fixed bug in Multi-Modal classification when using `evaluate_during_training`.
+
+## [0.40.1] - 2020-06-25
+
+### Added
+
+- Added `interact_single()` method to `ConvAIModel`. This accepts a message and conversation history (and an optional personality). [@Amit80007](https://github.com/Amit80007)
+
+### Fixed
+
+- Fixed bug in multi modal classification [@tekkon](https://github.com/tekkkon)
+
+### Changed
+
+- Cleaned `language_modeling_utils.py`. [@Pradhy729](https://github.com/Pradhy729)
+
+## [0.40.0] - 2020-06-23
+
+### Added
+
+ - All Simple Transformers models can now be used with W&B sweeps.
+ - `eval_model()` now logs to wandb in the following models (can be turned off with `wandb_log=False`)
+   - `ClassificationModel`
+   - `NERModel`
+ - Model args can now be specified through the relevant dataclass. (E.g. `ClassificationArgs`, `T5Args`, etc.)
+ - All model args are now saved and loaded automatically with Simple Transformers models.
+ - Multiprocessed decoding support added to Seq2Seq models
+ - Custom label support for Classification tasks (except multilabel).
+ - NER labels can be given as `NERArgs.labels_list` (persists through args saving)
+
+### Changed
+
+- Changed `NERModel.eval_model()` to return usable model_outputs
+- Improved `tqdm` descriptions in progress bars
+- ConvAIModel arg `no_sample` renamed to `do_sample` for consistency
+
+## [0.34.4] - 2020-06-17
+
+### Added
+
+- Added `num_return_sequences`, `top_k`, and `top_p` args for `Seq2SeqModel`.
+
+### Fixed
+
+- Fixed bug potential bug when using `sliding_window`. [@BjarkePedersen](https://github.com/BjarkePedersen)
+
+### Changed
+
+- Cleaned `language_modeling_utils`. [@Pradhy729](https://github.com/Pradhy729)
+
 ## [0.34.3] - 2020-06-13
 
 ### Fixed
@@ -848,7 +902,15 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.34.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/19ecd79...HEAD
+[0.40.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f4ef3d3...HEAD
+
+[0.40.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/99ede24...f4ef3d3
+
+[0.40.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cf66100...99ede24
+
+[0.34.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e112de...cf66100
+
+[0.34.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/19ecd79...3e112de
 
 [0.34.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4789a1d...19ecd79
 

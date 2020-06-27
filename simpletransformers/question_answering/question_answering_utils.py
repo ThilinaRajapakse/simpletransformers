@@ -432,7 +432,7 @@ def squad_convert_examples_to_features(
     # Defining helper methods
     features = []
     threads = min(threads, cpu_count())
-    if args["use_multiprocessing"]:
+    if args.use_multiprocessing:
         with Pool(threads, initializer=squad_convert_example_to_features_init, initargs=(tokenizer,)) as p:
             annotate_ = partial(
                 squad_convert_example_to_features,
@@ -443,7 +443,7 @@ def squad_convert_examples_to_features(
             )
             features = list(
                 tqdm(
-                    p.imap(annotate_, examples, chunksize=args["multiprocessing_chunksize"]),
+                    p.imap(annotate_, examples, chunksize=args.multiprocessing_chunksize),
                     total=len(examples),
                     desc="convert squad examples to features",
                     disable=not tqdm_enabled,
@@ -533,7 +533,7 @@ def convert_examples_to_features(
     # max_N, max_M = 1024, 1024
     # f = np.zeros((max_N, max_M), dtype=np.float32)
 
-    if args["use_multiprocessing"]:
+    if args.use_multiprocessing:
         example_rows = [
             (
                 example,
@@ -558,12 +558,12 @@ def convert_examples_to_features(
             for i, example in enumerate(examples)
         ]
 
-        with Pool(args["process_count"]) as p:
+        with Pool(args.process_count) as p:
             features = list(
                 tqdm(
-                    p.imap(convert_example_to_feature, example_rows, chunksize=args["multiprocessing_chunksize"]),
+                    p.imap(convert_example_to_feature, example_rows, chunksize=args.multiprocessing_chunksize),
                     total=len(example_rows),
-                    disable=args["silent"],
+                    disable=args.silent,
                 )
             )
     else:

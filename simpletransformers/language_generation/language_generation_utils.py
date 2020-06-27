@@ -18,7 +18,7 @@ with people, even a bishop, begging for his blessing. <eod> </s> <eos>"""
 
 
 def prepare_ctrl_input(args, _, tokenizer, prompt_text):
-    if args["temperature"] > 0.7:
+    if args.temperature > 0.7:
         logger.info("CTRL typically works better with lower temperatures (and lower top_k).")
 
     encoded_prompt = tokenizer.encode(prompt_text, add_special_tokens=False)
@@ -32,8 +32,8 @@ def prepare_xlm_input(args, model, tokenizer, prompt_text):
     use_lang_emb = hasattr(model.config, "use_lang_emb") and model.config.use_lang_emb
     if hasattr(model.config, "lang2id") and use_lang_emb:
         available_languages = model.config.lang2id.keys()
-        if args["xlm_language"] in available_languages:
-            language = args["xlm_language"]
+        if args.xlm_language in available_languages:
+            language = args.xlm_language
         else:
             language = None
             while language not in available_languages:
@@ -45,12 +45,12 @@ def prepare_xlm_input(args, model, tokenizer, prompt_text):
 
 
 def prepare_xlnet_input(args, _, tokenizer, prompt_text):
-    prompt_text = (args["padding_text"] if args["padding_text"] else PADDING_TEXT) + prompt_text
+    prompt_text = (args.padding_text if args.padding_text else PADDING_TEXT) + prompt_text
     return prompt_text
 
 
 def prepare_transfoxl_input(args, _, tokenizer, prompt_text):
-    prompt_text = (args["padding_text"] if args["padding_text"] else PADDING_TEXT) + prompt_text
+    prompt_text = (args.padding_text if args.padding_text else PADDING_TEXT) + prompt_text
     return prompt_text
 
 

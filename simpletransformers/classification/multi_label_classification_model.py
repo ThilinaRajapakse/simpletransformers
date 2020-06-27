@@ -1,10 +1,13 @@
 import logging
 import warnings
 from multiprocessing import cpu_count
+import random
+import numpy as np
 
 import torch
 from simpletransformers.classification import ClassificationModel
 from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import MultiLabelClassificationArgs
 from simpletransformers.custom_models.models import (
     AlbertForMultiLabelSequenceClassification,
     BertForMultiLabelSequenceClassification,
@@ -87,36 +90,34 @@ class MultiLabelClassificationModel(ClassificationModel):
             "electra": (ElectraConfig, ElectraForMultiLabelSequenceClassification, ElectraTokenizer),
         }
 
-        self.args = {
-            "threshold": 0.5,
-            "sliding_window": False,
-            "tie_value": 1,
-            "stride": False,
-        }
+        self.args = self._load_model_args(model_name)
 
-        self.args.update(global_args)
+        if isinstance(args, dict):
+            self.args.update_from_dict(args)
+        elif isinstance(args, MultiLabelClassificationArgs):
+            self.args = args
 
-        saved_model_args = self._load_model_args(model_name)
-        if saved_model_args:
-            self.args.update(saved_model_args)
+        if "sweep_config" in kwargs:
+            sweep_config = kwargs.pop("sweep_config")
+            sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
+            self.args.update_from_dict(sweep_values)
 
-        if args:
-            self.args.update(args)
+        if self.args.manual_seed:
+            random.seed(self.args.manual_seed)
+            np.random.seed(self.args.manual_seed)
+            torch.manual_seed(self.args.manual_seed)
+            if self.args.n_gpu > 0:
+                torch.cuda.manual_seed_all(self.args.manual_seed)
 
         if not use_cuda:
-            self.args["fp16"] = False
-
-        if args:
-            if args.get("sliding_window"):
-                raise ValueError("sliding_window is not implemented for multi-label classification.")
-            self.args.update(args)
+            self.args.fp16 = False
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
-            self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **self.args["config"])
+            self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **self.args.config)
             self.num_labels = num_labels
         else:
-            self.config = config_class.from_pretrained(model_name, **self.args["config"])
+            self.config = config_class.from_pretrained(model_name, **self.args.config)
             self.num_labels = self.config.num_labels
         self.pos_weight = pos_weight
 
@@ -143,16 +144,19 @@ class MultiLabelClassificationModel(ClassificationModel):
 
         self.results = {}
 
-        self.tokenizer = tokenizer_class.from_pretrained(
-            model_name, do_lower_case=self.args["do_lower_case"], **kwargs
-        )
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
-        self.args["model_name"] = model_name
-        self.args["model_type"] = model_type
+        self.args.model_name = model_name
+        self.args.model_type = model_type
 
-        if self.args["wandb_project"] and not wandb_available:
+        if self.args.wandb_project and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
-            self.args["wandb_project"] = None
+            self.args.wandb_project = None
+
+    def _load_model_args(self, input_dir):
+        args = MultiLabelClassificationArgs()
+        args.load(input_dir)
+        return args
 
     def train_model(
         self,

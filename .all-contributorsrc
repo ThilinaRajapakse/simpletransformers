@@ -226,7 +226,8 @@
       "avatar_url": "https://avatars3.githubusercontent.com/u/49659913?v=4",
       "profile": "https://github.com/Pradhy729",
       "contributions": [
-        "code"
+        "code",
+        "maintenance"
       ]
     },
     {
@@ -339,6 +340,42 @@
       "profile": "https://github.com/cahya-wirawan",
       "contributions": [
         "code"
+      ]
+    },
+    {
+      "login": "BjarkePedersen",
+      "name": "BjarkePedersen",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/29751977?v=4",
+      "profile": "https://github.com/BjarkePedersen",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "tekkkon",
+      "name": "tekkkon",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/6827543?v=4",
+      "profile": "https://github.com/tekkkon",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Amit80007",
+      "name": "Amit Garg",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/19791871?v=4",
+      "profile": "https://www.linkedin.com/in/garg-amit/",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "caprone",
+      "name": "caprone",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/15055331?v=4",
+      "profile": "https://github.com/caprone",
+      "contributions": [
+        "bug"
       ]
     }
   ],

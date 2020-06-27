@@ -8,7 +8,7 @@ last_modified_at: 2020-05-02 17:58:53
 ```python
 import logging
 
-from simpletransformers.question_answering import QuestionAnsweringModel
+from simpletransformers.question_answering import QuestionAnsweringModel, QuestionAnsweringArgs
 
 
 logging.basicConfig(level=logging.INFO)
@@ -115,10 +115,10 @@ eval_data = [
     },
 ]
 
-model_args = {
-    "train_batch_size": 16,
-    "evaluate_during_training": True,
-}
+# Configure the model
+model_args = QuestionAnsweringArgs()
+model_args.train_batch_size = 16
+model_args.evaluate_during_training = True
 
 model = QuestionAnsweringModel(
     "roberta", "roberta-base", args=model_args

@@ -142,9 +142,10 @@ model = ClassificationModel(
 
 
 ```python
-model_args = {
-    "sliding_window": True
-}
+from simpletransformers.classification import ClassificationModel, ClassificationArgs
+
+
+model_args = ClassificationArgs(sliding_window=True)
 
 model = ClassificationModel(
     "roberta",

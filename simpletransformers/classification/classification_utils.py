@@ -374,7 +374,7 @@ def convert_examples_to_features(
                         p.imap(
                             convert_example_to_feature_sliding_window,
                             examples,
-                            chunksize=args["multiprocessing_chunksize"],
+                            chunksize=args.multiprocessing_chunksize,
                         ),
                         total=len(examples),
                         disable=silent,
@@ -386,7 +386,7 @@ def convert_examples_to_features(
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
-                        p.imap(convert_example_to_feature, examples, chunksize=args["multiprocessing_chunksize"]),
+                        p.imap(convert_example_to_feature, examples, chunksize=args.multiprocessing_chunksize),
                         total=len(examples),
                         disable=silent,
                     )
@@ -431,7 +431,7 @@ class ImageEncoder(nn.Module):
         model = torchvision.models.resnet152(pretrained=True)
         modules = list(model.children())[:-2]
         self.model = nn.Sequential(*modules)
-        self.pool = nn.AdaptiveAvgPool2d(POOLING_BREAKDOWN[args["num_image_embeds"]])
+        self.pool = nn.AdaptiveAvgPool2d(POOLING_BREAKDOWN[args.num_image_embeds])
 
     def forward(self, x):
         # Bx3x224x224 -> Bx2048x7x7 -> Bx2048xN -> BxNx2048
@@ -463,7 +463,7 @@ class JsonlDataset(Dataset):
         self.labels_label = labels_label if labels_label else "labels"
         self.images_label = images_label if images_label else "images"
         self.image_type_extension = image_type_extension if image_type_extension else ""
-        self.data_type_extension = data_type_extension if image_type_extension else ""
+        self.data_type_extension = data_type_extension if data_type_extension else ""
         self.multi_label = multi_label
 
         if isinstance(files_list, str):
@@ -555,18 +555,18 @@ def get_image_transforms():
 class LazyClassificationDataset(Dataset):
     def __init__(self, data_file, tokenizer, args):
         self.data_file = data_file
-        self.start_row = 1 if args["lazy_header_row"] else 0
+        self.start_row = 1 if args.lazy_header_row else 0
         self.num_entries = self._get_n_lines(self.data_file, self.start_row)
         self.tokenizer = tokenizer
         self.args = args
-        self.delimiter = args["lazy_delimiter"]
-        if args["lazy_text_a_column"] is not None and args["lazy_text_b_column"] is not None:
-            self.text_a_column = args["lazy_text_a_column"]
-            self.text_b_column = args["lazy_text_b_column"]
+        self.delimiter = args.lazy_delimiter
+        if args.lazy_text_a_column is not None and args.lazy_text_b_column is not None:
+            self.text_a_column = args.lazy_text_a_column
+            self.text_b_column = args.lazy_text_b_column
             self.text_column = None
         else:
-            self.text_column = args["lazy_text_column"]
-        self.labels_column = args["lazy_labels_column"]
+            self.text_column = args.lazy_text_column
+        self.labels_column = args.lazy_labels_column
 
     @staticmethod
     def _get_n_lines(data_file, start_row):
@@ -578,10 +578,15 @@ class LazyClassificationDataset(Dataset):
 
     def __getitem__(self, idx):
         line = linecache.getline(self.data_file, idx + 1 + self.start_row).rstrip("\n").split(self.delimiter)
+
         if self.text_column:
             text = line[self.text_column]
             label = line[self.labels_column]
-            if self.args["regression"]:
+
+            # If labels_map is defined, then labels need to be replaced with ints
+            if self.args.labels_map:
+                label = self.args.labels_map[label]
+            if self.args.regression:
                 label = torch.tensor(float(label), dtype=torch.float)
             else:
                 label = torch.tensor(int(label), dtype=torch.long)
@@ -589,8 +594,8 @@ class LazyClassificationDataset(Dataset):
             return (
                 self.tokenizer.encode_plus(
                     text,
-                    max_length=self.args["max_seq_length"],
-                    pad_to_max_length=self.args["max_seq_length"],
+                    max_length=self.args.max_seq_length,
+                    pad_to_max_length=self.args.max_seq_length,
                     return_tensors="pt",
                 ),
                 label,
@@ -599,7 +604,7 @@ class LazyClassificationDataset(Dataset):
             text_a = line[self.text_a_column]
             text_b = line[self.text_b_column]
             label = line[self.labels_column]
-            if self.args["regression"]:
+            if self.args.regression:
                 label = torch.tensor(float(label), dtype=torch.float)
             else:
                 label = torch.tensor(int(label), dtype=torch.long)
@@ -608,8 +613,8 @@ class LazyClassificationDataset(Dataset):
                 self.tokenizer.encode_plus(
                     text_a,
                     text_pair=text_b,
-                    max_length=self.args["max_seq_length"],
-                    pad_to_max_length=self.args["max_seq_length"],
+                    max_length=self.args.max_seq_length,
+                    pad_to_max_length=self.args.max_seq_length,
                     return_tensors="pt",
                 ),
                 label,

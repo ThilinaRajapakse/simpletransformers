@@ -87,6 +87,16 @@ docs:
         url: /docs/lm-data-formats/
       - title: "Language Modeling Minimal Start"
         url: /docs/lm-minimal-start/
+  - title: T5 Model
+    children:
+      - title: "T5 Specifics"
+        url: /docs/t5-specifics/
+      - title: "T5 Model"
+        url: /docs/t5-model/
+      - title: "T5 Data Formats"
+        url: /docs/t5-data-formats/
+      - title: "T5 Minimal Start"
+        url: /docs/t5-minimal-start/
   - title: Meta
     children:
       - title: "History"

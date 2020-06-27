@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-36-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-40-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -144,6 +144,7 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*max_steps: int*](#max_steps-int-1)
       - [*evaluate_generated_text: bool*](#evaluate_generated_text-bool)
       - [*num_beams: int*](#num_beams-int)
+      - [*num_return_sequences: int*](#num_return_sequences-int-1)
       - [*max_lemgth: int*](#max_lemgth-int)
       - [*repetition_penalty: float*](#repetition_penalty-float-1)
       - [*length_penalty: float*](#length_penalty-float)
@@ -171,9 +172,12 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*max_steps: int*](#max_steps-int-2)
       - [*evaluate_generated_text: bool*](#evaluate_generated_text-bool-1)
       - [*num_beams: int*](#num_beams-int-1)
+      - [*num_return_sequences: int*](#num_return_sequences-int-2)
       - [*max_lemgth: int*](#max_lemgth-int-1)
       - [*repetition_penalty: float*](#repetition_penalty-float-2)
       - [*length_penalty: float*](#length_penalty-float-1)
+      - [*top_k: int*](#top_k-int-1)
+      - [*top_p: float*](#top_p-float-1)
       - [*early_stopping: bool*](#early_stopping-bool-1)
   - [Conversational AI](#conversational-ai)
     - [Data format](#data-format-4)
@@ -190,8 +194,8 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*max_length: int*](#max_length-int)
       - [*min_length: int*](#min_length-int)
       - [*temperature: float*](#temperature-float-1)
-      - [*top_k: int*](#top_k-int-1)
-      - [*top_p: float*](#top_p-float-1)
+      - [*top_k: int*](#top_k-int-2)
+      - [*top_p: float*](#top_p-float-2)
   - [Multi-Modal Classification](#multi-modal-classification)
     - [Data format](#data-format-5)
       - [1 - Directory based](#1---directory-based)
@@ -592,7 +596,7 @@ Returns:
 
 * model_outputs: List of model outputs for each row in eval_df  
 
-* wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model  
+* wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model. The text of the incorrect prediction can be obtained from the InputFeature.text_a attribute. To obtain the true label of the text, use InputFeature.label attribute.
 
 **`predict(self, to_predict)`**
 
@@ -1693,6 +1697,7 @@ print(model.eval_model(eval_df, matches=count_matches))
 ### Training a T5 Model on a new task
 
 - [Question Generation With T5](https://medium.com/@chaturangarajapakshe/asking-the-right-questions-training-a-t5-transformer-model-on-a-new-task-691ebba2d72c?source=friends_link&sk=9f88c539546eca32b702cc0243abd0dd)
+- [The Guide to Multi-Tasking with the T5 Transformer](https://towardsdatascience.com/the-guide-to-multi-tasking-with-the-t5-transformer-90c70a08837b?source=friends_link&sk=ffe37deefa8dd4158f3f76e3dd46cf11)
 
 
 ### T5Model
@@ -1852,6 +1857,10 @@ Generate sequences for evaluation.
 
 Number of beams for beam search. Must be between 1 and infinity. 1 means no beam search. Default to 1.
 
+#### *num_return_sequences: int*
+
+The number of samples to generate.
+
 #### *max_lemgth: int*
 
 The max length of the sequence to be generated.  Between `min_length` and infinity. Default to 20.
@@ -1883,7 +1892,9 @@ Automatically add `:` and `< /s>` tokens to `train_model()` and `eval_model()` i
 
 _[Back to Table of Contents](#table-of-contents)_
 
+
 ---
+
 
 ## Sequence-to-Sequence Models
 
@@ -2353,6 +2364,10 @@ Generate sequences for evaluation.
 
 Number of beams for beam search. Must be between 1 and infinity. 1 means no beam search. Default to 1.
 
+#### *num_return_sequences: int*
+
+The number of samples to generate.
+
 #### *max_lemgth: int*
 
 The max length of the sequence to be generated.  Between `min_length` and infinity. Default to 20.
@@ -2364,6 +2379,14 @@ The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no pen
 #### *length_penalty: float*
 
 Exponential penalty to the length. Default to 1.
+
+#### *top_k: int*
+
+Filter top-k tokens before sampling (<=0: no filtering)
+
+#### *top_p: float*
+
+Nucleus filtering (top-p) before sampling (<=0.0: no filtering)
 
 #### *early_stopping: bool*
 
@@ -3297,7 +3320,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   <tr>
     <td align="center"><a href="https://github.com/djstrong"><img src="https://avatars1.githubusercontent.com/u/1849959?v=4" width="100px;" alt=""/><br /><sub><b>djstrong</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=djstrong" title="Code">💻</a></td>
     <td align="center"><a href="http://kozistr.tech"><img src="https://avatars2.githubusercontent.com/u/15344796?v=4" width="100px;" alt=""/><br /><sub><b>Hyeongchan Kim</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=kozistr" title="Documentation">📖</a></td>
-    <td align="center"><a href="https://github.com/Pradhy729"><img src="https://avatars3.githubusercontent.com/u/49659913?v=4" width="100px;" alt=""/><br /><sub><b>Pradhy729</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Pradhy729" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/Pradhy729"><img src="https://avatars3.githubusercontent.com/u/49659913?v=4" width="100px;" alt=""/><br /><sub><b>Pradhy729</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Pradhy729" title="Code">💻</a> <a href="#maintenance-Pradhy729" title="Maintenance">🚧</a></td>
     <td align="center"><a href="https://iknoorjobs.github.io/"><img src="https://avatars2.githubusercontent.com/u/22852967?v=4" width="100px;" alt=""/><br /><sub><b>Iknoor Singh</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=iknoorjobs" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/galtay"><img src="https://avatars2.githubusercontent.com/u/663051?v=4" width="100px;" alt=""/><br /><sub><b>Gabriel Altay</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=galtay" title="Code">💻</a></td>
     <td align="center"><a href="https://a-ware.io"><img src="https://avatars1.githubusercontent.com/u/47894090?v=4" width="100px;" alt=""/><br /><sub><b>flozi00</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flozi00" title="Documentation">📖</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=flozi00" title="Code">💻</a> <a href="#maintenance-flozi00" title="Maintenance">🚧</a></td>
@@ -3314,6 +3337,10 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/cahya-wirawan"><img src="https://avatars1.githubusercontent.com/u/7669893?v=4" width="100px;" alt=""/><br /><sub><b>Cahya Wirawan</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=cahya-wirawan" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/BjarkePedersen"><img src="https://avatars1.githubusercontent.com/u/29751977?v=4" width="100px;" alt=""/><br /><sub><b>BjarkePedersen</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=BjarkePedersen" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/tekkkon"><img src="https://avatars2.githubusercontent.com/u/6827543?v=4" width="100px;" alt=""/><br /><sub><b>tekkkon</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=tekkkon" title="Code">💻</a></td>
+    <td align="center"><a href="https://www.linkedin.com/in/garg-amit/"><img src="https://avatars1.githubusercontent.com/u/19791871?v=4" width="100px;" alt=""/><br /><sub><b>Amit Garg</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Amit80007" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/caprone"><img src="https://avatars1.githubusercontent.com/u/15055331?v=4" width="100px;" alt=""/><br /><sub><b>caprone</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/issues?q=author%3Acaprone" title="Bug reports">🐛</a></td>
   </tr>
 </table>
 
