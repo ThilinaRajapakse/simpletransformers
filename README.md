@@ -120,7 +120,7 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
     - [Additional attributes for Language Generation tasks](#additional-attributes-for-language-generation-tasks)
       - [*do_sample: bool*](#do_sample-bool)
       - [*prompt: str*](#prompt-str)
-      - [*length: int*](#length-int)
+      - [*max_length: int*](#max_length-int)
       - [*stop_token: str*](#stop_token-str)
       - [*temperature: float*](#temperature-float)
       - [*repetition_penalty: float*](#repetition_penalty-float)
@@ -1496,7 +1496,7 @@ If set to `False` greedy decoding is used. Otherwise sampling is used. Defaults 
 
 A prompt text for the model.
 
-#### *length: int*
+#### *max_length: int*
 
 Length of the text to generate
 
