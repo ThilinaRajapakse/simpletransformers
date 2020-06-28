@@ -278,23 +278,24 @@ class LazyNERDataset(Dataset):
     def __init__(self, data_file, tokenizer, args):
         self.data_file = data_file
         self.data_start_line = args.data_start_line if args.data_start_line else 0
-        self.example_lines = self._get_examples(self.data_file, self.data_start_line)
-        self.num_entries = len(self.example_lines)
+        self.example_lines, self.num_entries = self._get_examples(self.data_file, self.data_start_line)
         self.tokenizer = tokenizer
         self.args = args
         self.pad_token_label_id = CrossEntropyLoss().ignore_index
 
     @staticmethod
     def _get_examples(data_file, data_start_line):
-        example_lines = []
+        example_lines = {}
         start = data_start_line
+        entry_num = 0
         with open(data_file, encoding="utf-8") as f:
             for line_idx, _ in enumerate(f, 1):
                 if _ == '\n' and line_idx>data_start_line:
-                    example_lines.append((start,line_idx))
+                    example_lines[entry_num] = (start,line_idx)
                     start = line_idx+1
+                    entry_num+=1
 
-        return example_lines
+        return example_lines, entry_num
 
     def __getitem__(self, idx):
         start, end = self.example_lines[idx]
