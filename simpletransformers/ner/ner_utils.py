@@ -251,7 +251,7 @@ def convert_examples_to_features(
 
 
 def get_labels(path):
-    if path:
+	if path:
         with open(path, "r") as f:
             labels = f.read().splitlines()
         if "O" not in labels:
@@ -272,7 +272,7 @@ def get_labels(path):
 
 class LazyNERDataset(Dataset):
     def __init__(self, data_file, tokenizer, args):
-        self.data_file = data_file
+	    self.data_file = data_file
         self.data_start_line = args.data_start_line if args.data_start_line else 0
         self.example_lines = self._get_examples(self.data_file)
         self.num_entries = len(self.example_lines)
@@ -285,10 +285,10 @@ class LazyNERDataset(Dataset):
         example_lines = []
         start = self.data_start_line
         with open(self.data_file, encoding="utf-8") as f:
-    		for line_idx, _ in enumerate(f, 1):
-        		if _ == '\n' and line_idx>self.data_start_line:
-        			example_lines.append((start,line_idx - start))
-        			start = line_idx+1
+		    for line_idx, _ in enumerate(f, 1):
+			    if _ == '\n' and line_idx>self.data_start_line:
+				    example_lines.append((start,line_idx - start))
+				    start = line_idx+1
 
         return example_lines
 
@@ -296,7 +296,7 @@ class LazyNERDataset(Dataset):
 		start, end = self.example_lines[idx]
 		words, labels = [], []
 		for idx in range(start,end):
-		    line = linecache.getline(self.data_file, idx).rstrip("\n")
+	    	line = linecache.getline(self.data_file, idx).rstrip("\n")
 		    splits = line.split(" ")
 		    words.append(splits[0])
 		    if len(splits) > 1:
