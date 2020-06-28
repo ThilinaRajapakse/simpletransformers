@@ -274,7 +274,7 @@ class LazyNERDataset(Dataset):
     def __init__(self, data_file, tokenizer, args):
         self.data_file = data_file
         self.data_start_line = args.data_start_line if args.data_start_line else 0
-        self.example_lines = self._get_examples(self.data_file, self.start_row)
+        self.example_lines = self._get_examples(self.data_file)
         self.num_entries = len(self.example_lines)
         self.tokenizer = tokenizer
         self.args = args
@@ -284,7 +284,7 @@ class LazyNERDataset(Dataset):
     def _get_examples(data_file):
         example_lines = []
         start = self.data_start_line
-        with open('conll.txt', encoding="utf-8") as f:
+        with open(self.data_file, encoding="utf-8") as f:
     		for line_idx, _ in enumerate(f, 1):
         		if _ == '\n' and line_idx>self.data_start_line:
         			example_lines.append((start,line_idx - start))
@@ -305,7 +305,7 @@ class LazyNERDataset(Dataset):
 		        # Examples could have no label for mode = "test"
 		        labels.append("O")
         if words:
-            examples.append(InputExample(guid="%s-%d".format(mode, guid_index), words=words, labels=labels))
+            examples.append(InputExample(guid="%s-%d".format('train', idx), words=words, labels=labels))
         features = convert_examples_to_features(
                     examples,
                     self.args.labels_list,
