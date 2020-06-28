@@ -21,6 +21,10 @@ import logging
 import os
 from io import open
 from multiprocessing import Pool, cpu_count
+from torch.utils.data import Dataset
+from torch.nn import CrossEntropyLoss
+import torch
+import linecache
 
 from tqdm.auto import tqdm
 
@@ -274,20 +278,20 @@ class LazyNERDataset(Dataset):
     def __init__(self, data_file, tokenizer, args):
         self.data_file = data_file
         self.data_start_line = args.data_start_line if args.data_start_line else 0
-        self.example_lines = self._get_examples(self.data_file)
+        self.example_lines = self._get_examples(self.data_file, self.data_start_line)
         self.num_entries = len(self.example_lines)
         self.tokenizer = tokenizer
         self.args = args
-        self.delimiter = args.lazy_delimiter
+        self.pad_token_label_id = CrossEntropyLoss().ignore_index
 
     @staticmethod
-    def _get_examples(data_file):
+    def _get_examples(data_file, data_start_line):
         example_lines = []
-        start = self.data_start_line
-        with open(self.data_file, encoding="utf-8") as f:
+        start = data_start_line
+        with open(data_file, encoding="utf-8") as f:
             for line_idx, _ in enumerate(f, 1):
-                if _ == '\n' and line_idx>self.data_start_line:
-                    example_lines.append((start,line_idx - start))
+                if _ == '\n' and line_idx>data_start_line:
+                    example_lines.append((start,line_idx))
                     start = line_idx+1
 
         return example_lines
@@ -305,35 +309,31 @@ class LazyNERDataset(Dataset):
                 # Examples could have no label for mode = "test"
                 labels.append("O")
         if words:
-            examples.append(InputExample(guid="%s-%d".format('train', idx), words=words, labels=labels))
-        features = convert_examples_to_features(
-                    examples,
-                    self.args.labels_list,
-                    self.args.max_seq_length,
-                    self.tokenizer,
-                    # XLNet has a CLS token at the end
-                    cls_token_at_end=bool(self.args.model_type in ["xlnet"]),
-                    cls_token=self.tokenizer.cls_token,
-                    cls_token_segment_id=2 if self.args.model_type in ["xlnet"] else 0,
-                    sep_token=self.tokenizer.sep_token,
-                    # RoBERTa uses an extra separator b/w pairs of sentences,
-                    # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
-                    sep_token_extra=bool(self.args.model_type in ["roberta"]),
-                    # PAD on the left for XLNet
-                    pad_on_left=bool(self.args.model_type in ["xlnet"]),
-                    pad_token=self.tokenizer.convert_tokens_to_ids([self.tokenizer.pad_token])[0],
-                    pad_token_segment_id=4 if self.args.model_type in ["xlnet"] else 0,
-                    pad_token_label_id=self.pad_token_label_id,
-                    process_count=self.args.process_count,
-                    silent=True,
-                    use_multiprocessing=False,
-                    chunksize=None,
-                )
-        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
-        all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
+            example = InputExample(guid="%s-%d".format('train', idx), words=words, labels=labels)
+        
+        label_map = {label: i for i, label in enumerate(self.args.labels_list)}
+        
+        example_row = (example,
+                        label_map,
+                        self.args.max_seq_length,
+                        self.tokenizer,
+                        bool(self.args.model_type in ["xlnet"]),
+                        self.tokenizer.cls_token,2 if self.args.model_type in ["xlnet"] else 0,
+                        self.tokenizer.sep_token,
+                        bool(self.args.model_type in ["roberta"]),
+                        bool(self.args.model_type in ["xlnet"]),
+                        self.tokenizer.convert_tokens_to_ids([self.tokenizer.pad_token])[0],
+                        4 if self.args.model_type in ["xlnet"] else 0,
+                        self.pad_token_label_id,
+                        0,
+                        True)
+        
+        features = convert_example_to_feature(example_row)
+        all_input_ids = torch.tensor(features.input_ids, dtype=torch.long)
+        all_input_mask = torch.tensor(features.input_mask, dtype=torch.long)
+        all_segment_ids = torch.tensor(features.segment_ids, dtype=torch.long)
+        all_label_ids = torch.tensor(features.label_ids, dtype=torch.long)
         return (all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
     def __len__(self):
-        return len(self.num_entries)
+        return self.num_entries

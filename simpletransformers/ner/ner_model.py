@@ -24,6 +24,7 @@ from simpletransformers.ner.ner_utils import (
     get_examples_from_df,
     get_labels,
     read_examples_from_file,
+    LazyNERDataset,
 )
 from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
