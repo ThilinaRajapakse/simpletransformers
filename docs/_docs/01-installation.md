@@ -21,13 +21,13 @@ Follow the instructions given below to install Simple Transformers using with An
    ```
 3. Using a CUDA capable GPU is recommended.  
    To install Pytorch with CUDA support:  
-      ```shell
-      conda install pytorch cudatoolkit=10.1 -c pytorch 
-      ```
+   ```shell
+   conda install pytorch cudatoolkit=10.1 -c pytorch 
+   ```
    CPU only:  
-      ```shell
-      conda install pytorch cpuonly -c pytorch
-      ```
+   ```shell
+   conda install pytorch cpuonly -c pytorch
+   ```
 
 4. Install Apex to use FP16 training. Please follow the instructions [here](https://github.com/NVIDIA/apex). (Installing Apex from pip has caused issues for several people.)
 
