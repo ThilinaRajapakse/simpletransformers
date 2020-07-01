@@ -6,8 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## UNRELEASED
 
-- NER lazy loading
-- Docs spacing removed
+- NER lazy loading support added [@Pradhy729](https://github.com/Pradhy729)
+- Unnecessary Docs spacing removed [@bryant1410](https://github.com/bryant1410)
+- Set required tokenizer version to 0.7 until breaking changes are resolved.
 
 ## [0.40.2] - 2020-06-25
 
