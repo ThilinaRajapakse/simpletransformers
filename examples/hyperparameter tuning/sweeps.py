@@ -12,10 +12,7 @@ from simpletransformers.classification import (
 sweep_config = {
     "method": "bayes",  # grid, random
     "metric": {"name": "train_loss", "goal": "minimize"},
-    "parameters": {
-        "num_train_epochs": {"values": [2, 3, 5]},
-        "learning_rate": {"min": 5e-5, "max": 4e-4},
-    },
+    "parameters": {"num_train_epochs": {"values": [2, 3, 5]}, "learning_rate": {"min": 5e-5, "max": 4e-4},},
 }
 
 sweep_id = wandb.sweep(sweep_config, project="Simple Sweep")
@@ -56,13 +53,7 @@ def train():
     wandb.init()
 
     # Create a TransformerModel
-    model = ClassificationModel(
-        "roberta",
-        "roberta-base",
-        use_cuda=True,
-        args=model_args,
-        sweep_config=wandb.config,
-    )
+    model = ClassificationModel("roberta", "roberta-base", use_cuda=True, args=model_args, sweep_config=wandb.config,)
 
     # Train the model
     model.train_model(train_df, eval_df=eval_df)

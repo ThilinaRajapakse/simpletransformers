@@ -668,10 +668,14 @@ class ClassificationModel:
         eval_output_dir = output_dir
 
         results = {}
-        if isinstance(eval_df, str):
+        if isinstance(eval_df, str) and self.args.lazy_loading:
             eval_dataset = LazyClassificationDataset(eval_df, self.tokenizer, self.args)
             eval_examples = None
         else:
+            if self.args.lazy_loading:
+                raise ValueError(
+                    "Input must be given as a path to a file when using lazy loading"
+                )
             if "text" in eval_df.columns and "labels" in eval_df.columns:
                 eval_examples = [
                     InputExample(i, text, None, label)

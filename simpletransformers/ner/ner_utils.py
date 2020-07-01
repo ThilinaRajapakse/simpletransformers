@@ -274,33 +274,34 @@ def get_labels(path):
             "I-LOC",
         ]
 
+
 class LazyNERDataset(Dataset):
     def __init__(self, data_file, tokenizer, args):
         self.data_file = data_file
-        self.data_start_line = args.data_start_line if args.data_start_line else 0
-        self.example_lines, self.num_entries = self._get_examples(self.data_file, self.data_start_line)
+        self.lazy_loading_start_line = args.lazy_loading_start_line if args.lazy_loading_start_line else 0
+        self.example_lines, self.num_entries = self._get_examples(self.data_file, self.lazy_loading_start_line)
         self.tokenizer = tokenizer
         self.args = args
         self.pad_token_label_id = CrossEntropyLoss().ignore_index
 
     @staticmethod
-    def _get_examples(data_file, data_start_line):
+    def _get_examples(data_file, lazy_loading_start_line):
         example_lines = {}
-        start = data_start_line
+        start = lazy_loading_start_line
         entry_num = 0
         with open(data_file, encoding="utf-8") as f:
             for line_idx, _ in enumerate(f, 1):
-                if _ == '\n' and line_idx>data_start_line:
-                    example_lines[entry_num] = (start,line_idx)
-                    start = line_idx+1
-                    entry_num+=1
+                if _ == "\n" and line_idx > lazy_loading_start_line:
+                    example_lines[entry_num] = (start, line_idx)
+                    start = line_idx + 1
+                    entry_num += 1
 
         return example_lines, entry_num
 
     def __getitem__(self, idx):
         start, end = self.example_lines[idx]
         words, labels = [], []
-        for idx in range(start,end):
+        for idx in range(start, end):
             line = linecache.getline(self.data_file, idx).rstrip("\n")
             splits = line.split(" ")
             words.append(splits[0])
@@ -310,25 +311,28 @@ class LazyNERDataset(Dataset):
                 # Examples could have no label for mode = "test"
                 labels.append("O")
         if words:
-            example = InputExample(guid="%s-%d".format('train', idx), words=words, labels=labels)
-        
+            example = InputExample(guid="%s-%d".format("train", idx), words=words, labels=labels)
+
         label_map = {label: i for i, label in enumerate(self.args.labels_list)}
-        
-        example_row = (example,
-                        label_map,
-                        self.args.max_seq_length,
-                        self.tokenizer,
-                        bool(self.args.model_type in ["xlnet"]),
-                        self.tokenizer.cls_token,2 if self.args.model_type in ["xlnet"] else 0,
-                        self.tokenizer.sep_token,
-                        bool(self.args.model_type in ["roberta"]),
-                        bool(self.args.model_type in ["xlnet"]),
-                        self.tokenizer.convert_tokens_to_ids([self.tokenizer.pad_token])[0],
-                        4 if self.args.model_type in ["xlnet"] else 0,
-                        self.pad_token_label_id,
-                        0,
-                        True)
-        
+
+        example_row = (
+            example,
+            label_map,
+            self.args.max_seq_length,
+            self.tokenizer,
+            bool(self.args.model_type in ["xlnet"]),
+            self.tokenizer.cls_token,
+            2 if self.args.model_type in ["xlnet"] else 0,
+            self.tokenizer.sep_token,
+            bool(self.args.model_type in ["roberta"]),
+            bool(self.args.model_type in ["xlnet"]),
+            self.tokenizer.convert_tokens_to_ids([self.tokenizer.pad_token])[0],
+            4 if self.args.model_type in ["xlnet"] else 0,
+            self.pad_token_label_id,
+            0,
+            True,
+        )
+
         features = convert_example_to_feature(example_row)
         all_input_ids = torch.tensor(features.input_ids, dtype=torch.long)
         all_input_mask = torch.tensor(features.input_mask, dtype=torch.long)

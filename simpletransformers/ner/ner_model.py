@@ -899,13 +899,17 @@ class NERModel:
             no_cache = args.no_cache
 
         mode = "dev" if evaluate else "train"
-        if not to_predict and isinstance(data, str):
+        if not to_predict and isinstance(data, str) and self.args.lazy_loading:
             dataset = LazyNERDataset(data, tokenizer, self.args)
         else:
             if not to_predict:
                 if isinstance(data, str):
                     examples = read_examples_from_file(data, mode)
                 else:
+                    if self.args.lazy_loading:
+                        raise ValueError(
+                            "Input must be given as a path to a file when using lazy loading"
+                        )
                     examples = get_examples_from_df(data)
             else:
                 examples = to_predict

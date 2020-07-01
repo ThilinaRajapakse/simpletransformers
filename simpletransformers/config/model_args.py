@@ -112,12 +112,13 @@ class ClassificationArgs(ModelArgs):
     lazy_delimiter: str = "\t"
     labels_list: list = field(default_factory=list)
     labels_map: dict = field(default_factory=dict)
+    lazy_loading: bool = False
 
 
 @dataclass
 class MultiLabelClassificationArgs(ModelArgs):
     """
-    Model args for a ClassificationModel
+    Model args for a MultiLabelClassificationModel
     """
 
     sliding_window: bool = False
@@ -126,6 +127,7 @@ class MultiLabelClassificationArgs(ModelArgs):
     tie_value: int = 1
     labels_list: list = field(default_factory=list)
     labels_map: dict = field(default_factory=dict)
+    lazy_loading: bool = False
 
 
 @dataclass
@@ -136,6 +138,8 @@ class NERArgs(ModelArgs):
 
     classification_report: bool = False
     labels_list: list = field(default_factory=list)
+    lazy_loading: bool = False
+    lazy_loading_start_line: int = 0
 
 
 @dataclass
