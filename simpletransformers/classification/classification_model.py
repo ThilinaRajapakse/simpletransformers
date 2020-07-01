@@ -673,9 +673,7 @@ class ClassificationModel:
             eval_examples = None
         else:
             if self.args.lazy_loading:
-                raise ValueError(
-                    "Input must be given as a path to a file when using lazy loading"
-                )
+                raise ValueError("Input must be given as a path to a file when using lazy loading")
             if "text" in eval_df.columns and "labels" in eval_df.columns:
                 eval_examples = [
                     InputExample(i, text, None, label)
