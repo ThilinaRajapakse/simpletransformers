@@ -24,6 +24,7 @@ from simpletransformers.ner.ner_utils import (
     get_examples_from_df,
     get_labels,
     read_examples_from_file,
+    LazyNERDataset,
 )
 from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
@@ -898,66 +899,68 @@ class NERModel:
             no_cache = args.no_cache
 
         mode = "dev" if evaluate else "train"
-
-        if not to_predict:
-            if isinstance(data, str):
-                examples = read_examples_from_file(data, mode)
+        if not to_predict and isinstance(data, str):
+            dataset = LazyNERDataset(data, tokenizer, self.args)
+        else:
+            if not to_predict:
+                if isinstance(data, str):
+                    examples = read_examples_from_file(data, mode)
+                else:
+                    examples = get_examples_from_df(data)
             else:
-                examples = get_examples_from_df(data)
-        else:
-            examples = to_predict
-            no_cache = True
+                examples = to_predict
+                no_cache = True
 
-        cached_features_file = os.path.join(
-            args.cache_dir,
-            "cached_{}_{}_{}_{}_{}".format(
-                mode, args.model_type, args.max_seq_length, self.num_labels, len(examples),
-            ),
-        )
-        if not no_cache:
-            os.makedirs(self.args.cache_dir, exist_ok=True)
-
-        if os.path.exists(cached_features_file) and (
-            (not args.reprocess_input_data and not no_cache)
-            or (mode == "dev" and args.use_cached_eval_features and not no_cache)
-        ):
-            features = torch.load(cached_features_file)
-            logger.info(f" Features loaded from cache at {cached_features_file}")
-        else:
-            logger.info(" Converting to features started.")
-            features = convert_examples_to_features(
-                examples,
-                self.args.labels_list,
-                self.args.max_seq_length,
-                self.tokenizer,
-                # XLNet has a CLS token at the end
-                cls_token_at_end=bool(args.model_type in ["xlnet"]),
-                cls_token=tokenizer.cls_token,
-                cls_token_segment_id=2 if args.model_type in ["xlnet"] else 0,
-                sep_token=tokenizer.sep_token,
-                # RoBERTa uses an extra separator b/w pairs of sentences,
-                # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
-                sep_token_extra=bool(args.model_type in ["roberta"]),
-                # PAD on the left for XLNet
-                pad_on_left=bool(args.model_type in ["xlnet"]),
-                pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
-                pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0,
-                pad_token_label_id=self.pad_token_label_id,
-                process_count=process_count,
-                silent=args.silent,
-                use_multiprocessing=args.use_multiprocessing,
-                chunksize=args.multiprocessing_chunksize,
+            cached_features_file = os.path.join(
+                args.cache_dir,
+                "cached_{}_{}_{}_{}_{}".format(
+                    mode, args.model_type, args.max_seq_length, self.num_labels, len(examples),
+                ),
             )
-
             if not no_cache:
-                torch.save(features, cached_features_file)
+                os.makedirs(self.args.cache_dir, exist_ok=True)
 
-        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
-        all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
+            if os.path.exists(cached_features_file) and (
+                (not args.reprocess_input_data and not no_cache)
+                or (mode == "dev" and args.use_cached_eval_features and not no_cache)
+            ):
+                features = torch.load(cached_features_file)
+                logger.info(f" Features loaded from cache at {cached_features_file}")
+            else:
+                logger.info(" Converting to features started.")
+                features = convert_examples_to_features(
+                    examples,
+                    self.args.labels_list,
+                    self.args.max_seq_length,
+                    self.tokenizer,
+                    # XLNet has a CLS token at the end
+                    cls_token_at_end=bool(args.model_type in ["xlnet"]),
+                    cls_token=tokenizer.cls_token,
+                    cls_token_segment_id=2 if args.model_type in ["xlnet"] else 0,
+                    sep_token=tokenizer.sep_token,
+                    # RoBERTa uses an extra separator b/w pairs of sentences,
+                    # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
+                    sep_token_extra=bool(args.model_type in ["roberta"]),
+                    # PAD on the left for XLNet
+                    pad_on_left=bool(args.model_type in ["xlnet"]),
+                    pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
+                    pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0,
+                    pad_token_label_id=self.pad_token_label_id,
+                    process_count=process_count,
+                    silent=args.silent,
+                    use_multiprocessing=args.use_multiprocessing,
+                    chunksize=args.multiprocessing_chunksize,
+                )
 
-        dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+                if not no_cache:
+                    torch.save(features, cached_features_file)
+
+            all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+            all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+            all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+            all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
+
+            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
         return dataset
 
