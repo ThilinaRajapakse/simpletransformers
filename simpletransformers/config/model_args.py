@@ -100,19 +100,19 @@ class ClassificationArgs(ModelArgs):
     Model args for a ClassificationModel
     """
 
-    tie_value: int = 1
-    stride: float = 0.8
-    sliding_window: bool = False
-    regression: bool = False
-    lazy_text_column: int = 0
-    lazy_text_b_column: bool = None
-    lazy_text_a_column: bool = None
-    lazy_labels_column: int = 1
-    lazy_header_row: bool = True
-    lazy_delimiter: str = "\t"
     labels_list: list = field(default_factory=list)
     labels_map: dict = field(default_factory=dict)
+    lazy_delimiter: str = "\t"
+    lazy_labels_column: int = 1
     lazy_loading: bool = False
+    lazy_loading_start_line: int = 1
+    lazy_text_a_column: bool = None
+    lazy_text_b_column: bool = None
+    lazy_text_column: int = 0
+    regression: bool = False
+    sliding_window: bool = False
+    stride: float = 0.8
+    tie_value: int = 1
 
 
 @dataclass

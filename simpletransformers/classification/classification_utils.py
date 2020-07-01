@@ -555,7 +555,7 @@ def get_image_transforms():
 class LazyClassificationDataset(Dataset):
     def __init__(self, data_file, tokenizer, args):
         self.data_file = data_file
-        self.start_row = 1 if args.lazy_header_row else 0
+        self.start_row = args.lazy_loading_start_line
         self.num_entries = self._get_n_lines(self.data_file, self.start_row)
         self.tokenizer = tokenizer
         self.args = args
