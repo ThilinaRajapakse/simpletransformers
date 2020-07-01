@@ -4,9 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## UNRELEASED
+## [0.41.0] - 2020-07-02
+
+### Added
 
 - NER lazy loading support added [@Pradhy729](https://github.com/Pradhy729)
+
+### Changed
+
+- Added `lazy_loading` attibute to `ClassificationArgs` which now controls whether lazy loading is used.
+- Replaced `lazy_loading_header_row` attribute in `ClassificationArgs` with `lazy_loading_start_line`.
 - Unnecessary Docs spacing removed [@bryant1410](https://github.com/bryant1410)
 - Set required tokenizer version to 0.7 until breaking changes are resolved.
 
@@ -908,7 +915,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.40.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f4ef3d3...HEAD
+[0.41.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b4e1886...HEAD
+
+[0.40.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f4ef3d3...b4e1886
 
 [0.40.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/99ede24...f4ef3d3
 
