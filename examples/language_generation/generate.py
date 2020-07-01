@@ -6,9 +6,9 @@ logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
-model = LanguageGenerationModel("gpt2", "outputs/from_scratch/", args={"length": 200})
-# model = LanguageGenerationModel("gpt2", "outputs/fine-tuned", args={"length": 200})
-# model = LanguageGenerationModel("gpt2", "gpt2", args={"length": 200})
+model = LanguageGenerationModel("gpt2", "outputs/from_scratch/", args={"max_length": 200})
+# model = LanguageGenerationModel("gpt2", "outputs/fine-tuned", args={"max_length": 200})
+# model = LanguageGenerationModel("gpt2", "gpt2", args={"max_length": 200})
 
 prompts = [
     "Despite the recent successes of deep learning, such models are still far from some human abilities like learning from few examples, reasoning and explaining decisions. In this paper, we focus on organ annotation in medical images and we introduce a reasoning framework that is based on learning fuzzy relations on a small dataset for generating explanations.",
