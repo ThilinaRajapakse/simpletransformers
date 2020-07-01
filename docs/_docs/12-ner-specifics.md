@@ -2,7 +2,7 @@
 title: Named Entitty Recognition Specifics
 permalink: /docs/ner-specifics/
 excerpt: "Specific notes for Named Entity Recognition tasks."
-last_modified_at: 2020-05-02 17:58:53
+last_modified_at: 2020/07/02 01:42:15
 toc: true
 ---
 
@@ -54,3 +54,29 @@ model = NERModel(
     "bert", "bert-cased-base", labels=custom_labels
 )
 ```
+
+## Prediction Caveats
+
+By default, `NERModel` will split input sequences to the `predict()` method on spaces and assign a NER tag to each "word" of the split sequence. This might not be desirable in some languages (e.g. Chinese). To avoid this, you can specify `split_on_spaces=False` when calling the `NERModel.predict()` method. In this case, you must provide a list of lists as the `to_predict` input to the `predict()` method. The inner list will be the list of split "words" belonging to a single sequence and the outer list is the list of all sequences.
+
+## Lazy Loading Data
+
+When working with very large datasets, the available memory may prevent keeping the entire dataset in memory during training or evaluation of a model. In such cases, the data can be lazy loaded from disk to minimize memory consumption.
+
+To enable lazy loading, you must set the `lazy_loading` flag to `True` in `NERArgs`.
+
+
+```python
+model_args = NERArgs()
+model_args.lazy_loading = True
+```
+
+**Note:** The data must be input as a path to a file in the CoNLL format to use lazy loading. See [here](/docs/ner-data-formats/#text-file-in-conll-format) for the correct format.
+{: .notice--info}
+
+
+**Note:** This will typically be slower as the feature conversion is done on the fly. However, the tradeoff between speed and memory consumption should be reasonable.
+{: .notice--info}
+
+**Tip:** See [Configuring a NER model](/docs/ner-model/#configuring-a-ner-model) for information on configuring the model to read the lazy loading data file correctly.
+{: .notice--success}
