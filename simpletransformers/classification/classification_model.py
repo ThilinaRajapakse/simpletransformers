@@ -324,16 +324,38 @@ class ClassificationModel:
         t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
         no_decay = ["bias", "LayerNorm.weight"]
-        optimizer_grouped_parameters = [
-            {
-                "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-                "weight_decay": args.weight_decay,
-            },
-            {
-                "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-                "weight_decay": 0.0,
-            },
-        ]
+        groups = []
+        layer_names = [f"layer.{i}." for i in range(12)]
+        lrs = [i for i in range(12)]
+        for i in range(12):
+            group_d = {}
+            group_d["params"] = [
+                p for n, p in model.named_parameters() if layer_names[i] in n and not any(nd in n for nd in no_decay)
+            ]
+            group_d["lr"] = lrs[i]
+            group_d["weight_decay"] = args.weight_decay
+            groups.append(group_d)
+
+            group_nd = {}
+            group_nd["params"] = [
+                p for n, p in model.named_parameters() if layer_names[i] in n and any(nd in n for nd in no_decay)
+            ]
+            group_nd["lr"] = lrs[i]
+            group_nd["weight_decay"] = 0.0
+            groups.append(group_nd)
+
+        optimizer_grouped_parameters = groups
+        # optimizer_grouped_parameters = [
+        #     {
+        #         "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+        #         "weight_decay": args.weight_decay,
+        #         "lr": 1000,
+        #     },
+        #     {
+        #         "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
+        #         "weight_decay": 0.0,
+        #     },
+        # ]
 
         warmup_steps = math.ceil(t_total * args.warmup_ratio)
         args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
@@ -342,6 +364,9 @@ class ClassificationModel:
         scheduler = get_linear_schedule_with_warmup(
             optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
         )
+
+        print(optimizer)
+        exit()
 
         if args.fp16:
             try:
