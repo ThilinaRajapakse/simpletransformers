@@ -413,7 +413,7 @@ class MultiModalClassificationModel:
             training_progress_scores = self._create_training_progress_scores(multi_label, **kwargs)
 
         if args.wandb_project:
-            wandb.init(project=args.wandb_project, config={**args}, **args.wandb_kwargs)
+            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         model.train()

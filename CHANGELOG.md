@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.41.2] - 2020-07-03
+
+### Fixed
+
+- Fixed bugs with args not being passed correctly to wandb in the following models:
+  - `MultiModalClassificationModel`
+  - `ConvAIModel`
+  - `Seq2SeqModel`
+  - `T5Model`
+
+## [0.41.1] - 2020-07-02
+
+### Fixed
+
+- Fixed bug where the returned value from `MultiModalClassificationModel.evaluate_model()` was incorrect.
+
 ## [0.41.0] - 2020-07-02
 
 ### Added
@@ -915,7 +931,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.41.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b4e1886...HEAD
+[0.41.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/eeb69fa...HEAD
+
+[0.41.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b4e1886...eeb69fa
 
 [0.40.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f4ef3d3...b4e1886
 
