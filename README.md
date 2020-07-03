@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-41-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-42-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -3342,6 +3342,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://www.linkedin.com/in/garg-amit/"><img src="https://avatars1.githubusercontent.com/u/19791871?v=4" width="100px;" alt=""/><br /><sub><b>Amit Garg</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Amit80007" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/caprone"><img src="https://avatars1.githubusercontent.com/u/15055331?v=4" width="100px;" alt=""/><br /><sub><b>caprone</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/issues?q=author%3Acaprone" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://www.linkedin.com/in/ather-fawaz-024596134/"><img src="https://avatars0.githubusercontent.com/u/42374034?v=4" width="100px;" alt=""/><br /><sub><b>Ather Fawaz</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=atherfawaz" title="Code">💻</a></td>
+    <td align="center"><a href="https://santi.uy"><img src="https://avatars3.githubusercontent.com/u/3905501?v=4" width="100px;" alt=""/><br /><sub><b>Santiago Castro</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=bryant1410" title="Documentation">📖</a></td>
   </tr>
 </table>
 
