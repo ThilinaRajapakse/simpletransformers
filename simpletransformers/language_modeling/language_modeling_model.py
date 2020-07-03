@@ -63,9 +63,13 @@ from transformers import (
     OpenAIGPTTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
+    ReformerConfig,
+    ReformerForMaskedLM,
+    ReformerTokenizer,
     RobertaConfig,
     RobertaForMaskedLM,
     RobertaTokenizer,
+    T5Tokenizer,
     LongformerConfig,
     LongformerForMaskedLM,
     LongformerTokenizer,
@@ -93,6 +97,7 @@ MODEL_CLASSES = {
     "longformer": (LongformerConfig, LongformerForMaskedLM, LongformerTokenizer),
     "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
+    "reformer": (ReformerConfig, ReformerForMaskedLM, ReformerTokenizer),
 }
 
 
@@ -204,9 +209,14 @@ class LanguageModelingModel:
                 )
                 self.args["tokenizer_name"] = self.args["model_name"]
             else:
-                self.tokenizer = tokenizer_class.from_pretrained(
+                if(model_type == "reformer"):
+                    self.tokenizer = T5Tokenizer.from_pretrained(
+                        "t5-base", cache_dir=self.args["cache_dir"], **kwargs
+                    )
+                else:
+                    self.tokenizer = tokenizer_class.from_pretrained(
                     model_name, cache_dir=self.args["cache_dir"], **kwargs
-                )
+                    )
                 self.args["tokenizer_name"] = self.args["model_name"]
         else:
             if not train_files:
