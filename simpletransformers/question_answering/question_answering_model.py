@@ -61,6 +61,9 @@ from transformers import (
     LongformerConfig,
     LongformerTokenizer,
     LongformerForQuestionAnswering,
+    ReformerConfig,
+    ReformerForQuestionAnswering,
+    ReformerTokenizer,
     RobertaConfig,
     RobertaForQuestionAnswering,
     RobertaTokenizer,
@@ -109,6 +112,7 @@ class QuestionAnsweringModel:
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
             "longformer": (LongformerConfig, LongformerForQuestionAnswering, LongformerTokenizer),
+            "reformer": (ReformerConfig, ReformerForQuestionAnswering, ReformerTokenizer),
             "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForQuestionAnswering, XLMRobertaTokenizer),
@@ -165,10 +169,17 @@ class QuestionAnsweringModel:
             self.device = "cpu"
 
         self.results = {}
-
-        self.tokenizer = tokenizer_class.from_pretrained(
+        
+        if(model_type == "reformer"):
+            self.tokenizer = T5Tokenizer.from_pretrained(
+                "t5-base", do_lower_case=self.args["do_lower_case"], **kwargs
+            )
+            if(self.tokenizer.cls_token == None):
+                self.tokenizer.cls_token = self.tokenizer.pad_token
+        else:
+            self.tokenizer = tokenizer_class.from_pretrained(
             model_name, do_lower_case=self.args["do_lower_case"], **kwargs
-        )
+            )
 
         self.args["model_name"] = model_name
         self.args["model_type"] = model_type
