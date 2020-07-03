@@ -224,7 +224,7 @@ class Seq2SeqArgs(ModelArgs):
     repetition_penalty: float = 1.0
     top_k: float = None
     top_p: float = None
-    use_multiprocessed_decoding: bool = True
+    use_multiprocessed_decoding: bool = False
 
 
 @dataclass
