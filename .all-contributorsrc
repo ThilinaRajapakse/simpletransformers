@@ -377,6 +377,15 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "atherfawaz",
+      "name": "Ather Fawaz",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/42374034?v=4",
+      "profile": "https://www.linkedin.com/in/ather-fawaz-024596134/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
