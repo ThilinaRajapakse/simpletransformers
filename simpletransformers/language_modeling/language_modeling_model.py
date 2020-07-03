@@ -215,7 +215,7 @@ class LanguageModelingModel:
                     )
                 else:
                     self.tokenizer = tokenizer_class.from_pretrained(
-                    model_name, cache_dir=self.args["cache_dir"], **kwargs
+                        model_name, cache_dir=self.args["cache_dir"], **kwargs
                     )
                 self.args["tokenizer_name"] = self.args["model_name"]
         else:
