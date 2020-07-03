@@ -127,13 +127,6 @@ class LanguageModelingModel:
             **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """  # noqa: ignore flake8"
 
-        if args and "manual_seed" in args:
-            random.seed(args.manual_seed)
-            np.random.seed(args.manual_seed)
-            torch.manual_seed(args.manual_seed)
-            if "n_gpu" in args and args.n_gpu > 0:
-                torch.cuda.manual_seed_all(args.manual_seed)
-
         self.args = self._load_model_args(model_name)
 
         if isinstance(args, dict):
