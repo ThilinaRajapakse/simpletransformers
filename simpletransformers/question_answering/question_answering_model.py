@@ -67,6 +67,7 @@ from transformers import (
     RobertaConfig,
     RobertaForQuestionAnswering,
     RobertaTokenizer,
+    T5Tokenizer,
     XLMConfig,
     XLMForQuestionAnswering,
     XLMTokenizer,
