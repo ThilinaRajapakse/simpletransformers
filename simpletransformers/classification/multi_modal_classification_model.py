@@ -923,7 +923,7 @@ class MultiModalClassificationModel:
 
         if self.model.num_labels == 2:
             tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
-            return ({**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn}, **extra_metrics},)
+            return {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn}, **extra_metrics}
         else:
             return {**{"mcc": mcc}, **extra_metrics}
 
