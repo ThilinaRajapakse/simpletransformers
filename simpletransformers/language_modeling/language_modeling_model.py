@@ -30,6 +30,7 @@ from simpletransformers.config.model_args import LanguageModelingArgs
 from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
 from simpletransformers.language_modeling.language_modeling_utils import (
     SimpleDataset,
+    LineByLineLazyTextDataset,
     mask_tokens,
 )
 from tensorboardX import SummaryWriter
@@ -408,10 +409,7 @@ class LanguageModelingModel:
         args = self.args
         tokenizer = self.tokenizer
 
-        def collate(examples: List[torch.Tensor]):
-            if tokenizer._pad_token is None:
-                return pad_sequence(examples, batch_first=True)
-            return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
+        collate = make_collate(tokenizer)
 
         if self.is_world_master():
             tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
@@ -525,6 +523,7 @@ class LanguageModelingModel:
                     continue
 
                 inputs, labels = mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
+                
                 inputs = inputs.to(self.device)
                 labels = labels.to(self.device)
 
@@ -789,10 +788,7 @@ class LanguageModelingModel:
 
         results = {}
 
-        def collate(examples: List[torch.Tensor]):
-            if tokenizer._pad_token is None:
-                return pad_sequence(examples, batch_first=True)
-            return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
+        collate = make_collate(tokenizer)
 
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(
@@ -807,9 +803,11 @@ class LanguageModelingModel:
         model.eval()
 
         for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
+            
             inputs, labels = mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
+            
             with torch.no_grad():
                 outputs = model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
                 if args.model_type == "electra":
@@ -860,6 +858,8 @@ class LanguageModelingModel:
                 return TextDataset(tokenizer, file_path, args.block_size, overwrite_cache=True)
             elif dataset_type == "line_by_line":
                 return LineByLineTextDataset(tokenizer, file_path, args.block_size)
+            elif dataset_type == "line_by_line_lazy":
+                return LineByLineLazyTextDataset(tokenizer, args, file_path, args.block_size)
             else:
                 special_tokens_count = 3 if bool(args.model_type in ["roberta", "camembert", "xlmroberta"]) else 2
                 if self.args.max_seq_length > 509 and self.args.model_type != "longformer":
@@ -1062,3 +1062,23 @@ class LanguageModelingModel:
         even when training on multiple machines.
         """
         return self.args.local_rank == -1 or torch.distributed.get_rank() == 0
+
+def make_collate(tokenizer):
+    """
+    Constructs collate function for Dataloader.
+    :param tokenizer: tokenizer object (instantiated) used to tokenize lines of text.
+    :return: (fn: list[str or torch.tensor[int] (1d)] -> torch.tensor[int] (2d)
+    """
+    def default_collate(examples):
+        """
+        Dataloader collate_fn for Lazy data loading.
+        :param examples: (list[torch.tensor]) the tokenized text examples (as tensors) to be collated in this batch.
+        :return: (torch.tensor) of the tokenized examples padded/truncated to form a 2d tensor of ints.
+        """
+        if tokenizer._pad_token is None:
+            return pad_sequence(examples, batch_first=True)
+        return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
+
+
+    return default_collate
+

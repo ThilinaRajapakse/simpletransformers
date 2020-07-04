@@ -55,6 +55,7 @@ def encode_sliding_window(data):
     return features
 
 
+
 class SimpleDataset(Dataset):
     def __init__(self, tokenizer, args, file_path, mode, block_size=512, special_tokens_count=2, sliding_window=False):
         assert os.path.isfile(file_path)
@@ -133,6 +134,29 @@ class SimpleDataset(Dataset):
     def __getitem__(self, item):
         return torch.tensor(self.examples[item], dtype=torch.long)
 
+class LineByLineLazyTextDataset(Dataset):
+    def __init__(self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512):
+        assert os.path.isfile(file_path)
+       
+        logger.info(" Getting features from dataset file at %s", file_path)
+        self.examples = []
+        #lines = []
+        with open(file_path, encoding="utf-8") as f:
+            #lines = [line for line in f.read().splitlines() if (len(line) > 0 and not line.isspace())]
+            while True: 
+                # Get next line from file 
+                line = f.readline() 
+                if not line: 
+                    break 
+                if (len(line) > 0 and not line.isspace()):
+                    #lines.append(line)
+                    self.examples.append(tokenizer.encode(line))
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, i):
+        return torch.tensor(self.examples[i], dtype=torch.long)
 
 def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, args) -> Tuple[torch.Tensor, torch.Tensor]:
     """ Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original. """
