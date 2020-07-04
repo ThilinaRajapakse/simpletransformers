@@ -825,7 +825,8 @@ class ClassificationModel:
         else:
             output_mode = "classification"
 
-        os.makedirs(self.args.cache_dir, exist_ok=True)
+        if not no_cache:
+            os.makedirs(self.args.cache_dir, exist_ok=True)
 
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(
