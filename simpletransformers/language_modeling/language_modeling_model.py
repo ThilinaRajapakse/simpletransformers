@@ -911,7 +911,12 @@ class LanguageModelingModel:
             output_dir = self.args.output_dir
 
         if self.args.model_type in ["bert", "electra"]:
-            tokenizer = BertWordPieceTokenizer()
+            tokenizer = BertWordPieceTokenizer(
+                clean_text = self.args.clean_text,
+                handle_chinese_chars = self.args.handle_chinese_chars,
+                strip_accents = self.args.strip_accents,
+                lowercase = self.args.do_lower_case
+            )
             self.args.special_tokens = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
             self.args.wordpieces_prefix = "##"
 
@@ -923,7 +928,9 @@ class LanguageModelingModel:
                 wordpieces_prefix="##",
             )
         else:
-            tokenizer = ByteLevelBPETokenizer()
+            tokenizer = ByteLevelBPETokenizer(
+                lowercase = self.args.do_lower_case
+            )
 
             tokenizer.train(
                 files=train_files,
