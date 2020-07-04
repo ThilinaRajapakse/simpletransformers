@@ -248,11 +248,13 @@ class ClassificationModel:
 
         self._move_model_to_device()
 
-        if isinstance(train_df, str):
+        if isinstance(train_df, str) and self.args.lazy_loading:
             if self.args.sliding_window:
                 raise ValueError("Lazy loading cannot be used with sliding window.")
             train_dataset = LazyClassificationDataset(train_df, self.tokenizer, self.args)
         else:
+            if self.args.lazy_loading:
+                raise ValueError("Input must be given as a path to a file when using lazy loading")
             if "text" in train_df.columns and "labels" in train_df.columns:
                 train_examples = [
                     InputExample(i, text, None, label)

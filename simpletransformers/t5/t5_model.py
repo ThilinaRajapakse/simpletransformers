@@ -631,7 +631,6 @@ class T5Model:
             )
             all_outputs.extend(outputs.cpu().numpy())
 
-
         if self.args.use_multiprocessed_decoding:
             self.model.to("cpu")
             with Pool(self.args.process_count) as p:
