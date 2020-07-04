@@ -31,6 +31,6 @@ setup(
         "seqeval",
         "tensorboardx",
         "pandas",
-        "tokenizers<=0.7",
+        "tokenizers",
     ],
 )

@@ -934,7 +934,7 @@ class LanguageModelingModel:
 
         os.makedirs(output_dir, exist_ok=True)
 
-        tokenizer.save(output_dir)
+        tokenizer.save_model(output_dir)
         logger.info(" Training of {} tokenizer complete. Saved to {}.".format(tokenizer_name, output_dir))
 
         _, _, tokenizer_class = MODEL_CLASSES[self.args.model_type]

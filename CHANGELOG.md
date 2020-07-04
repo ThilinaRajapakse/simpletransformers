@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.41.3] - 2020-07-05
+
+### Fixed
+
+- Fixed incorrect logic when using `early_stopping_metric_minimize`. [@djstrong](https://github.com/djstrong)
+- Fixed issue with cache directory being created even when `no_cache` is set. [@henninglebbaeus](https://github.com/henninglebbaeus)
+
+### Added
+
+- Added better support for Chinese text in Language Modeling. [@taranais](https://github.com/taranais)
+
 ## [0.41.2] - 2020-07-03
 
 ### Fixed
