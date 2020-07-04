@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added better support for Chinese text in Language Modeling. [@taranais](https://github.com/taranais)
+- Added `mobilebert` for classification, NER, QA, and Seq2Seq. [@flozi00](https://github.com/flozi00)
 
 ## [0.41.2] - 2020-07-03
 
