@@ -1898,7 +1898,7 @@ class LazyQuestionAnsweringDataset(Dataset):
     #     return line_idx
 
     def __getitem__(self, idx):
-        line = linecache.getline(self.data_file, idx + 1)
+        line = linecache.getline(self.data_file, idx)
         qa_sample = json.loads(line)
         example = get_examples([qa_sample])[0]
         f = squad_convert_example_to_features(
