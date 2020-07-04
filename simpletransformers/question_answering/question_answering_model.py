@@ -25,6 +25,7 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import QuestionAnsweringArgs
 from simpletransformers.custom_models.models import ElectraForQuestionAnswering, XLMRobertaForQuestionAnswering
 from simpletransformers.question_answering.question_answering_utils import (
+    LazyQuestionAnsweringDataset,
     RawResult,
     RawResultExtended,
     build_examples,
@@ -278,13 +279,19 @@ class QuestionAnsweringModel:
 
         self._move_model_to_device()
 
-        if isinstance(train_data, str):
-            with open(train_data, "r", encoding=self.args.encoding) as f:
-                train_examples = json.load(f)
+        if self.args.lazy_loading:
+            if isinstance(train_data, str):
+                train_dataset = LazyQuestionAnsweringDataset(train_data, self.tokenizer, self.args)
+            else:
+                raise ValueError("Input must be given as a path to a file when using lazy loading")
         else:
-            train_examples = train_data
+            if isinstance(train_data, str):
+                with open(train_data, "r", encoding=self.args.encoding) as f:
+                    train_examples = json.load(f)
+            else:
+                train_examples = train_data
 
-        train_dataset = self.load_and_cache_examples(train_examples)
+            train_dataset = self.load_and_cache_examples(train_examples)
 
         os.makedirs(output_dir, exist_ok=True)
 

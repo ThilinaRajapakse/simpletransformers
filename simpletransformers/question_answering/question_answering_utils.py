@@ -4,6 +4,7 @@ import collections
 import json
 import logging
 import math
+import mmap
 import os
 import re
 import string
@@ -11,8 +12,10 @@ from io import open
 from multiprocessing import Pool, cpu_count
 from functools import partial
 from pprint import pprint
+from torch.utils.data import Dataset
 
 from tqdm import tqdm, trange
+import linecache
 
 import torch
 from tensorboardX import SummaryWriter
@@ -1861,8 +1864,57 @@ def build_examples(to_predict):
         context = row["context"]
         for qa in row["qas"]:
             qa["answers"] = [{"text": " ", "answer_start": 0}]
-            qa["is_impossible"]: False
+            qa["is_impossible"] = False
         example = {"context": context, "qas": row["qas"]}
         examples.append(example)
 
     return examples
+
+
+class LazyQuestionAnsweringDataset(Dataset):
+    def __init__(self, data_file, tokenizer, args):
+        self.data_file = data_file
+        self.num_entries = self._get_n_lines(self.data_file)
+        self.tokenizer = tokenizer
+        self.args = args
+        squad_convert_example_to_features_init(self.tokenizer)
+
+    @staticmethod
+    def _get_n_lines(data_file):
+        with open(data_file, "r+", encoding="utf-8") as f:
+            buf = mmap.mmap(f.fileno(), 0)
+            lines = 0
+            readline = buf.readline
+            while readline():
+                lines += 1
+            return lines
+
+    # @staticmethod
+    # def _get_n_lines(data_file):
+    #     with open(data_file, encoding="utf-8") as f:
+    #         for line_idx, _ in enumerate(f, 1):
+    #             pass
+
+    #     return line_idx
+
+    def __getitem__(self, idx):
+        line = linecache.getline(self.data_file, idx + 1)
+        qa_sample = json.loads(line)
+        example = get_examples([qa_sample])[0]
+        f = squad_convert_example_to_features(
+            example, self.args.max_seq_length, self.args.doc_stride, self.args.max_query_length, True
+        )[0]
+
+        return (
+            torch.tensor(f.input_ids, dtype=torch.long),
+            torch.tensor(f.attention_mask, dtype=torch.long),
+            torch.tensor(f.token_type_ids, dtype=torch.long),
+            torch.tensor(f.cls_index, dtype=torch.long),
+            torch.tensor(f.start_position, dtype=torch.long),
+            torch.tensor(f.end_position, dtype=torch.long),
+            torch.tensor(f.p_mask, dtype=torch.float),
+            torch.tensor(f.is_impossible, dtype=torch.float)
+        )
+
+    def __len__(self):
+        return self.num_entries

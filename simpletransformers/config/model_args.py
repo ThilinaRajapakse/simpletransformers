@@ -149,12 +149,13 @@ class QuestionAnsweringArgs(ModelArgs):
     """
 
     doc_stride: int = 384
-    max_query_length: int = 64
-    n_best_size: int = 20
-    max_answer_length: int = 100
-    null_score_diff_threshold: float = 0.0
     early_stopping_metric: str = "correct"
     early_stopping_metric_minimize: bool = False
+    lazy_loading: bool = False
+    max_answer_length: int = 100
+    max_query_length: int = 64
+    n_best_size: int = 20
+    null_score_diff_threshold: float = 0.0
 
 
 @dataclass
