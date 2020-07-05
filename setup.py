@@ -23,7 +23,7 @@ setup(
     install_requires=[
         "numpy",
         "requests",
-        "tqdm",
+        "tqdm>=4.47.0",
         "regex",
         "transformers>=2.11.0",
         "scipy",

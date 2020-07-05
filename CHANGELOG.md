@@ -6,7 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.43.0] - 2020-07-05
 
+### Added
+
 - Added support for custom parameter groups. TODO: Update docs
+
+### Fixed
+
+- ELECTRA pretraining no longer replaces 10% of masked inputs with random tokens. [@dev-sngwn](https://github.com/dev-sngwn)
 
 ## [0.42.0] - 2020-07-05
 
