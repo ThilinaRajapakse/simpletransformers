@@ -41,6 +41,9 @@ from transformers import (
     LongformerConfig,
     LongformerModel,
     LongformerTokenizer,
+    MobileBertConfig,
+    MobileBertModel,
+    MobileBertTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
     RobertaConfig,
@@ -71,6 +74,7 @@ MODEL_CLASSES = {
     "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
     "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
     "longformer": (LongformerConfig, LongformerModel, LongformerTokenizer),
+    "mobilebert": (MobileBertConfig, MobileBertModel, MobileBertTokenizer),
     "marian": (MarianConfig, MarianMTModel, MarianTokenizer),
     "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
 }

@@ -63,6 +63,9 @@ from transformers import (
     LongformerConfig,
     LongformerTokenizer,
     LongformerForQuestionAnswering,
+    MobileBertConfig,
+    MobileBertTokenizer,
+    MobileBertForQuestionAnswering,
     RobertaConfig,
     RobertaForQuestionAnswering,
     RobertaTokenizer,
@@ -111,6 +114,7 @@ class QuestionAnsweringModel:
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
             "longformer": (LongformerConfig, LongformerForQuestionAnswering, LongformerTokenizer),
+            "mobilebert": (MobileBertConfig, MobileBertForQuestionAnswering, MobileBertTokenizer),
             "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForQuestionAnswering, XLMRobertaTokenizer),
@@ -684,7 +688,15 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta", "bart"]:
+                if self.args.model_type in [
+                    "xlm",
+                    "roberta",
+                    "distilbert",
+                    "camembert",
+                    "electra",
+                    "xlmroberta",
+                    "bart",
+                ]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
@@ -814,7 +826,15 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta", "bart"]:
+                if self.args.model_type in [
+                    "xlm",
+                    "roberta",
+                    "distilbert",
+                    "camembert",
+                    "electra",
+                    "xlmroberta",
+                    "bart",
+                ]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
