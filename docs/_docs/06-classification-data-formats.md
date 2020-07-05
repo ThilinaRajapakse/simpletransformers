@@ -2,7 +2,7 @@
 title: Classification Data Formats
 permalink: /docs/classification-data-formats/
 excerpt: "Classification data formats."
-last_modified_at: 2020-05-02 17:58:06
+last_modified_at: 2020/07/02 01:40:54
 toc: true
 ---
 
@@ -195,26 +195,24 @@ Everything else is identical to the single sentence data formats.
 
 ## Lazy Loading Data Format
 
-If the path to a file (as a string) is provided instead of a dataframe, the data will be lazy loaded from the disk.
+The data must be input as a path to a file to use Lazy Loading.
 
 **Warning:** Not currently implemented for Multi-label tasks.
 {: .notice--warning}
 
-The format is similar to the structure of corresponding dataframes in the normal input formats.
-
-
+The format is similar to the structure of corresponding dataframes in the normal input formats. (One sample per row, with `\t` as the separator)
 
 ### Binary Classification
 
 ```text
-Aragorn was the heir of Isildur    1 
+Aragorn was the heir of Isildur    1
 Frodo was the heir of Isildur    0
 ```
 
 ### Multi-class classification
 
 ```text
-Aragorn was the heir of Isildur    1 
+Aragorn was the heir of Isildur    1
 Frodo was the heir of Isildur    0
 Pippin is stronger than Merry    2
 ```
@@ -222,7 +220,7 @@ Pippin is stronger than Merry    2
 ### Regression
 
 ```text
-Aragorn was the heir of Isildur    1.0 
+Aragorn was the heir of Isildur    1.0
 Frodo was the heir of Isildur    0.0
 Pippin is stronger than Merry    0.3
 ```
