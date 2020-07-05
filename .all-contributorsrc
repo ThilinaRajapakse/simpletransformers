@@ -377,6 +377,24 @@
       "contributions": [
         "bug"
       ]
+    },
+    {
+      "login": "atherfawaz",
+      "name": "Ather Fawaz",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/42374034?v=4",
+      "profile": "https://www.linkedin.com/in/ather-fawaz-024596134/",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "bryant1410",
+      "name": "Santiago Castro",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/3905501?v=4",
+      "profile": "https://santi.uy",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,

@@ -49,6 +49,9 @@ from transformers import (
     AlbertConfig,
     AlbertForQuestionAnswering,
     AlbertTokenizer,
+    BartConfig,
+    BartForQuestionAnswering,
+    BartTokenizer,
     BertConfig,
     BertForQuestionAnswering,
     BertTokenizer,
@@ -60,6 +63,9 @@ from transformers import (
     LongformerConfig,
     LongformerTokenizer,
     LongformerForQuestionAnswering,
+    MobileBertConfig,
+    MobileBertTokenizer,
+    MobileBertForQuestionAnswering,
     RobertaConfig,
     RobertaForQuestionAnswering,
     RobertaTokenizer,
@@ -103,10 +109,12 @@ class QuestionAnsweringModel:
         MODEL_CLASSES = {
             "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
             "auto": (AutoConfig, AutoTokenizer, AutoModelForQuestionAnswering),
+            "bart": (BartConfig, BartForQuestionAnswering, BartTokenizer),
             "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForQuestionAnswering, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForQuestionAnswering, ElectraTokenizer),
             "longformer": (LongformerConfig, LongformerForQuestionAnswering, LongformerTokenizer),
+            "mobilebert": (MobileBertConfig, MobileBertForQuestionAnswering, MobileBertTokenizer),
             "roberta": (RobertaConfig, RobertaForQuestionAnswering, RobertaTokenizer),
             "xlm": (XLMConfig, XLMForQuestionAnswering, XLMTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForQuestionAnswering, XLMRobertaTokenizer),
@@ -177,7 +185,8 @@ class QuestionAnsweringModel:
         if not no_cache:
             no_cache = args.no_cache
 
-        os.makedirs(self.args.cache_dir, exist_ok=True)
+        if not no_cache:
+            os.makedirs(self.args.cache_dir, exist_ok=True)
 
         examples = get_examples(examples, is_training=not evaluate)
 
@@ -388,9 +397,8 @@ class QuestionAnsweringModel:
                 epochs_trained -= 1
                 continue
             train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
-            for step, batch in enumerate(
-                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
-            ):
+            batch_iterator = tqdm(train_dataloader, desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}", disable=args.silent, mininterval=0)
+            for step, batch in enumerate(batch_iterator):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
@@ -408,7 +416,7 @@ class QuestionAnsweringModel:
                 current_loss = loss.item()
 
                 if show_running_loss:
-                    print("\rRunning loss: %f" % loss, end="")
+                    batch_iterator.set_description(f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}")
 
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps
@@ -680,7 +688,15 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
+                if self.args.model_type in [
+                    "xlm",
+                    "roberta",
+                    "distilbert",
+                    "camembert",
+                    "electra",
+                    "xlmroberta",
+                    "bart",
+                ]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
@@ -810,7 +826,15 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
+                if self.args.model_type in [
+                    "xlm",
+                    "roberta",
+                    "distilbert",
+                    "camembert",
+                    "electra",
+                    "xlmroberta",
+                    "bart",
+                ]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
@@ -934,7 +958,7 @@ class QuestionAnsweringModel:
             "end_positions": batch[4],
         }
 
-        if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta"]:
+        if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta", "bart"]:
             del inputs["token_type_ids"]
 
         if self.args.model_type in ["xlnet", "xlm"]:

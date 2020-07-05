@@ -202,6 +202,9 @@ class LanguageModelingArgs(ModelArgs):
     tie_generator_and_discriminator_embeddings: bool = True
     tokenizer_name: str = None
     vocab_size: int = None
+    clean_text: bool = True
+    handle_chinese_chars: bool = True
+    strip_accents: bool = True
     local_rank: int = -1
 
 
@@ -224,7 +227,7 @@ class Seq2SeqArgs(ModelArgs):
     repetition_penalty: float = 1.0
     top_k: float = None
     top_p: float = None
-    use_multiprocessed_decoding: bool = True
+    use_multiprocessed_decoding: bool = False
 
 
 @dataclass

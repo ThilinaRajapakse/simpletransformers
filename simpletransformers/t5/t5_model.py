@@ -6,6 +6,7 @@ import random
 import warnings
 from multiprocessing import cpu_count, Pool
 from pathlib import Path
+from dataclasses import asdict
 
 import numpy as np
 from tqdm.auto import tqdm, trange
@@ -265,7 +266,7 @@ class T5Model:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
         if args.wandb_project:
-            wandb.init(project=args.wandb_project, config={**args}, **args.wandb_kwargs)
+            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         model.train()
@@ -274,9 +275,8 @@ class T5Model:
                 epochs_trained -= 1
                 continue
             train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
-            for step, batch in enumerate(
-                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
-            ):
+            batch_iterator = tqdm(train_dataloader, desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}", disable=args.silent, mininterval=0)
+            for step, batch in enumerate(batch_iterator):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
@@ -293,7 +293,7 @@ class T5Model:
                 current_loss = loss.item()
 
                 if show_running_loss:
-                    print("\rRunning loss: %f" % loss, end="")
+                    batch_iterator.set_description(f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}")
 
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps
@@ -500,7 +500,7 @@ class T5Model:
             eval_data: Pandas DataFrame containing the 3 columns - `prefix`, `input_text`, `target_text`.
                         - `prefix`: A string indicating the task to perform. (E.g. `"question"`, `"stsb"`)
                         - `input_text`: The input text sequence. `prefix` is automatically prepended to form the full input. (<prefix>: <input_text>)
-                        - `target_text`: The target sequence            
+                        - `target_text`: The target sequence
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
@@ -630,9 +630,8 @@ class T5Model:
             )
             all_outputs.extend(outputs.cpu().numpy())
 
-        self.model.to("cpu")
-
         if self.args.use_multiprocessed_decoding:
+            self.model.to("cpu")
             with Pool(self.args.process_count) as p:
                 outputs = list(
                     tqdm(
@@ -706,7 +705,8 @@ class T5Model:
         if not no_cache:
             no_cache = args.no_cache
 
-        os.makedirs(self.args.cache_dir, exist_ok=True)
+        if not no_cache:
+            os.makedirs(self.args.cache_dir, exist_ok=True)
 
         mode = "dev" if evaluate else "train"
 

@@ -2,7 +2,7 @@
 title: "Classification Models"
 permalink: /docs/classification-models/
 excerpt: "Model class used for text classification"
-last_modified_at: 2020-05-02 20:43:16
+last_modified_at: 2020/07/02 00:50:50
 toc: true
 ---
 
@@ -127,18 +127,18 @@ model = ClassificationModel(
 `ClassificationModel` has the following task-specific configuration options.
 
 
-| Argument           | Type      | Default | Description                                                                                                                                           |
-| ------------------ | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| lazy_delimiter     | str       | `\t`    | The delimiter used to separate column in the file containing the lazy loading dataset                                                                 |
-| lazy_header_row    | bool      | `True`  | Set to True if the file for lazy loading contains a header row                                                                                        |
-| lazy_labels_column | int       | `0`     | The column (based on the delimiter) containing the labels for lazy loading single sentence datasets                                                   |
-| lazy_text_a_column | int       | `None`  | The column (based on the delimiter) containing the first sentence (text_a) for lazy loading single sentence datasets                                  |
-| lazy_text_b_column | int       | `None`  | The column (based on the delimiter) containing the second sentence (text_a) for lazy loading single sentence datasets                                 |
-| lazy_text_column   | int       | `0`     | The column (based on the delimiter) containing text for lazy loading single sentence datasets                                                         |
-| regression         | int       | `False` | Set True when doing regression. `num_labels` parameter in the model must also be set to `1`.                                                          |
-| sliding_window     | bool      | `False` | Whether to use sliding window technique to prevent truncating longer sequences                                                                        |
-| stride             | float/int | `0.8`   | The distance to move the window when generating sub-sequences using a sliding window. Can be a fraction of the `max_seq_length` OR a number of tokens |
-| tie_value          | int       | `1`     | The tie_value will be used as the prediction label for any samples where the sliding window predictions are tied                                      |
+| Argument                | Type      | Default | Description                                                                                                                                           |
+| ----------------------- | --------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| lazy_delimiter          | str       | `\t`    | The delimiter used to separate column in the file containing the lazy loading dataset                                                                 |
+| lazy_loading_start_line | int       | 1       | The line number where the dataset starts (`1` means header row is skipped)                                                                              |
+| lazy_labels_column      | int       | `0`     | The column (based on the delimiter) containing the labels for lazy loading single sentence datasets                                                   |
+| lazy_text_a_column      | int       | `None`  | The column (based on the delimiter) containing the first sentence (text_a) for lazy loading single sentence datasets                                  |
+| lazy_text_b_column      | int       | `None`  | The column (based on the delimiter) containing the second sentence (text_a) for lazy loading single sentence datasets                                 |
+| lazy_text_column        | int       | `0`     | The column (based on the delimiter) containing text for lazy loading single sentence datasets                                                         |
+| regression              | int       | `False` | Set True when doing regression. `num_labels` parameter in the model must also be set to `1`.                                                          |
+| sliding_window          | bool      | `False` | Whether to use sliding window technique to prevent truncating longer sequences                                                                        |
+| stride                  | float/int | `0.8`   | The distance to move the window when generating sub-sequences using a sliding window. Can be a fraction of the `max_seq_length` OR a number of tokens |
+| tie_value               | int       | `1`     | The tie_value will be used as the prediction label for any samples where the sliding window predictions are tied                                      |
 
 
 ```python
@@ -296,7 +296,7 @@ Trains the model using 'train_df'
 * **eval_df** *(`dataframe`, optional)* - A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
 
 * **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
-E.g. `f1=sklearn.metrics.f1_score`.  
+E.g. `f1=sklearn.metrics.f1_score`.
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 {: .parameter-list}
 
@@ -356,7 +356,7 @@ Evaluates the model using 'eval_df'
 * **silent** *(`bool`, optional)* - If silent, tqdm progress bars will be hidden.
 
 * **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics).
-E.g. `f1=sklearn.metrics.f1_score` section.  
+E.g. `f1=sklearn.metrics.f1_score` section.
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 {: .parameter-list}
 
