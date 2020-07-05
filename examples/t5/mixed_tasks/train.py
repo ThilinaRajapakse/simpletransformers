@@ -13,17 +13,13 @@ model_args = {
     "evaluate_during_training": True,
     "evaluate_during_training_steps": 15000,
     "evaluate_during_training_verbose": True,
-    
     "use_multiprocessing": False,
     "fp16": False,
-
     "save_steps": -1,
     "save_eval_checkpoints": False,
     "save_model_every_epoch": False,
-
     "reprocess_input_data": True,
     "overwrite_output_dir": True,
-
     "wandb_project": "T5 mixed tasks - Binary, Multi-Label, Regression",
 }
 

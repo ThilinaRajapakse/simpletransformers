@@ -9,6 +9,7 @@ from simpletransformers.classification import ClassificationModel, MultiLabelCla
         ("bert", "bert-base-uncased"),
         ("longformer", "allenai/longformer-base-4096"),
         ("electra", "google/electra-small-discriminator"),
+        ("mobilebert", "google/mobilebert-uncased")
         # ("xlnet", "xlnet-base-cased"),
         # ("xlm", "xlm-mlm-17-1280"),
         # ("roberta", "roberta-base"),

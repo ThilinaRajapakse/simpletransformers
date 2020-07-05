@@ -4,6 +4,77 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.42.0] - 2020-07-05
+
+### Added
+
+- Added better support for Chinese text in Language Modeling. [@taranais](https://github.com/taranais)
+- Added `mobilebert` for classification, NER, QA, and Seq2Seq. [@flozi00](https://github.com/flozi00)
+
+### Fixed
+
+- Fixed incorrect logic when using `early_stopping_metric_minimize`. [@djstrong](https://github.com/djstrong)
+- Fixed issue with cache directory being created even when `no_cache` is set. [@henninglebbaeus](https://github.com/henninglebbaeus)
+
+### Changed
+
+- Running loss is now shown next to the tqdm bar (with the tqdm bar description)
+- Removed tokenizers and transformers version pins (added earlier to avoid compatibility issues)
+
+## [0.41.2] - 2020-07-03
+
+### Fixed
+
+- Fixed bugs with args not being passed correctly to wandb in the following models:
+  - `MultiModalClassificationModel`
+  - `ConvAIModel`
+  - `Seq2SeqModel`
+  - `T5Model`
+- Fixed bugs in `Seq2SeqModel` and `T5Model` when not using `use_multiprocessed_decoding`.
+
+### Changed
+
+- Set `use_multiprocessed_decoding=False` as default for Seq2Seq models to avoid a bug.
+
+## [0.41.1] - 2020-07-02
+
+### Fixed
+
+- Fixed bug where the returned value from `MultiModalClassificationModel.evaluate_model()` was incorrect.
+
+## [0.41.0] - 2020-07-02
+
+### Added
+
+- NER lazy loading support added [@Pradhy729](https://github.com/Pradhy729)
+
+### Changed
+
+- Added `lazy_loading` attibute to `ClassificationArgs` which now controls whether lazy loading is used.
+- Replaced `lazy_loading_header_row` attribute in `ClassificationArgs` with `lazy_loading_start_line`.
+- Unnecessary Docs spacing removed [@bryant1410](https://github.com/bryant1410)
+- Set required tokenizer version to 0.7 until breaking changes are resolved.
+
+## [0.40.2] - 2020-06-25
+
+### Fixed
+
+- Fixed bug in Multi-Modal classification when using `evaluate_during_training`.
+
+## [0.40.1] - 2020-06-25
+
+### Added
+
+- Added `interact_single()` method to `ConvAIModel`. This accepts a message and conversation history (and an optional personality). [@Amit80007](https://github.com/Amit80007)
+
+### Fixed
+
+- Fixed bug in multi modal classification [@tekkon](https://github.com/tekkkon)
+
+### Changed
+
+- Cleaned `language_modeling_utils.py`. [@Pradhy729](https://github.com/Pradhy729)
+
 ## [0.40.0] - 2020-06-23
 
 ### Added
@@ -48,14 +119,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed bug in sentence-pair task feature conversion. 
+- Fixed bug in sentence-pair task feature conversion.
 
 ## [0.34.1] - 2020-06-12
 
 ### Fixed
 
 - Fixed bug in multi-modal classification due to compatibility issues with breaking changes in transformers==2.11.0.
-  
+
 ## [0.34.0] - 2020-06-09
 
 ### Added
@@ -114,7 +185,7 @@ tasks. [@flozi00](https://github.com/flozi00)
 ### Added
 
 - Added XLM-RoBERTa support for question answering tasks.
-- Added `save_optimizer_and_scheduler` (default 1) to `global_args` which controls whether optimizer and scheduler is saved along with the model. Disabling significantly reduces the disk space used by saved models. 
+- Added `save_optimizer_and_scheduler` (default 1) to `global_args` which controls whether optimizer and scheduler is saved along with the model. Disabling significantly reduces the disk space used by saved models.
 
 ### Fixed
 
@@ -123,7 +194,7 @@ tasks. [@flozi00](https://github.com/flozi00)
 
 ## BREAKING CHANGE
 
-- `QuestionAnsweringModel.predict()` now returns two lists (a list of dicts with question ids mapped to answers and a list of dicts with question ids mapped to the answer probabilities). 
+- `QuestionAnsweringModel.predict()` now returns two lists (a list of dicts with question ids mapped to answers and a list of dicts with question ids mapped to the answer probabilities).
 
 ## [0.29.0] - 2020-05-24
 
@@ -168,7 +239,7 @@ tasks. [@flozi00](https://github.com/flozi00)
 
 ### Added
 
-- Added multiprocessing support for Question Answering tasks for substantial performance boost where CPU-bound tasks (E.g. prediction especially with long contexts) 
+- Added multiprocessing support for Question Answering tasks for substantial performance boost where CPU-bound tasks (E.g. prediction especially with long contexts)
 - Added `multiprocessing_chunksize` (default 500) to `global_args` for finer control over chunking. Usually, the optimal value will be (roughly) `number of examples / process count`.
 
 ## [0.28.5] - 2020-05-18
@@ -251,7 +322,7 @@ Any new `args` passed into the model initialization will override the loaded val
 
 - Added support for T5 Model.
 - Added `do_sample` arg to language generation.
-- `NERModel.predict()` now accepts a `split_on_space` optional argument. If set to `False`, `to_predict` must be a a list of lists, with the inner list being a list of strings consisting of the split sequences. The outer list is the list of sequences to predict on. 
+- `NERModel.predict()` now accepts a `split_on_space` optional argument. If set to `False`, `to_predict` must be a a list of lists, with the inner list being a list of strings consisting of the split sequences. The outer list is the list of sequences to predict on.
 
 ### Changed
 
@@ -796,7 +867,7 @@ Model checkpoint is now saved for all epochs again.
 
 ### Added
 
-- Added option to specify a GPU to be used when multiple GPUs are available. E.g.: `cuda_device=1` 
+- Added option to specify a GPU to be used when multiple GPUs are available. E.g.: `cuda_device=1`
 - Added `do_lower_case` argument for uncased models.
 
 ### Fixed
@@ -882,7 +953,17 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.40.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cf66100...HEAD
+[0.42.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a8bb887...HEAD
+
+[0.41.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/eeb69fa...a8bb887
+
+[0.41.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b4e1886...eeb69fa
+
+[0.40.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f4ef3d3...b4e1886
+
+[0.40.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/99ede24...f4ef3d3
+
+[0.40.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cf66100...99ede24
 
 [0.34.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e112de...cf66100
 

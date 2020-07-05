@@ -493,7 +493,7 @@ class ClassificationModel:
         output_mode = "classification"
         args = self.args
 
-        if not os.path.isdir(self.args["cache_dir"]):
+        if not os.path.isdir(self.args["cache_dir"]) and not no_cache:
             os.makedirs(self.args["cache_dir"])
 
         mode = "dev" if evaluate else "train"

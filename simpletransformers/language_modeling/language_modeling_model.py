@@ -846,7 +846,8 @@ class LanguageModelingModel:
         if not no_cache:
             no_cache = args.no_cache
 
-        os.makedirs(self.args.cache_dir, exist_ok=True)
+        if not no_cache:
+            os.makedirs(self.args.cache_dir, exist_ok=True)
 
         mode = "dev" if evaluate else "train"
 
@@ -932,7 +933,7 @@ class LanguageModelingModel:
 
         os.makedirs(output_dir, exist_ok=True)
 
-        tokenizer.save(output_dir)
+        tokenizer.save_model(output_dir)
         logger.info(" Training of {} tokenizer complete. Saved to {}.".format(tokenizer_name, output_dir))
 
         _, _, tokenizer_class = MODEL_CLASSES[self.args.model_type]

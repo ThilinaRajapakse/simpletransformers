@@ -6,6 +6,7 @@ import random
 import warnings
 from multiprocessing import cpu_count, Pool
 from pathlib import Path
+from dataclasses import asdict
 
 import numpy as np
 from tqdm.auto import tqdm, trange
@@ -40,6 +41,9 @@ from transformers import (
     LongformerConfig,
     LongformerModel,
     LongformerTokenizer,
+    MobileBertConfig,
+    MobileBertModel,
+    MobileBertTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
     RobertaConfig,
@@ -70,6 +74,7 @@ MODEL_CLASSES = {
     "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
     "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
     "longformer": (LongformerConfig, LongformerModel, LongformerTokenizer),
+    "mobilebert": (MobileBertConfig, MobileBertModel, MobileBertTokenizer),
     "marian": (MarianConfig, MarianMTModel, MarianTokenizer),
     "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
 }
@@ -229,7 +234,7 @@ class Seq2SeqModel:
         Args:
             train_data: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
                         - `input_text`: The input text sequence.
-                        - `target_text`: The target sequence         
+                        - `target_text`: The target sequence
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
@@ -386,7 +391,7 @@ class Seq2SeqModel:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
         if args.wandb_project:
-            wandb.init(project=args.wandb_project, config={**args}, **args.wandb_kwargs)
+            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         model.train()
@@ -628,7 +633,7 @@ class Seq2SeqModel:
         Args:
             eval_data: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
                         - `input_text`: The input text sequence.
-                        - `target_text`: The target sequence            
+                        - `target_text`: The target sequence
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
@@ -764,9 +769,8 @@ class Seq2SeqModel:
 
             all_outputs.extend(outputs.cpu().numpy())
 
-        self.model.to("cpu")
-
         if self.args.use_multiprocessed_decoding:
+            self.model.to("cpu")
             with Pool(self.args.process_count) as p:
                 outputs = list(
                     tqdm(
@@ -830,7 +834,8 @@ class Seq2SeqModel:
         if not no_cache:
             no_cache = args.no_cache
 
-        os.makedirs(self.args.cache_dir, exist_ok=True)
+        if not no_cache:
+            os.makedirs(self.args.cache_dir, exist_ok=True)
 
         mode = "dev" if evaluate else "train"
 

@@ -313,6 +313,13 @@ class MultiModalClassificationModel:
         global_step, tr_loss = self.train(
             train_dataset,
             output_dir,
+            files_list=files_list,
+            image_path=image_path,
+            text_label=text_label,
+            labels_label=labels_label,
+            images_label=images_label,
+            image_type_extension=image_type_extension,
+            data_type_extension=data_type_extension,
             show_running_loss=show_running_loss,
             eval_data=eval_data,
             verbose=verbose,
@@ -325,7 +332,20 @@ class MultiModalClassificationModel:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_type, output_dir))
 
     def train(
-        self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True, **kwargs,
+        self,
+        train_dataset,
+        output_dir,
+        files_list=None,
+        image_path=None,
+        text_label=None,
+        labels_label=None,
+        images_label=None,
+        image_type_extension=None,
+        data_type_extension=None,
+        show_running_loss=True,
+        eval_data=None,
+        verbose=True,
+        **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -393,7 +413,7 @@ class MultiModalClassificationModel:
             training_progress_scores = self._create_training_progress_scores(multi_label, **kwargs)
 
         if args.wandb_project:
-            wandb.init(project=args.wandb_project, config={**args}, **args.wandb_kwargs)
+            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         model.train()
@@ -473,6 +493,13 @@ class MultiModalClassificationModel:
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, _ = self.eval_model(
                             eval_data,
+                            files_list=files_list,
+                            image_path=image_path,
+                            text_label=text_label,
+                            labels_label=labels_label,
+                            images_label=images_label,
+                            image_type_extension=image_type_extension,
+                            data_type_extension=data_type_extension,
                             verbose=verbose and args.evaluate_during_training_verbose,
                             silent=args.evaluate_during_training_silent,
                             **kwargs,
@@ -551,6 +578,13 @@ class MultiModalClassificationModel:
             if args.evaluate_during_training:
                 results, _ = self.eval_model(
                     eval_data,
+                    files_list=files_list,
+                    image_path=image_path,
+                    text_label=text_label,
+                    labels_label=labels_label,
+                    images_label=images_label,
+                    image_type_extension=image_type_extension,
+                    data_type_extension=data_type_extension,
                     verbose=verbose and args.evaluate_during_training_verbose,
                     silent=args.evaluate_during_training_silent,
                     **kwargs,
@@ -889,7 +923,7 @@ class MultiModalClassificationModel:
 
         if self.model.num_labels == 2:
             tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
-            return ({**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn}, **extra_metrics},)
+            return {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn}, **extra_metrics}
         else:
             return {**{"mcc": mcc}, **extra_metrics}
 

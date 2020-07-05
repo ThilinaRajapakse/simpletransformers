@@ -2,7 +2,7 @@
 title: Classification Specifics
 permalink: /docs/classification-specifics/
 excerpt: "Specific notes for text classification tasks."
-last_modified_at: 2020-05-02 17:57:38
+last_modified_at: 2020/07/05 15:01:52
 toc: true
 ---
 
@@ -42,6 +42,7 @@ New model types are regularly added to the library. Text classification tasks cu
 | ELECTRA     | electra                              |
 | FlauBERT    | flaubert                             |
 | *Longformer | longformer                           |
+| *MobileBERT | mobilebert                           |
 | XLM         | xlm                                  |
 | XLM-RoBERTa | xlmroberta                           |
 | XLNet       | xlnet                                |
@@ -95,13 +96,21 @@ In the case of a tie, the predicted label will be assigned the `tie_value` (defa
 
 When working with very large datasets, the available memory may prevent keeping the entire dataset in memory during training or evaluation of a model. In such cases, the data can be lazy loaded from disk to minimize memory consumption.
 
+To enable lazy loading, you must set the `lazy_loading` flag to `True` in `ClassificationArgs`.
+
+
+```python
+model_args = ClassificationArgs()
+model_args.lazy_loading = True
+```
+
 **Note:** This will typically be slower as the feature conversion is done on the fly. However, the tradeoff between speed and memory consumption should be reasonable.
 {: .notice--info}
 
 **Tip:** See [Lazy Loading Data Formats](/docs/classification-data-formats/#lazy-loading-data-format) for information on the data formats.
 {: .notice--success}
 
-**Tip:** See [Configuring a Classification model](/docs/classification-models/#configuring-a-classification-model) for information on the configuring the model to read the lazy loading data file correctly.
+**Tip:** See [Configuring a Classification model](/docs/classification-models/#configuring-a-classification-model) for information on configuring the model to read the lazy loading data file correctly.
 {: .notice--success}
 
 **Tip:** You can find minimal example scripts in the `examples/text_classification` directory.
