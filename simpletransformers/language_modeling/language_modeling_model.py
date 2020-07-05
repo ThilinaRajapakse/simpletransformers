@@ -1063,3 +1063,6 @@ class LanguageModelingModel:
         even when training on multiple machines.
         """
         return self.args.local_rank == -1 or torch.distributed.get_rank() == 0
+
+    def get_named_parameters(self):
+        return [n for n, p in self.model.named_parameters()]

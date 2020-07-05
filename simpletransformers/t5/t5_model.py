@@ -763,3 +763,6 @@ class T5Model:
         args = T5Args()
         args.load(input_dir)
         return args
+
+    def get_named_parameters(self):
+        return [n for n, p in self.model.named_parameters()]
