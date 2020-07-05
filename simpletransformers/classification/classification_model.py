@@ -331,38 +331,58 @@ class ClassificationModel:
         t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
         no_decay = ["bias", "LayerNorm.weight"]
-        groups = []
-        layer_names = [f"layer.{i}." for i in range(12)]
-        lrs = [i for i in range(12)]
-        for i in range(12):
-            group_d = {}
-            group_d["params"] = [
-                p for n, p in model.named_parameters() if layer_names[i] in n and not any(nd in n for nd in no_decay)
-            ]
-            group_d["lr"] = lrs[i]
-            group_d["weight_decay"] = args.weight_decay
-            groups.append(group_d)
 
-            group_nd = {}
-            group_nd["params"] = [
-                p for n, p in model.named_parameters() if layer_names[i] in n and any(nd in n for nd in no_decay)
-            ]
-            group_nd["lr"] = lrs[i]
+        optimizer_grouped_parameters = []
+        custom_parameter_names = set()
+        for group in self.args.custom_parameter_groups:
+            params = group.pop("params")
+            custom_parameter_names.update(params)
+            param_group = {**group}
+            param_group["params"] = [p for n, p in model.named_parameters() if n in params]
+            optimizer_grouped_parameters.append(param_group)
+
+        for group in self.args.custom_layer_parameters:
+            layer_number = group.pop("layer")
+            layer = f"layer.{layer_number}."
+            group_d = {**group}
+            group_nd = {**group}
             group_nd["weight_decay"] = 0.0
-            groups.append(group_nd)
+            params_d = []
+            params_nd = []
+            for n, p in model.named_parameters():
+                if n not in custom_parameter_names and layer in n:
+                    if any(nd in n for nd in no_decay):
+                        params_nd.append(p)
+                    else:
+                        params_d.append(p)
+                    custom_parameter_names.add(n)
+            group_d["params"] = params_d
+            group_nd["params"] = params_nd
 
-        optimizer_grouped_parameters = groups
-        # optimizer_grouped_parameters = [
-        #     {
-        #         "params": [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
-        #         "weight_decay": args.weight_decay,
-        #         "lr": 1000,
-        #     },
-        #     {
-        #         "params": [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)],
-        #         "weight_decay": 0.0,
-        #     },
-        # ]
+            optimizer_grouped_parameters.append(group_d)
+            optimizer_grouped_parameters.append(group_nd)
+
+        if not self.args.train_custom_parameters_only:
+            optimizer_grouped_parameters.extend(
+                [
+                    {
+                        "params": [
+                            p
+                            for n, p in model.named_parameters()
+                            if n not in custom_parameter_names and not any(nd in n for nd in no_decay)
+                        ],
+                        "weight_decay": args.weight_decay,
+                    },
+                    {
+                        "params": [
+                            p
+                            for n, p in model.named_parameters()
+                            if n not in custom_parameter_names and any(nd in n for nd in no_decay)
+                        ],
+                        "weight_decay": 0.0,
+                    },
+                ]
+            )
 
         warmup_steps = math.ceil(t_total * args.warmup_ratio)
         args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
@@ -371,9 +391,6 @@ class ClassificationModel:
         scheduler = get_linear_schedule_with_warmup(
             optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
         )
-
-        print(optimizer)
-        exit()
 
         if args.fp16:
             try:
@@ -431,7 +448,12 @@ class ClassificationModel:
                 epochs_trained -= 1
                 continue
             train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
-            batch_iterator = tqdm(train_dataloader, desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}", disable=args.silent, mininterval=0)
+            batch_iterator = tqdm(
+                train_dataloader,
+                desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}",
+                disable=args.silent,
+                mininterval=0,
+            )
             for step, batch in enumerate(batch_iterator):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
@@ -448,7 +470,9 @@ class ClassificationModel:
                 current_loss = loss.item()
 
                 if show_running_loss:
-                    batch_iterator.set_description(f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}")
+                    batch_iterator.set_description(
+                        f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}"
+                    )
 
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps

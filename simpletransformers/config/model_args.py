@@ -24,6 +24,9 @@ class ModelArgs:
     adam_epsilon: float = 1e-8
     best_model_dir: str = "outputs/best_model"
     cache_dir: str = "cache_dir/"
+    custom_layer_parameters: list = field(default_factory=list)
+    custom_parameter_groups: list = field(default_factory=list)
+    train_custom_parameters_only: bool = False
     config: dict = field(default_factory=dict)
     do_lower_case: bool = False
     early_stopping_consider_epochs: bool = False
