@@ -1881,13 +1881,12 @@ class LazyQuestionAnsweringDataset(Dataset):
 
     @staticmethod
     def _get_n_lines(data_file):
-        with open(data_file, "r+", encoding="utf-8") as f:
-            buf = mmap.mmap(f.fileno(), 0)
-            lines = 0
-            readline = buf.readline
-            while readline():
-                lines += 1
-            return lines
+        counter = 0
+        myfile = open(data_file,"r+")
+        for line in myfile:
+            counter += 1
+
+        return counter
 
     # @staticmethod
     # def _get_n_lines(data_file):
@@ -1898,6 +1897,8 @@ class LazyQuestionAnsweringDataset(Dataset):
     #     return line_idx
 
     def __getitem__(self, idx):
+        if(idx == 0):
+            idx = 1
         line = linecache.getline(self.data_file, idx)
         qa_sample = json.loads(line)
         example = get_examples([qa_sample])[0]
