@@ -2,7 +2,7 @@
 title: Language Modeling Model
 permalink: /docs/lm-model/
 excerpt: "LanguageModelingModel for Language Modeling tasks."
-last_modified_at: 2020-05-02 17:58:53
+last_modified_at: 2020/07/05 15:00:17
 toc: true
 ---
 
@@ -63,23 +63,26 @@ model = LanguageModelingModel(
 `LanguageModelingModel` has several task-specific configuration options.
 
 
-| Argument                  | Type  | Default | Description                                                                                          |
-| ------------------------- | ----- | ------- | ---------------------------------------------------------------------------------------------------- |
-| dataset_type                | str   | `"simple"`   | Choose between `simple`, `line_by_line`, and `text` dataset types. (See Dataset types below)               |
-| dataset_class          | Subclass of Pytorch Dataset   | `None`    | A custom dataset class to use instead of `dataset_type`. |
-| block_size               | int   | `-1`    | Optional input sequence length after tokenization. The training dataset will be truncated in block of this size for training. Default to the model max input length for single sentence inputs (take into account special tokens).                                                     |
-| mlm         | bool   | `True`   | Train with masked-language modeling loss instead of language modeling. Set to `False` for models which don't use Masked Language Modeling.                                   |
-| mlm_probability | float | `0.15`   | Ratio of tokens to mask for masked language modeling loss.                        |
-| max_steps | int | `-1`   | If `max_steps` > 0: set total number of training steps to perform. Supersedes num_train_epochs.                        |
-| config_name | str | `None`   | Name of pretrained config or path to a directory containing a config.json file.                        |
-| tokenizer_name | str | `None`   | Name of pretrained tokenizer or path to a directory containing tokenizer files.                       |
-| min_frequency | int | `2`   | Minimum frequency required for a word to be added to the vocabulary.                        |
-| special_tokens | list | *Defaults to the special_tokens of the model used*  | List of special tokens to be used when training a new tokenizer. |
-| sliding_window | bool | `False`   | Whether sliding window technique should be used when preparing data. Only works with SimpleDataset.                        |
-| stride | float | `0.8`   | A fraction of the max_seq_length to use as the stride when using a sliding window                  |
-| generator_config | dict | `{}`   | Key-values given here will override the default values used in an Electra generator model Config.  (See [ELECTRA models](/docs/lm-specifics/#electra-models))                      |
-| discriminator_config | dict | `{}`   | Key-values given here will override the default values used in an Electra discriminator model Config.  (See [ELECTRA models](/docs/lm-specifics/#electra-models))                       |
-| vocab_size | int | `None`   | The maximum size of the vocabulary of the tokenizer. Required when training a tokenizer.                        |
+| Argument             | Type                        | Default                                            | Description                                                                                                                                                                                                                        |
+| -------------------- | --------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| block_size           | int                         | `-1`                                               | Optional input sequence length after tokenization. The training dataset will be truncated in block of this size for training. Default to the model max input length for single sentence inputs (take into account special tokens). |
+| clean_text           | bool                        | `True`                                             | Performs invalid character removal and whitespace cleanup on text.                                                                                                                                                                 |
+| config_name          | str                         | `None`                                             | Name of pretrained config or path to a directory containing a config.json file.                                                                                                                                                    |
+| dataset_class        | Subclass of Pytorch Dataset | `None`                                             | A custom dataset class to use instead of `dataset_type`.                                                                                                                                                                           |
+| dataset_type         | str                         | `"simple"`                                         | Choose between `simple`, `line_by_line`, and `text` dataset types. (See Dataset types below)                                                                                                                                       |
+| discriminator_config | dict                        | `{}`                                               | Key-values given here will override the default values used in an Electra discriminator model Config.  (See [ELECTRA models](/docs/lm-specifics/#electra-models))                                                                  |
+| generator_config     | dict                        | `{}`                                               | Key-values given here will override the default values used in an Electra generator model Config.  (See [ELECTRA models](/docs/lm-specifics/#electra-models))                                                                      |
+| handle_chinese_chars | bool                        | `True`                                             | Whether to tokenize Chinese characters. If `False`, Chinese text will not be tokenized properly.                                                                                                                                   |
+| max_steps            | int                         | `-1`                                               | If `max_steps` > 0: set total number of training steps to perform. Supersedes num_train_epochs.                                                                                                                                    |
+| min_frequency        | int                         | `2`                                                | Minimum frequency required for a word to be added to the vocabulary.                                                                                                                                                               |
+| mlm                  | bool                        | `True`                                             | Train with masked-language modeling loss instead of language modeling. Set to `False` for models which don't use Masked Language Modeling.                                                                                         |
+| mlm_probability      | float                       | `0.15`                                             | Ratio of tokens to mask for masked language modeling loss.                                                                                                                                                                         |
+| sliding_window       | bool                        | `False`                                            | Whether sliding window technique should be used when preparing data. Only works with SimpleDataset.                                                                                                                                |
+| special_tokens       | list                        | *Defaults to the special_tokens of the model used* | List of special tokens to be used when training a new tokenizer.                                                                                                                                                                   |
+| stride               | float                       | `0.8`                                              | A fraction of the max_seq_length to use as the stride when using a sliding window                                                                                                                                                  |
+| strip_accents        | bool                        | `True`                                             | Strips accents from a piece of text.                                                                                                                                                                                               |
+| tokenizer_name       | str                         | `None`                                             | Name of pretrained tokenizer or path to a directory containing tokenizer files.                                                                                                                                                    |
+| vocab_size           | int                         | `None`                                             | The maximum size of the vocabulary of the tokenizer. Required when training a tokenizer.                                                                                                                                           |
 
 
 **Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
@@ -90,7 +93,7 @@ model = LanguageModelingModel(
 - `simple` (or None) - Each line in the train file is considered to be a single, separate sample. `sliding_window` can be set to True to automatically split longer sequences into samples of length `max_seq_length`. Uses multiprocessing for significantly improved performance on multi-core systems.
 
 - `line_by_line` - Treats each line in the train file as a separate sample. Uses tokenizers from the Hugging Face tokenizers library.
-  
+
 - `text` - Treats each line in the train file as a separate sample. Uses default tokenizers.
 
 *Using `simple` is recommended.*
@@ -247,7 +250,7 @@ The following metrics will be calculated by default:
 result = model.eval_model(eval_file)
 ```
 
-> *simpletransformers.language_modeling.LanguageModelingModel.eval_model*{: .function-name}(self, eval_file, 
+> *simpletransformers.language_modeling.LanguageModelingModel.eval_model*{: .function-name}(self, eval_file,
 > output_dir=None, verbose=True, silent=False)
 
 Evaluates the model using 'eval_file'
@@ -261,7 +264,7 @@ Evaluates the model using 'eval_file'
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
 
 * **verbose** *(`bool`, optional)* - If verbose, results will be printed to the console on completion of evaluation.
-            
+
 * **silent** *(`bool`, optional)* - If silent, tqdm progress bars will be hidden.
 {: .parameter-list}
 

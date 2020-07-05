@@ -397,9 +397,8 @@ class QuestionAnsweringModel:
                 epochs_trained -= 1
                 continue
             train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
-            for step, batch in enumerate(
-                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args.silent)
-            ):
+            batch_iterator = tqdm(train_dataloader, desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}", disable=args.silent, mininterval=0)
+            for step, batch in enumerate(batch_iterator):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
@@ -417,7 +416,7 @@ class QuestionAnsweringModel:
                 current_loss = loss.item()
 
                 if show_running_loss:
-                    print("\rRunning loss: %f" % loss, end="")
+                    batch_iterator.set_description(f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}")
 
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps
@@ -689,7 +688,15 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta", "bart"]:
+                if self.args.model_type in [
+                    "xlm",
+                    "roberta",
+                    "distilbert",
+                    "camembert",
+                    "electra",
+                    "xlmroberta",
+                    "bart",
+                ]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
@@ -819,7 +826,15 @@ class QuestionAnsweringModel:
                     "token_type_ids": batch[2],
                 }
 
-                if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta", "bart"]:
+                if self.args.model_type in [
+                    "xlm",
+                    "roberta",
+                    "distilbert",
+                    "camembert",
+                    "electra",
+                    "xlmroberta",
+                    "bart",
+                ]:
                     del inputs["token_type_ids"]
 
                 example_indices = batch[3]
