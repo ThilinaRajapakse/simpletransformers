@@ -279,7 +279,12 @@ class ConvAIModel:
         model.train()
         for _ in train_iterator:
             train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
-            batch_iterator = tqdm(train_dataloader, desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}", disable=args.silent, mininterval=0)
+            batch_iterator = tqdm(
+                train_dataloader,
+                desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}",
+                disable=args.silent,
+                mininterval=0,
+            )
             for step, batch in enumerate(batch_iterator):
                 batch = tuple(t.to(device) for t in batch)
                 input_ids, mc_token_ids, lm_labels, mc_labels, token_type_ids = batch

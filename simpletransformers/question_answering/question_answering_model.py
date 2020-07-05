@@ -397,7 +397,12 @@ class QuestionAnsweringModel:
                 epochs_trained -= 1
                 continue
             train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
-            batch_iterator = tqdm(train_dataloader, desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}", disable=args.silent, mininterval=0)
+            batch_iterator = tqdm(
+                train_dataloader,
+                desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}",
+                disable=args.silent,
+                mininterval=0,
+            )
             for step, batch in enumerate(batch_iterator):
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
@@ -416,7 +421,9 @@ class QuestionAnsweringModel:
                 current_loss = loss.item()
 
                 if show_running_loss:
-                    batch_iterator.set_description(f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}")
+                    batch_iterator.set_description(
+                        f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}"
+                    )
 
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps
