@@ -430,7 +430,7 @@ class ElectraForLanguageModelingModel(PreTrainedModel):
         else:
             discriminator_config = config
         self.discriminator_model = ElectraForPreTraining(discriminator_config)
-        self.vocab_size = config.vocab_size
+        self.vocab_size = generator_config.vocab_size
         if kwargs.get("tie_generator_and_discriminator_embeddings", True):
             self.tie_generator_and_discriminator_embeddings()
 
