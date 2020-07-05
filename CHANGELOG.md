@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.42.0] - 2020-07-05
+
+### Added
+
+- Added better support for Chinese text in Language Modeling. [@taranais](https://github.com/taranais)
+- Added `mobilebert` for classification, NER, QA, and Seq2Seq. [@flozi00](https://github.com/flozi00)
+
+### Fixed
+
+- Fixed incorrect logic when using `early_stopping_metric_minimize`. [@djstrong](https://github.com/djstrong)
+- Fixed issue with cache directory being created even when `no_cache` is set. [@henninglebbaeus](https://github.com/henninglebbaeus)
+
+### Changed
+
+- Running loss is now shown next to the tqdm bar (with the tqdm bar description)
+- Removed tokenizers and transformers version pins (added earlier to avoid compatibility issues)
+
 ## [0.41.2] - 2020-07-03
 
 ### Fixed
@@ -936,7 +953,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.41.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/eeb69fa...HEAD
+[0.42.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a8bb887...HEAD
+
+[0.41.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/eeb69fa...a8bb887
 
 [0.41.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b4e1886...eeb69fa
 
