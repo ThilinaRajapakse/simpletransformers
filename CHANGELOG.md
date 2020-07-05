@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added support for custom parameter groups. TODO: Update docs
+- Added support for custom parameter groups.
 
 ### Fixed
 
@@ -963,7 +963,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.42.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a8bb887...HEAD
+[0.42.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e1eb826...HEAD
+
+[0.42.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a8bb887...e1eb826
 
 [0.41.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/eeb69fa...a8bb887
 
