@@ -50,6 +50,9 @@ from transformers import (
     LongformerConfig,
     LongformerForTokenClassification,
     LongformerTokenizer,
+    MobileBertConfig,
+    MobileBertTokenizer,
+    MobileBertForTokenClassification,
     RobertaConfig,
     RobertaForTokenClassification,
     RobertaTokenizer,
@@ -907,9 +910,7 @@ class NERModel:
                     examples = read_examples_from_file(data, mode)
                 else:
                     if self.args.lazy_loading:
-                        raise ValueError(
-                            "Input must be given as a path to a file when using lazy loading"
-                        )
+                        raise ValueError("Input must be given as a path to a file when using lazy loading")
                     examples = get_examples_from_df(data)
             else:
                 examples = to_predict

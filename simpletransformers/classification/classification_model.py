@@ -60,6 +60,9 @@ from transformers import (
     LongformerConfig,
     LongformerForSequenceClassification,
     LongformerTokenizer,
+    MobileBertConfig,
+    MobileBertTokenizer,
+    MobileBertForSequenceClassification,
     RobertaConfig,
     RobertaTokenizer,
     XLMConfig,
@@ -108,6 +111,7 @@ class ClassificationModel:
             "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
             "flaubert": (FlaubertConfig, FlaubertForSequenceClassification, FlaubertTokenizer),
             "longformer": (LongformerConfig, LongformerForSequenceClassification, LongformerTokenizer),
+            "mobilebert": (MobileBertConfig, MobileBertForSequenceClassification, MobileBertTokenizer),
             "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
             "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
@@ -248,11 +252,13 @@ class ClassificationModel:
 
         self._move_model_to_device()
 
-        if isinstance(train_df, str):
+        if isinstance(train_df, str) and self.args.lazy_loading:
             if self.args.sliding_window:
                 raise ValueError("Lazy loading cannot be used with sliding window.")
             train_dataset = LazyClassificationDataset(train_df, self.tokenizer, self.args)
         else:
+            if self.args.lazy_loading:
+                raise ValueError("Input must be given as a path to a file when using lazy loading")
             if "text" in train_df.columns and "labels" in train_df.columns:
                 train_examples = [
                     InputExample(i, text, None, label)
@@ -501,7 +507,7 @@ class ClassificationModel:
                             best_eval_metric = results[args.early_stopping_metric]
                             self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         if best_eval_metric and args.early_stopping_metric_minimize:
-                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                            if best_eval_metric - results[args.early_stopping_metric] > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self._save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
@@ -577,7 +583,7 @@ class ClassificationModel:
                     best_eval_metric = results[args.early_stopping_metric]
                     self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                 if best_eval_metric and args.early_stopping_metric_minimize:
-                    if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                    if best_eval_metric - results[args.early_stopping_metric] > args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
                         self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
@@ -673,9 +679,7 @@ class ClassificationModel:
             eval_examples = None
         else:
             if self.args.lazy_loading:
-                raise ValueError(
-                    "Input must be given as a path to a file when using lazy loading"
-                )
+                raise ValueError("Input must be given as a path to a file when using lazy loading")
             if "text" in eval_df.columns and "labels" in eval_df.columns:
                 eval_examples = [
                     InputExample(i, text, None, label)
@@ -825,7 +829,8 @@ class ClassificationModel:
         else:
             output_mode = "classification"
 
-        os.makedirs(self.args.cache_dir, exist_ok=True)
+        if not no_cache:
+            os.makedirs(self.args.cache_dir, exist_ok=True)
 
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(

@@ -14,6 +14,7 @@ import warnings
 from collections import defaultdict
 from itertools import chain
 from multiprocessing import cpu_count
+from dataclasses import asdict
 
 import numpy as np
 from scipy.stats import mode, pearsonr
@@ -155,14 +156,14 @@ class ConvAIModel:
         Trains the model using 'train_file'
 
         Args:
-            train_file: Path to a JSON file containing the training data. 
+            train_file: Path to a JSON file containing the training data.
                 If not given, train dataset from PERSONA-CHAT will be used.
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             eval_file (optional): Evaluation data against which evaluation will be performed when evaluate_during_training is enabled.
                 If not given when evaluate_during_training is enabled, the evaluation data from PERSONA-CHAT will be used.
-            **kwargs: 
+            **kwargs:
         Returns:
             None
         """  # noqa: ignore flake8"
@@ -272,7 +273,7 @@ class ConvAIModel:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
         if args.wandb_project:
-            wandb.init(project=args.wandb_project, config={**args}, **args.wandb_kwargs)
+            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         model.train()
@@ -469,7 +470,7 @@ class ConvAIModel:
         Evaluates the model on eval_file. Saves results to output_dir.
 
         Args:
-            eval_file: Path to a JSON file containing the evaluation data. 
+            eval_file: Path to a JSON file containing the evaluation data.
                 If not given, eval dataset from PERSONA-CHAT will be used.
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
@@ -568,7 +569,8 @@ class ConvAIModel:
         if not no_cache:
             no_cache = args.no_cache
 
-        os.makedirs(self.args.cache_dir, exist_ok=True)
+        if not no_cache:
+            os.makedirs(self.args.cache_dir, exist_ok=True)
 
         dataset_path = dataset_path if dataset_path else ""
 

@@ -4,9 +4,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## UNRELEASED
+## [0.42.0] - 2020-07-05
+
+### Added
+
+- Added better support for Chinese text in Language Modeling. [@taranais](https://github.com/taranais)
+- Added `mobilebert` for classification, NER, QA, and Seq2Seq. [@flozi00](https://github.com/flozi00)
+
+### Fixed
+
+- Fixed incorrect logic when using `early_stopping_metric_minimize`. [@djstrong](https://github.com/djstrong)
+- Fixed issue with cache directory being created even when `no_cache` is set. [@henninglebbaeus](https://github.com/henninglebbaeus)
+
+### Changed
+
+- Removed tokenizers and transformers version pins (added earlier to avoid compatibility issues)
+
+## [0.41.2] - 2020-07-03
+
+### Fixed
+
+- Fixed bugs with args not being passed correctly to wandb in the following models:
+  - `MultiModalClassificationModel`
+  - `ConvAIModel`
+  - `Seq2SeqModel`
+  - `T5Model`
+- Fixed bugs in `Seq2SeqModel` and `T5Model` when not using `use_multiprocessed_decoding`.
+
+### Changed
+
+- Set `use_multiprocessed_decoding=False` as default for Seq2Seq models to avoid a bug.
+
+## [0.41.1] - 2020-07-02
+
+### Fixed
+
+- Fixed bug where the returned value from `MultiModalClassificationModel.evaluate_model()` was incorrect.
+
+## [0.41.0] - 2020-07-02
+
+### Added
 
 - NER lazy loading support added [@Pradhy729](https://github.com/Pradhy729)
+
+### Changed
+
+- Added `lazy_loading` attibute to `ClassificationArgs` which now controls whether lazy loading is used.
+- Replaced `lazy_loading_header_row` attribute in `ClassificationArgs` with `lazy_loading_start_line`.
 - Unnecessary Docs spacing removed [@bryant1410](https://github.com/bryant1410)
 - Set required tokenizer version to 0.7 until breaking changes are resolved.
 
@@ -908,7 +952,13 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.40.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f4ef3d3...HEAD
+[0.42.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a8bb887...HEAD
+
+[0.41.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/eeb69fa...a8bb887
+
+[0.41.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b4e1886...eeb69fa
+
+[0.40.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f4ef3d3...b4e1886
 
 [0.40.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/99ede24...f4ef3d3
 
