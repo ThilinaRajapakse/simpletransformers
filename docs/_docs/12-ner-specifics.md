@@ -2,7 +2,7 @@
 title: Named Entitty Recognition Specifics
 permalink: /docs/ner-specifics/
 excerpt: "Specific notes for Named Entity Recognition tasks."
-last_modified_at: 2020/07/02 01:42:15
+last_modified_at: 2020/07/05 15:02:29
 toc: true
 ---
 
@@ -24,14 +24,15 @@ The process of performing Named Entity Recognition in Simple Transformers does n
 New model types are regularly added to the library. Named Entity Recognition tasks currently supports the model types given below.
 
 | Model       | Model code for `NERModel` |
-|-------------|--------------------------------------|
-| BERT        | bert                                 |
-| CamemBERT  | camembert                             |
-| RoBERTa     | roberta                              |
-| DistilBERT  | distilbert                           |
-| ELECTRA     | electra                              |
-| Longformer  | longformer                           |
-| XLM-RoBERTa | xlmroberta                           |
+| ----------- | ------------------------- |
+| BERT        | bert                      |
+| CamemBERT   | camembert                 |
+| RoBERTa     | roberta                   |
+| DistilBERT  | distilbert                |
+| ELECTRA     | electra                   |
+| Longformer  | longformer                |
+| MobileBERT  | mobilebert                |
+| XLM-RoBERTa | xlmroberta                |
 
 **Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
 {: .notice--success}
