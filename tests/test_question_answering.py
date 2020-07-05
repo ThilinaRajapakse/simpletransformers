@@ -11,7 +11,7 @@ from simpletransformers.question_answering import QuestionAnsweringModel
     [
         ("bert", "bert-base-uncased"),
         ("longformer", "allenai/longformer-base-4096"),
-        ("reformer", "google/reformer-crime-and-punishment")
+        # ("reformer", "google/reformer-crime-and-punishment")
         # ("xlnet", "xlnet-base-cased"),
         # ("xlm", "xlm-mlm-17-1280"),
         # ("roberta", "roberta-base"),
