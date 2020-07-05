@@ -1911,7 +1911,16 @@ class LazyQuestionAnsweringDataset(Dataset):
             
         f = squad_convert_example_to_features(
             example, self.args.max_seq_length, self.args.doc_stride, self.args.max_query_length, True
-        )[0]
+        )
+        if(len(f) >= 1):
+            f = f[0]
+        else:
+            line = linecache.getline(self.data_file, 1)
+            qa_sample = json.loads(line)
+            example = get_examples([qa_sample])[0]
+            f = squad_convert_example_to_features(
+                example, self.args.max_seq_length, self.args.doc_stride, self.args.max_query_length, True
+            )[0]
 
         return (
             torch.tensor(f.input_ids, dtype=torch.long),
