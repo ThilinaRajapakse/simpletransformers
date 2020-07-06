@@ -464,19 +464,22 @@ class NERModel:
                         args.evaluate_during_training_steps > 0
                         and global_step % args.evaluate_during_training_steps == 0
                     ):
+
+                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
+
+                        os.makedirs(output_dir_current, exist_ok=True)
+
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, _, _ = self.eval_model(
                             eval_data,
                             verbose=verbose and args.evaluate_during_training_verbose,
                             wandb_log=False,
+                            output_dir=output_dir_current,
                             **kwargs,
                         )
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
-                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
-
-                        os.makedirs(output_dir_current, exist_ok=True)
 
                         if args.save_eval_checkpoints:
                             self._save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
