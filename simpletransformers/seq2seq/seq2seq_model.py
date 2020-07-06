@@ -172,7 +172,7 @@ class Seq2SeqModel:
             if encoder_decoder_type == "bart":
                 self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
             elif encoder_decoder_type == "marian":
-                if "base_marian_model_name" in self.args:
+                if self.args.base_marian_model_name:
                     self.encoder_tokenizer = tokenizer_class.from_pretrained(self.args.base_marian_model_name)
                 else:
                     self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
