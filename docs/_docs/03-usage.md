@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2020/07/06 03:17:33
+last_modified_at: 2020/07/06 11:47:14
 toc: true
 ---
 
@@ -387,6 +387,7 @@ model_args.use_multiprocessing = True
 model_args.train_batch_size = 16
 model_args.eval_batch_size = 8
 model_args.labels_list = ["true", "false"]
+model_args.wandb_project = "Simple Sweep"
 ```
 
 #### 4. Set up the training function
@@ -494,7 +495,7 @@ model_args.use_multiprocessing = True
 model_args.train_batch_size = 16
 model_args.eval_batch_size = 8
 model_args.labels_list = ["true", "false"]
-
+model_args.wandb_project = "Simple Sweep"
 
 def train():
     # Initialize a new wandb run
