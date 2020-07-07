@@ -248,9 +248,7 @@ class LanguageModelingModel:
                         discriminator_model=discriminator_model,
                         generator_config=self.generator_config,
                         discriminator_config=self.discriminator_config,
-                        tie_generator_and_discriminator_embeddings=self.args[
-                            "tie_generator_and_discriminator_embeddings"
-                        ],
+                        tie_generator_and_discriminator_embeddings=self.args.tie_generator_and_discriminator_embeddings,
                     )
                     model_to_resize = (
                         self.model.generator_model.module

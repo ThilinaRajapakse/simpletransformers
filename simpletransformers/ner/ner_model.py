@@ -480,7 +480,6 @@ class NERModel:
                         for key, value in results.items():
                             tb_writer.add_scalar("eval_{}".format(key), value, global_step)
 
-
                         if args.save_eval_checkpoints:
                             self._save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
 
