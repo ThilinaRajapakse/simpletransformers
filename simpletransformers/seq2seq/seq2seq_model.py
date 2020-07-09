@@ -989,7 +989,7 @@ class Seq2SeqModel:
             inputs = {
                 "input_ids": batch[0].to(device),
                 "decoder_input_ids": lm_labels.to(device),
-                "lm_labels": lm_labels_masked.to(device),
+                "labels": lm_labels_masked.to(device),
             }
 
         return inputs

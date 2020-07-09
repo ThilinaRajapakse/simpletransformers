@@ -5,9 +5,13 @@ import os
 
 
 @pytest.mark.parametrize(
-    "encoder_decoder_type, encoder_decoder_name", [("bart", "facebook/bart-large"),],
+    "encoder_decoder_type, encoder_decoder_name, encoder_type",
+    [
+        ("bart", "facebook/bart-large", "bart"),
+        ("roberta-base", "bert-base-cased", "roberta")
+    ],
 )
-def test_seq2seq(encoder_decoder_type, encoder_decoder_name):
+def test_seq2seq(encoder_decoder_type, encoder_decoder_name, encoder_type):
     train_data = [
         ["one", "1"],
         ["two", "2"],
@@ -35,12 +39,21 @@ def test_seq2seq(encoder_decoder_type, encoder_decoder_name):
         "num_return_sequences": 1,
     }
 
-    model = Seq2SeqModel(
-        encoder_decoder_type=encoder_decoder_type,
-        encoder_decoder_name=encoder_decoder_name,
-        args=model_args,
-        use_cuda=False,
-    )
+    if encoder_type == "bart":
+        model = Seq2SeqModel(
+            encoder_decoder_type=encoder_decoder_type,
+            encoder_decoder_name=encoder_decoder_name,
+            args=model_args,
+            use_cuda=False,
+        )
+    else:
+        model = Seq2SeqModel(
+            encoder_type=encoder_type,
+            encoder_name=encoder_decoder_type,
+            decoder_name=encoder_decoder_name,
+            args=model_args,
+            use_cuda=False,
+        )
 
     model.train_model(train_df)
 
