@@ -6,10 +6,7 @@ import os
 
 @pytest.mark.parametrize(
     "encoder_decoder_type, encoder_decoder_name, encoder_type",
-    [
-        ("bart", "facebook/bart-large", "bart"),
-        ("roberta-base", "bert-base-cased", "roberta")
-    ],
+    [("bart", "facebook/bart-large", "bart"), ("roberta-base", "bert-base-cased", "roberta")],
 )
 def test_seq2seq(encoder_decoder_type, encoder_decoder_name, encoder_type):
     train_data = [
@@ -62,7 +59,7 @@ def test_seq2seq(encoder_decoder_type, encoder_decoder_name, encoder_type):
     a = model.predict(["five"])[0]
 
     model = Seq2SeqModel(
-        encoder_decoder_type=encoder_decoder_type, encoder_decoder_name="outputs", args=model_args, use_cuda=False,
+        encoderr_type=encoder_type, encoder_decoder_name="outputs", args=model_args, use_cuda=False,
     )
 
     b = model.predict(["five"])[0]

@@ -835,7 +835,7 @@ class ClassificationModel:
             for key in sorted(result.keys()):
                 writer.write("{} = {}\n".format(key, str(result[key])))
 
-        if self.args.wandb_project and wandb_log and not multi_label:
+        if self.args.wandb_project and wandb_log and not multi_label and not self.args.regression:
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             if not args.labels_map:
                 self.args.labels_map = {i: i for i in range(self.num_labels)}
@@ -1153,7 +1153,7 @@ class ClassificationModel:
             else:
                 preds = np.argmax(preds, axis=1)
 
-        if self.args.labels_map:
+        if self.args.labels_map and not self.args.regression:
             inverse_labels_map = {value: key for key, value in self.args.labels_map.items()}
             preds = [inverse_labels_map[pred] for pred in preds]
 
