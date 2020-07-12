@@ -141,8 +141,6 @@ class ClassificationModel:
         if self.args.labels_list:
             if num_labels:
                 assert num_labels == len(self.args.labels_list)
-            else:
-                assert len(self.args.labels_list) == 2
             if self.args.labels_map:
                 assert list(self.args.labels_map.keys()) == self.args.labels_list
             else:

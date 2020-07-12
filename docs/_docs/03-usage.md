@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2020/07/06 11:47:14
+last_modified_at: 2020/07/12 02:14:34
 toc: true
 ---
 
@@ -285,7 +285,7 @@ Machine learning models can be very sensitive to the hyperparameters used to tra
 **Hint:** We can define two kinds of parameters used to train Transformer models. The first is the learned parameters (like the model weights) and the second is hyperparameters. To give a high-level description of the two kinds of parameters, the hyperparameters (learning rate, batch sizes, etc.) are used to control the process of *learning* learned parameters.
 {: .notice--success}
 
-Choosing a good set of hyperparameter values plays a huge role in developing a state-of-the-art model. Because of this, Simple Transformers has native support for the excellent [W&B Sweeps](https://docs.wandb.com/sweeps) feature for autometed hyperparameter optimization.
+Choosing a good set of hyperparameter values plays a huge role in developing a state-of-the-art model. Because of this, Simple Transformers has native support for the excellent [W&B Sweeps](https://docs.wandb.com/sweeps) feature for automated hyperparameter optimization.
 
 How to perform hyperparameter optimization with Simple Transformers and W&B Sweeps (Adapted from W&B [docs](https://docs.wandb.com/sweeps)):
 
