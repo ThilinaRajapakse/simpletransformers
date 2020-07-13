@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2020/07/12 02:14:34
+last_modified_at: 2020/07/14 00:01:13
 toc: true
 ---
 
@@ -605,7 +605,7 @@ Here, `"bert.encoder.layer.10.output.dense.weight"` is specified in both the `cu
 {% endcapture %}
 
 <div class="notice--success">
-  <h4>Multi-label vs Multi-class:</h4>
+  <h4>Order of precedence:</h4>
   {{ notice-text | markdownify }}
 </div>
 
