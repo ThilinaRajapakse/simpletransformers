@@ -2,7 +2,7 @@
 title: Classification Specifics
 permalink: /docs/classification-specifics/
 excerpt: "Specific notes for text classification tasks."
-last_modified_at: 2020/07/05 15:01:52
+last_modified_at: 2020/07/16 03:40:08
 toc: true
 ---
 
@@ -94,7 +94,7 @@ In the case of a tie, the predicted label will be assigned the `tie_value` (defa
 
 ## Lazy Loading Data
 
-When working with very large datasets, the available memory may prevent keeping the entire dataset in memory during training or evaluation of a model. In such cases, the data can be lazy loaded from disk to minimize memory consumption.
+The system memory required to keep a large dataset in memory can be prohibitively large. In such cases, the data can be lazy loaded from disk to minimize memory consumption.
 
 To enable lazy loading, you must set the `lazy_loading` flag to `True` in `ClassificationArgs`.
 

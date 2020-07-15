@@ -57,11 +57,3 @@ def test_seq2seq(encoder_decoder_type, encoder_decoder_name, encoder_type):
     model.eval_model(eval_df)
 
     a = model.predict(["five"])[0]
-
-    model = Seq2SeqModel(
-        encoderr_type=encoder_type, encoder_decoder_name="outputs", args=model_args, use_cuda=False,
-    )
-
-    b = model.predict(["five"])[0]
-
-    assert a == b

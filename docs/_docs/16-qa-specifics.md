@@ -2,7 +2,7 @@
 title: Question Answering Specifics
 permalink: /docs/qa-specifics/
 excerpt: "Specific notes for Question Answering tasks."
-last_modified_at: 2020/07/05 15:02:59
+last_modified_at: 2020/07/16 03:44:56
 toc: true
 ---
 
@@ -37,4 +37,29 @@ New model types are regularly added to the library. Question Answering tasks cur
 | XLNet       | xlnet                                   |
 
 **Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
+{: .notice--success}
+
+
+## Lazy Loading Data
+
+The system memory required to keep a large dataset in memory can be prohibitively large. In such cases, the data can be lazy loaded from disk to minimize memory consumption.
+
+To enable lazy loading, you must set the `lazy_loading` flag to `True` in `QuestionAnsweringArgs`.
+
+
+```python
+model_args = QuestionAnsweringArgs()
+model_args.lazy_loading = True
+```
+
+**Note:** This will typically be slower as the feature conversion is done on the fly. However, the tradeoff between speed and memory consumption should be reasonable.
+{: .notice--info}
+
+**Tip:** See [Lazy Loading Data Formats](/docs/qa-data-formats/#lazy-loading-data-format) for information on the data formats.
+{: .notice--success}
+
+**Tip:** See [Configuring a QuestionAnsweringArgs model](/docs/qa-model/#configuring-a-questionansweringmodel) for information on configuring the model to read the lazy loading data file correctly.
+{: .notice--success}
+
+**Tip:** You can find a minimal example script in `examples/question_answering/lazy_qa.py`.
 {: .notice--success}

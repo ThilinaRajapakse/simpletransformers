@@ -2,7 +2,7 @@
 title: Question Answering Data Formats
 permalink: /docs/qa-data-formats/
 excerpt: "Data Formats for Question Answering tasks."
-last_modified_at: 2020-05-02 17:58:53
+last_modified_at: 2020/07/16 03:53:42
 toc: true
 ---
 
@@ -20,8 +20,8 @@ Each such dictionary contains two attributes, the `"context"` and `"qas"`.
 
 Questions and answers are represented as dictionaries. Each dictionary in `qas` has the following format.
 - `id`: *(string)* A unique ID for the question. Should be unique across the entire dataset.
-- `question`: *(string)* A question. 
-- `is_impossible`: *(bool)* Indicates whether the question can be answered correctly from the context. 
+- `question`: *(string)* A question.
+- `is_impossible`: *(bool)* Indicates whether the question can be answered correctly from the context.
 - `answers`: *(list)* The list of correct answers to the question.
 
 A single answer is represented by a dictionary with the following attributes.
@@ -184,3 +184,13 @@ to_predict = [
 ]
 
 ```
+
+
+## Lazy Loading Data Format
+
+The training data (`train_data`) must be input as a path (str) to a [JSONL](http://jsonlines.org/) file to use Lazy Loading.
+
+The structure of the JSON object is identical to the normal Question Answering train data [format](https://simpletransformers.ai/docs/qa-data-formats/#train-data-format).
+
+**Note:** Currently, lazy loading is only supported for training. The full `eval_data` will be loaded to memory.
+{: .notice--warning}
