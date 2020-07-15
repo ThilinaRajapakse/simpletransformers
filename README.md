@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-42-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-43-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -31,7 +31,7 @@ Currently added:
 - Question answering
 - Language model training
   - Language model fine-tuning
-  - Training language models from scratch 
+  - Training language models from scratch
 
 Any feedback will be immensely helpful in improving the documentation! If you have any feedback, please leave a comment in the [issue](https://github.com/ThilinaRajapakse/simpletransformers/issues/342) I've opened for this.
 
@@ -191,7 +191,7 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*lm_coef: int*](#lm_coef-int)
       - [*mc_coef: int*](#mc_coef-int)
       - [*no_sample: bool*](#no_sample-bool)
-      - [*max_length: int*](#max_length-int)
+      - [*max_length: int*](#max_length-int-1)
       - [*min_length: int*](#min_length-int)
       - [*temperature: float*](#temperature-float-1)
       - [*top_k: int*](#top_k-int-2)
@@ -267,22 +267,22 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
 ### With Conda
 
 1. Install Anaconda or Miniconda Package Manager from [here](https://www.anaconda.com/distribution/)
-2. Create a new virtual environment and install packages.  
-`conda create -n transformers python pandas tqdm`  
-`conda activate transformers`  
-If using cuda:  
-&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cudatoolkit=10.1 -c pytorch`  
-else:  
-&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cpuonly -c pytorch`  
+2. Create a new virtual environment and install packages.
+`conda create -n transformers python pandas tqdm`
+`conda activate transformers`
+If using cuda:
+&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cudatoolkit=10.1 -c pytorch`
+else:
+&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cpuonly -c pytorch`
 
 3. Install Apex if you are using fp16 training. Please follow the instructions [here](https://github.com/NVIDIA/apex). (Installing Apex from pip has caused issues for several people.)
 
-4. Install simpletransformers.  
-`pip install simpletransformers` 
+4. Install simpletransformers.
+`pip install simpletransformers`
 
 #### Optional
 
-1. Install Weights and Biases (wandb) for tracking and visualizing training in a web browser.  
+1. Install Weights and Biases (wandb) for tracking and visualizing training in a web browser.
 `pip install wandb`
 
 ## Usage
@@ -329,7 +329,7 @@ Supported model types:
 
 ### Task Specific Notes
 
-* Set `'sliding_window': True` in `args` to prevent text being truncated. The default *stride* is `'stride': 0.8` which is `0.8 * max_seq_length`. Training text will be split using a sliding window and each window will be assigned the label from the original text. During evaluation and prediction, the mode of the predictions for each window will be the final prediction on each sample. The `tie_value` (default `1`) will be used in the case of a tie.  
+* Set `'sliding_window': True` in `args` to prevent text being truncated. The default *stride* is `'stride': 0.8` which is `0.8 * max_seq_length`. Training text will be split using a sliding window and each window will be assigned the label from the original text. During evaluation and prediction, the mode of the predictions for each window will be the final prediction on each sample. The `tie_value` (default `1`) will be used in the case of a tie.
 *Currently not available for Multilabel Classification*
 
 #### Minimal Start for Binary Classification
@@ -399,7 +399,7 @@ eval_data = [['Example eval sentence belonging to class 1', 1], ['Example eval s
 eval_df = pd.DataFrame(eval_data)
 
 # Create a ClassificationModel
-model = ClassificationModel('bert', 'bert-base-cased', num_labels=3, args={'reprocess_input_data': True, 'overwrite_output_dir': True}) 
+model = ClassificationModel('bert', 'bert-base-cased', num_labels=3, args={'reprocess_input_data': True, 'overwrite_output_dir': True})
 # You can set class weights by using the optional weight argument
 
 # Train the model
@@ -533,7 +533,7 @@ print(raw_outputs)
 
 #### ClassificationModel
 
-`class simpletransformers.classification.ClassificationModel (model_type, model_name, args=None, use_cuda=True)`  
+`class simpletransformers.classification.ClassificationModel (model_type, model_name, args=None, use_cuda=True)`
 This class  is used for Text Classification tasks.
 
 `Class attributes`
@@ -553,12 +553,12 @@ This class  is used for Text Classification tasks.
 * `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
 * `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 
-`class methods`  
+`class methods`
 **`train_model(self, train_df, output_dir=None, show_running_loss=True, args=None, eval_df=None)`**
 
 Trains the model using 'train_df'
 
-Args:  
+Args:
 * `train_df`: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be trained on this Dataframe.
 
 * `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
@@ -572,29 +572,29 @@ Args:
 * `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
-Returns:  
+Returns:
 * None
 
 **`eval_model(self, eval_df, output_dir=None, verbose=False)`**
 
 Evaluates the model on eval_df. Saves results to output_dir.
 
-Args:  
+Args:
 * eval_df: Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column containing the text, and the second column containing the label. The model will be evaluated on this Dataframe.
 
-* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-* verbose: If verbose, results will be printed to the console on completion of evaluation.  
+* verbose: If verbose, results will be printed to the console on completion of evaluation.
 
 * silent: If silent, tqdm progress bars will be hidden.
 
 * `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
-Returns:  
-* result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
+Returns:
+* result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
 
-* model_outputs: List of model outputs for each row in eval_df  
+* model_outputs: List of model outputs for each row in eval_df
 
 * wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model. The text of the incorrect prediction can be obtained from the InputFeature.text_a attribute. To obtain the true label of the text, use InputFeature.label attribute.
 
@@ -606,7 +606,7 @@ Args:
 * to_predict: A python list of text (str) to be sent to the model for prediction.
 
 Returns:
-* preds: A python list of the predictions (0 or 1) for each text.  
+* preds: A python list of the predictions (0 or 1) for each text.
 * model_outputs: A python list of the raw model outputs for each text.
 
 If `config: {"output_hidden_states": True}`, two additional values will be returned.
@@ -634,16 +634,16 @@ Converts a list of InputExample objects to a TensorDataset containing InputFeatu
 Computes the evaluation metrics for the model predictions.
 
 Args:
-* preds: Model predictions  
+* preds: Model predictions
 
-* labels: Ground truth labels  
+* labels: Ground truth labels
 
-* eval_examples: List of examples on which evaluation was performed  
+* eval_examples: List of examples on which evaluation was performed
 
 Returns:
-* result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)  
+* result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
 
-* wrong: List of InputExample objects corresponding to each incorrect prediction by the model  
+* wrong: List of InputExample objects corresponding to each incorrect prediction by the model
 
 _[Back to Table of Contents](#table-of-contents)_
 
@@ -713,7 +713,7 @@ print(predictions)
 
 #### NERModel
 
-`class simpletransformers.ner.ner_model.NERModel (model_type, model_name, labels=None, args=None, use_cuda=True)`  
+`class simpletransformers.ner.ner_model.NERModel (model_type, model_name, labels=None, args=None, use_cuda=True)`
 This class  is used for Named Entity Recognition.
 
 `Class attributes`
@@ -732,14 +732,14 @@ This class  is used for Named Entity Recognition.
 * `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
 * `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 
-`class methods`  
+`class methods`
 **`train_model(self, train_data, output_dir=None, args=None, eval_df=None)`**
 
 Trains the model using 'train_data'
 
-Args:  
+Args:
 * train_data: train_data should be the path to a .txt file containing the training data OR a pandas DataFrame with 3 columns.
-If a text file is used the data should be in the CoNLL format. i.e. One word per line, with sentences seperated by an empty line. 
+If a text file is used the data should be in the CoNLL format. i.e. One word per line, with sentences seperated by an empty line.
 The first word of the line should be a word, and the last should be a Name Entity Tag.
 If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
 
@@ -752,21 +752,21 @@ If a DataFrame is given, each sentence should be split into words, with each wor
 * eval_df (optional): A DataFrame against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
 
 
-Returns:  
+Returns:
 * None
 
 **`eval_model(self, eval_data, output_dir=None, verbose=True)`**
 
 Evaluates the model on eval_data. Saves results to output_dir.
 
-Args:  
+Args:
 * eval_data: eval_data should be the path to a .txt file containing the evaluation data or a pandas DataFrame. If a text file is used the data should be in the CoNLL format. I.e. One word per line, with sentences seperated by an empty line. The first word of the line should be a word, and the last should be a Name Entity Tag. If a DataFrame is given, each sentence should be split into words, with each word assigned a tag, and with all words from the same sentence given the same sentence_id.
 
-* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-* verbose: If verbose, results will be printed to the console on completion of evaluation.  
+* verbose: If verbose, results will be printed to the console on completion of evaluation.
 
-Returns:  
+Returns:
 * result: Dictionary containing evaluation results. (eval_loss, precision, recall, f1_score)
 
 * model_outputs: List of raw model outputs
@@ -827,8 +827,8 @@ Each such dictionary contains two attributes, the `"context"` and `"qas"`.
 
 Questions and answers are represented as dictionaries. Each dictionary in `qas` has the following format.
 * `id`: (string) A unique ID for the question. Should be unique across the entire dataset.
-* `question`: (string) A question. 
-* `is_impossible`: (bool) Indicates whether the question can be answered correctly from the context. 
+* `question`: (string) A question.
+* `is_impossible`: (bool) Indicates whether the question can be answered correctly from the context.
 * `answers`: (list) The list of correct answers to the question.
 
 A single answer is represented by a dictionary with the following attributes.
@@ -931,7 +931,7 @@ print(model.predict(to_predict))
 
 ### QuestionAnsweringModel
 
-`class simpletransformers.question_answering.QuestionAnsweringModel (model_type, model_name, args=None, use_cuda=True)`  
+`class simpletransformers.question_answering.QuestionAnsweringModel (model_type, model_name, args=None, use_cuda=True)`
 This class is used for Question Answering tasks.
 
 `Class attributes`
@@ -949,12 +949,12 @@ This class is used for Question Answering tasks.
 - `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
 - `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 
-`class methods`  
+`class methods`
 **`train_model(self, train_df, output_dir=None, args=None, eval_df=None)`**
 
 Trains the model using 'train_file'
 
-Args:  
+Args:
 
 - `train_df`: Path to JSON file containing training data. The model will be trained on this file.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
@@ -978,18 +978,18 @@ Returns:
 
 Evaluates the model on eval_file. Saves results to output_dir.
 
-Args:  
+Args:
 
 - `eval_file`: Path to JSON file containing evaluation data. The model will be evaluated on this file.
 
-- `output_dir`: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+- `output_dir`: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-- `verbose`: If verbose, results will be printed to the console on completion of evaluation.  
+- `verbose`: If verbose, results will be printed to the console on completion of evaluation.
 
 - `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
     A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
-Returns:  
+Returns:
 
 - `result`: Dictionary containing evaluation results. (correct, similar, incorrect)
 
@@ -1195,7 +1195,7 @@ model.eval_model("wikitext-2/wiki.test.tokens")
 
 ### LanguageModelingModel
 
-`class simpletransformers.language_modeling.LanguageModelingModel (model_type, model_name, generator_name=None, discriminator_name=None, args=None, use_cuda=True, cuda_device=-1)`  
+`class simpletransformers.language_modeling.LanguageModelingModel (model_type, model_name, generator_name=None, discriminator_name=None, args=None, use_cuda=True, cuda_device=-1)`
 This class is used for language modeling tasks.
 
 `Class attributes`
@@ -1219,12 +1219,12 @@ This class is used for language modeling tasks.
 - `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 - `cuda_device`: (optional) Specific GPU that should be used. Will use the first available GPU by default.
 
-`class methods`  
+`class methods`
 **`train_model(self, train_file, output_dir=None, show_running_loss=True, args=None, eval_file=None, verbose=True,)`**
 
 Trains the model using 'train_file'
 
-Args:  
+Args:
 
 - `train_file`: Path to text file containing the text to train the language model on.
 
@@ -1244,17 +1244,17 @@ Returns:
 
 Evaluates the model on eval_file. Saves results to output_dir.
 
-Args:  
+Args:
 
 - `eval_file`: Path to eval file containing the text to evaluate the language model on.
 
-- `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+- `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-- `verbose`: If verbose, results will be printed to the console on completion of evaluation.  
+- `verbose`: If verbose, results will be printed to the console on completion of evaluation.
 
 - `silent`: If silent, tqdm progress bars will be hidden.
 
-Returns:  
+Returns:
 
 - `result`: Dictionary containing evaluation results. (correct, similar, incorrect)
 
@@ -1270,7 +1270,7 @@ Args:
 
 - `tokenizer_name`: Name of a pretrained tokenizer or a path to a directory containing a tokenizer.
 
-- `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+- `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
 - `use_trained_tokenizer` (optional): Load the trained tokenizer once training completes.
 
@@ -1318,11 +1318,11 @@ LanguageModelingModel has a few additional attributes in its `args` dictionary, 
 
 Used to specify the Dataset type to be used. The choices are given below.
 
-- `simple` (or None) - Each line in the train files are considered to be a single, separate sample. `sliding_window` can be set to True to 
+- `simple` (or None) - Each line in the train files are considered to be a single, separate sample. `sliding_window` can be set to True to
 automatically split longer sequences into samples of length `max_seq_length`. Uses multiprocessing for significantly improved performance on multicore systems.
 
 - `line_by_line` - Treats each line in the train files as a seperate sample.
-  
+
 - `text` - Treats each file in `train_files` as a seperate sample.
 
 *Using `simple` is recommended.*
@@ -1424,7 +1424,7 @@ model.generate("Let's give a minimal start to the model like")
 
 #### LanguageGenerationModel
 
-`class simpletransformers.language_generation.language_generation_model.LanguageGenerationModel (self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`  
+`class simpletransformers.language_generation.language_generation_model.LanguageGenerationModel (self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`
 This class  is used for Language Generation.
 
 `Class attributes`
@@ -1449,7 +1449,7 @@ This class  is used for Language Generation.
 * `**kwargs` (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
 
 
-`class methods`  
+`class methods`
 
 **`generate(self, prompt=None, args=None, verbose=True)`**
 
@@ -1702,7 +1702,7 @@ print(model.eval_model(eval_df, matches=count_matches))
 
 ### T5Model
 
-`class simpletransformers.t5.t5_model.T5Model (self, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`  
+`class simpletransformers.t5.t5_model.T5Model (self, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`
 This class  is used for the T5 Transformer.
 
 `Class attributes`
@@ -1727,12 +1727,12 @@ This class  is used for the T5 Transformer.
 
 
 
-`class methods`  
+`class methods`
 **`train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None)`**
 
 Trains the model using 'train_data'
 
-Args:  
+Args:
 * `train_data`: Pandas DataFrame containing the 3 columns - `prefix`, `input_text`, `target_text`.
                     - `prefix`: A string indicating the task to perform. (E.g. `"question"`, `"stsb"`)
                     - `input_text`: The input text sequence. `prefix` is automatically prepended to form the full input. (`<prefix>: <input_text>`)
@@ -1749,28 +1749,28 @@ Args:
 * `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs will be lists of strings. Note that this will slow down training significantly as the predicted sequences need to be generated.
 
-Returns:  
+Returns:
 * None
 
 **`eval_model(self, eval_data, output_dir=None, verbose=True, silent=False)`**
 
 Evaluates the model on eval_data. Saves results to output_dir.
 
-Args:  
+Args:
 * eval_data: Pandas DataFrame containing the 3 columns - `prefix`, `input_text`, `target_text`.
   - `prefix`: A string indicating the task to perform. (E.g. `"question"`, `"stsb"`)
   - `input_text`: The input text sequence. `prefix` is automatically prepended to form the full input. (`<prefix>: <input_text>`)
-  - `target_text`: The target sequence  
-* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+  - `target_text`: The target sequence
+* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-* verbose: If verbose, results will be printed to the console on completion of evaluation.  
+* verbose: If verbose, results will be printed to the console on completion of evaluation.
 
 * silent: If silent, tqdm progress bars will be hidden.
 
 * `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
 
 
-Returns:  
+Returns:
 * result: Dictionary containing evaluation results.
 
 **`predict(self, to_predict)`**
@@ -2207,7 +2207,7 @@ model.train_model(train_df, eval_data=eval_df, matches=count_matches)
 
 ### Seq2SeqModel
 
-`class simpletransformers.seq2seq.seq2seq_model.Seq2SeqModel (self, encoder_type=None, encoder_name=None, decoder_name=None, encoder_decoder_type=None, encoder_decoder_name=None, config=None, args=None, use_cuda=True, cuda_device=-1, **kwargs)`  
+`class simpletransformers.seq2seq.seq2seq_model.Seq2SeqModel (self, encoder_type=None, encoder_name=None, decoder_name=None, encoder_decoder_type=None, encoder_decoder_name=None, config=None, args=None, use_cuda=True, cuda_device=-1, **kwargs)`
 This class  is used for the T5 Transformer.
 
 `Class attributes`
@@ -2240,15 +2240,15 @@ This class  is used for the T5 Transformer.
 
 
 
-`class methods`  
+`class methods`
 **`train_model(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_df=None)`**
 
 Trains the model using 'train_data'
 
-Args:  
+Args:
 * `train_data`: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
   - `input_text`: The input text sequence.
-  - `target_text`: The target sequence 
+  - `target_text`: The target sequence
 
 * `output_dir` (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
@@ -2261,27 +2261,27 @@ Args:
 * `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs will be lists of strings. Note that this will slow down training significantly as the predicted sequences need to be generated.
 
-Returns:  
+Returns:
 * None
 
 **`eval_model(self, eval_data, output_dir=None, verbose=True, silent=False)`**
 
 Evaluates the model on eval_data. Saves results to output_dir.
 
-Args:  
+Args:
 * eval_data: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
     - `input_text`: The input text sequence.
-    - `target_text`: The target sequence         
-* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+    - `target_text`: The target sequence
+* output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
-* verbose: If verbose, results will be printed to the console on completion of evaluation.  
+* verbose: If verbose, results will be printed to the console on completion of evaluation.
 
 * silent: If silent, tqdm progress bars will be hidden.
 
 * `**kwargs`: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
 
 
-Returns:  
+Returns:
 * result: Dictionary containing evaluation results.
 
 **`predict(self, to_predict)`**
@@ -2414,11 +2414,11 @@ Each entry in personachat is a **dict** with two keys `personality` and `utteran
 
 - `personality`:  **list of strings** containing the personality of the agent
 - `utterances`: **list of dictionaries**, each of which has two keys which are **lists of strings**.
-  - `candidates`: [next_utterance_candidate_1, ..., next_utterance_candidate_19]  
+  - `candidates`: [next_utterance_candidate_1, ..., next_utterance_candidate_19]
         The last candidate is the ground truth response observed in the conversational data
   - `history`: [dialog_turn_0, ... dialog_turn N], where N is an odd number since the other user starts every conversation.
 
-Preprocessing:  
+Preprocessing:
 
 - Spaces before periods at end of sentences
 - everything lowercase
@@ -2541,7 +2541,7 @@ The `interact()` method can be given a list of Strings which will be used to bui
 
 ### ConvAIModel
 
-`class simpletransformers.conv_ai.ConvAIModel ( model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`  
+`class simpletransformers.conv_ai.ConvAIModel ( model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`
 This class is used to build Conversational AI.
 
 `Class attributes`
@@ -2561,12 +2561,12 @@ This class is used to build Conversational AI.
 - `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
 - `cuda_device`: (optional) int - Default = -1. Used to specify which GPU should be used.
 
-`class methods`  
+`class methods`
 **`train_model(self, train_file=None, output_dir=None, show_running_loss=True, args=None, eval_file=None)`**
 
 Trains the model using 'train_file'
 
-Args:  
+Args:
 
 - train_df: ath to JSON file containing training data. The model will be trained on this file.
             output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
@@ -2587,18 +2587,18 @@ Returns:
 
 Evaluates the model on eval_file. Saves results to output_dir.
 
-Args:  
+Args:
 
-- eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.  
+- eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.
 If not given, eval dataset from PERSONA-CHAT will be used.
 
-- output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.  
+- output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
 
 - verbose: If verbose, results will be printed to the console on completion of evaluation.
 
 - silent: If silent, tqdm progress bars will be hidden.
 
-Returns:  
+Returns:
 
 - result: Dictionary containing evaluation results. (correct, similar, incorrect)
 
@@ -2610,9 +2610,9 @@ Interact with a model in the terminal.
 
 Args:
 
-- personality (optional): A list of sentences that the model will use to build a personality.  
+- personality (optional): A list of sentences that the model will use to build a personality.
 If not given, a random personality from PERSONA-CHAT will be picked.
-  
+
 ```python
 model.interact(
     personality=[
@@ -3078,7 +3078,7 @@ _[Back to Table of Contents](#table-of-contents)_
 
 ## Default Settings
 
-The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding 
+The default args used are given below. Any of these can be overridden by passing a dict containing the corresponding
 key: value pairs to the the init method of a Model class.
 
 ```python
@@ -3269,7 +3269,7 @@ A dictionary containing configuration options that should be overriden in a mode
 For a list of pretrained models, see [Hugging Face docs](https://huggingface.co/pytorch-transformers/pretrained_models.html).
 
 The `model_types` available for each task can be found under their respective section. Any pretrained model of that type
-found in the Hugging Face docs should work. To use any of them set the correct `model_type` and `model_name` in the `args` 
+found in the Hugging Face docs should work. To use any of them set the correct `model_type` and `model_name` in the `args`
 dictionary.
 
 _[Back to Table of Contents](#table-of-contents)_
@@ -3343,6 +3343,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/caprone"><img src="https://avatars1.githubusercontent.com/u/15055331?v=4" width="100px;" alt=""/><br /><sub><b>caprone</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/issues?q=author%3Acaprone" title="Bug reports">🐛</a></td>
     <td align="center"><a href="https://www.linkedin.com/in/ather-fawaz-024596134/"><img src="https://avatars0.githubusercontent.com/u/42374034?v=4" width="100px;" alt=""/><br /><sub><b>Ather Fawaz</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=atherfawaz" title="Code">💻</a></td>
     <td align="center"><a href="https://santi.uy"><img src="https://avatars3.githubusercontent.com/u/3905501?v=4" width="100px;" alt=""/><br /><sub><b>Santiago Castro</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=bryant1410" title="Documentation">📖</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/taranais"><img src="https://avatars1.githubusercontent.com/u/859916?v=4" width="100px;" alt=""/><br /><sub><b>taranais</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=taranais" title="Code">💻</a></td>
   </tr>
 </table>
 

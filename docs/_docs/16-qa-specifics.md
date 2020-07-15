@@ -2,7 +2,7 @@
 title: Question Answering Specifics
 permalink: /docs/qa-specifics/
 excerpt: "Specific notes for Question Answering tasks."
-last_modified_at: 2020-05-02 17:58:53
+last_modified_at: 2020/07/05 15:02:59
 toc: true
 ---
 
@@ -29,7 +29,8 @@ New model types are regularly added to the library. Question Answering tasks cur
 | BERT        | bert                                    |
 | DistilBERT  | distilbert                              |
 | ELECTRA     | electra                                 |
-| Longformer  | longformer                           |
+| Longformer  | longformer                              |
+| MobileBERT  | mobilebert                              |
 | RoBERTa     | roberta                                 |
 | XLM         | xlm                                     |
 | XLM-RoBERTa | xlmroberta                              |

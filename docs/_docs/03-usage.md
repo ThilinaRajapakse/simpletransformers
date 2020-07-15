@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2020-05-02 17:57:25
+last_modified_at: 2020/07/15 14:38:21
 toc: true
 ---
 
@@ -256,7 +256,7 @@ With this configuration, the training will terminate if the `mcc` score of the m
 
 ### Additional evaluation metrics
 
-Task-specific Simple Transformers models each have their own default metrics that will be calculated when a model is evaluated 
+Task-specific Simple Transformers models each have their own default metrics that will be calculated when a model is evaluated
 on a dataset. The default metrics have been chosen according to the task, usually by looking at the metrics used in standard benchmarks for that task.
 
 However, it is likely that you will wish to calculate your own metrics depending on your particular use case. To facilitate this, all `eval_model()` and `train_model()` methods in Simple Transformers accepts keyword-arguments consisting of the name of the metric (str), and the metric function itself. The metric function should accept two inputs, the true labels and the model predictions (sklearn format).
@@ -285,7 +285,7 @@ Machine learning models can be very sensitive to the hyperparameters used to tra
 **Hint:** We can define two kinds of parameters used to train Transformer models. The first is the learned parameters (like the model weights) and the second is hyperparameters. To give a high-level description of the two kinds of parameters, the hyperparameters (learning rate, batch sizes, etc.) are used to control the process of *learning* learned parameters.
 {: .notice--success}
 
-Choosing a good set of hyperparameter values plays a huge role in developing a state-of-the-art model. Because of this, Simple Transformers has native support for the excellent [W&B Sweeps](https://docs.wandb.com/sweeps) feature for autometed hyperparameter optimization.
+Choosing a good set of hyperparameter values plays a huge role in developing a state-of-the-art model. Because of this, Simple Transformers has native support for the excellent [W&B Sweeps](https://docs.wandb.com/sweeps) feature for automated hyperparameter optimization.
 
 How to perform hyperparameter optimization with Simple Transformers and W&B Sweeps (Adapted from W&B [docs](https://docs.wandb.com/sweeps)):
 
@@ -387,6 +387,7 @@ model_args.use_multiprocessing = True
 model_args.train_batch_size = 16
 model_args.eval_batch_size = 8
 model_args.labels_list = ["true", "false"]
+model_args.wandb_project = "Simple Sweep"
 ```
 
 #### 4. Set up the training function
@@ -494,7 +495,7 @@ model_args.use_multiprocessing = True
 model_args.train_batch_size = 16
 model_args.eval_batch_size = 8
 model_args.labels_list = ["true", "false"]
-
+model_args.wandb_project = "Simple Sweep"
 
 def train():
     # Initialize a new wandb run
@@ -528,6 +529,146 @@ wandb.agent(sweep_id, train)
 
 To visualize your sweep results, open the project on W&B. Please refer to [W&B docs](https://docs.wandb.com/sweeps/visualize-sweep-results) for more details on understanding the results.
 
+**Guide:** Guide for hyperparameter optimization [here](https://towardsdatascience.com/hyperparameter-optimization-for-optimum-transformer-models-b95a32b70949?source=friends_link&sk=7d19ce15c9ac1230642d826b9deeb638).
+{: .notice--success}
+
+### Custom parameter groups (freezing layers)
+
+Simple Transformers supports custom parameter groups which can be used to set different learning rates for different layers in a model, freeze layers, train only the final layer, etc.
+
+All Simple Transformers models supports the following three configuration options for setting up custom parameter groups.
+
+#### `custom_parameter_groups`
+
+`custom_parameter_groups` offers the most granular configuration option. This should be a list of Python dicts where each dict contains a `params` key and any other optional keys matching the keyword arguments accepted by the optimizer (e.g. `lr`, `weight_decay`). The value for the `params` key should be a list of named parameters (e.g. `["classifier.weight", "bert.encoder.layer.10.output.dense.weight"]`)
+
+**Hint:** All Simple Transformers models have a `get_named_parameters()` method that returns a list of all parameter names in the model.
+{: .notice--success}
+
+```python
+model_args = ClassificationArgs()
+model_args.custom_parameter_groups = [
+    {
+        "params": ["classifier.weight", "bert.encoder.layer.10.output.dense.weight"],
+        "lr": 1e-2,
+    }
+]
+```
+
+#### `custom_layer_parameters`
+
+`custom_layer_parameters` makes it more convenient to set the optimizer options for a given layer or set of layers. This should be a list of Python dicts where each dict contains a `layer` key and any other optional keys matching the keyword arguments accepted by the optimizer (e.g. `lr`, `weight_decay`). The value for the `layer` key should be an `int` (must be numeric) which specifies the layer (e.g. `0`, `1`, `11`).
+
+```python
+model_args = ClassificationArgs()
+model_args.custom_layer_parameters = [
+    {
+        "layer": 10,
+        "lr": 1e-3,
+    },
+    {
+        "layer": 0,
+        "lr": 1e-5,
+    },
+]
+```
+
+**Note:** Any named parameters specified through `custom_layer_parameters` with `bias` or `LayerNorm.weight` in the name will have their `weight_decay` set to `0.0`. This also happens for any parameters **not specified** in either `custom_parameter_groups` or in `custom_layer_parameters` but **does not happen** for parameters specified through `custom_parameter_groups`.
+{: .notice--info}
+
+{% capture notice-text %}
+
+Note that `custom_parameter_groups` has *higher priority* than `custom_layer_parameters` as `custom_parameter_groups` is more specific. If a parameter specificed in `custom_parameter_groups` also happens to be in a layer specified in `custom_layer_parameters`, that particular parameter will be assigned to the parameter group specified in `custom_parameter_groups`.
+
+For example:
+
+```python
+model_args = ClassificationArgs()
+model_args.custom_layer_parameters = [
+    {
+        "layer": 10,
+        "lr": 1e-3,
+    },
+    {
+        "layer": 0,
+        "lr": 1e-5,
+    },
+]
+model_args.custom_parameter_groups = [
+    {
+        "params": ["classifier.weight", "bert.encoder.layer.10.output.dense.weight"],
+        "lr": 1e-2,
+    }
+]
+```
+
+Here, `"bert.encoder.layer.10.output.dense.weight"` is specified in both the `custom_parameter_groups` and the `custom_layer_parameters`. However, `"bert.encoder.layer.10.output.dense.weight"` will have a `lr` of `1e-2` due to the higher precedence of `custom_parameter_groups`.
+
+{% endcapture %}
+
+<div class="notice--success">
+  <h4>Order of precedence:</h4>
+  {{ notice-text | markdownify }}
+</div>
+
+**Hint:** Any parameters not specified in either `custom_parameter_groups` or in `custom_layer_parameters` will be assigned the general values from the model args.
+{: .notice--success}
+
+#### `train_custom_parameters_only`
+
+The `train_custom_parameters_only` option is used to facilitate the training of specific parameters only. If `train_custom_parameters_only` is set to `True`, only the parameters specified in either `custom_parameter_groups` or in `custom_layer_parameters` will be trained.
+
+For example, to train only the Classification layers of a `ClassificationModel`:
+
+```python
+from simpletransformers.classification import ClassificationModel, ClassificationArgs
+import pandas as pd
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+transformers_logger = logging.getLogger("transformers")
+transformers_logger.setLevel(logging.WARNING)
+
+# Preparing train data
+train_data = [
+    ["Aragorn was the heir of Isildur", 1],
+    ["Frodo was the heir of Isildur", 0],
+]
+train_df = pd.DataFrame(train_data)
+train_df.columns = ["text", "labels"]
+
+# Preparing eval data
+eval_data = [
+    ["Theoden was the king of Rohan", 1],
+    ["Merry was the king of Rohan", 0],
+]
+eval_df = pd.DataFrame(eval_data)
+eval_df.columns = ["text", "labels"]
+
+# Train only the classifier layers
+model_args = ClassificationArgs()
+model_args.train_custom_parameters_only = True
+model_args.custom_parameter_groups = [
+    {
+        "params": ["classifier.weight"],
+        "lr": 1e-3,
+    },
+    {
+        "params": ["classifier.bias"],
+        "lr": 1e-3,
+        "weight_decay": 0.0,
+    },
+]
+# Create a ClassificationModel
+model = ClassificationModel(
+    "bert", "bert-base-cased", args=model_args
+)
+
+# Train the model
+model.train_model(train_df)
+
+```
 
 ## Options For Downloading Pre-Trained Models
 

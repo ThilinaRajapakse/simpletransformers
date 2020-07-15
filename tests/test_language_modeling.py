@@ -12,6 +12,7 @@ import os
         ("bert", None),
         ("electra", None),
         ("longformer", None),
+        ("reformer", "google/reformer-crime-and-punishment")
         # ("xlnet", "xlnet-base-cased"),
         # ("xlm", "xlm-mlm-17-1280"),
         # ("roberta", "roberta-base"),

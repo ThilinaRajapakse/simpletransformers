@@ -301,9 +301,7 @@ class ClassificationModel:
         model.train()
         for _ in train_iterator:
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
-            for step, batch in enumerate(
-                tqdm(train_dataloader, desc=f"Running Epoch {epoch_number}", disable=args["silent"])
-            ):
+            for step, batch in enumerate(tqdm(train_dataloader, desc=f"Running Training", disable=args["silent"])):
                 batch = tuple(t.to(self.device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
@@ -493,7 +491,7 @@ class ClassificationModel:
         output_mode = "classification"
         args = self.args
 
-        if not os.path.isdir(self.args["cache_dir"]):
+        if not os.path.isdir(self.args["cache_dir"]) and not no_cache:
             os.makedirs(self.args["cache_dir"])
 
         mode = "dev" if evaluate else "train"

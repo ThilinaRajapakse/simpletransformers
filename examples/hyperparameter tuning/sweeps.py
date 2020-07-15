@@ -12,7 +12,7 @@ from simpletransformers.classification import (
 sweep_config = {
     "method": "bayes",  # grid, random
     "metric": {"name": "train_loss", "goal": "minimize"},
-    "parameters": {"num_train_epochs": {"values": [2, 3, 5]}, "learning_rate": {"min": 5e-5, "max": 4e-4},},
+    "parameters": {"num_train_epochs": {"values": [2, 3, 5]}, "learning_rate": {"min": 5e-5, "max": 4e-4}},
 }
 
 sweep_id = wandb.sweep(sweep_config, project="Simple Sweep")
@@ -46,6 +46,7 @@ model_args.use_multiprocessing = True
 model_args.train_batch_size = 16
 model_args.eval_batch_size = 8
 model_args.labels_list = ["true", "false"]
+model_args.wandb_project = "Simple Sweep"
 
 
 def train():
