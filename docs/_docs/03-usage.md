@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2020/07/14 00:01:13
+last_modified_at: 2020/07/15 14:38:21
 toc: true
 ---
 
@@ -529,6 +529,8 @@ wandb.agent(sweep_id, train)
 
 To visualize your sweep results, open the project on W&B. Please refer to [W&B docs](https://docs.wandb.com/sweeps/visualize-sweep-results) for more details on understanding the results.
 
+**Guide:** Guide for hyperparameter optimization [here](https://towardsdatascience.com/hyperparameter-optimization-for-optimum-transformer-models-b95a32b70949?source=friends_link&sk=7d19ce15c9ac1230642d826b9deeb638).
+{: .notice--success}
 
 ### Custom parameter groups (freezing layers)
 
