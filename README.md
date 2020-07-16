@@ -17,7 +17,8 @@ Supports
 - T5 Model
 - Seq2Seq Tasks
 - Multi-Modal Classification
-- Conversational AI.
+- Conversational A.
+- Text Representation Generation.
 
 
 ### Documentation Updates
@@ -208,7 +209,10 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
     - [Training a Model](#training-a-model)
     - [Evaluating a Model](#evaluating-a-model)
     - [Predicting from a trained Model](#predicting-from-a-trained-model)
-  - [Regression](#regression)
+  - [Text Representation Generation](#text-representation-generation)
+       - [Minimal example for generating word embeddings](#minimal-start-for-generating-word-embeddings)
+       - [Minimal example for generating sentence embeddings](#minimal-start-for-generating-sentence-embeddings)
+- [Regression](#regression)
       - [Minimal Start for Regression](#minimal-start-for-regression)
   - [Visualization Support](#visualization-support)
   - [Experimental Features](#experimental-features)
@@ -2916,6 +2920,46 @@ model.predict(
 ```
 
 _[Back to Table of Contents](#table-of-contents)_
+
+---
+
+## [Text Representation Generation](#text-representation-generation)
+       
+Use transformers language models to generate contextual word or sentence representations from text that you can then feed to any down-stream tasks of your preference.  
+For more complete examples of how to use this component with downstream tasks refer to: https://github.com/ThilinaRajapakse/simpletransformers/tree/master/examples/language_representation 
+       
+### Minimal example for generating word embeddings
+Generate a list of contextual word embeddings for every sentence in a list
+```python
+from simpletransformers.language_representation import RepresentationModel
+        
+sentences = ["Example sentence 1", "Example sentence 2"]
+model = RepresentationModel(
+        model_type="bert",
+        model_name="bert-base-uncased",
+        use_cuda=False
+    )
+word_vectors = model.encode_sentences(sentences, combine_strategy=None)
+assert word_vectors.shape === (2, 5, 768) # token vector for every token in each sentence, bert based models add 2 tokens per sentence by default([CLS] & [SEP])
+```
+       
+### Minimal example for generating sentence embeddings 
+Same code as for generating word embeddings, the only differennce is that we pass combine_s`trategy="mean" parameter to `combine_strategy="mean"
+```python
+from simpletransformers.language_representation import RepresentationModel
+sentences = ["Example sentence 1", "Example sentence 2"]
+model = RepresentationModel(
+        model_type="bert",
+        model_name="bert-base-uncased",
+        use_cuda=False
+    )
+word_vectors = model.encode_sentences(sentences, combine_strategy="mean")
+assert word_vectors.shape === (2, 768) # one sentence embedding per sentence
+```
+
+
+_[Back to Table of Contents](#table-of-contents)_
+
 
 ---
 
