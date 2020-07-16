@@ -5,7 +5,7 @@ from simpletransformers.language_representation import RepresentationModel
 from os.path import dirname, join
 project_root = dirname(dirname(dirname(dirname(__file__)))) # path to root of the project
 
-MODEL_TYPE = "gpt2" # change this to test other model types: roberta, gpt2
+MODEL_TYPE = "gpt2" # change this to test other model types: bert, roberta, gpt2
 
 
 

@@ -1,4 +1,3 @@
-import pandas as pd
 import pytest
 from simpletransformers.language_representation import RepresentationModel
 
