@@ -404,6 +404,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "pablonm3",
+      "name": "Pablo N. Marino",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/14850762?v=4",
+      "profile": "http://pablomarino.me",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
