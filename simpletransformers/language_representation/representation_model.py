@@ -15,14 +15,7 @@ from simpletransformers.language_representation.transformer_models.bert_model im
 from simpletransformers.language_representation.transformer_models.gpt2_model import GPT2ForTextRepresentation
 
 
-from transformers import (
-    BertConfig,
-    BertTokenizer,
-    RobertaConfig,
-    RobertaTokenizer,
-    GPT2Config,
-    GPT2Tokenizer
-)
+from transformers import BertConfig, BertTokenizer, RobertaConfig, RobertaTokenizer, GPT2Config, GPT2Tokenizer
 
 try:
     import wandb
@@ -33,17 +26,21 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 def mean_across_all_tokens(token_vectors):
     return torch.mean(token_vectors, dim=1)
+
 
 def concat_all_tokens(token_vectors):
     batch_size, max_tokens, emb_dim = token_vectors.shape
     return torch.reshape(token_vectors, (batch_size, max_tokens * emb_dim))
 
+
 def batch_iterable(iterable, batch_size=1):
-        l = len(iterable)
-        for ndx in range(0, l, batch_size):
-            yield iterable[ndx:min(ndx + batch_size, l)]
+    l = len(iterable)
+    for ndx in range(0, l, batch_size):
+        yield iterable[ndx : min(ndx + batch_size, l)]
+
 
 class RepresentationModel:
     def __init__(
@@ -118,19 +115,16 @@ class RepresentationModel:
         if self.args.wandb_project and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args.wandb_project = None
-        if (self.args.model_type == "gpt2"):
+        if self.args.model_type == "gpt2":
             # should we add a custom tokenizer for this model?
-            self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+            self.tokenizer.add_special_tokens({"pad_token": "[PAD]"})
             self.model.resize_token_embeddings(len(self.tokenizer))
 
     def _tokenize(self, text_list):
         # Tokenize the text with the provided tokenizer
-        input_ids = self.tokenizer.batch_encode_plus(text_list,
-                                                     add_special_tokens=True,
-                                                     max_length=self.args.max_seq_length,
-                                                     padding=True,
-                                                     truncation=True
-                                                     )["input_ids"]
+        input_ids = self.tokenizer.batch_encode_plus(
+            text_list, add_special_tokens=True, max_length=self.args.max_seq_length, padding=True, truncation=True
+        )["input_ids"]
         return torch.LongTensor(input_ids)
 
     def encode_sentences(self, text_list, combine_strategy=None, batch_size=32):
@@ -140,19 +134,18 @@ class RepresentationModel:
         for batch in batches:
             input_ids_tensor = self._tokenize(batch)
             token_vectors = self.model(input_ids=input_ids_tensor)
-            if (combine_strategy):
+            if combine_strategy:
                 embedding_func_mapping = {"mean": mean_across_all_tokens, "concat": concat_all_tokens}
-                if (embedding_func_mapping[combine_strategy]):
+                if embedding_func_mapping[combine_strategy]:
                     embedding_func = embedding_func_mapping[combine_strategy]
                 else:
                     raise ValueError(
-                        "Provided combine_strategy is not valid."
-                        "supported values are: 'concat', 'mean' and None."
+                        "Provided combine_strategy is not valid." "supported values are: 'concat', 'mean' and None."
                     )
                 batch_embeddings = embedding_func(token_vectors).detach().numpy()
             else:
-                batch_embeddings = token_vectors.detach().numpy();
-            if(len(embeddings) == 0):
+                batch_embeddings = token_vectors.detach().numpy()
+            if len(embeddings) == 0:
                 embeddings = batch_embeddings
             else:
                 embeddings = np.concatenate((embeddings, batch_embeddings), axis=0)
@@ -163,4 +156,3 @@ class RepresentationModel:
         args = ModelArgs()
         args.load(input_dir)
         return args
-

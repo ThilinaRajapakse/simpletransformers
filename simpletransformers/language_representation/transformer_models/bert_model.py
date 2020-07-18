@@ -13,21 +13,14 @@ class BertForTextRepresentation(BertPreTrainedModel):
         self.weight = weight
         self.init_weights()
 
-    def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        head_mask=None
-    ):
+    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None):
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
             head_mask=head_mask,
-            output_hidden_states=True
+            output_hidden_states=True,
         )
         hidden_states = outputs[2]
         return hidden_states[-1]

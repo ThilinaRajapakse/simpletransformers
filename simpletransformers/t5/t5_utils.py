@@ -1,5 +1,6 @@
 import logging
 import os
+from os import truncate
 import pickle
 from multiprocessing import Pool
 from typing import Tuple
@@ -33,7 +34,7 @@ def preprocess_data(data):
         )
     else:
         input_text = tokenizer.encode(
-            prefix + input_text, max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt",
+            prefix + input_text, max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt"
         )
 
         target_text = tokenizer.encode(

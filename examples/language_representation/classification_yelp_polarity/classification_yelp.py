@@ -3,10 +3,10 @@ from sklearn.metrics import classification_report
 from sklearn.linear_model import RidgeClassifier
 from simpletransformers.language_representation import RepresentationModel
 from os.path import dirname, join
-project_root = dirname(dirname(dirname(dirname(__file__)))) # path to root of the project
 
-MODEL_TYPE = "gpt2" # change this to test other model types: bert, roberta, gpt2
+project_root = dirname(dirname(dirname(dirname(__file__))))  # path to root of the project
 
+MODEL_TYPE = "gpt2"  # change this to test other model types: bert, roberta, gpt2
 
 
 prefix = project_root + "/data/"
@@ -39,7 +39,7 @@ model = RepresentationModel(
     model_type=MODEL_TYPE,
     model_name=model_name,
     use_cuda=False,
-    args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True}
+    args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True},
 )
 
 train_vectors = model.encode_sentences(train_df["text"].to_list(), combine_strategy="mean")
@@ -48,5 +48,5 @@ eval_vectors = model.encode_sentences(eval_df["text"].to_list(), combine_strateg
 
 clf_model = RidgeClassifier()
 clf_model.fit(train_vectors, train_df["labels"])
-predictions = clf_model.predict(eval_vectors);
-print(classification_report(eval_df['labels'], predictions))
+predictions = clf_model.predict(eval_vectors)
+print(classification_report(eval_df["labels"], predictions))

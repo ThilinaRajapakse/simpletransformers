@@ -1882,7 +1882,7 @@ class LazyQuestionAnsweringDataset(Dataset):
     @staticmethod
     def _get_n_lines(data_file):
         counter = 0
-        myfile = open(data_file,"r+")
+        myfile = open(data_file, "r+")
         for line in myfile:
             counter += 1
 
@@ -1897,7 +1897,7 @@ class LazyQuestionAnsweringDataset(Dataset):
     #     return line_idx
 
     def __getitem__(self, idx):
-        if(idx == 0):
+        if idx == 0:
             idx = 1
         line = linecache.getline(self.data_file, idx)
         qa_sample = json.loads(line)
@@ -1914,7 +1914,7 @@ class LazyQuestionAnsweringDataset(Dataset):
             torch.tensor(f.start_position, dtype=torch.long),
             torch.tensor(f.end_position, dtype=torch.long),
             torch.tensor(f.p_mask, dtype=torch.float),
-            torch.tensor(f.is_impossible, dtype=torch.float)
+            torch.tensor(f.is_impossible, dtype=torch.float),
         )
 
     def __len__(self):

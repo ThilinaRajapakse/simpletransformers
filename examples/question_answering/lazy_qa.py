@@ -53,10 +53,10 @@ with open("data/train.json", "w") as f:
     json.dump(train_data, f)
 
 # Save as a JSONL file
-with open('data/train.jsonl', 'w') as outfile:
+with open("data/train.jsonl", "w") as outfile:
     for entry in tqdm(train_data):
         json.dump(entry, outfile)
-        outfile.write('\n')
+        outfile.write("\n")
 
 train_args = {
     "reprocess_input_data": True,

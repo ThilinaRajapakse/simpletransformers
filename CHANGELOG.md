@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.0] - 2020-07-05
+
+### Added
+
+- Added Text Representation Generation (`RepresentationModel`). [@pablonm3](https://github.com/pablonm3)
+
 ## [0.44.0] - 2020-07-05
 
 ### Added
@@ -981,7 +987,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.44.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6a9beca...HEAD
+[0.45.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/fad190f...HEAD
+
+[0.44.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6a9beca...fad190f
 
 [0.43.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2ee0c0b...6a9beca
 

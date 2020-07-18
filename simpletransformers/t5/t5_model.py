@@ -2,6 +2,7 @@ import json
 import logging
 import math
 import os
+from os import truncate
 import random
 import warnings
 from multiprocessing import cpu_count, Pool
@@ -93,7 +94,7 @@ class T5Model:
 
         self.model = T5ForConditionalGeneration.from_pretrained(model_name, config=self.config)
 
-        self.tokenizer = T5Tokenizer.from_pretrained(model_name)
+        self.tokenizer = T5Tokenizer.from_pretrained(model_name, truncate=True)
 
         if not use_cuda:
             self.args.fp16 = False

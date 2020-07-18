@@ -13,7 +13,7 @@ model = RepresentationModel(
     model_type="bert",
     model_name="bert-base-uncased",
     use_cuda=False,
-    args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True}
+    args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True},
 )
 train_vectors = model.encode_sentences(train_df["text"].to_list(), combine_strategy="mean")
 eval_vectors = model.encode_sentences(eval_df["text"].to_list(), combine_strategy="mean")
@@ -21,5 +21,5 @@ eval_vectors = model.encode_sentences(eval_df["text"].to_list(), combine_strateg
 
 clf_model = RidgeClassifier()
 clf_model.fit(train_vectors, train_df["target"])
-predictions = clf_model.predict(eval_vectors);
-print(classification_report(eval_df['target'], predictions))
+predictions = clf_model.predict(eval_vectors)
+print(classification_report(eval_df["target"], predictions))
