@@ -17,7 +17,7 @@ Supports
 - T5 Model
 - Seq2Seq Tasks
 - Multi-Modal Classification
-- Conversational A.
+- Conversational AI.
 - Text Representation Generation.
 
 
