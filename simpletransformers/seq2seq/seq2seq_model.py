@@ -104,7 +104,7 @@ class Seq2SeqModel:
             decoder_name (optional): The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
                                     Must be the same "size" as the encoder model (base/base, large/large, etc.)
             encoder_decoder_type (optional): The type of encoder-decoder model. (E.g. bart)
-            encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART model.
+            encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART or MarianMT model.
             config (optional): A configuration file to build an EncoderDecoderModel.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
@@ -234,7 +234,7 @@ class Seq2SeqModel:
         Args:
             train_data: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
                         - `input_text`: The input text sequence.
-                        - `target_text`: The target sequence
+                        - `target_text`: The target text sequence
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
@@ -685,7 +685,7 @@ class Seq2SeqModel:
         Args:
             eval_data: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
                         - `input_text`: The input text sequence.
-                        - `target_text`: The target sequence
+                        - `target_text`: The target text sequence.
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.

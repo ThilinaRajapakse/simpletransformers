@@ -97,6 +97,16 @@ docs:
         url: /docs/t5-data-formats/
       - title: "T5 Minimal Start"
         url: /docs/t5-minimal-start/
+  - title: Seq2Seq
+    children:
+      - title: "Seq2Seq Specifics"
+        url: /docs/seq2seq-specifics/
+      - title: "Seq2Seq Model"
+        url: /docs/seq2seq-model/
+      - title: "Seq2Seq Data Formats"
+        url: /docs/seq2seq-data-formats/
+      - title: "Seq2Seq Minimal Start"
+        url: /docs/seq2seq-minimal-start/
   - title: Meta
     children:
       - title: "History"

@@ -1,19 +1,30 @@
 ---
-title: T5 Model
-permalink: /docs/t5-model/
-excerpt: "T5Model for T5 tasks."
-last_modified_at: 2020/07/21 14:14:31
+title: Seq2Seq Model
+permalink: /docs/seq2seq-model/
+excerpt: "Seq2SeqModel for Seq2Seq tasks."
+last_modified_at: 2020/07/21 14:14:15
 toc: true
 ---
 
 
-## `T5Model`
+## `Seq2SeqModel`
 
-The `T5Model` class is used for any NLP task performed with a T5 model.
+The `Seq2SeqModel` class is used for Sequence-to-Sequence tasks.
 
-To create a `T5Model`, you must specify a `model_name`.
 
-- `model_name` specifies the exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+### Generic Encoder-Decoder Models
+
+The following rules currently apply to generic Encoder-Decoder models (does not apply to BART and Marian):
+
+- The decoder must be a `bert` model.
+- The encoder can be one of `[bert, roberta, distilbert, camembert, electra]`.
+- The encoder and the decoder must be of the same "size". (E.g. `roberta-base` encoder and a `bert-base-uncased` decoder)
+
+To create a generic Encoder-Decoder model with `Seq2SeqModel`, you must provide the three parameters below.
+
+- `encoder_type`: The type of model to use as the encoder.
+- `encoder_name`: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+- `decoder_name`: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
 
     **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
     {: .notice--info}
@@ -21,24 +32,76 @@ To create a `T5Model`, you must specify a `model_name`.
     **Note:** For a list of community models, see [here](https://huggingface.co/models).
     {: .notice--info}
 
-    You may use any of these models provided they are a T5 model.
+    **Note:** There is no `decoder_type` parameter as the decoder must be a `bert` model.
+    {: .notice--info}
+
 
 ```python
-from simpletransformers.t5 import T5Model
+from simpletransformers.seq2seq import Seq2SeqModel
 
 
-model = T5Model(
-    "t5-base"
+model = Seq2SeqModel(
+    "roberta",
+    "roberta-base",
+    "bert-base-cased",
 )
+
 ```
 
-**Note:** For more information on working with Simple Transformers models, please refer to the [General Usage section](/docs/usage/#creating-a-task-specific-model).
-{: .notice--info}
+### MarianMT Models
+
+MarianMT models are translation models with support for a huge variety of languages.
+
+The followng information is taken from the Hugging Face docs [here](https://huggingface.co/transformers/model_doc/marian.html#implementation-notes).
+
+- Each model is about 298 MB on disk, there are 1,000+ models.
+
+- The list of supported language pairs can be found here.
+
+- The 1,000+ models were originally trained by Jörg Tiedemann using the Marian C++ library, which supports fast training and translation.
+
+- All models are transformer encoder-decoders with 6 layers in each component. Each model’s performance is documented in a model card.
+
+- The 80 opus models that require BPE preprocessing are not supported.
 
 
-### Configuring a `T5Model`
+To create a MarianMT translation model, you must provide the two parameters below.
 
-`T5Model` has the following task-specific configuration options.
+- `encoder_decoder_type`: This should be `"marian"`.
+- `encoder_decoder_name`: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+
+    **Note:** Please refer to the [Naming](https://huggingface.co/transformers/model_doc/marian.html#naming) and [Multilingual Models](https://huggingface.co/transformers/model_doc/marian.html#multilingual-models) sections of the MarianMT docs on Hugging Face for more information on choosing the `encoder_decoder_name`.
+    {: .notice--info}
+
+
+```python
+from simpletransformers.seq2seq import Seq2SeqModel
+
+
+# Initialize a Seq2SeqModel for English to German translation
+model = Seq2SeqModel(
+    encoder_decoder_type="marian",
+    encoder_decoder_name="Helsinki-NLP/opus-mt-en-de",
+)
+
+
+```
+
+### BART Models
+
+- `encoder_decoder_type`: This should be `"bart"`.
+- `encoder_decoder_name`: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+
+    **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
+    {: .notice--info}
+
+    **Note:** For a list of community models, see [here](https://huggingface.co/models).
+    {: .notice--info}
+
+
+### Configuring a `Seq2SeqModel`
+
+`Seq2SeqModel` has the following task-specific configuration options.
 
 | Argument                    | Type    | Default | Description                                                                                                                                       |
 |-----------------------------|---------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -51,42 +114,53 @@ model = T5Model(
 | max_steps                   | int     | -1      | Maximum number of training steps. Will override the effect of num_train_epochs.                                                                   |
 | num_beams                   | int     | 1       | Number of beams for beam search. Must be between 1 and infinity. 1 means no beam search. Default to 1.                                            |
 | num_return_sequences        | int     | 1       | The number of samples to generate.                                                                                                                |
-| preprocess_inputs           | bool    | True    | Automatically add : and < /s> tokens to train_model() and eval_model() inputs. Automatically add < /s> to each string in to_predict in predict(). |
 | repetition_penalty          | float   | 1.0     | The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no penalty. Default to 1.0.                                             |
 | top_k                       | float   | None    | Filter top-k tokens before sampling (<=0: no filtering)                                                                                           |
 | top_p                       | float   | None    | Nucleus filtering (top-p) before sampling (<=0.0: no filtering)                                                                                   |
-| use_multiprocessed_decoding | bool    | True    | Use multiprocessing when decoding outputs. Significantly speeds up decoding (CPU intensive).                                                      |                                               |
+| use_multiprocessed_decoding | bool    | False    | Use multiprocessing when decoding outputs. Significantly speeds up decoding (CPU intensive). Turn off if multiprocessing causes insatibility.                                                      |                                               |
 
 ```python
-from simpletransformers.t5 import T5Model, T5Args
+from simpletransformers.seq2seq import Seq2SeqModel, Seq2SeqArgs
 
 
-model_args = T5Args()
+model_args = Seq2SeqArgs()
 model_args.num_train_epochs = 3
 
-model = T5Model(
-    "t5-base",
+model = Seq2SeqModel(
+    encoder_type,
+    "roberta-base",
+    "bert-base-cased",
     args=model_args,
 )
+
 ```
 
 **Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
 {: .notice--info}
 
 
-## `Class T5Model`
+## `Class Seq2SeqModel`
 
-> *simpletransformers.t5.T5Model*{: .function-name}(self, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,)
+> *simpletransformers.seq2seq.Seq2SeqModel*{: .function-name}(self, encoder_type=None, encoder_name=None, decoder_name=None, encoder_decoder_type=None, encoder_decoder_name=None, config=config, args=None, use_cuda=True, cuda_device=-1, **kwargs,)
 
-Initializes a T5Model model.
+Initializes a Seq2SeqModel model.
 {: .function-text}
 
 > Parameters
 {: .parameter-blockquote}
 
-* **model_name** *(`str`)* - The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+* **encoder_type** *(`str`, optional)* - The type of model to use as the encoder.
 
-* **args** *(`dict`, optional)* - [Default args](/docs/usage/#configuring-a-simple-transformers-model) will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args or a `T5Args` object.
+* **encoder_name** *(`str`, optional)* - The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+
+* **decoder_name** *(`str`, optional)* - The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+
+* **encoder_decoder_type** *(`str`, optional)* - The type of encoder-decoder model. (E.g. bart)
+
+* **encoder_decoder_name** *(`str`, optional)* - The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART or MarianMT model.
+* **config** *(`dict`, optional)* - A configuration file to build an EncoderDecoderModel. See [here](https://huggingface.co/transformers/model_doc/encoderdecoder.html#encoderdecoderconfig).
+
+* **args** *(`dict`, optional)* - [Default args](/docs/usage/#configuring-a-simple-transformers-model) will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args or a `Seq2SeqArgs` object.
 
 * **use_cuda** *(`bool`, optional)* - Use GPU if available. Setting to False will force model to use CPU only. (See [here](/docs/usage/#to-cuda-or-not-to-cuda))
 
@@ -102,7 +176,7 @@ Initializes a T5Model model.
 {: .return-list}
 
 
-## Training a `T5Model`
+## Training a `Seq2SeqModel`
 
 The `train_model()`  method is used to train the model.
 
@@ -110,7 +184,7 @@ The `train_model()`  method is used to train the model.
 model.train_model(train_data)
 ```
 
-> *simpletransformers.t5.T5Model.train_model*{: .function-name}(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs)
+> *simpletransformers.seq2seq.Seq2SeqModel.train_model*{: .function-name}(self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs)
 
 Trains the model using 'train_data'
 {: .function-text}
@@ -118,16 +192,15 @@ Trains the model using 'train_data'
 > Parameters
 {: .parameter-blockquote}
 
-* **train_data** - Pandas DataFrame containing the 3 columns - `prefix`, `input_text`, `target_text`.
-    - `prefix`: A string indicating the task to perform. (E.g. `"question"`, `"stsb"`)
-    - `input_text`: The input text sequence. `prefix` is automatically prepended to form the full input. (<prefix>: <input_text>)
-    - `target_text`: The target sequence
+* **train_data** - Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
+    - `input_text`: The input text sequence.
+    - `target_text`: The target text sequence.
 
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
 
 * **show_running_loss** *(`bool`, optional)* - If True, the running loss (training loss at current step) will be logged to the console.
 
-* **args** *(`dict`, optional)* - A dict of configuration options for the `T5Model`. Any changes made will persist for the model.
+* **args** *(`dict`, optional)* - A dict of configuration options for the `Seq2SeqModel`. Any changes made will persist for the model.
 
 * **eval_data** *(optional)* - Evaluation data (same format as train_data) against which evaluation will be performed when `evaluate_during_training` is enabled. Is required if `evaluate_during_training` is enabled.
 
@@ -142,14 +215,14 @@ A metric function should take in two parameters. The first parameter will be the
 * `None`
 {: .return-list}
 
-**Note:** For more details on evaluating T5 models with custom metrics, please refer to the [Evaluating Generated Sequences](/docs/t5-specifics/#evaluating-generated-sequences) section.
+**Note:** For more details on evaluating Seq2Seq models with custom metrics, please refer to the [Evaluating Generated Sequences](/docs/seq2seq-specifics/#evaluating-generated-sequences) section.
 {: .notice--info}
 
 **Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
 {: .notice--info}
 
 
-## Evaluating a `T5Model`
+## Evaluating a `Seq2SeqModel`
 
 The `eval_model()`  method is used to evaluate the model.
 
@@ -162,7 +235,7 @@ The following metrics will be calculated by default:
 result = model.eval_model(eval_data)
 ```
 
-> *simpletransformers.t5.T5Model.eval_model*{: .function-name}(self, eval_data,
+> *simpletransformers.seq2seq.Seq2SeqModel.eval_model*{: .function-name}(self, eval_data,
 > output_dir=None, verbose=True, silent=False, **kwargs)
 
 Evaluates the model using 'eval_data'
@@ -171,10 +244,9 @@ Evaluates the model using 'eval_data'
 > Parameters
 {: .parameter-blockquote}
 
-* **eval_data** - Pandas DataFrame containing the 3 columns - `prefix`, `input_text`, `target_text`.
-    - `prefix`: A string indicating the task to perform. (E.g. `"question"`, `"stsb"`)
-    - `input_text`: The input text sequence. `prefix` is automatically prepended to form the full input. (<prefix>: <input_text>)
-    - `target_text`: The target sequence
+* **eval_data** - Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
+    - `input_text`: The input text sequence.
+    - `target_text`: The target text sequence.
 
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
 
@@ -192,20 +264,19 @@ A metric function should take in two parameters. The first parameter will be the
 
 * **result** *(`dict`)* - Dictionary containing evaluation results.
 
-**Note:** For more details on evaluating T5 models with custom metrics, please refer to the [Evaluating Generated Sequences](/docs/t5-specifics/#evaluating-generated-sequences) section.
+**Note:** For more details on evaluating Seq2Seq models with custom metrics, please refer to the [Evaluating Generated Sequences](/docs/seq2seq-specifics/#evaluating-generated-sequences) section.
 {: .notice--info}
 
 **Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
 {: .notice--info}
 
-## Making Predictions With a `T5Model`
+## Making Predictions With a `Seq2SeqModel`
 
 The `predict()`  method is used to make predictions with the model.
 
 ```python
 to_predict = [
-    "binary classification: Luke blew up the first Death Star",
-    "generate question: In 1971, George Lucas wanted to film an adaptation of the Flash Gordon serial, but could not obtain the rights, so he began developing his own space opera.",
+    "Tyson is a Cyclops, a son of Poseidon, and Percy Jackson’s half brother. He is the current general of the Cyclopes army."
 ]
 
 predictions = model.predict(to_predict)
@@ -215,7 +286,7 @@ predictions = model.predict(to_predict)
 {: .notice--info}
 
 
-> *simpletransformers.t5.T5Model.predict*{: .function-name}(to_predict)
+> *simpletransformers.seq2seq.Seq2SeqModel.predict*{: .function-name}(to_predict)
 
 Performs predictions on a list of text `to_predict`.
 {: .function-text}
@@ -223,7 +294,7 @@ Performs predictions on a list of text `to_predict`.
 > Parameters
 {: .parameter-blockquote}
 
-**to_predict** - A python list of text (str) to be sent to the model for prediction.
+* **to_predict** - A python list of text (str) to be sent to the model for prediction.
 {: .parameter-list}
 
 > Returns
