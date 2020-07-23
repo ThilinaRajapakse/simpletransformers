@@ -2,7 +2,7 @@
 title: Seq2Seq Model
 permalink: /docs/seq2seq-model/
 excerpt: "Seq2SeqModel for Seq2Seq tasks."
-last_modified_at: 2020/07/21 14:14:15
+last_modified_at: 2020/07/23 23:01:57
 toc: true
 ---
 
@@ -10,6 +10,12 @@ toc: true
 ## `Seq2SeqModel`
 
 The `Seq2SeqModel` class is used for Sequence-to-Sequence tasks.
+
+Currently, three main types of Sequence-to-Sequence models are available.
+
+- Encoder-Decoder *(Generic)*
+- MarianMT *(Translation)*
+- BART *(Summarization)*
 
 
 ### Generic Encoder-Decoder Models

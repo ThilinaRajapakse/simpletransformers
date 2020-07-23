@@ -2,7 +2,7 @@
 title: "Classification Models"
 permalink: /docs/classification-models/
 excerpt: "Model class used for text classification"
-last_modified_at: 2020/07/02 00:50:50
+last_modified_at: 2020/07/23 23:59:15
 toc: true
 ---
 
@@ -132,8 +132,8 @@ model = ClassificationModel(
 | lazy_delimiter          | str       | `\t`    | The delimiter used to separate column in the file containing the lazy loading dataset                                                                 |
 | lazy_loading_start_line | int       | 1       | The line number where the dataset starts (`1` means header row is skipped)                                                                              |
 | lazy_labels_column      | int       | `0`     | The column (based on the delimiter) containing the labels for lazy loading single sentence datasets                                                   |
-| lazy_text_a_column      | int       | `None`  | The column (based on the delimiter) containing the first sentence (text_a) for lazy loading single sentence datasets                                  |
-| lazy_text_b_column      | int       | `None`  | The column (based on the delimiter) containing the second sentence (text_a) for lazy loading single sentence datasets                                 |
+| lazy_text_a_column      | int       | `None`  | The column (based on the delimiter) containing the first sentence (text_a) for lazy loading sentence-pair datasets                                  |
+| lazy_text_b_column      | int       | `None`  | The column (based on the delimiter) containing the second sentence (text_a) for lazy loading sentence-pair datasets                                 |
 | lazy_text_column        | int       | `0`     | The column (based on the delimiter) containing text for lazy loading single sentence datasets                                                         |
 | regression              | int       | `False` | Set True when doing regression. `num_labels` parameter in the model must also be set to `1`.                                                          |
 | sliding_window          | bool      | `False` | Whether to use sliding window technique to prevent truncating longer sequences                                                                        |

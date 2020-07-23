@@ -2,7 +2,7 @@
 title: T5 Data Formats
 permalink: /docs/t5-data-formats/
 excerpt: "Data formats for T5."
-last_modified_at: 2020/06/26 01:54:55
+last_modified_at: 2020/07/23 23:13:20
 toc: true
 ---
 
@@ -52,7 +52,7 @@ train_df.columns = ["prefix", "input_text", "target_text"]
 
 ## Evaluation Data Format
 
-*Used with [`eval_model()`](/docs/classification-models/#evaluating-a-classification-model)*
+*Used with [`eval_model()`](/docs/classification-models/#evaluating-a-t5-model)*
 
 The evaluation data format is identical to the train data format.
 
@@ -76,7 +76,7 @@ train_df.columns = ["prefix", "input_text", "target_text"]
 
 
 ## Prediction Data Format
-*Used with `predict()`*
+*Used with [`predict()`](/docs/qa-model/#making-predictions-with-a-t5-model)*
 
 The prediction data should be a list of strings with the *prefix* and the *prefix separator* (`: `) included.
 

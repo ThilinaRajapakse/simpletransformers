@@ -2,16 +2,16 @@
 title: Seq2Seq Specifics
 permalink: /docs/seq2seq-specifics/
 excerpt: "Specific notes for Seq2Seq tasks."
-last_modified_at: 2020/07/21 01:30:41
+last_modified_at: 2020/07/23 23:56:17
 toc: true
 ---
 
-Sequence-to-Sequence models (`Seq2SeqModel`) where both the input and targets are text sequences. For example, translation and summarization are sequence-to-sequence tasks.
+Sequence-to-Sequence models (`Seq2SeqModel`) are models where both the input and targets are text sequences. For example, translation and summarization are sequence-to-sequence tasks.
 
 Currently, three main types of Sequence-to-Sequence models are available.
 
 - BART *(Summarization)*
-- Marian *(Translation)*
+- MarianMT *(Translation)*
 - Encoder-Decoder *(Generic)*
 
 *Note that these models are not restricted to the specifed task. The task is merely given as an example.*
@@ -47,10 +47,10 @@ from simpletransformers.seq2seq import (
     Seq2SeqArgs,
 )
 
+
 logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
-
 
 train_data = [
     [
