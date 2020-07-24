@@ -13,10 +13,7 @@ sweep_config = {
     "name": "vanilla-sweep-batch-16",
     "method": "bayes",
     "metric": {"name": "accuracy", "goal": "maximize"},
-    "parameters": {
-        "num_train_epochs": {"min": 1, "max": 40},
-        "learning_rate": {"min": 0, "max": 4e-4},
-    },
+    "parameters": {"num_train_epochs": {"min": 1, "max": 40}, "learning_rate": {"min": 0, "max": 4e-4},},
     "early_terminate": {"type": "hyperband", "min_iter": 6,},
 }
 
@@ -57,21 +54,13 @@ def train():
     wandb.init()
 
     # Create a TransformerModel
-    model = ClassificationModel(
-        "roberta",
-        "roberta-large",
-        use_cuda=True,
-        args=model_args,
-        sweep_config=wandb.config,
-    )
+    model = ClassificationModel("roberta", "roberta-large", use_cuda=True, args=model_args, sweep_config=wandb.config,)
 
     # Train the model
     model.train_model(
         train_df,
         eval_df=eval_df,
-        accuracy=lambda truth, predictions: accuracy_score(
-            truth, [round(p) for p in predictions]
-        ),
+        accuracy=lambda truth, predictions: accuracy_score(truth, [round(p) for p in predictions]),
     )
 
     # Sync wandb

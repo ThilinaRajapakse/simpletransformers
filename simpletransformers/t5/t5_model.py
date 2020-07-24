@@ -185,7 +185,12 @@ class T5Model:
 
         tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
-        train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size)
+        train_dataloader = DataLoader(
+            train_dataset,
+            sampler=train_sampler,
+            batch_size=args.train_batch_size,
+            num_workers=args.dataloader_num_workers,
+        )
 
         if args.max_steps > 0:
             t_total = args.max_steps

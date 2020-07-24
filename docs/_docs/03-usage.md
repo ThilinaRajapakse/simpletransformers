@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2020/07/15 14:38:21
+last_modified_at: 2020/07/25 01:11:07
 toc: true
 ---
 
@@ -141,6 +141,7 @@ Configuration options in Simple Transformers are defined as either dataclasses o
 | best_model_dir                   | str   | outputs/best_model                                        | The directory where the best model (model checkpoints) will be saved (based on eval_during_training)                                                                                     |
 | cache_dir                        | str   | cache_dir                                                 | The directory where cached files will be saved.                                                                                                                                          |
 | config                           | dict  | {}                                                        | A dictionary containing configuration options that should be overriden in a model's config.                                                                                              |
+| dataloader_num_workers                    | int  | cpu_count ()  -   2   if   cpu_count ()  >   2   else   1                                                     | Number of worker processed to use with the Pytorch dataloader.                                                                                                                                                   |
 | do_lower_case                    | bool  | False                                                     | Set to True when using uncased models.                                                                                                                                                   |
 | early_stopping_consider_epochs   | bool  | False                                                     | If True, end of epoch evaluation score will be considered for early stopping.                                                                                                            |
 | early_stopping_delta             | float | 0                                                         | The improvement over best_eval_loss necessary to count as a better checkpoint.                                                                                                           |

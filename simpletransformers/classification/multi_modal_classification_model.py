@@ -365,7 +365,7 @@ class MultiModalClassificationModel:
             sampler=train_sampler,
             batch_size=args.train_batch_size,
             collate_fn=collate_fn,
-            num_workers=args.process_count,
+            num_workers=args.dataloader_num_workers,
         )
 
         t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
@@ -811,7 +811,7 @@ class MultiModalClassificationModel:
             sampler=eval_sampler,
             batch_size=args.eval_batch_size,
             collate_fn=collate_fn,
-            num_workers=args.process_count,
+            num_workers=args.dataloader_num_workers,
         )
 
         eval_loss = 0.0
@@ -1011,7 +1011,7 @@ class MultiModalClassificationModel:
             sampler=eval_sampler,
             batch_size=args.eval_batch_size,
             collate_fn=collate_fn,
-            num_workers=args.process_count,
+            num_workers=args.dataloader_num_workers,
         )
 
         eval_loss = 0.0

@@ -281,7 +281,10 @@ class ClassificationModel:
             train_dataset = self.load_and_cache_examples(train_examples, verbose=verbose)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
-            train_dataset, sampler=train_sampler, batch_size=self.args.train_batch_size, num_workers=14
+            train_dataset,
+            sampler=train_sampler,
+            batch_size=self.args.train_batch_size,
+            num_workers=args.dataloader_num_workers,
         )
 
         os.makedirs(output_dir, exist_ok=True)

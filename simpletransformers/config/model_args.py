@@ -28,6 +28,7 @@ class ModelArgs:
     custom_parameter_groups: list = field(default_factory=list)
     train_custom_parameters_only: bool = False
     config: dict = field(default_factory=dict)
+    dataloader_num_workers: int = field(default_factory=get_default_process_count)
     do_lower_case: bool = False
     early_stopping_consider_epochs: bool = False
     early_stopping_delta: float = 0
@@ -126,7 +127,7 @@ class MultiLabelClassificationArgs(ModelArgs):
 
     sliding_window: bool = False
     stride: float = 0.8
-    threshold: float = 0.8
+    threshold: float = 0.5
     tie_value: int = 1
     labels_list: list = field(default_factory=list)
     labels_map: dict = field(default_factory=dict)
