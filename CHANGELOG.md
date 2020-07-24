@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `dataloader_num_workers` to `ModelArgs` for specifying the number of processed to be used with a Pytorch dataloader.
+- Added `dataloader_num_workers` to `ModelArgs` for specifying the number of processes to be used with a Pytorch dataloader.
 
 ### Changed
 
