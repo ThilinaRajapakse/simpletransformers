@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2020/07/25 01:11:07
+last_modified_at: 2020/07/25 01:12:52
 toc: true
 ---
 
@@ -141,7 +141,7 @@ Configuration options in Simple Transformers are defined as either dataclasses o
 | best_model_dir                   | str   | outputs/best_model                                        | The directory where the best model (model checkpoints) will be saved (based on eval_during_training)                                                                                     |
 | cache_dir                        | str   | cache_dir                                                 | The directory where cached files will be saved.                                                                                                                                          |
 | config                           | dict  | {}                                                        | A dictionary containing configuration options that should be overriden in a model's config.                                                                                              |
-| dataloader_num_workers                    | int  | cpu_count ()  -   2   if   cpu_count ()  >   2   else   1                                                     | Number of worker processed to use with the Pytorch dataloader.                                                                                                                                                   |
+| dataloader_num_workers           | int   | cpu_count ()  -   2   if   cpu_count ()  >   2   else   1 | Number of worker processed to use with the Pytorch dataloader.                                                                                                                           |
 | do_lower_case                    | bool  | False                                                     | Set to True when using uncased models.                                                                                                                                                   |
 | early_stopping_consider_epochs   | bool  | False                                                     | If True, end of epoch evaluation score will be considered for early stopping.                                                                                                            |
 | early_stopping_delta             | float | 0                                                         | The improvement over best_eval_loss necessary to count as a better checkpoint.                                                                                                           |
@@ -173,7 +173,7 @@ Configuration options in Simple Transformers are defined as either dataclasses o
 | save_eval_checkpoints            | bool  | True                                                      | Save a model checkpoint for every evaluation performed.                                                                                                                                  |
 | save_model_every_epoch           | bool  | True                                                      | Save a model checkpoint at the end of every epoch.                                                                                                                                       |
 | save_steps                       | int   | 2000                                                      | Save a model checkpoint at every specified number of steps.                                                                                                                              |
-| save_optimizer_and_scheduler     | bool  | True                                                      | Save optimizer and scheduler whenever they are available.                                                                                                                                  |
+| save_optimizer_and_scheduler     | bool  | True                                                      | Save optimizer and scheduler whenever they are available.                                                                                                                                |
 | silent                           | bool  | False                                                     | Disables progress bars.                                                                                                                                                                  |
 | tensorboard_dir                  | str   | None                                                      | The directory where Tensorboard events will be stored during training. By default, Tensorboard events will be saved in a subfolder inside runs/ like runs/Dec02_09-32-58_36d9e58955b0/.  |
 | train_batch_size                 | int   | 8                                                         | The training batch size.                                                                                                                                                                 |
@@ -297,10 +297,10 @@ The sweep can be configured through a Python dictionary (`sweep_config`). The di
 1. `method` -- Specifies the search strategy
 
     | `method` | Meaning                                                                                                                                                                                      |
-    |--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-    | grid   | Grid search iterates over all possible combinations of parameter values.                                                                                                                     |
-    | random | Random search chooses random sets of values.                                                                                                                                                 |
-    | bayes  | Bayesian Optimization uses a gaussian process to model the function and then chooses parameters to optimize probability of improvement. This strategy requires a metric key to be specified. |
+    | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | grid     | Grid search iterates over all possible combinations of parameter values.                                                                                                                     |
+    | random   | Random search chooses random sets of values.                                                                                                                                                 |
+    | bayes    | Bayesian Optimization uses a gaussian process to model the function and then chooses parameters to optimize probability of improvement. This strategy requires a metric key to be specified. |
 
 2. `metric` -- Specifies the metric to be optimized
 
@@ -309,9 +309,9 @@ The sweep can be configured through a Python dictionary (`sweep_config`). The di
     The `metric` key of the `sweep_config` points to another Python dictionary containing the `name`, `goal`, and (optionally) `target`.
 
     | sub-key | Meaning                                                                                                                                                                                                                                                                             |
-    |---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+    | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
     | name    | Name of the metric to optimize                                                                                                                                                                                                                                                      |
-    | goal    | `"minimize"` or `"maximize"` (Default is `"minimize"`)                                                                                                                                                                                                                                          |
+    | goal    | `"minimize"` or `"maximize"` (Default is `"minimize"`)                                                                                                                                                                                                                              |
     | target  | Value that you'd like to achieve for the metric you're optimizing. When any run in the sweep achieves that target value, the sweep's state will be set to "Finished." This means all agents with active runs will finish those jobs, but no new runs will be launched in the sweep. |
 
 3. `parameters` -- Specifies the hyperparameters and their values to explore
