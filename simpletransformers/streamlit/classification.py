@@ -14,7 +14,7 @@ def load_model(model_type, model_name, **kwargs):
     return model
 
 
-def streamlit_runner(model_type, model_name, **kwargs):
+def streamlit_runner(model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True, cuda_device=-1, **kwargs):
     model = load_model("roberta", "distilroberta-base", **kwargs)
     model.args.use_multiprocessing = False
 
