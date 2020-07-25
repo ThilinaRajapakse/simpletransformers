@@ -312,7 +312,7 @@ class Seq2SeqModel:
             train_dataset,
             sampler=train_sampler,
             batch_size=args.train_batch_size,
-            num_workers=args.dataloader_num_workers,
+            num_workers=self.args.dataloader_num_workers,
         )
 
         if args.max_steps > 0:
