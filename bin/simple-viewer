@@ -1,0 +1,14 @@
+#!/bin/bash
+cat >run_simple_transformers_streamlit_app.py <<'END_SCRIPT'
+#!/usr/bin/env python
+from simpletransformers.streamlit.simple_view import streamlit_runner
+
+
+streamlit_runner()
+
+END_SCRIPT
+
+# Run
+streamlit run run_simple_transformers_streamlit_app.py
+
+rm run_simple_transformers_streamlit_app.py

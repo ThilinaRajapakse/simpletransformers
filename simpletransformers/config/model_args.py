@@ -50,6 +50,8 @@ class ModelArgs:
     manual_seed: int = None
     max_grad_norm: float = 1.0
     max_seq_length: int = 128
+    model_type: str = None
+    model_name: str = None
     multiprocessing_chunksize: int = 500
     n_gpu: int = 1
     no_cache: bool = False
@@ -104,6 +106,7 @@ class ClassificationArgs(ModelArgs):
     Model args for a ClassificationModel
     """
 
+    model_class: str = "ClassificationModel"
     labels_list: list = field(default_factory=list)
     labels_map: dict = field(default_factory=dict)
     lazy_delimiter: str = "\t"
@@ -125,6 +128,7 @@ class MultiLabelClassificationArgs(ModelArgs):
     Model args for a MultiLabelClassificationModel
     """
 
+    model_class: str = "MultiLabelClassificationModel"
     sliding_window: bool = False
     stride: float = 0.8
     threshold: float = 0.5
@@ -140,6 +144,7 @@ class NERArgs(ModelArgs):
     Model args for a NERModel
     """
 
+    model_class: str = "NERModel"
     classification_report: bool = False
     labels_list: list = field(default_factory=list)
     lazy_loading: bool = False
@@ -152,6 +157,7 @@ class QuestionAnsweringArgs(ModelArgs):
     Model args for a QuestionAnsweringModel
     """
 
+    model_class: str = "QuestionAnsweringModel"
     doc_stride: int = 384
     early_stopping_metric: str = "correct"
     early_stopping_metric_minimize: bool = False
@@ -168,6 +174,7 @@ class T5Args(ModelArgs):
     Model args for a T5Model
     """
 
+    model_class: str = "T5Model"
     dataset_class: Dataset = None
     do_sample: bool = False
     early_stopping: bool = True
@@ -190,6 +197,7 @@ class LanguageModelingArgs(ModelArgs):
     Model args for a LanguageModelingModel
     """
 
+    model_class: str = "LanguageModelingModel"
     block_size: int = -1
     config_name: str = None
     dataset_class: Dataset = None
@@ -219,6 +227,7 @@ class Seq2SeqArgs(ModelArgs):
     Model args for a Seq2SeqModel
     """
 
+    model_class: str = "Seq2SeqModel"
     base_marian_model_name: str = None
     dataset_class: Dataset = None
     do_sample: bool = False
@@ -241,6 +250,7 @@ class LanguageGenerationArgs(ModelArgs):
     Model args for a LanguageGenerationModel
     """
 
+    model_class: str = "LanguageGenerationModel"
     do_sample: bool = True
     early_stopping: bool = True
     evaluate_generated_text: bool = False
@@ -267,6 +277,7 @@ class ConvAIArgs(ModelArgs):
     Model args for a ConvAIModel
     """
 
+    model_class: str = "ConvAIModel"
     do_sample: bool = True
     lm_coef: float = 2.0
     max_history: int = 2
@@ -286,6 +297,7 @@ class MultiModalClassificationArgs(ModelArgs):
     Model args for a MultiModalClassificationModel
     """
 
+    model_class: str = "MultiModalClassificationModel"
     regression: bool = False
     num_image_embeds: int = 1
     text_label: str = "text"

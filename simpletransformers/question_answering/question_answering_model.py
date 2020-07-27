@@ -944,8 +944,8 @@ class QuestionAnsweringModel:
                 examples, features, all_results, n_best_size, args.max_answer_length, False, False, True, False,
             )
 
-        answer_list = [{"id": answer["id"], "answer": answer["answer"]} for answer in answers]
-        probability_list = [{"id": answer["id"], "probability": answer["probability"]} for answer in answers]
+        answer_list = [{"id": answer["id"], "answer": answer["answer"][:-1]} for answer in answers]
+        probability_list = [{"id": answer["id"], "probability": answer["probability"][:-1]} for answer in answers]
 
         return answer_list, probability_list
 

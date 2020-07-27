@@ -13,6 +13,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/ThilinaRajapakse/simpletransformers/",
     packages=find_packages(),
+    scripts=["bin/simple-viewer"],
     classifiers=[
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: Apache Software License",
