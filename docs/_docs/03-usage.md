@@ -33,6 +33,8 @@ The currently implemented task-specific Simple Transformer models, along with th
 | Question answering                                        | `QuestionAnsweringModel`        |
 | Regression                                                | `ClassificationModel`           |
 | Sentence-pair classification                              | `ClassificationModel`           |
+| Text Representation Generation                            | `RepresentationModel`           |
+
 
 
 ## Creating a Task-Specific Model
