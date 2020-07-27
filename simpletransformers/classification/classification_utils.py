@@ -566,6 +566,8 @@ class LazyClassificationDataset(Dataset):
             self.text_column = None
         else:
             self.text_column = args.lazy_text_column
+            self.text_a_column = None
+            self.text_b_column = None
         self.labels_column = args.lazy_labels_column
 
     @staticmethod
@@ -579,7 +581,7 @@ class LazyClassificationDataset(Dataset):
     def __getitem__(self, idx):
         line = linecache.getline(self.data_file, idx + 1 + self.start_row).rstrip("\n").split(self.delimiter)
 
-        if self.text_column:
+        if not self.text_a_column and not self.text_b_column:
             text = line[self.text_column]
             label = line[self.labels_column]
 
