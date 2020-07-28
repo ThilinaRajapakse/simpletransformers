@@ -5,7 +5,7 @@ from dataclasses import asdict
 
 import streamlit as st
 import pandas as pd
-from streamlit import table
+from streamlit import sidebar, table
 from scipy.special import softmax
 from itertools import chain
 import numpy as np
@@ -20,9 +20,9 @@ from simpletransformers.ner import NERModel
 from simpletransformers.question_answering import QuestionAnsweringModel
 from simpletransformers.t5 import T5Model
 from simpletransformers.seq2seq import Seq2SeqModel
+from simpletransformers.streamlit.streamlit_utils import cache_on_button_press, get
 
-
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
 prediction_history = []
 raw_history = []
 probablity_history = []
+
+QA_ANSWER_WRAPPER = """{} <span style="overflow-x: auto; border: 1px solid #e6e9ef; border-radius: 0.25rem; padding: 0.25rem; background: #a6e22d">{}</span> {}"""
 
 model_class_map = {
     "ClassificationModel": "Classification Model",
@@ -117,7 +119,8 @@ def streamlit_runner(
             selected_dir = selected_dir.split(":- ")[-1]
         else:
             st.subheader("No models found in current directory.")
-            st.markdown('''
+            st.markdown(
+                """
             Simple Viewer looked everywhere in this directory and subdirectories but didn't find any Simple Transformers models. :(
 
             If you are trying to load models saved with an older Simple Transformers version, make sure the `model_args.json` file
@@ -136,7 +139,8 @@ def streamlit_runner(
             You can execute this with `streamlit run view.py`.
 
             The `streamlit_runner()` function accepts all the same arguments as the corresponding Simple Transformers model.
-            ''')
+            """
+            )
             return
 
     model, model_class = load_model(
@@ -155,24 +159,42 @@ def streamlit_runner(
         input_text = st.text_area("")
 
         if model_class == "ClassificationModel":
-            max_seq_length = st.sidebar.number_input(
-                'Max Seq Length',
-                min_value=1, max_value=512, value=model.args.max_seq_length
+            session_state = get(
+                max_seq_length=model.args.max_seq_length,
+                sliding_window=model.args.sliding_window,
+                stride=model.args.stride,
             )
-            if max_seq_length != model.args.max_seq_length:
-                model.args.max_seq_length = max_seq_length
-
-            sliding_window = st.sidebar.radio("Sliding Window", ("Enable", "Disable"), index=1)
-            if sliding_window == "Enable":
+            if session_state.sliding_window == "Enable":
                 model.args.sliding_window = True
             else:
                 model.args.sliding_window = False
+
+            model.args.max_seq_length = session_state.max_seq_length
+            model.args.stride = session_state.stride
+
+            if st.sidebar.checkbox("Show Parameters", value=True):
+                model.args.max_seq_length = st.sidebar.slider(
+                    "Max Seq Length", min_value=1, max_value=512, value=model.args.max_seq_length
+                )
+
+                sliding_window = st.sidebar.radio(
+                    "Sliding Window", ("Enable", "Disable"), index=0 if model.args.sliding_window else 1
+                )
+                if sliding_window == "Enable":
+                    model.args.sliding_window = True
+                else:
+                    model.args.sliding_window = False
+
+                if model.args.sliding_window:
+                    model.args.stride = st.sidebar.slider(
+                        "Stride (Fraction of Max Seq Length)", min_value=0.0, max_value=1.0, value=model.args.stride
+                    )
 
         if input_text:
             prediction, raw_values = model.predict([input_text])
             raw_values = [list(np.squeeze(raw_values))]
 
-            if model.args.sliding_window:
+            if model.args.sliding_window and isinstance(raw_values[0][0], np.ndarray):
                 raw_values = np.mean(raw_values, axis=1)
 
             st.subheader(f"Predictions")
@@ -186,80 +208,64 @@ def streamlit_runner(
             except Exception:
                 raw_df = pd.DataFrame(raw_values, columns=[f"Label {label}" for label in range(len(raw_values[0]))])
             st.dataframe(raw_df)
-            raw_history.append(list(chain([input_text], raw_values[0])))
+            # raw_history.append(list(chain([input_text], raw_values[0])))
 
             st.text("Probabilities: ")
             try:
-                raw_df = pd.DataFrame(
+                prob_df = pd.DataFrame(
                     softmax(raw_values, axis=1), columns=[f"Label {label}" for label in model.args.labels_list]
                 )
             except Exception:
-                raw_df = pd.DataFrame(
+                prob_df = pd.DataFrame(
                     softmax(raw_values, axis=1), columns=[f"Label {i}" for i in range(len(raw_values[0]))]
                 )
-            st.dataframe(raw_df)
-            probablity_history.append(list(chain([input_text], softmax(raw_values)[0])))
+            st.dataframe(prob_df)
 
-            st.markdown("---")
-            st.header("History")
-
-            st.subheader("Prediction History")
-            history_df = pd.DataFrame(prediction_history, columns=["Text", "Predicted Label"])
-            st.dataframe(history_df)
-
-            st.subheader("Model Output History")
-            st.text("Raw values: ")
-            try:
-                raw_history_df = pd.DataFrame(
-                    raw_history, columns=["Text"] + [f"Label {label}" for label in model.args.labels_list]
-                )
-            except Exception:
-                raw_history_df = pd.DataFrame(
-                    raw_history, columns=["Text"] + [f"Label {i}" for i in range(len(raw_values[0]))]
-                )
-            st.dataframe(raw_history_df)
-
-            st.text("Probabilities: ")
-            try:
-                probablity_history_df = pd.DataFrame(
-                    probablity_history, columns=["Text"] + [f"Label {label}" for label in model.args.labels_list]
-                )
-            except Exception:
-                probablity_history_df = pd.DataFrame(
-                    probablity_history, columns=["Text"] + [f"Label {i}" for i in range(len(raw_values[0]))]
-                )
-            st.dataframe(probablity_history_df)
     elif model_class == "QuestionAnsweringModel":
+        session_state = get(
+            max_seq_length=model.args.max_seq_length,
+            max_answer_length=model.args.max_answer_length,
+            max_query_length=model.args.max_query_length,
+        )
+        model.args.max_seq_length = session_state.max_seq_length
+        model.args.max_answer_length = session_state.max_answer_length
+        model.args.max_query_length = session_state.max_query_length
+
+        if st.sidebar.checkbox("Show Parameters", value=True):
+            model.args.max_seq_length = st.sidebar.slider(
+                "Max Seq Length", min_value=1, max_value=512, value=model.args.max_seq_length
+            )
+
+            model.args.max_answer_length = st.sidebar.slider(
+                "Max Answer Length", min_value=1, max_value=512, value=model.args.max_answer_length
+            )
+
+            model.args.max_query_length = st.sidebar.slider(
+                "Max Query Length", min_value=1, max_value=512, value=model.args.max_query_length
+            )
+
         st.subheader("Enter context: ")
         context_text = st.text_area("", key="context")
 
         st.subheader("Enter question: ")
         question_text = st.text_area("", key="question")
 
-        n_best_size = st.sidebar.slider(
-            'Number of answers to generate',
-            min_value=1, max_value=20
-        )
+        n_best_size = st.sidebar.slider("Number of answers to generate", min_value=1, max_value=20)
 
         model.args.n_best_size = n_best_size
 
         if context_text and question_text:
-            to_predict = [
-                {
-                    "context": context_text,
-                    "qas": [
-                        {
-                            "id": 0,
-                            "question": question_text,
-                        }
-                    ]
-                }
-            ]
+            to_predict = [{"context": context_text, "qas": [{"id": 0, "question": question_text}]}]
 
             answers, probabilities = model.predict(to_predict)
 
             st.subheader(f"Predictions")
             answers = answers[0]["answer"]
+
+            context_pieces = context_text.split(answers[0])
+
+            st.write(QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], context_pieces[-1]), unsafe_allow_html=True)
+
             probabilities = probabilities[0]["probability"]
 
             # outputs = [list(chain(*zip(answers, probabilities)))]
@@ -267,5 +273,6 @@ def streamlit_runner(
 
             # output_df = pd.DataFrame(outputs, columns=columns)
 
+            st.subheader("Confidence")
             output_df = pd.DataFrame({"Answer": answers, "Confidence": probabilities})
             st.dataframe(output_df)
