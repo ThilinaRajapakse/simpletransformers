@@ -128,7 +128,14 @@ class RepresentationModel:
         return torch.LongTensor(input_ids)
 
     def encode_sentences(self, text_list, combine_strategy=None, batch_size=32):
-        # supported values for combine_strategy: None, "mean", "concat"
+        """
+
+        Generates list of contextual word or sentence embeddings using the model passed to class constructor
+        :param text_list: list of text sentences
+        :param combine_strategy: strategy for combining word vectors, supported values: None, "mean", "concat"
+        :param batch_size
+        :return: list of lists of sentence embeddings(if `combine_strategy=None`) OR list of sentence embeddings(if `combine_strategy!=None`)
+        """
         batches = batch_iterable(text_list, batch_size=batch_size)
         embeddings = np.array([])
         for batch in batches:

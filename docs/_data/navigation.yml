@@ -107,6 +107,12 @@ docs:
         url: /docs/seq2seq-data-formats/
       - title: "Seq2Seq Minimal Start"
         url: /docs/seq2seq-minimal-start/
+  - title: Text Representation Generation
+    children:
+      - title: "Text Representation Examples"
+        url: /docs/text-rep-examples/
+      - title: "Text Representation Model"
+        url: /docs/text-rep-model/
   - title: Meta
     children:
       - title: "History"
