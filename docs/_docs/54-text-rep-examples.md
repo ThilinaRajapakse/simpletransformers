@@ -22,7 +22,7 @@ assert word_vectors.shape === (2, 5, 768) # token vector for every token in each
 ```
        
 ### Minimal example for generating sentence embeddings 
-Same code as for generating word embeddings, the only differennce is that we pass combine_s`trategy="mean" parameter to `combine_strategy="mean"
+Same code as for generating word embeddings, the only difference is that we pass `combine_strategy="mean"` parameter to `combine_strategy="mean"`
 ```python
 from simpletransformers.language_representation import RepresentationModel
 sentences = ["Example sentence 1", "Example sentence 2"]
