@@ -264,7 +264,10 @@ def streamlit_runner(
 
             context_pieces = context_text.split(answers[0])
 
-            st.write(QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], context_pieces[-1]), unsafe_allow_html=True)
+            if answers[0] != "empty":
+                st.write(QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], context_pieces[-1]), unsafe_allow_html=True)
+            else:
+                st.write(QA_ANSWER_WRAPPER.format("", answers[0], ""), unsafe_allow_html=True)
 
             probabilities = probabilities[0]["probability"]
 
