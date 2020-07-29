@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.5] - 2020-07-29
+
+### Fixed
+
+- Bug fixed in loading classiication models with a `labels_map` where labels are ints.
+
 ## [0.45.4] - 2020-07-28
 
 ### Fixed
@@ -1003,7 +1009,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.45.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ac0f1a0...HEAD
+[0.45.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0ac6b69...HEAD
+
+[0.45.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ac0f1a0...0ac6b69
 
 [0.45.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e98361...ac0f1a0
 

@@ -142,7 +142,10 @@ class ClassificationModel:
             if num_labels:
                 assert num_labels == len(self.args.labels_list)
             if self.args.labels_map:
-                assert list(self.args.labels_map.keys()) == self.args.labels_list
+                try:
+                    assert list(self.args.labels_map.keys()) == self.args.labels_list
+                except AssertionError:
+                    assert [int(key) for key in list(self.args.labels_map.keys())] == self.args.labels_list
             else:
                 self.args.labels_map = {label: i for i, label in enumerate(self.args.labels_list)}
         else:
