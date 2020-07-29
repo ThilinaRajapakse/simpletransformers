@@ -10,6 +10,7 @@ import math
 import os
 import random
 import warnings
+from contextlib import nullcontext
 from multiprocessing import cpu_count
 from typing import Dict, List
 from dataclasses import asdict
@@ -35,6 +36,7 @@ from simpletransformers.language_modeling.language_modeling_utils import (
 from tensorboardX import SummaryWriter
 from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
 from tokenizers.processors import BertProcessing
+from torch.cuda import amp
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -488,18 +490,10 @@ class LanguageModelingModel:
             optimizer.load_state_dict(torch.load(os.path.join(args.model_name, "optimizer.pt")))
             scheduler.load_state_dict(torch.load(os.path.join(args.model_name, "scheduler.pt")))
 
-        if args.fp16:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
-
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
-        # Distributed training (should be after apex fp16 initialization)
+        # Distributed training
         if args.local_rank != -1:
             model = torch.nn.parallel.DistributedDataParallel(
                 model, device_ids=[args.local_rank], output_device=args.local_rank, find_unused_parameters=True,
@@ -545,6 +539,9 @@ class LanguageModelingModel:
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
+        if args.fp16:
+            scaler = amp.GradScaler()
+
         model.train()
         for current_epoch in train_iterator:
             if isinstance(train_dataloader, DataLoader) and isinstance(train_dataloader.sampler, DistributedSampler):
@@ -568,22 +565,23 @@ class LanguageModelingModel:
                 inputs = inputs.to(self.device)
                 labels = labels.to(self.device)
 
-                if args.model_type == "longformer":
-                    outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
-                else:
-                    outputs = model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
-                # model outputs are always tuple in pytorch-transformers (see doc)
-                if args.model_type == "electra":
-                    g_loss = outputs[0]
-                    d_loss = outputs[1]
-                    loss = g_loss + args.discriminator_loss_weight * d_loss
-                else:
-                    loss = outputs[0]
-                # if loss.item() < 1:
-                #     masked = (labels[0] != -100).nonzero()
-                #     print(labels[0][masked])
-                #     preds = outputs[1][0, masked, :].clone().detach().cpu().numpy()
-                #     print(np.argmax(preds, axis=2))
+                with amp.autocast() if args.fp16 else nullcontext():
+                    if args.model_type == "longformer":
+                        outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
+                    else:
+                        outputs = model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
+                    # model outputs are always tuple in pytorch-transformers (see doc)
+                    if args.model_type == "electra":
+                        g_loss = outputs[0]
+                        d_loss = outputs[1]
+                        loss = g_loss + args.discriminator_loss_weight * d_loss
+                    else:
+                        loss = outputs[0]
+                    # if loss.item() < 1:
+                    #     masked = (labels[0] != -100).nonzero()
+                    #     print(labels[0][masked])
+                    #     preds = outputs[1][0, masked, :].clone().detach().cpu().numpy()
+                    #     print(np.argmax(preds, axis=2))
 
                 if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -599,19 +597,21 @@ class LanguageModelingModel:
                     loss = loss / args.gradient_accumulation_steps
 
                 if args.fp16:
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
+                    scaler.scale(loss).backward()
                 else:
                     loss.backward()
 
                 tr_loss += loss.item()
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
-                    else:
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                        scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
-                    optimizer.step()
+                    if args.fp16:
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1
