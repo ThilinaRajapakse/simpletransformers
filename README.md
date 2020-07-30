@@ -3341,7 +3341,7 @@ Browse to http://localhost:4000 or whatever url you see in the console to visual
 3) **Edit and visualize changes**: 
 All the section pages of our docs can be found under `docs/_docs` directory, you can edit any file you want by following the markdown format and visualize the changes after refreshing the browser tab.  
 
-Note: The docs present in the readme.md file are going to be deprecated soon and removed, so we don't recommend spending time on it.  
+**Note**: The docs present in the readme.md file are going to be deprecated soon and removed, so we don't recommend spending time on it.  
 
 ## Contributors ✨
 
