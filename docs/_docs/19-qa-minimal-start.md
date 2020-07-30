@@ -2,7 +2,7 @@
 title: Question Answering  Minimal Start
 permalink: /docs/qa-minimal-start/
 excerpt: "Minimal start for Question Answering tasks."
-last_modified_at: 2020-05-02 17:58:53
+last_modified_at: 2020/07/30 20:41:22
 ---
 
 ```python
@@ -143,7 +143,7 @@ to_predict = [
     }
 ]
 
-answers = model.predict(to_predict)
+answers, probabilities = model.predict(to_predict)
 
 print(answers)
 

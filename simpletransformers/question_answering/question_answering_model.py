@@ -854,7 +854,8 @@ class QuestionAnsweringModel:
             n_best_size (Optional): Number of predictions to return. args.n_best_size will be used if not specified.
 
         Returns:
-            preds: A python list containing the predicted answer, and id for each question in to_predict.
+            list: A python list  of dicts containing the predicted answer/answers, and id for each question in to_predict.
+            list: A python list  of dicts containing the predicted probability/probabilities, and id for each question in to_predict.
         """  # noqa: ignore flake8"
         tokenizer = self.tokenizer
         device = self.device
