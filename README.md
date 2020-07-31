@@ -262,6 +262,7 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*config*](#config)
   - [Current Pretrained Models](#current-pretrained-models)
   - [Acknowledgements](#acknowledgements)
+  - [How to contribute](#how-to-contribute)
   - [Contributors ✨](#contributors-)
 <!--te-->
 
@@ -3318,6 +3319,22 @@ _[Back to Table of Contents](#table-of-contents)_
 None of this would have been possible without the hard work by the HuggingFace team in developing the [Pytorch-Transformers](https://github.com/huggingface/pytorch-transformers) library.
 
 _<div>Icon for the Social Media Preview made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>_
+
+## How to Contribute
+
+### How to Update Docs
+The latest version of the docs is hosted on [Github Pages](https://simpletransformers.ai/), if you want to help document Simple Transformers
+below are the steps to edit the docs.  
+Docs are built using [Jekyll](https://jekyllrb.com/) library, refer to their webpage for a detailed explanation of how it works.  
+1) **Install [Jekyll](https://jekyllrb.com/)**: Run the command `gem install bundler jekyll`
+2) **Visualizing the docs on your local computer**:
+In your terminal cd into the docs directory of this repo, eg: `cd simpletransformers/docs`  
+From the docs directory run this command to serve the Jekyll docs locally: `bundle exec jekyll serve`  
+Browse to http://localhost:4000 or whatever url you see in the console to visualize the docs.
+3) **Edit and visualize changes**: 
+All the section pages of our docs can be found under `docs/_docs` directory, you can edit any file you want by following the markdown format and visualize the changes after refreshing the browser tab.  
+
+**Note**: The docs present in the readme.md file are going to be deprecated soon and removed, so we don't recommend spending time on it.  
 
 ## Contributors ✨
 
