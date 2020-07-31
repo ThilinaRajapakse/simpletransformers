@@ -9,6 +9,7 @@ import math
 import os
 import random
 import warnings
+from contextlib import nullcontext
 from multiprocessing import cpu_count
 
 import numpy as np
@@ -44,6 +45,7 @@ from simpletransformers.experimental.classification.transformer_models.xlnet_mod
     XLNetForSequenceClassification,
 )
 from tensorboardX import SummaryWriter
+from torch.cuda import amp
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
@@ -135,7 +137,6 @@ class ClassificationModel:
             "output_dir": "outputs/",
             "cache_dir": "cache_dir/",
             "fp16": True,
-            "fp16_opt_level": "O1",
             "max_seq_length": 128,
             "train_batch_size": 8,
             "gradient_accumulation_steps": 1,
@@ -282,14 +283,6 @@ class ClassificationModel:
             optimizer, num_warmup_steps=args["warmup_steps"], num_training_steps=t_total
         )
 
-        if args["fp16"]:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args["fp16_opt_level"])
-
         if args["n_gpu"] > 1:
             model = torch.nn.DataParallel(model)
 
@@ -298,6 +291,9 @@ class ClassificationModel:
         model.zero_grad()
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
 
+        if args["fp16"]:
+            scaler = amp.GradScaler()
+
         model.train()
         for _ in train_iterator:
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
@@ -305,12 +301,13 @@ class ClassificationModel:
                 batch = tuple(t.to(self.device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
-                if self.sliding_window:
-                    outputs = model(inputs)
-                else:
-                    outputs = model(**inputs)
-                # model outputs are always tuple in pytorch-transformers (see doc)
-                loss = outputs[0]
+                with amp.autocast() if args["fp16"] else nullcontext():
+                    if self.sliding_window:
+                        outputs = model(inputs)
+                    else:
+                        outputs = model(**inputs)
+                    # model outputs are always tuple in pytorch-transformers (see doc)
+                    loss = outputs[0]
                 if show_running_loss:
                     print("\rRunning loss: %f" % loss, end="")
 
@@ -320,16 +317,21 @@ class ClassificationModel:
                     loss = loss / args["gradient_accumulation_steps"]
 
                 if args["fp16"]:
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args["max_grad_norm"])
+                    scaler.scale(loss).backward()
                 else:
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args["max_grad_norm"])
 
                 tr_loss += loss.item()
                 if (step + 1) % args["gradient_accumulation_steps"] == 0:
-                    optimizer.step()
+                    if args["fp16"]:
+                        scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args["max_grad_norm"])
+
+                    if args["fp16"]:
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1
