@@ -85,7 +85,6 @@ class MultiLabelClassificationModel(ClassificationModel):
             "output_dir": "outputs/",
             "cache_dir": "cache_dir/",
             "fp16": False,
-            "fp16_opt_level": "O1",
             "max_seq_length": 128,
             "train_batch_size": 8,
             "gradient_accumulation_steps": 1,

@@ -224,7 +224,6 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*cache_dir: str*](#cache_dir-str)
       - [*best_model_dir: str*](#best_model_dir-str)
       - [*fp16: bool*](#fp16-bool)
-      - [*fp16_opt_level: str*](#fp16_opt_level-str)
       - [*max_seq_length: int*](#max_seq_length-int)
       - [*train_batch_size: int*](#train_batch_size-int)
       - [*gradient_accumulation_steps: int*](#gradient_accumulation_steps-int)
@@ -275,13 +274,11 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
 `conda create -n transformers python pandas tqdm`
 `conda activate transformers`
 If using cuda:
-&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cudatoolkit=10.1 -c pytorch`
+&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch>=1.6 cudatoolkit=10.1 -c pytorch`
 else:
 &nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cpuonly -c pytorch`
 
-3. Install Apex if you are using fp16 training. Please follow the instructions [here](https://github.com/NVIDIA/apex). (Installing Apex from pip has caused issues for several people.)
-
-4. Install simpletransformers.
+3. Install simpletransformers.
 `pip install simpletransformers`
 
 #### Optional
@@ -3132,7 +3129,6 @@ self.args = {
     "best_model_dir": "outputs/best_model/",
 
     "fp16": True,
-    "fp16_opt_level": "O1",
     "max_seq_length": 128,
     "train_batch_size": 8,
     "eval_batch_size": 8,
@@ -3192,10 +3188,7 @@ The directory where cached files will be saved.
 The directory where the best model (model checkpoints) will be saved if evaluate_during_training is enabled and the training loop achieves a lowest evaluation loss calculated after every evaluate_during_training_steps, or an epoch.
 
 #### *fp16: bool*
-Whether or not fp16 mode should be used. Requires NVidia Apex library.
-
-#### *fp16_opt_level: str*
-Can be '01', '02', '03'. See the [Apex docs](https://nvidia.github.io/apex/amp.html) for an explanation of the different optimization levels (opt_levels).
+Whether or not fp16 mode should be used.
 
 #### *max_seq_length: int*
 Maximum sequence level the model will support.

@@ -145,7 +145,6 @@ ELECTRA models can now be used with Language Model Training, Token Classificatio
       - [*cache_dir: str*](#cachedir-str)
       - [*best_model_dir: str*](#bestmodeldir-str)
       - [*fp16: bool*](#fp16-bool)
-      - [*fp16_opt_level: str*](#fp16optlevel-str)
       - [*max_seq_length: int*](#maxseqlength-int)
       - [*train_batch_size: int*](#trainbatchsize-int)
       - [*gradient_accumulation_steps: int*](#gradientaccumulationsteps-int)
@@ -200,9 +199,7 @@ If using cuda:
 else:  
 &nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cpuonly -c pytorch`  
 
-3. Install Apex if you are using fp16 training. Please follow the instructions [here](https://github.com/NVIDIA/apex). (Installing Apex from pip has caused issues for several people.)
-
-4. Install simpletransformers.  
+3. Install simpletransformers.  
 `pip install simpletransformers` 
 
 #### Optional
@@ -2145,7 +2142,6 @@ self.args = {
     "best_model_dir": "outputs/best_model/",
 
     "fp16": True,
-    "fp16_opt_level": "O1",
     "max_seq_length": 128,
     "train_batch_size": 8,
     "eval_batch_size": 8,
@@ -2206,9 +2202,6 @@ The directory where the best model (model checkpoints) will be saved if evaluate
 
 #### *fp16: bool*
 Whether or not fp16 mode should be used. Requires NVidia Apex library.
-
-#### *fp16_opt_level: str*
-Can be '01', '02', '03'. See the [Apex docs](https://nvidia.github.io/apex/amp.html) for an explanation of the different optimization levels (opt_levels).
 
 #### *max_seq_length: int*
 Maximum sequence level the model will support.

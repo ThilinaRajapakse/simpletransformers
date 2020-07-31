@@ -29,9 +29,7 @@ Follow the instructions given below to install Simple Transformers using with An
    conda install pytorch cpuonly -c pytorch
    ```
 
-4. Install Apex to use FP16 training. Please follow the instructions [here](https://github.com/NVIDIA/apex). (Installing Apex from pip has caused issues for several people.)
-
-5. Install simpletransformers.  
+4. Install simpletransformers.  
 `pip install simpletransformers` 
 
 ## Optional
