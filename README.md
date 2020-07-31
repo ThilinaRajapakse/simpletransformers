@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-44-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-45-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -3401,6 +3401,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   <tr>
     <td align="center"><a href="https://github.com/taranais"><img src="https://avatars1.githubusercontent.com/u/859916?v=4" width="100px;" alt=""/><br /><sub><b>taranais</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=taranais" title="Code">💻</a></td>
     <td align="center"><a href="http://pablomarino.me"><img src="https://avatars1.githubusercontent.com/u/14850762?v=4" width="100px;" alt=""/><br /><sub><b>Pablo N. Marino</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=pablonm3" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=pablonm3" title="Documentation">📖</a></td>
+    <td align="center"><a href="http://linkedin.com/in/strawberrypie/"><img src="https://avatars2.githubusercontent.com/u/29224443?v=4" width="100px;" alt=""/><br /><sub><b>Anton Kiselev</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=strawberrypie" title="Code">💻</a></td>
   </tr>
 </table>
 
