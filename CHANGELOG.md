@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.46.2] - 2020-08-01
+
+### Fixed
+
+- Fixed unreachable condition in Electra language modeling.
+
 ## [0.46.1] - 2020-08-01
 
 ### Fixed
@@ -1021,7 +1027,11 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.46.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/121cba4...HEAD
+[0.46.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7f37cb7...HEAD
+
+[0.46.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b64637c...7f37cb7
+
+[0.46.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/121cba4...b64637c
 
 [0.46.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/120d1e6...121cba4
 

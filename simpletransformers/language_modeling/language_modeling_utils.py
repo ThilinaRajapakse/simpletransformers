@@ -157,7 +157,7 @@ def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, args) -> T
     masked_indices = torch.bernoulli(probability_matrix).bool()
     labels[~masked_indices] = -100  # We only compute loss on masked tokens
 
-    if args.model_type == "electra" and False:
+    if args.model_type == "electra":
         # For ELECTRA, we replace all masked input tokens with tokenizer.mask_token
         inputs[masked_indices] = tokenizer.convert_tokens_to_ids(tokenizer.mask_token)
     else:
