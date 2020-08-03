@@ -1477,7 +1477,7 @@ LanguageGenerationModel has a few additional attributes in its `args` dictionary
 ```python
     "do_sample": True,
     "prompt": "",
-    "length": 20,
+    "max_length": 20,
     "stop_token": None,
     "temperature": 1.0,
     "repetition_penalty": 1.0,
