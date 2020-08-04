@@ -3,10 +3,10 @@ from statistics import mean
 
 import pandas as pd
 import prettyprinter
+import wandb
 from prettyprinter import pprint
 from sklearn.metrics import accuracy_score, f1_score
 
-import wandb
 from simpletransformers.classification import ClassificationArgs, ClassificationModel
 from utils import load_rte_data_file
 

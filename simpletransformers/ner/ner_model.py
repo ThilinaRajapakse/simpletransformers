@@ -6,37 +6,24 @@ import math
 import os
 import random
 import warnings
-from contextlib import nullcontext
-from multiprocessing import cpu_count
 from dataclasses import asdict
+from multiprocessing import cpu_count
 
 import numpy as np
-from scipy.stats import pearsonr
-from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
-from tqdm.auto import tqdm, trange
-
 import pandas as pd
 import torch
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import NERArgs
-from simpletransformers.ner.ner_utils import (
-    InputExample,
-    convert_examples_to_features,
-    get_examples_from_df,
-    get_labels,
-    read_examples_from_file,
-    LazyNERDataset,
-)
+from scipy.stats import pearsonr
+from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
 from tensorboardX import SummaryWriter
-
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
     AutoConfig,
-    AutoTokenizer,
     AutoModelForTokenClassification,
+    AutoTokenizer,
     BertConfig,
     BertForTokenClassification,
     BertTokenizer,
@@ -53,8 +40,8 @@ from transformers import (
     LongformerForTokenClassification,
     LongformerTokenizer,
     MobileBertConfig,
-    MobileBertTokenizer,
     MobileBertForTokenClassification,
+    MobileBertTokenizer,
     RobertaConfig,
     RobertaForTokenClassification,
     RobertaTokenizer,
@@ -62,6 +49,17 @@ from transformers import (
     XLMRobertaForTokenClassification,
     XLMRobertaTokenizer,
     get_linear_schedule_with_warmup,
+)
+
+from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import NERArgs
+from simpletransformers.ner.ner_utils import (
+    InputExample,
+    LazyNERDataset,
+    convert_examples_to_features,
+    get_examples_from_df,
+    get_labels,
+    read_examples_from_file,
 )
 
 try:
@@ -379,6 +377,7 @@ class NERModel:
 
         if args.fp16:
             from torch.cuda import amp
+
             scaler = amp.GradScaler()
 
         model.train()
@@ -401,7 +400,12 @@ class NERModel:
 
                 inputs = self._get_inputs_dict(batch)
 
-                with amp.autocast() if args.fp16 else nullcontext():
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        # model outputs are always tuple in pytorch-transformers (see doc)
+                        loss = outputs[0]
+                else:
                     outputs = model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = outputs[0]

@@ -1,7 +1,8 @@
 import json
 import logging
-import pytest
 import os
+
+import pytest
 
 from simpletransformers.question_answering import QuestionAnsweringModel
 

@@ -2,12 +2,9 @@ import logging
 
 import pandas as pd
 import sklearn
-
 import wandb
-from simpletransformers.classification import (
-    ClassificationArgs,
-    ClassificationModel,
-)
+
+from simpletransformers.classification import ClassificationArgs, ClassificationModel
 
 sweep_config = {
     "method": "bayes",  # grid, random

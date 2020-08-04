@@ -1,8 +1,8 @@
 import os
 
 import pandas as pd
-from simpletransformers.classification import ClassificationModel
 
+from simpletransformers.classification import ClassificationModel
 
 train_data = [
     ["Example sentence belonging to class 1", "Yep, this is 1", 0.8],

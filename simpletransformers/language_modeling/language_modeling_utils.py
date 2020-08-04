@@ -4,13 +4,11 @@ import pickle
 from multiprocessing import Pool
 from typing import Tuple
 
-from tqdm.auto import tqdm
-
 import torch
 from tokenizers.processors import BertProcessing
 from torch.utils.data import Dataset
+from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
-
 
 logger = logging.getLogger(__name__)
 

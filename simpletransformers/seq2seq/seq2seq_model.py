@@ -4,33 +4,30 @@ import math
 import os
 import random
 import warnings
-from contextlib import nullcontext
-from multiprocessing import cpu_count, Pool
-from pathlib import Path
 from dataclasses import asdict
+from multiprocessing import Pool, cpu_count
+from pathlib import Path
 
 import numpy as np
-
-from tqdm.auto import tqdm, trange
-
 import pandas as pd
 import torch
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import Seq2SeqArgs
-from simpletransformers.seq2seq.seq2seq_utils import Seq2SeqDataset, SimpleSummarizationDataset
 from tensorboardX import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
-from transformers import AdamW, EncoderDecoderModel, EncoderDecoderConfig, get_linear_schedule_with_warmup
+from tqdm.auto import tqdm, trange
 from transformers import (
+    AdamW,
+    AutoConfig,
     AutoModel,
     AutoTokenizer,
-    AutoConfig,
-    BertTokenizer,
-    BertModel,
-    BertForMaskedLM,
+    BartConfig,
+    BartForConditionalGeneration,
+    BartTokenizer,
     BertConfig,
+    BertForMaskedLM,
+    BertModel,
+    BertTokenizer,
     CamembertConfig,
     CamembertModel,
     CamembertTokenizer,
@@ -40,9 +37,14 @@ from transformers import (
     ElectraConfig,
     ElectraModel,
     ElectraTokenizer,
+    EncoderDecoderConfig,
+    EncoderDecoderModel,
     LongformerConfig,
     LongformerModel,
     LongformerTokenizer,
+    MarianConfig,
+    MarianMTModel,
+    MarianTokenizer,
     MobileBertConfig,
     MobileBertModel,
     MobileBertTokenizer,
@@ -51,13 +53,12 @@ from transformers import (
     RobertaConfig,
     RobertaModel,
     RobertaTokenizer,
-    BartForConditionalGeneration,
-    BartTokenizer,
-    BartConfig,
-    MarianMTModel,
-    MarianTokenizer,
-    MarianConfig,
+    get_linear_schedule_with_warmup,
 )
+
+from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import Seq2SeqArgs
+from simpletransformers.seq2seq.seq2seq_utils import Seq2SeqDataset, SimpleSummarizationDataset
 
 try:
     import wandb
@@ -440,6 +441,7 @@ class Seq2SeqModel:
 
         if args.fp16:
             from torch.cuda import amp
+
             scaler = amp.GradScaler()
 
         model.train()
@@ -461,7 +463,12 @@ class Seq2SeqModel:
                 # batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
-                with amp.autocast() if args.fp16 else nullcontext():
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        # model outputs are always tuple in pytorch-transformers (see doc)
+                        loss = outputs[0]
+                else:
                     outputs = model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = outputs[0]

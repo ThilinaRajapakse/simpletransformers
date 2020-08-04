@@ -6,11 +6,12 @@ import math
 import os
 import random
 import warnings
-from contextlib import nullcontext
-from multiprocessing import cpu_count
 from dataclasses import asdict
+from multiprocessing import cpu_count
 
 import numpy as np
+import pandas as pd
+import torch
 from scipy.stats import pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -18,40 +19,19 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tqdm.auto import tqdm, trange
-
-import pandas as pd
-import torch
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import QuestionAnsweringArgs
-from simpletransformers.custom_models.models import ElectraForQuestionAnswering, XLMRobertaForQuestionAnswering
-from simpletransformers.question_answering.question_answering_utils import (
-    LazyQuestionAnsweringDataset,
-    RawResult,
-    RawResultExtended,
-    build_examples,
-    convert_examples_to_features,
-    get_best_predictions,
-    get_best_predictions_extended,
-    get_examples,
-    to_list,
-    write_predictions,
-    write_predictions_extended,
-    squad_convert_examples_to_features,
-)
 from tensorboardX import SummaryWriter
-
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
+from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
-    AutoConfig,
-    AutoTokenizer,
-    AutoModelForQuestionAnswering,
     AlbertConfig,
     AlbertForQuestionAnswering,
     AlbertTokenizer,
+    AutoConfig,
+    AutoModelForQuestionAnswering,
+    AutoTokenizer,
     BartConfig,
     BartForQuestionAnswering,
     BartTokenizer,
@@ -64,23 +44,41 @@ from transformers import (
     ElectraConfig,
     ElectraTokenizer,
     LongformerConfig,
-    LongformerTokenizer,
     LongformerForQuestionAnswering,
+    LongformerTokenizer,
     MobileBertConfig,
-    MobileBertTokenizer,
     MobileBertForQuestionAnswering,
+    MobileBertTokenizer,
     RobertaConfig,
     RobertaForQuestionAnswering,
     RobertaTokenizer,
     XLMConfig,
     XLMForQuestionAnswering,
-    XLMTokenizer,
     XLMRobertaConfig,
     XLMRobertaTokenizer,
+    XLMTokenizer,
     XLNetConfig,
     XLNetForQuestionAnswering,
     XLNetTokenizer,
     get_linear_schedule_with_warmup,
+)
+
+from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import QuestionAnsweringArgs
+from simpletransformers.custom_models.models import ElectraForQuestionAnswering, XLMRobertaForQuestionAnswering
+from simpletransformers.question_answering.question_answering_utils import (
+    LazyQuestionAnsweringDataset,
+    RawResult,
+    RawResultExtended,
+    build_examples,
+    convert_examples_to_features,
+    get_best_predictions,
+    get_best_predictions_extended,
+    get_examples,
+    squad_convert_examples_to_features,
+    to_list,
+    write_predictions,
+    write_predictions_extended,
 )
 
 try:
@@ -441,6 +439,7 @@ class QuestionAnsweringModel:
 
         if args.fp16:
             from torch.cuda import amp
+
             scaler = amp.GradScaler()
 
         model.train()
@@ -462,7 +461,12 @@ class QuestionAnsweringModel:
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
-                with amp.autocast() if args.fp16 else nullcontext():
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        # model outputs are always tuple in pytorch-transformers (see doc)
+                        loss = outputs[0]
+                else:
                     outputs = model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = outputs[0]

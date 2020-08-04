@@ -10,11 +10,12 @@ import math
 import os
 import random
 import warnings
-from contextlib import nullcontext
-from multiprocessing import cpu_count
 from dataclasses import asdict
+from multiprocessing import cpu_count
 
 import numpy as np
+import pandas as pd
+import torch
 from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -22,10 +23,21 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
+from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
+from transformers import (
+    BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+    WEIGHTS_NAME,
+    AdamW,
+    BertConfig,
+    BertModel,
+    BertTokenizer,
+    get_linear_schedule_with_warmup,
+)
+from transformers.configuration_mmbt import MMBTConfig
 
-import pandas as pd
-import torch
 from simpletransformers.classification.classification_utils import (
     ImageEncoder,
     InputExample,
@@ -35,22 +47,8 @@ from simpletransformers.classification.classification_utils import (
     get_image_transforms,
 )
 from simpletransformers.classification.transformer_models.mmbt_model import MMBTForClassification
-from simpletransformers.config.model_args import MultiModalClassificationArgs
 from simpletransformers.config.global_args import global_args
-from tensorboardX import SummaryWriter
-
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-from torch.utils.data.distributed import DistributedSampler
-from transformers import (
-    WEIGHTS_NAME,
-    AdamW,
-    BertConfig,
-    BertModel,
-    BertTokenizer,
-    get_linear_schedule_with_warmup,
-    BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-)
-from transformers.configuration_mmbt import MMBTConfig
+from simpletransformers.config.model_args import MultiModalClassificationArgs
 
 try:
     import wandb
@@ -454,6 +452,7 @@ class MultiModalClassificationModel:
 
         if args.fp16:
             from torch.cuda import amp
+
             scaler = amp.GradScaler()
 
         model.train()
@@ -471,7 +470,12 @@ class MultiModalClassificationModel:
                 labels = batch[5]
 
                 inputs = self._get_inputs_dict(batch)
-                with amp.autocast() if args.fp16 else nullcontext():
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        # model outputs are always tuple in pytorch-transformers (see doc)
+                        loss = outputs[0]
+                else:
                     outputs = model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     logits = outputs[0]  # Different from default behaviour

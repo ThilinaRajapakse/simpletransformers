@@ -10,12 +10,11 @@ import warnings
 
 import numpy as np
 import torch
+from transformers import BertConfig, BertTokenizer, GPT2Config, GPT2Tokenizer, RobertaConfig, RobertaTokenizer
+
 from simpletransformers.config.model_args import ModelArgs
 from simpletransformers.language_representation.transformer_models.bert_model import BertForTextRepresentation
 from simpletransformers.language_representation.transformer_models.gpt2_model import GPT2ForTextRepresentation
-
-
-from transformers import BertConfig, BertTokenizer, RobertaConfig, RobertaTokenizer, GPT2Config, GPT2Tokenizer
 
 try:
     import wandb

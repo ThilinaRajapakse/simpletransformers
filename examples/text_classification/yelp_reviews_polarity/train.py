@@ -1,8 +1,8 @@
 import sys
 
 import pandas as pd
-from simpletransformers.classification import ClassificationModel
 
+from simpletransformers.classification import ClassificationModel
 
 prefix = "data/"
 

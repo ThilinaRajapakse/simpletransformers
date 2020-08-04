@@ -17,18 +17,17 @@
 
 from __future__ import absolute_import, division, print_function
 
+import linecache
 import logging
 import os
 from io import open
 from multiprocessing import Pool, cpu_count
-from torch.utils.data import Dataset
-from torch.nn import CrossEntropyLoss
-import torch
-import linecache
-
-from tqdm.auto import tqdm
 
 import pandas as pd
+import torch
+from torch.nn import CrossEntropyLoss
+from torch.utils.data import Dataset
+from tqdm.auto import tqdm
 
 
 class InputExample(object):

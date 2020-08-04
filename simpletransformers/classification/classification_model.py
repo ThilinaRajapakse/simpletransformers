@@ -10,11 +10,12 @@ import math
 import os
 import random
 import warnings
-from contextlib import nullcontext
-from multiprocessing import cpu_count
 from dataclasses import asdict
+from multiprocessing import cpu_count
 
 import numpy as np
+import pandas as pd
+import torch
 from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -22,29 +23,11 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tqdm.auto import tqdm, trange
-from tqdm.contrib import tenumerate
-
-import pandas as pd
-import torch
-from simpletransformers.classification.classification_utils import InputExample, convert_examples_to_features
-from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
-from simpletransformers.classification.transformer_models.bert_model import BertForSequenceClassification
-from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
-from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
-from simpletransformers.classification.transformer_models.flaubert_model import FlaubertForSequenceClassification
-from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
-from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
-from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
-from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import ClassificationArgs
-from simpletransformers.classification.classification_utils import LazyClassificationDataset
-from simpletransformers.custom_models.models import ElectraForSequenceClassification
 from tensorboardX import SummaryWriter
-
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
+from tqdm.auto import tqdm, trange
+from tqdm.contrib import tenumerate
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
@@ -64,8 +47,8 @@ from transformers import (
     LongformerForSequenceClassification,
     LongformerTokenizer,
     MobileBertConfig,
-    MobileBertTokenizer,
     MobileBertForSequenceClassification,
+    MobileBertTokenizer,
     RobertaConfig,
     RobertaTokenizer,
     XLMConfig,
@@ -76,6 +59,24 @@ from transformers import (
     XLNetTokenizer,
     get_linear_schedule_with_warmup,
 )
+
+from simpletransformers.classification.classification_utils import (
+    InputExample,
+    LazyClassificationDataset,
+    convert_examples_to_features,
+)
+from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
+from simpletransformers.classification.transformer_models.bert_model import BertForSequenceClassification
+from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
+from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
+from simpletransformers.classification.transformer_models.flaubert_model import FlaubertForSequenceClassification
+from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
+from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
+from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
+from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
+from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import ClassificationArgs
+from simpletransformers.custom_models.models import ElectraForSequenceClassification
 
 try:
     import wandb
@@ -443,6 +444,7 @@ class ClassificationModel:
 
         if args.fp16:
             from torch.cuda import amp
+
             scaler = amp.GradScaler()
 
         model.train()
@@ -463,7 +465,12 @@ class ClassificationModel:
                     continue
 
                 inputs = self._get_inputs_dict(batch)
-                with amp.autocast() if args.fp16 else nullcontext():
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        # model outputs are always tuple in pytorch-transformers (see doc)
+                        loss = outputs[0]
+                else:
                     outputs = model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = outputs[0]

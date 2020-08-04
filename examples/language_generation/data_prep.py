@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 df = pd.read_csv("data/cs.AI.tsv", sep="\t")
 abstracts = df["abstract"].tolist()
 

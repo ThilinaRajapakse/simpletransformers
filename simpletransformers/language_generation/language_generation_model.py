@@ -1,15 +1,11 @@
 import argparse
-import logging
-import random
-import os
 import json
+import logging
+import os
+import random
 
 import numpy as np
-
 import torch
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import LanguageGenerationArgs
-from simpletransformers.language_generation.language_generation_utils import PREPROCESSING_FUNCTIONS
 from transformers import (
     CTRLConfig,
     CTRLLMHeadModel,
@@ -30,6 +26,10 @@ from transformers import (
     XLNetLMHeadModel,
     XLNetTokenizer,
 )
+
+from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import LanguageGenerationArgs
+from simpletransformers.language_generation.language_generation_utils import PREPROCESSING_FUNCTIONS
 
 logger = logging.getLogger(__name__)
 

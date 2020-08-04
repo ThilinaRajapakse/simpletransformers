@@ -6,9 +6,10 @@ from statistics import mean
 import numpy as np
 import pandas as pd
 from scipy.stats import pearsonr, spearmanr
-from simpletransformers.t5 import T5Model
 from sklearn.metrics import accuracy_score, f1_score
 from transformers.data.metrics.squad_metrics import compute_exact, compute_f1
+
+from simpletransformers.t5 import T5Model
 
 
 def f1(truths, preds):

@@ -1644,6 +1644,14 @@ Note, you must set `evaluate_generated_text` to `True` to evaluate generated seq
 import logging
 
 import pandas as pd
+import sklearn
+
+from simpletransformers.classification import ClassificationModel
+from simpletransformers.classification.multi_modal_classification_model import \
+    MultiModalClassificationModel
+from simpletransformers.experimental.classification import ClassificationModel
+from simpletransformers.language_representation import RepresentationModel
+from simpletransformers.seq2seq import Seq2SeqModel
 from simpletransformers.t5 import T5Model
 
 logging.basicConfig(level=logging.INFO)
@@ -1952,10 +1960,7 @@ The prediction data should be a list of strings.
 The `Seq2SeqModel` must be initialized with `encoder_decoder_type="bart"` and `encoder_decoder_name` set to a pre-trained model name or the path to a saved model directory.
 
 ```python
-import logging
 
-import pandas as pd
-from simpletransformers.seq2seq import Seq2SeqModel
 
 logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
@@ -2025,10 +2030,7 @@ The `Seq2SeqModel` must be initialized with `encoder_decoder_type="marian"` and 
 Everything else is identical to the Bart model usage.
 
 ```python
-import logging
 
-import pandas as pd
-from simpletransformers.seq2seq import Seq2SeqModel
 
 logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
@@ -2074,10 +2076,7 @@ for en, de in zip(src, predictions):
 #### Generic Encoder-Decoder minimal start
 
 ```python
-import logging
 
-import pandas as pd
-from simpletransformers.seq2seq import Seq2SeqModel
 
 logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
@@ -2794,7 +2793,6 @@ If `label_list` is not given, `num_labels` is required and the labels should be 
 Create a `MultiModalClassificationModel`.
 
 ```python
-from simpletransformers.classification.multi_modal_classification_model import MultiModalClassificationModel
 
 
 model = MultiModalClassificationModel("bert", "bert-base-uncased")
@@ -2929,7 +2927,6 @@ For more complete examples of how to use this component with downstream tasks re
 ### Minimal example for generating word embeddings
 Generate a list of contextual word embeddings for every sentence in a list
 ```python
-from simpletransformers.language_representation import RepresentationModel
         
 sentences = ["Example sentence 1", "Example sentence 2"]
 model = RepresentationModel(
@@ -2944,7 +2941,6 @@ assert word_vectors.shape === (2, 5, 768) # token vector for every token in each
 ### Minimal example for generating sentence embeddings 
 Same code as for generating word embeddings, the only differennce is that we pass combine_s`trategy="mean" parameter to `combine_strategy="mean"
 ```python
-from simpletransformers.language_representation import RepresentationModel
 sentences = ["Example sentence 1", "Example sentence 2"]
 model = RepresentationModel(
         model_type="bert",
@@ -2973,8 +2969,6 @@ Regression can be used with either single sentence or sentence pair tasks.
 #### Minimal Start for Regression
 
 ```python
-from simpletransformers.classification import ClassificationModel
-import pandas as pd
 
 
 train_data = [
@@ -3039,7 +3033,6 @@ _[Back to Table of Contents](#table-of-contents)_
 To use experimental features, import from `simpletransformers.experimental.X`
 
 ```python
-from simpletransformers.experimental.classification import ClassificationModel
 ```
 
 ### Sliding Window For Long Sequences
@@ -3060,9 +3053,6 @@ Currently available on binary and multiclass classification models of the follow
 Set `sliding_window` to `True` for the ClassificationModel to enable this feature.
 
 ```python
-from simpletransformers.classification import ClassificationModel
-import pandas as pd
-import sklearn
 
 # Train and Evaluation data needs to be in a Pandas Dataframe of two columns. The first column is the text with type str, and the second column in the label with type int.
 train_data = [['Example sentence belonging to class 1' * 50, 1], ['Example sentence belonging to class 0', 0], ['Example  2 sentence belonging to class 0', 0]] + [['Example sentence belonging to class 0', 0] for i in range(12)]

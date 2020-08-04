@@ -1,6 +1,7 @@
 import pandas as pd
-from sklearn.metrics import classification_report
 from sklearn.linear_model import RidgeClassifier
+from sklearn.metrics import classification_report
+
 from simpletransformers.language_representation import RepresentationModel
 
 train_data = [["Example sentence belonging to class 1", 1], ["Example sentence belonging to class 0", 0]]

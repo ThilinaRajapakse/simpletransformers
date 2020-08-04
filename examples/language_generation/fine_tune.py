@@ -1,6 +1,6 @@
-from simpletransformers.language_modeling import LanguageModelingModel
 import logging
 
+from simpletransformers.language_modeling import LanguageModelingModel
 
 logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")

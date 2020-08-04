@@ -10,42 +10,32 @@ import math
 import os
 import random
 import warnings
-from contextlib import nullcontext
+from dataclasses import asdict
 from multiprocessing import cpu_count
 from typing import Dict, List
-from dataclasses import asdict
 
 import numpy as np
+import pandas as pd
+import torch
 from sklearn.metrics import (
     confusion_matrix,
     label_ranking_average_precision_score,
     matthews_corrcoef,
     mean_squared_error,
 )
-from tqdm.auto import tqdm, trange
-
-import pandas as pd
-import torch
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import LanguageModelingArgs
-from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
-from simpletransformers.language_modeling.language_modeling_utils import (
-    SimpleDataset,
-    mask_tokens,
-)
 from tensorboardX import SummaryWriter
 from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
 from tokenizers.processors import BertProcessing
-
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
+from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
     AutoConfig,
-    AutoTokenizer,
     AutoModelWithLMHead,
+    AutoTokenizer,
     BertConfig,
     BertForMaskedLM,
     BertTokenizer,
@@ -62,6 +52,9 @@ from transformers import (
     GPT2Config,
     GPT2LMHeadModel,
     GPT2Tokenizer,
+    LongformerConfig,
+    LongformerForMaskedLM,
+    LongformerTokenizer,
     OpenAIGPTConfig,
     OpenAIGPTLMHeadModel,
     OpenAIGPTTokenizer,
@@ -70,13 +63,14 @@ from transformers import (
     RobertaConfig,
     RobertaForMaskedLM,
     RobertaTokenizer,
-    LongformerConfig,
-    LongformerForMaskedLM,
-    LongformerTokenizer,
     get_linear_schedule_with_warmup,
 )
+from transformers.data.datasets.language_modeling import LineByLineTextDataset, TextDataset
 
-from transformers.data.datasets.language_modeling import TextDataset, LineByLineTextDataset
+from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import LanguageModelingArgs
+from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
+from simpletransformers.language_modeling.language_modeling_utils import SimpleDataset, mask_tokens
 
 try:
     import wandb
@@ -541,6 +535,7 @@ class LanguageModelingModel:
 
         if args.fp16:
             from torch.cuda import amp
+
             scaler = amp.GradScaler()
 
         model.train()
@@ -566,7 +561,12 @@ class LanguageModelingModel:
                 inputs = inputs.to(self.device)
                 labels = labels.to(self.device)
 
-                with amp.autocast() if args.fp16 else nullcontext():
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        # model outputs are always tuple in pytorch-transformers (see doc)
+                        loss = outputs[0]
+                else:
                     if args.model_type == "longformer":
                         outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
                     else:
