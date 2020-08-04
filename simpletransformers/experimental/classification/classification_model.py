@@ -45,7 +45,7 @@ from simpletransformers.experimental.classification.transformer_models.xlnet_mod
     XLNetForSequenceClassification,
 )
 from tensorboardX import SummaryWriter
-from torch.cuda import amp
+
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
@@ -292,6 +292,7 @@ class ClassificationModel:
         train_iterator = trange(int(args["num_train_epochs"]), desc="Epoch", disable=args["silent"])
 
         if args["fp16"]:
+            from torch.cuda import amp
             scaler = amp.GradScaler()
 
         model.train()

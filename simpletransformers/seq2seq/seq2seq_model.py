@@ -10,7 +10,7 @@ from pathlib import Path
 from dataclasses import asdict
 
 import numpy as np
-from torch.cuda import amp
+
 from tqdm.auto import tqdm, trange
 
 import pandas as pd
@@ -439,6 +439,7 @@ class Seq2SeqModel:
             wandb.watch(self.model)
 
         if args.fp16:
+            from torch.cuda import amp
             scaler = amp.GradScaler()
 
         model.train()

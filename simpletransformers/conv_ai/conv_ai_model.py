@@ -36,7 +36,7 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import ConvAIArgs
 from simpletransformers.conv_ai.conv_ai_utils import get_dataset
 from tensorboardX import SummaryWriter
-from torch.cuda import amp
+
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from transformers import (
@@ -313,6 +313,7 @@ class ConvAIModel:
             wandb.watch(self.model)
 
         if args.fp16:
+            from torch.cuda import amp
             scaler = amp.GradScaler()
 
         model.train()

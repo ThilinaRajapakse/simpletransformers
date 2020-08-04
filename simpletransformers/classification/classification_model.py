@@ -42,7 +42,7 @@ from simpletransformers.config.model_args import ClassificationArgs
 from simpletransformers.classification.classification_utils import LazyClassificationDataset
 from simpletransformers.custom_models.models import ElectraForSequenceClassification
 from tensorboardX import SummaryWriter
-from torch.cuda import amp
+
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from transformers import (
@@ -442,6 +442,7 @@ class ClassificationModel:
             wandb.watch(self.model)
 
         if args.fp16:
+            from torch.cuda import amp
             scaler = amp.GradScaler()
 
         model.train()

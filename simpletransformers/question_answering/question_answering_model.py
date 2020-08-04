@@ -40,7 +40,7 @@ from simpletransformers.question_answering.question_answering_utils import (
     squad_convert_examples_to_features,
 )
 from tensorboardX import SummaryWriter
-from torch.cuda import amp
+
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from transformers import (
@@ -440,6 +440,7 @@ class QuestionAnsweringModel:
             wandb.watch(self.model)
 
         if args.fp16:
+            from torch.cuda import amp
             scaler = amp.GradScaler()
 
         model.train()

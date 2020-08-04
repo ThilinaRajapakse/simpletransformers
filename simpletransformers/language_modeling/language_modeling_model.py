@@ -36,7 +36,7 @@ from simpletransformers.language_modeling.language_modeling_utils import (
 from tensorboardX import SummaryWriter
 from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
 from tokenizers.processors import BertProcessing
-from torch.cuda import amp
+
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -540,6 +540,7 @@ class LanguageModelingModel:
             wandb.watch(self.model)
 
         if args.fp16:
+            from torch.cuda import amp
             scaler = amp.GradScaler()
 
         model.train()

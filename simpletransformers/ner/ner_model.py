@@ -28,7 +28,7 @@ from simpletransformers.ner.ner_utils import (
     LazyNERDataset,
 )
 from tensorboardX import SummaryWriter
-from torch.cuda import amp
+
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from transformers import (
@@ -378,6 +378,7 @@ class NERModel:
             wandb.watch(self.model)
 
         if args.fp16:
+            from torch.cuda import amp
             scaler = amp.GradScaler()
 
         model.train()

@@ -38,7 +38,7 @@ from simpletransformers.classification.transformer_models.mmbt_model import MMBT
 from simpletransformers.config.model_args import MultiModalClassificationArgs
 from simpletransformers.config.global_args import global_args
 from tensorboardX import SummaryWriter
-from torch.cuda import amp
+
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from transformers import (
@@ -453,6 +453,7 @@ class MultiModalClassificationModel:
             wandb.watch(self.model)
 
         if args.fp16:
+            from torch.cuda import amp
             scaler = amp.GradScaler()
 
         model.train()

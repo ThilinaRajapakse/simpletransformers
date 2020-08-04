@@ -19,7 +19,7 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import T5Args
 from simpletransformers.t5.t5_utils import T5Dataset
 from tensorboardX import SummaryWriter
-from torch.cuda import amp
+
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -315,6 +315,7 @@ class T5Model:
             wandb.watch(self.model)
 
         if args.fp16:
+            from torch.cuda import amp
             scaler = amp.GradScaler()
 
         model.train()
