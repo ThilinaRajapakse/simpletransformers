@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="simpletransformers",
-    version="0.46.4",
+    version="0.46.5",
     author="Thilina Rajapakse",
     author_email="chaturangarajapakshe@gmail.com",
     description="An easy-to-use wrapper library for the Transformers library.",
@@ -19,7 +19,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.6",
     install_requires=[
         "numpy",
         "requests",
