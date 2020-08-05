@@ -210,10 +210,10 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
     - [Evaluating a Model](#evaluating-a-model)
     - [Predicting from a trained Model](#predicting-from-a-trained-model)
   - [Text Representation Generation](#text-representation-generation)
-       - [Minimal example for generating word embeddings](#minimal-start-for-generating-word-embeddings)
-       - [Minimal example for generating sentence embeddings](#minimal-start-for-generating-sentence-embeddings)
+    - [Minimal example for generating word embeddings](#minimal-example-for-generating-word-embeddings)
+    - [Minimal example for generating sentence embeddings](#minimal-example-for-generating-sentence-embeddings)
   - [Regression](#regression)
-    - [Minimal Start for Regression](#minimal-start-for-regression)
+      - [Minimal Start for Regression](#minimal-start-for-regression)
   - [Visualization Support](#visualization-support)
   - [Experimental Features](#experimental-features)
     - [Sliding Window For Long Sequences](#sliding-window-for-long-sequences)
@@ -262,7 +262,8 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*config*](#config)
   - [Current Pretrained Models](#current-pretrained-models)
   - [Acknowledgements](#acknowledgements)
-  - [How to contribute](#how-to-contribute)
+  - [How to Contribute](#how-to-contribute)
+    - [How to Update Docs](#how-to-update-docs)
   - [Contributors ✨](#contributors-)
 <!--te-->
 
@@ -272,10 +273,10 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
 
 1. Install Anaconda or Miniconda Package Manager from [here](https://www.anaconda.com/distribution/)
 2. Create a new virtual environment and install packages.
-`conda create -n transformers python pandas tqdm`
-`conda activate transformers`
+`conda create -n st python pandas tqdm`
+`conda activate st`
 If using cuda:
-&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch>=1.6 cudatoolkit=10.1 -c pytorch`
+&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch>=1.6 cudatoolkit=10.2 -c pytorch`
 else:
 &nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cpuonly -c pytorch`
 
@@ -2920,14 +2921,14 @@ _[Back to Table of Contents](#table-of-contents)_
 ---
 
 ## [Text Representation Generation](#text-representation-generation)
-       
-Use transformers language models to generate contextual word or sentence representations from text that you can then feed to any down-stream tasks of your preference.  
-For more complete examples of how to use this component with downstream tasks refer to: https://github.com/ThilinaRajapakse/simpletransformers/tree/master/examples/language_representation 
-       
+
+Use transformers language models to generate contextual word or sentence representations from text that you can then feed to any down-stream tasks of your preference.
+For more complete examples of how to use this component with downstream tasks refer to: https://github.com/ThilinaRajapakse/simpletransformers/tree/master/examples/language_representation
+
 ### Minimal example for generating word embeddings
 Generate a list of contextual word embeddings for every sentence in a list
 ```python
-        
+
 sentences = ["Example sentence 1", "Example sentence 2"]
 model = RepresentationModel(
         model_type="bert",
@@ -2937,8 +2938,8 @@ model = RepresentationModel(
 word_vectors = model.encode_sentences(sentences, combine_strategy=None)
 assert word_vectors.shape === (2, 5, 768) # token vector for every token in each sentence, bert based models add 2 tokens per sentence by default([CLS] & [SEP])
 ```
-       
-### Minimal example for generating sentence embeddings 
+
+### Minimal example for generating sentence embeddings
 Same code as for generating word embeddings, the only differennce is that we pass combine_s`trategy="mean" parameter to `combine_strategy="mean"
 ```python
 sentences = ["Example sentence 1", "Example sentence 2"]
@@ -3314,17 +3315,17 @@ _<div>Icon for the Social Media Preview made by <a href="https://www.flaticon.co
 
 ### How to Update Docs
 The latest version of the docs is hosted on [Github Pages](https://simpletransformers.ai/), if you want to help document Simple Transformers
-below are the steps to edit the docs.  
-Docs are built using [Jekyll](https://jekyllrb.com/) library, refer to their webpage for a detailed explanation of how it works.  
+below are the steps to edit the docs.
+Docs are built using [Jekyll](https://jekyllrb.com/) library, refer to their webpage for a detailed explanation of how it works.
 1) **Install [Jekyll](https://jekyllrb.com/)**: Run the command `gem install bundler jekyll`
 2) **Visualizing the docs on your local computer**:
-In your terminal cd into the docs directory of this repo, eg: `cd simpletransformers/docs`  
-From the docs directory run this command to serve the Jekyll docs locally: `bundle exec jekyll serve`  
+In your terminal cd into the docs directory of this repo, eg: `cd simpletransformers/docs`
+From the docs directory run this command to serve the Jekyll docs locally: `bundle exec jekyll serve`
 Browse to http://localhost:4000 or whatever url you see in the console to visualize the docs.
-3) **Edit and visualize changes**: 
-All the section pages of our docs can be found under `docs/_docs` directory, you can edit any file you want by following the markdown format and visualize the changes after refreshing the browser tab.  
+3) **Edit and visualize changes**:
+All the section pages of our docs can be found under `docs/_docs` directory, you can edit any file you want by following the markdown format and visualize the changes after refreshing the browser tab.
 
-**Note**: The docs present in the readme.md file are going to be deprecated soon and removed, so we don't recommend spending time on it.  
+**Note**: The docs present in the readme.md file are going to be deprecated soon and removed, so we don't recommend spending time on it.
 
 ## Contributors ✨
 

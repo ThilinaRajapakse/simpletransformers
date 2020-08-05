@@ -2,11 +2,11 @@
 title: Installation
 permalink: /docs/installation/
 excerpt: "Instructions for installing the Simple Transformers library."
-last_modified_at: 2020-05-02 17:56:52
+last_modified_at: 2020/08/05 18:19:13
 toc: true
 ---
 
-It's a good idea to always use virtual environments when working with Python packages. 
+It's a good idea to always use virtual environments when working with Python packages.
 Anaconda/Miniconda is a package manager that lets you create virtual environments and manage package installations smoothly.
 
 Follow the instructions given below to install Simple Transformers using with Anaconda (or miniconda, a lighter version of anaconda).
@@ -16,25 +16,25 @@ Follow the instructions given below to install Simple Transformers using with An
 1. Install Anaconda or Miniconda Package Manager from [here](https://www.anaconda.com/distribution/).
 2. Create a new virtual environment and install packages.
    ```shell
-   conda create -n transformers python pandas tqdm
-   conda activate transformers
+   conda create -n st python pandas tqdm
+   conda activate st
    ```
-3. Using a CUDA capable GPU is recommended.  
-   To install Pytorch with CUDA support:  
+3. Using a CUDA capable GPU is recommended.
+   To install Pytorch with CUDA support:
    ```shell
-   conda install pytorch cudatoolkit=10.1 -c pytorch 
+   conda install pytorch>=1.6 cudatoolkit=10.2 -c pytorch
    ```
-   CPU only:  
+   CPU only:
    ```shell
    conda install pytorch cpuonly -c pytorch
    ```
 
-4. Install simpletransformers.  
-`pip install simpletransformers` 
+4. Install simpletransformers.
+`pip install simpletransformers`
 
 ## Optional
 
-1. Install Weights and Biases (wandb) for experiment tracking and visualizing training in a web browser.  
+1. Install Weights and Biases (wandb) for experiment tracking and visualizing training in a web browser.
 `pip install wandb`
 
 ---
