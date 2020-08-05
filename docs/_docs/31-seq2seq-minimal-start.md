@@ -2,7 +2,7 @@
 title: Seq2Seq Minimal Start
 permalink: /docs/seq2seq-minimal-start/
 excerpt: "Minimal start for Seq2Seq."
-last_modified_at: 2020/07/23 23:54:29
+last_modified_at: 2020/08/05 21:34:49
 ---
 
 ## Generic Encoder-Decoder minimal start
@@ -221,3 +221,7 @@ for en, de in zip(src, predictions):
     print()
 
 ```
+
+## Guides
+
+- [BART for Paraphrasing with Simple Transformers](https://towardsdatascience.com/bart-for-paraphrasing-with-simple-transformers-7c9ea3dfdd8c?source=friends_link&sk=07420669325ac550f86b86bad362633c)
