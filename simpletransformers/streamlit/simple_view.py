@@ -222,14 +222,27 @@ def streamlit_runner(
             st.dataframe(prob_df)
 
     elif model_class == "QuestionAnsweringModel":
-        session_state = get(
-            max_seq_length=model.args.max_seq_length,
-            max_answer_length=model.args.max_answer_length,
-            max_query_length=model.args.max_query_length,
-        )
-        model.args.max_seq_length = session_state.max_seq_length
-        model.args.max_answer_length = session_state.max_answer_length
-        model.args.max_query_length = session_state.max_query_length
+        try:
+            session_state = get(
+                max_seq_length=model.args.max_seq_length,
+                max_answer_length=model.args.max_answer_length,
+                max_query_length=model.args.max_query_length,
+            )
+            model.args.max_seq_length = session_state.max_seq_length
+            model.args.max_answer_length = session_state.max_answer_length
+            model.args.max_query_length = session_state.max_query_length
+
+        except AttributeError:
+            setattr(session_state, "max_answer_length", 100)
+            setattr(session_state, "max_query_length", 64)
+            session_state = get(
+                max_seq_length=model.args.max_seq_length,
+                max_answer_length=model.args.max_answer_length,
+                max_query_length=model.args.max_query_length,
+            )
+            model.args.max_seq_length = session_state.max_seq_length
+            model.args.max_answer_length = session_state.max_answer_length
+            model.args.max_query_length = session_state.max_query_length
 
         if st.sidebar.checkbox("Show Parameters", value=True):
             model.args.max_seq_length = st.sidebar.slider(
@@ -244,15 +257,13 @@ def streamlit_runner(
                 "Max Query Length", min_value=1, max_value=512, value=model.args.max_query_length
             )
 
+            model.args.n_best_size = st.sidebar.slider("Number of answers to generate", min_value=1, max_value=20)
+
         st.subheader("Enter context: ")
         context_text = st.text_area("", key="context")
 
         st.subheader("Enter question: ")
         question_text = st.text_area("", key="question")
-
-        n_best_size = st.sidebar.slider("Number of answers to generate", min_value=1, max_value=20)
-
-        model.args.n_best_size = n_best_size
 
         if context_text and question_text:
             to_predict = [{"context": context_text, "qas": [{"id": 0, "question": question_text}]}]
