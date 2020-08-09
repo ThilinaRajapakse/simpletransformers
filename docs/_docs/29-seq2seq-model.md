@@ -2,7 +2,7 @@
 title: Seq2Seq Model
 permalink: /docs/seq2seq-model/
 excerpt: "Seq2SeqModel for Seq2Seq tasks."
-last_modified_at: 2020/07/23 23:01:57
+last_modified_at: 2020/08/10 01:15:58
 toc: true
 ---
 
@@ -224,7 +224,7 @@ A metric function should take in two parameters. The first parameter will be the
 **Note:** For more details on evaluating Seq2Seq models with custom metrics, please refer to the [Evaluating Generated Sequences](/docs/seq2seq-specifics/#evaluating-generated-sequences) section.
 {: .notice--info}
 
-**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
+**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
 {: .notice--info}
 
 
@@ -273,7 +273,7 @@ A metric function should take in two parameters. The first parameter will be the
 **Note:** For more details on evaluating Seq2Seq models with custom metrics, please refer to the [Evaluating Generated Sequences](/docs/seq2seq-specifics/#evaluating-generated-sequences) section.
 {: .notice--info}
 
-**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
+**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
 {: .notice--info}
 
 ## Making Predictions With a `Seq2SeqModel`

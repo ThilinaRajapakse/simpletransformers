@@ -2,7 +2,7 @@
 title: Language Modeling Model
 permalink: /docs/lm-model/
 excerpt: "LanguageModelingModel for Language Modeling tasks."
-last_modified_at: 2020/07/05 15:00:17
+last_modified_at: 2020/08/10 01:15:58
 toc: true
 ---
 
@@ -232,7 +232,7 @@ Trains the model using 'train_file'
 * `None`
 {: .return-list}
 
-**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
+**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
 {: .notice--info}
 
 
@@ -276,5 +276,5 @@ Evaluates the model using 'eval_file'
 * **texts** *(`list`)* - A dictionary containing the 3 dictionaries `correct_text`, `similar_text`, and `incorrect_text`.
 {: .return-list}
 
-**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
+**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
 {: .notice--info}

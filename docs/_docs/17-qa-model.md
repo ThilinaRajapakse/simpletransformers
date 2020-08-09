@@ -2,7 +2,7 @@
 title: Question Answering Model
 permalink: /docs/qa-model/
 excerpt: "QuestionAnsweringModel for Question Answering tasks."
-last_modified_at: 2020-05-02 17:58:53
+last_modified_at: 2020/08/10 01:17:45
 toc: true
 ---
 
@@ -128,7 +128,7 @@ Trains the model using 'train_data'
 * **eval_data** *(optional)* - Evaluation data (same format as train_data) against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
 
 * **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
-E.g. `f1=sklearn.metrics.f1_score`.  
+E.g. `f1=sklearn.metrics.f1_score`.
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 {: .parameter-list}
 
@@ -138,7 +138,7 @@ A metric function should take in two parameters. The first parameter will be the
 * `None`
 {: .return-list}
 
-**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
+**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
 {: .notice--info}
 
 
@@ -158,7 +158,7 @@ The following metrics will be calculated by default:
 result, model_outputs, wrong_preds = model.eval_model(eval_data)
 ```
 
-> *simpletransformers.question_answering.QuestionAnsweringModel.eval_model*{: .function-name}(self, eval_data, 
+> *simpletransformers.question_answering.QuestionAnsweringModel.eval_model*{: .function-name}(self, eval_data,
 > output_dir=None, verbose=True, silent=False, **kwargs)
 
 Evaluates the model using 'eval_data'
@@ -172,13 +172,13 @@ Evaluates the model using 'eval_data'
 * **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
 
 * **verbose** *(`bool`, optional)* - If verbose, results will be printed to the console on completion of evaluation.
-            
+
 * **verbose_logging** *(`bool`, optional)* - Log info related to feature conversion and writing predictions.
 
 * **silent** *(`bool`, optional)* - If silent, tqdm progress bars will be hidden.
 
 * **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
-E.g. `f1=sklearn.metrics.f1_score`.  
+E.g. `f1=sklearn.metrics.f1_score`.
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 {: .parameter-list}
 
@@ -190,7 +190,7 @@ A metric function should take in two parameters. The first parameter will be the
 * **texts** *(`list`)* - A dictionary containing the 3 dictionaries `correct_text`, `similar_text`, and `incorrect_text`.
 {: .return-list}
 
-**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
+**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
 {: .notice--info}
 
 
@@ -240,3 +240,6 @@ Performs predictions on a list of text `to_predict`.
 * **answer_list** *(`list`)* - A Python list of dicts containing each question id mapped to its answer (or a list of answers if `n_best_size > 1`).
 * **probability_list** *(`list`)* - A Python list of dicts containing each question id mapped to the probability score for the answer (or a list of probability scores if `n_best_size > 1`).
 {: .return-list}
+
+**Tip:** You can also make predictions using the Simple Viewer web app. Please refer to the [Simple Viewer](/docs/tips-and-tricks/#simple-viewer-visualizing-model-predictions-with-streamlit) section.
+{: .notice--success}

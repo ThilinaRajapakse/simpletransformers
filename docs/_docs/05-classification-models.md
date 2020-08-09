@@ -2,7 +2,7 @@
 title: "Classification Models"
 permalink: /docs/classification-models/
 excerpt: "Model class used for text classification"
-last_modified_at: 2020/07/24 01:16:06
+last_modified_at: 2020/08/10 01:17:45
 toc: true
 ---
 
@@ -306,7 +306,7 @@ A metric function should take in two parameters. The first parameter will be the
 * `None`
 {: .return-list}
 
-**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
+**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
 {: .notice--info}
 
 
@@ -370,7 +370,7 @@ A metric function should take in two parameters. The first parameter will be the
 * **wrong_preds** *(`list`)* - List of InputExample objects corresponding to each incorrect prediction by the model
 {: .return-list}
 
-**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
+**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
 {: .notice--info}
 
 
@@ -403,3 +403,6 @@ Performs predictions on a list of text `to_predict`.
 * **preds** *(`list`)* - A python list of the predictions (0 or 1) for each text.
 * **model_outputs** *(`list`)* - A python list of the raw model outputs for each text.
 {: .return-list}
+
+**Tip:** You can also make predictions using the Simple Viewer web app. Please refer to the [Simple Viewer](/docs/tips-and-tricks/#simple-viewer-visualizing-model-predictions-with-streamlit) section.
+{: .notice--success}
