@@ -133,7 +133,7 @@ def streamlit_runner(
 
                 ---
 
-                """
+                """ # noqa
             )
 
         manual_model = st.sidebar.checkbox("Specify model manually", value=False if selected_dir else True)
