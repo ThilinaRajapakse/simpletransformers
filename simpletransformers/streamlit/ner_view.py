@@ -12,7 +12,7 @@ ENTITY_LABEL_WRAPPER = """<span style="background: #fff; font-size: 0.56em; font
 
 def format_word(word, entity, entity_checkboxes, entity_color_map):
     if entity_checkboxes[entity]:
-        return ENTITY_WRAPPER.format(entity_color_map[entity], "Testing", ENTITY_LABEL_WRAPPER.format(entity))
+        return ENTITY_WRAPPER.format(entity_color_map[entity], word, ENTITY_LABEL_WRAPPER.format(entity))
     else:
         return word
 

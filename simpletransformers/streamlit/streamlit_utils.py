@@ -52,7 +52,7 @@ def cache_on_button_press(label, **cache_kwargs):
 
             cache_entry = get_cache_entry(func, args, kwargs)
             if not cache_entry.evaluated:
-                if st.button(label):
+                if st.sidebar.button(label):
                     cache_entry.evaluate()
                 else:
                     raise st.ScriptRunner.StopException

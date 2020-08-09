@@ -12,6 +12,7 @@ from simpletransformers.ner import NERModel
 from simpletransformers.question_answering import QuestionAnsweringModel
 from simpletransformers.t5 import T5Model
 from simpletransformers.seq2seq import Seq2SeqModel
+from simpletransformers.streamlit.streamlit_utils import cache_on_button_press
 from simpletransformers.streamlit.qa_view import qa_viewer
 from simpletransformers.streamlit.classification_view import classification_viewer
 from simpletransformers.streamlit.ner_view import ner_viewer
@@ -93,6 +94,11 @@ def find_all_models(current_dir, model_list):
     return model_list
 
 
+@cache_on_button_press("Load Model")
+def manual_model_load(model_class, model_type, model_name):
+    return model_class and model_type and model_name
+
+
 def streamlit_runner(
     selected_dir=None,
     model_class=None,
@@ -134,7 +140,17 @@ def streamlit_runner(
             The `streamlit_runner()` function accepts all the same arguments as the corresponding Simple Transformers model.
             """
             )
-            return
+
+        manual_model = st.sidebar.checkbox("Specify model manually", value=False if selected_dir else True)
+        if manual_model:
+            st.sidebar.subheader("Model Details")
+            st.write("Please fill the Model details on the sidebar or select a model from the Choose Model dropdown.")
+            model_class = st.sidebar.selectbox("Model Class", list(model_class_map.keys()))
+            model_type = st.sidebar.text_input("Model type (e.g. bert, roberta, xlnet)")
+            model_name = st.sidebar.text_input("Model name (e.g. bert-base-cased, roberta-base)")
+
+            if manual_model_load(model_class, model_type, model_name):
+                selected_dir = None
 
     model, model_class = load_model(
         selected_dir, model_class, model_type, model_name, num_labels, weight, args, use_cuda, cuda_device, **kwargs
