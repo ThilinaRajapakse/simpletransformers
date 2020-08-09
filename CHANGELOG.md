@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added support for testing models through a Streamlit app. Use the command `simpl-viewer". Currently supports:
+- Added support for testing models through a Streamlit app. Use the command `simple-viewer". Currently supports:
   - Classification (including multilabel)
   - NER (design inspired by [displaCy Named Entity Visualizer](https://explosion.ai/demos/displacy-ent))
   - QA
