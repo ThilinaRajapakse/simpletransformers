@@ -2,7 +2,7 @@
 title: T5 Model
 permalink: /docs/t5-model/
 excerpt: "T5Model for T5 tasks."
-last_modified_at: 2020/07/21 14:14:31
+last_modified_at: 2020/08/10 01:15:58
 toc: true
 ---
 
@@ -145,7 +145,7 @@ A metric function should take in two parameters. The first parameter will be the
 **Note:** For more details on evaluating T5 models with custom metrics, please refer to the [Evaluating Generated Sequences](/docs/t5-specifics/#evaluating-generated-sequences) section.
 {: .notice--info}
 
-**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
+**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
 {: .notice--info}
 
 
@@ -195,7 +195,7 @@ A metric function should take in two parameters. The first parameter will be the
 **Note:** For more details on evaluating T5 models with custom metrics, please refer to the [Evaluating Generated Sequences](/docs/t5-specifics/#evaluating-generated-sequences) section.
 {: .notice--info}
 
-**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/usage/#tips-and-tricks) section.
+**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
 {: .notice--info}
 
 ## Making Predictions With a `T5Model`
