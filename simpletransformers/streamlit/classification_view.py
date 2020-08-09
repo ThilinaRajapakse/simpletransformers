@@ -28,7 +28,12 @@ def get_states(model, session_state=None):
     return session_state, model
 
 
-@st.cache(hash_funcs={ClassificationModel: simple_transformers_model, MultiLabelClassificationModel: simple_transformers_model})
+@st.cache(
+    hash_funcs={
+        ClassificationModel: simple_transformers_model,
+        MultiLabelClassificationModel: simple_transformers_model,
+    }
+)
 def get_prediction(model, input_text):
     prediction, raw_values = model.predict([input_text])
 
@@ -71,9 +76,7 @@ def classification_viewer(model, model_class):
         try:
             session_state, model = get_states(model)
         except AttributeError:
-            session_state = get(
-                max_seq_length=model.args.max_seq_length,
-            )
+            session_state = get(max_seq_length=model.args.max_seq_length,)
             session_state, model = get_states(model, session_state)
 
         model.args.max_seq_length = st.sidebar.slider(

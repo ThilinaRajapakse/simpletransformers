@@ -77,9 +77,14 @@ def qa_viewer(model):
 
         if answers[0] != "empty":
             if len(context_pieces) == 2:
-                st.write(QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], context_pieces[-1]), unsafe_allow_html=True)
+                st.write(
+                    QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], context_pieces[-1]), unsafe_allow_html=True
+                )
             else:
-                st.write(QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], answers[0].join(context_pieces[1:])), unsafe_allow_html=True)
+                st.write(
+                    QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], answers[0].join(context_pieces[1:])),
+                    unsafe_allow_html=True,
+                )
         else:
             st.write(QA_EMPTY_ANSWER_WRAPPER.format("", answers[0], ""), unsafe_allow_html=True)
 
