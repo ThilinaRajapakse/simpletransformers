@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - NER (design inspired by [displaCy Named Entity Visualizer](https://explosion.ai/demos/displacy-ent))
   - QA
 
+See [docs](https://simpletransformers.ai/docs/tips-and-tricks/#simple-viewer-visualizing-model-predictions-with-streamlit) for details.
 
 ## [0.46.5] - 2020-08-05
 
