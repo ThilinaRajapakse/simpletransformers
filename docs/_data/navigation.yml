@@ -39,6 +39,8 @@ docs:
         url: /docs/upgrading/
       - title: "General Usage"
         url: /docs/usage/
+      - title: "Tips and Tricks"
+        url: /docs/tips-and-tricks/
   - title: Text Classification
     children:
       - title: "Classification Specifics"
