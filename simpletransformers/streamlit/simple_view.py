@@ -140,8 +140,8 @@ def streamlit_runner(
         if manual_model:
             st.sidebar.subheader("Model Details")
             fill_info = st.empty()
-            fill_info.markdown("Please fill the Model details on the sidebar.")
-            model_class = st.sidebar.selectbox("Model Class", list(model_class_map.keys()))
+            fill_info.markdown("Please fill the Model details on the sidebar and click `Load Model`.")
+            model_class = st.sidebar.selectbox("Simple Transformers task", list(model_class_map.keys()))
             model_type = st.sidebar.text_input("Model type (e.g. bert, roberta, xlnet)")
             model_name = st.sidebar.text_input("Model name (e.g. bert-base-cased, roberta-base)")
 

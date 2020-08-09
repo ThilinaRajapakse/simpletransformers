@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 from scipy.special import softmax
 
-from simpletransformers.streamlit.streamlit_utils import get
+from simpletransformers.classification import ClassificationModel, MultiLabelClassificationModel
+from simpletransformers.streamlit.streamlit_utils import get, simple_transformers_model
 
 
 def get_states(model, session_state=None):
@@ -25,6 +26,13 @@ def get_states(model, session_state=None):
     model.args.stride = session_state.stride
 
     return session_state, model
+
+
+@st.cache(hash_funcs={ClassificationModel: simple_transformers_model, MultiLabelClassificationModel: simple_transformers_model})
+def get_prediction(model, input_text):
+    prediction, raw_values = model.predict([input_text])
+
+    return prediction, raw_values
 
 
 def classification_viewer(model, model_class):
@@ -73,7 +81,7 @@ def classification_viewer(model, model_class):
         )
 
     if input_text:
-        prediction, raw_values = model.predict([input_text])
+        prediction, raw_values = get_prediction(model, input_text)
         raw_values = [list(np.squeeze(raw_values))]
 
         if model.args.sliding_window and isinstance(raw_values[0][0], np.ndarray):

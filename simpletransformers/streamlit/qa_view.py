@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
 
-from simpletransformers.streamlit.streamlit_utils import get
+from simpletransformers.question_answering import QuestionAnsweringModel
+from simpletransformers.streamlit.streamlit_utils import get, simple_transformers_model
 
 
 QA_ANSWER_WRAPPER = """{} <span style="overflow-x: auto; border: 1px solid #e6e9ef; border-radius: 0.25rem; padding: 0.25rem; background: #a6e22d">{}</span> {}"""
@@ -23,6 +24,15 @@ def get_states(model, session_state=None):
     model.args.max_query_length = session_state.max_query_length
 
     return session_state, model
+
+
+@st.cache(hash_funcs={QuestionAnsweringModel: simple_transformers_model})
+def get_prediction(model, context_text, question_text):
+    to_predict = [{"context": context_text, "qas": [{"id": 0, "question": question_text}]}]
+
+    answers, probabilities = model.predict(to_predict)
+
+    return answers, probabilities
 
 
 def qa_viewer(model):
@@ -58,9 +68,7 @@ def qa_viewer(model):
     question_text = st.text_area("", key="question")
 
     if context_text and question_text:
-        to_predict = [{"context": context_text, "qas": [{"id": 0, "question": question_text}]}]
-
-        answers, probabilities = model.predict(to_predict)
+        answers, probabilities = get_prediction(model, context_text, question_text)
 
         st.subheader(f"Predictions")
         answers = answers[0]["answer"]
@@ -68,7 +76,10 @@ def qa_viewer(model):
         context_pieces = context_text.split(answers[0])
 
         if answers[0] != "empty":
-            st.write(QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], context_pieces[-1]), unsafe_allow_html=True)
+            if len(context_pieces) == 2:
+                st.write(QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], context_pieces[-1]), unsafe_allow_html=True)
+            else:
+                st.write(QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], answers[0].join(context_pieces[1:])), unsafe_allow_html=True)
         else:
             st.write(QA_EMPTY_ANSWER_WRAPPER.format("", answers[0], ""), unsafe_allow_html=True)
 

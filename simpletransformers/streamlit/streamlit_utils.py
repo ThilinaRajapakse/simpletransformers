@@ -1,3 +1,5 @@
+import numpy as np
+
 import streamlit as st
 import collections
 import functools
@@ -158,3 +160,16 @@ def get(**kwargs):
         this_session._custom_session_state = SessionState(**kwargs)
 
     return this_session._custom_session_state
+
+
+def simple_transformers_model(model):
+    return (type(model).__name__, model.args)
+
+
+def get_color(i):
+    # Colors taken from Sasha Trubetskoy's list of colors - https://sashamaps.net/docs/tools/20-colors/
+    colors = [(60, 180, 75, 0.4), (255, 225, 25, 0.4), (0, 130, 200, 0.4), (245, 130, 48, 0.4), (145, 30, 180, 0.4), (70, 240, 240, 0.4), (240, 50, 230, 0.4), (210, 245, 60, 0.4), (250, 190, 212, 0.4), (0, 128, 128, 0.4), (220, 190, 255, 0.4), (170, 110, 40, 0.4), (255, 250, 200, 0.4), (128, 0, 0, 0.4), (170, 255, 195, 0.4), (128, 128, 0, 0.4), (255, 215, 180, 0.4), (0, 0, 128, 0.4), (128, 128, 128, 0.4), (255, 255, 255, 0.4), (0, 0, 0, 0.4), (230, 25, 75, 0.4)]
+    try:
+        return str(colors[i])
+    except IndexError:
+        return str(tuple(np.random.rand(3,).tolist() + 0.7))
