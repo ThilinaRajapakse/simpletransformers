@@ -10,10 +10,12 @@ import math
 import os
 import random
 import warnings
-from multiprocessing import cpu_count
 from dataclasses import asdict
+from multiprocessing import cpu_count
 
 import numpy as np
+import pandas as pd
+import torch
 from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -21,28 +23,11 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tqdm.auto import tqdm, trange
-from tqdm.contrib import tenumerate
-
-import pandas as pd
-import torch
-from simpletransformers.classification.classification_utils import InputExample, convert_examples_to_features
-from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
-from simpletransformers.classification.transformer_models.bert_model import BertForSequenceClassification
-from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
-from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
-from simpletransformers.classification.transformer_models.flaubert_model import FlaubertForSequenceClassification
-from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
-from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
-from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
-from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import ClassificationArgs
-from simpletransformers.classification.classification_utils import LazyClassificationDataset
-from simpletransformers.custom_models.models import ElectraForSequenceClassification
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
+from tqdm.auto import tqdm, trange
+from tqdm.contrib import tenumerate
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
@@ -62,8 +47,8 @@ from transformers import (
     LongformerForSequenceClassification,
     LongformerTokenizer,
     MobileBertConfig,
-    MobileBertTokenizer,
     MobileBertForSequenceClassification,
+    MobileBertTokenizer,
     RobertaConfig,
     RobertaTokenizer,
     XLMConfig,
@@ -74,6 +59,24 @@ from transformers import (
     XLNetTokenizer,
     get_linear_schedule_with_warmup,
 )
+
+from simpletransformers.classification.classification_utils import (
+    InputExample,
+    LazyClassificationDataset,
+    convert_examples_to_features,
+)
+from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
+from simpletransformers.classification.transformer_models.bert_model import BertForSequenceClassification
+from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
+from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
+from simpletransformers.classification.transformer_models.flaubert_model import FlaubertForSequenceClassification
+from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
+from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
+from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
+from simpletransformers.classification.transformer_models.xlnet_model import XLNetForSequenceClassification
+from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import ClassificationArgs
+from simpletransformers.custom_models.models import ElectraForSequenceClassification
 
 try:
     import wandb
@@ -142,7 +145,11 @@ class ClassificationModel:
             if num_labels:
                 assert num_labels == len(self.args.labels_list)
             if self.args.labels_map:
-                assert list(self.args.labels_map.keys()) == self.args.labels_list
+                try:
+                    assert list(self.args.labels_map.keys()) == self.args.labels_list
+                except AssertionError:
+                    assert [int(key) for key in list(self.args.labels_map.keys())] == self.args.labels_list
+                    self.args.labels_map = {int(key): value for key, value in self.args.labels_map.items()}
             else:
                 self.args.labels_map = {label: i for i, label in enumerate(self.args.labels_list)}
         else:
@@ -393,14 +400,6 @@ class ClassificationModel:
             optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
         )
 
-        if args.fp16:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
-
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
@@ -443,6 +442,11 @@ class ClassificationModel:
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
+        if args.fp16:
+            from torch.cuda import amp
+
+            scaler = amp.GradScaler()
+
         model.train()
         for _ in train_iterator:
             if epochs_trained > 0:
@@ -461,9 +465,15 @@ class ClassificationModel:
                     continue
 
                 inputs = self._get_inputs_dict(batch)
-                outputs = model(**inputs)
-                # model outputs are always tuple in pytorch-transformers (see doc)
-                loss = outputs[0]
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        # model outputs are always tuple in pytorch-transformers (see doc)
+                        loss = outputs[0]
+                else:
+                    outputs = model(**inputs)
+                    # model outputs are always tuple in pytorch-transformers (see doc)
+                    loss = outputs[0]
 
                 if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -479,25 +489,21 @@ class ClassificationModel:
                     loss = loss / args.gradient_accumulation_steps
 
                 if args.fp16:
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                    # torch.nn.utils.clip_grad_norm_(
-                    #     amp.master_params(optimizer), args.max_grad_norm
-                    # )
+                    scaler.scale(loss).backward()
                 else:
                     loss.backward()
-                    # torch.nn.utils.clip_grad_norm_(
-                    #     model.parameters(), args.max_grad_norm
-                    # )
 
                 tr_loss += loss.item()
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
-                    else:
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                        scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
-                    optimizer.step()
+                    if args.fp16:
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1

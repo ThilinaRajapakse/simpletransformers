@@ -1,8 +1,8 @@
-from dataclasses import dataclass, field, fields, asdict
-from multiprocessing import cpu_count
 import json
-import sys
 import os
+import sys
+from dataclasses import asdict, dataclass, field, fields
+from multiprocessing import cpu_count
 
 from torch.utils.data import Dataset
 
@@ -42,7 +42,6 @@ class ModelArgs:
     evaluate_during_training_steps: int = 2000
     evaluate_during_training_verbose: bool = False
     fp16: bool = True
-    fp16_opt_level: str = "O1"
     gradient_accumulation_steps: int = 1
     learning_rate: float = 4e-5
     local_rank: int = -1

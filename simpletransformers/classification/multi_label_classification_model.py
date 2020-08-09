@@ -1,24 +1,10 @@
 import logging
+import random
 import warnings
 from multiprocessing import cpu_count
-import random
-import numpy as np
 
+import numpy as np
 import torch
-from simpletransformers.classification import ClassificationModel
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import MultiLabelClassificationArgs
-from simpletransformers.custom_models.models import (
-    AlbertForMultiLabelSequenceClassification,
-    BertForMultiLabelSequenceClassification,
-    DistilBertForMultiLabelSequenceClassification,
-    ElectraForMultiLabelSequenceClassification,
-    FlaubertForMultiLabelSequenceClassification,
-    RobertaForMultiLabelSequenceClassification,
-    XLMForMultiLabelSequenceClassification,
-    XLMRobertaForMultiLabelSequenceClassification,
-    XLNetForMultiLabelSequenceClassification,
-)
 from transformers import (
     WEIGHTS_NAME,
     AlbertConfig,
@@ -39,6 +25,21 @@ from transformers import (
     XLMTokenizer,
     XLNetConfig,
     XLNetTokenizer,
+)
+
+from simpletransformers.classification import ClassificationModel
+from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import MultiLabelClassificationArgs
+from simpletransformers.custom_models.models import (
+    AlbertForMultiLabelSequenceClassification,
+    BertForMultiLabelSequenceClassification,
+    DistilBertForMultiLabelSequenceClassification,
+    ElectraForMultiLabelSequenceClassification,
+    FlaubertForMultiLabelSequenceClassification,
+    RobertaForMultiLabelSequenceClassification,
+    XLMForMultiLabelSequenceClassification,
+    XLMRobertaForMultiLabelSequenceClassification,
+    XLNetForMultiLabelSequenceClassification,
 )
 
 try:

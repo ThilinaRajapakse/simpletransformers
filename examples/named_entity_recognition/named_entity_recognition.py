@@ -1,7 +1,8 @@
-import pandas as pd
-from simpletransformers.ner import NERModel
 import numpy as np
+import pandas as pd
 from scipy.special import softmax
+
+from simpletransformers.ner import NERModel
 
 # Creating train_df  and eval_df for demonstration
 train_data = [

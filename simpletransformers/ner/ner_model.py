@@ -6,35 +6,24 @@ import math
 import os
 import random
 import warnings
-from multiprocessing import cpu_count
 from dataclasses import asdict
+from multiprocessing import cpu_count
 
 import numpy as np
-from scipy.stats import pearsonr
-from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
-from tqdm.auto import tqdm, trange
-
 import pandas as pd
 import torch
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import NERArgs
-from simpletransformers.ner.ner_utils import (
-    InputExample,
-    convert_examples_to_features,
-    get_examples_from_df,
-    get_labels,
-    read_examples_from_file,
-    LazyNERDataset,
-)
+from scipy.stats import pearsonr
+from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
 from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
     AutoConfig,
-    AutoTokenizer,
     AutoModelForTokenClassification,
+    AutoTokenizer,
     BertConfig,
     BertForTokenClassification,
     BertTokenizer,
@@ -51,8 +40,8 @@ from transformers import (
     LongformerForTokenClassification,
     LongformerTokenizer,
     MobileBertConfig,
-    MobileBertTokenizer,
     MobileBertForTokenClassification,
+    MobileBertTokenizer,
     RobertaConfig,
     RobertaForTokenClassification,
     RobertaTokenizer,
@@ -60,6 +49,17 @@ from transformers import (
     XLMRobertaForTokenClassification,
     XLMRobertaTokenizer,
     get_linear_schedule_with_warmup,
+)
+
+from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import NERArgs
+from simpletransformers.ner.ner_utils import (
+    InputExample,
+    LazyNERDataset,
+    convert_examples_to_features,
+    get_examples_from_df,
+    get_labels,
+    read_examples_from_file,
 )
 
 try:
@@ -335,14 +335,6 @@ class NERModel:
             optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
         )
 
-        if args.fp16:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
-
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
@@ -383,6 +375,11 @@ class NERModel:
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
+        if args.fp16:
+            from torch.cuda import amp
+
+            scaler = amp.GradScaler()
+
         model.train()
         for _ in train_iterator:
             if epochs_trained > 0:
@@ -403,9 +400,15 @@ class NERModel:
 
                 inputs = self._get_inputs_dict(batch)
 
-                outputs = model(**inputs)
-                # model outputs are always tuple in pytorch-transformers (see doc)
-                loss = outputs[0]
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        # model outputs are always tuple in pytorch-transformers (see doc)
+                        loss = outputs[0]
+                else:
+                    outputs = model(**inputs)
+                    # model outputs are always tuple in pytorch-transformers (see doc)
+                    loss = outputs[0]
 
                 if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -421,24 +424,21 @@ class NERModel:
                     loss = loss / args.gradient_accumulation_steps
 
                 if args.fp16:
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                    # torch.nn.utils.clip_grad_norm_(
-                    #     amp.master_params(optimizer), args.max_grad_norm
-                    # )
+                    scaler.scale(loss).backward()
                 else:
                     loss.backward()
-                    # torch.nn.utils.clip_grad_norm_(
-                    #     model.parameters(), args.max_grad_norm
-                    # )
 
                 tr_loss += loss.item()
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
+                        scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+
+                    if args.fp16:
+                        scaler.step(optimizer)
+                        scaler.update()
                     else:
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-                    optimizer.step()
+                        optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1

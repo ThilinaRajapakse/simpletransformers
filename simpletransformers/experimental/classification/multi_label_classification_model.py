@@ -1,15 +1,6 @@
 from multiprocessing import cpu_count
 
 import torch
-from simpletransformers.classification import ClassificationModel
-from simpletransformers.custom_models.models import (
-    AlbertForMultiLabelSequenceClassification,
-    BertForMultiLabelSequenceClassification,
-    DistilBertForMultiLabelSequenceClassification,
-    RobertaForMultiLabelSequenceClassification,
-    XLMForMultiLabelSequenceClassification,
-    XLNetForMultiLabelSequenceClassification,
-)
 from transformers import (
     WEIGHTS_NAME,
     AlbertConfig,
@@ -24,6 +15,16 @@ from transformers import (
     XLMTokenizer,
     XLNetConfig,
     XLNetTokenizer,
+)
+
+from simpletransformers.classification import ClassificationModel
+from simpletransformers.custom_models.models import (
+    AlbertForMultiLabelSequenceClassification,
+    BertForMultiLabelSequenceClassification,
+    DistilBertForMultiLabelSequenceClassification,
+    RobertaForMultiLabelSequenceClassification,
+    XLMForMultiLabelSequenceClassification,
+    XLNetForMultiLabelSequenceClassification,
 )
 
 
@@ -85,7 +86,6 @@ class MultiLabelClassificationModel(ClassificationModel):
             "output_dir": "outputs/",
             "cache_dir": "cache_dir/",
             "fp16": False,
-            "fp16_opt_level": "O1",
             "max_seq_length": 128,
             "train_batch_size": 8,
             "gradient_accumulation_steps": 1,

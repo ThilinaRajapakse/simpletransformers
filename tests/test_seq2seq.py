@@ -1,7 +1,9 @@
+import os
+
 import pandas as pd
 import pytest
+
 from simpletransformers.seq2seq import Seq2SeqArgs, Seq2SeqModel
-import os
 
 
 @pytest.mark.parametrize(

@@ -2,10 +2,10 @@ import logging
 from statistics import mean, mode
 
 import pandas as pd
+import wandb
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 
-import wandb
 from simpletransformers.classification import ClassificationArgs, ClassificationModel
 from utils import load_rte_data_file
 

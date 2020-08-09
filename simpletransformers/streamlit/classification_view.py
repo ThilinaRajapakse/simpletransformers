@@ -30,6 +30,7 @@ def get_states(model, session_state=None):
 def classification_viewer(model, model_class):
     st.subheader("Enter text: ")
     input_text = st.text_area("")
+    st.sidebar.subheader("Parameters")
 
     if model_class == "ClassificationModel":
         try:
@@ -42,7 +43,6 @@ def classification_viewer(model, model_class):
             )
             session_state, model = get_states(model, session_state)
 
-        st.subheader(f"Predictions")
         model.args.max_seq_length = st.sidebar.slider(
             "Max Seq Length", min_value=1, max_value=512, value=model.args.max_seq_length
         )
@@ -59,6 +59,18 @@ def classification_viewer(model, model_class):
             model.args.stride = st.sidebar.slider(
                 "Stride (Fraction of Max Seq Length)", min_value=0.0, max_value=1.0, value=model.args.stride
             )
+    elif model_class == "MultiLabelClassificationModel":
+        try:
+            session_state, model = get_states(model)
+        except AttributeError:
+            session_state = get(
+                max_seq_length=model.args.max_seq_length,
+            )
+            session_state, model = get_states(model, session_state)
+
+        model.args.max_seq_length = st.sidebar.slider(
+            "Max Seq Length", min_value=1, max_value=512, value=model.args.max_seq_length
+        )
 
     if input_text:
         prediction, raw_values = model.predict([input_text])

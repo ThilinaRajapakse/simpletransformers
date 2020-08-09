@@ -411,7 +411,18 @@
       "avatar_url": "https://avatars1.githubusercontent.com/u/14850762?v=4",
       "profile": "http://pablomarino.me",
       "contributions": [
-        "code"
+        "code",
+        "doc"
+      ]
+    },
+    {
+      "login": "strawberrypie",
+      "name": "Anton Kiselev",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/29224443?v=4",
+      "profile": "http://linkedin.com/in/strawberrypie/",
+      "contributions": [
+        "code",
+        "doc"
       ]
     }
   ],

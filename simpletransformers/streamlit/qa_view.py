@@ -26,6 +26,7 @@ def get_states(model, session_state=None):
 
 
 def qa_viewer(model):
+    st.sidebar.subheader("Parameters")
     try:
         session_state, model = get_states(model)
     except AttributeError:
@@ -36,7 +37,6 @@ def qa_viewer(model):
         )
         session_state, model = get_states(model, session_state)
 
-    st.subheader(f"Predictions")
     model.args.max_seq_length = st.sidebar.slider(
         "Max Seq Length", min_value=1, max_value=512, value=model.args.max_seq_length
     )

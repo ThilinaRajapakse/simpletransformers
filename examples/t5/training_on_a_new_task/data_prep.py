@@ -1,7 +1,8 @@
-import pandas as pd
 import gzip
-from sklearn.model_selection import train_test_split
 import os
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
 from tqdm.auto import tqdm
 
 

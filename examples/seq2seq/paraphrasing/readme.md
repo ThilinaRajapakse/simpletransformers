@@ -1,0 +1,1 @@
+Code for the Medium Article [here](https://towardsdatascience.com/bart-for-paraphrasing-with-simple-transformers-7c9ea3dfdd8c?source=friends_link&sk=07420669325ac550f86b86bad362633c).

@@ -1,7 +1,9 @@
+import os
+
 import pandas as pd
 import pytest
+
 from simpletransformers.language_modeling import LanguageModelingModel
-import os
 
 
 @pytest.mark.parametrize(

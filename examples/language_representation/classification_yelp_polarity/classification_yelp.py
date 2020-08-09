@@ -1,8 +1,10 @@
-import pandas as pd
-from sklearn.metrics import classification_report
-from sklearn.linear_model import RidgeClassifier
-from simpletransformers.language_representation import RepresentationModel
 from os.path import dirname, join
+
+import pandas as pd
+from sklearn.linear_model import RidgeClassifier
+from sklearn.metrics import classification_report
+
+from simpletransformers.language_representation import RepresentationModel
 
 project_root = dirname(dirname(dirname(dirname(__file__))))  # path to root of the project
 

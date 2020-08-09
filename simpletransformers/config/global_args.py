@@ -1,6 +1,5 @@
-from multiprocessing import cpu_count
 import sys
-
+from multiprocessing import cpu_count
 
 global_args = {
     "adam_epsilon": 1e-8,
@@ -20,7 +19,6 @@ global_args = {
     "evaluate_during_training_steps": 2000,
     "evaluate_during_training_verbose": False,
     "fp16": True,
-    "fp16_opt_level": "O1",
     "gradient_accumulation_steps": 1,
     "learning_rate": 4e-5,
     "local_rank": -1,

@@ -2,31 +2,28 @@ from __future__ import absolute_import, division, print_function
 
 import collections
 import json
+import linecache
 import logging
 import math
 import mmap
 import os
 import re
 import string
+from functools import partial
 from io import open
 from multiprocessing import Pool, cpu_count
-from functools import partial
 from pprint import pprint
-from torch.utils.data import Dataset
-
-from tqdm import tqdm, trange
-import linecache
 
 import torch
 from tensorboardX import SummaryWriter
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-from transformers import AdamW, get_linear_schedule_with_warmup
-from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
-from transformers import XLMTokenizer, SquadExample
+from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler, TensorDataset
+from tqdm import tqdm, trange
+from transformers import AdamW, SquadExample, XLMTokenizer, get_linear_schedule_with_warmup
 from transformers.data.processors.squad import (
-    squad_convert_example_to_features_init,
     squad_convert_example_to_features,
+    squad_convert_example_to_features_init,
 )
+from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
 
 logger = logging.getLogger(__name__)
 

@@ -4,11 +4,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## UNRELEASED
+## [0.47.0] - 2020-08-09
 
-- Removed blank string answer in Question Answering predictions
+### Added
 
-## [0.45.2] - 2020-07-19
+- Added support for testing models through a Streamlit app. Use the command `simpl-viewer". Currently supports:
+  - Classification (including multilabel)
+  - NER (design inspired by [displaCy Named Entity Visualizer](https://explosion.ai/demos/displacy-ent))
+  - QA
+
+
+## [0.46.5] - 2020-08-05
+
+### Changed
+
+- Python version requirement changed back to 3.6 for Colab support.
+- Miscellaneous bug fixes in 0.46.3 and 0.46.4
+
+## [0.46.2] - 2020-08-01
+
+### Fixed
+
+- Fixed unreachable condition in Electra language modeling.
+
+## [0.46.1] - 2020-08-01
+
+### Fixed
+
+- Bug in ConvAI models where cache_dir was not being created.
+
+## [0.46.0] - 2020-08-01
+
+### Changed
+
+- Uses PyTorch native AMP instead of Apex. [@strawberrypie](https://github.com/strawberrypie)
+
+## [0.45.5] - 2020-07-29
+
+### Fixed
+
+- Bug fixed in loading classiication models with a `labels_map` where labels are ints.
+
+## [0.45.4] - 2020-07-28
+
+### Fixed
+
+- Bug fixed in lazy loading classification tasks where `lazy_text_column=0` caused an error.
+
+## [0.45.2] - 2020-07-25
 
 ### Added
 
@@ -1001,7 +1044,21 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.45.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e98361...HEAD
+[0.46.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2cc77f7...HEAD
+
+[0.46.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7f37cb7...2cc77f7
+
+[0.46.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b64637c...7f37cb7
+
+[0.46.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/121cba4...b64637c
+
+[0.46.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/120d1e6...121cba4
+
+[0.45.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0ac6b69...120d1e6
+
+[0.45.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ac0f1a0...0ac6b69
+
+[0.45.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e98361...ac0f1a0
 
 [0.45.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/fad190f...3e98361
 

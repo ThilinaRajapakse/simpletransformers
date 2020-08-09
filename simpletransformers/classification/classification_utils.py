@@ -18,11 +18,19 @@ from __future__ import absolute_import, division, print_function
 
 import csv
 import json
+import linecache
 import os
 import sys
 from collections import Counter
 from io import open
 from multiprocessing import Pool, cpu_count
+
+import torch
+import torch.nn as nn
+from scipy.stats import pearsonr, spearmanr
+from sklearn.metrics import f1_score, matthews_corrcoef
+from torch.utils.data import Dataset
+from tqdm.auto import tqdm
 
 try:
     import torchvision
@@ -33,14 +41,6 @@ try:
 except ImportError:
     torchvision_available = False
 
-import linecache
-from scipy.stats import pearsonr, spearmanr
-from sklearn.metrics import f1_score, matthews_corrcoef
-from tqdm.auto import tqdm
-
-import torch
-import torch.nn as nn
-from torch.utils.data import Dataset
 
 csv.field_size_limit(2147483647)
 
@@ -566,6 +566,8 @@ class LazyClassificationDataset(Dataset):
             self.text_column = None
         else:
             self.text_column = args.lazy_text_column
+            self.text_a_column = None
+            self.text_b_column = None
         self.labels_column = args.lazy_labels_column
 
     @staticmethod
@@ -579,7 +581,7 @@ class LazyClassificationDataset(Dataset):
     def __getitem__(self, idx):
         line = linecache.getline(self.data_file, idx + 1 + self.start_row).rstrip("\n").split(self.delimiter)
 
-        if self.text_column:
+        if not self.text_a_column and not self.text_b_column:
             text = line[self.text_column]
             label = line[self.labels_column]
 

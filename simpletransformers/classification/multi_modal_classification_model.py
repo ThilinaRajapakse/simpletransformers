@@ -10,10 +10,12 @@ import math
 import os
 import random
 import warnings
-from multiprocessing import cpu_count
 from dataclasses import asdict
+from multiprocessing import cpu_count
 
 import numpy as np
+import pandas as pd
+import torch
 from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -21,10 +23,21 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
+from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
+from transformers import (
+    BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
+    WEIGHTS_NAME,
+    AdamW,
+    BertConfig,
+    BertModel,
+    BertTokenizer,
+    get_linear_schedule_with_warmup,
+)
+from transformers.configuration_mmbt import MMBTConfig
 
-import pandas as pd
-import torch
 from simpletransformers.classification.classification_utils import (
     ImageEncoder,
     InputExample,
@@ -34,21 +47,8 @@ from simpletransformers.classification.classification_utils import (
     get_image_transforms,
 )
 from simpletransformers.classification.transformer_models.mmbt_model import MMBTForClassification
-from simpletransformers.config.model_args import MultiModalClassificationArgs
 from simpletransformers.config.global_args import global_args
-from tensorboardX import SummaryWriter
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
-from torch.utils.data.distributed import DistributedSampler
-from transformers import (
-    WEIGHTS_NAME,
-    AdamW,
-    BertConfig,
-    BertModel,
-    BertTokenizer,
-    get_linear_schedule_with_warmup,
-    BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-)
-from transformers.configuration_mmbt import MMBTConfig
+from simpletransformers.config.model_args import MultiModalClassificationArgs
 
 try:
     import wandb
@@ -432,14 +432,6 @@ class MultiModalClassificationModel:
             optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
         )
 
-        if args.fp16:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
-
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
@@ -458,6 +450,11 @@ class MultiModalClassificationModel:
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
+        if args.fp16:
+            from torch.cuda import amp
+
+            scaler = amp.GradScaler()
+
         model.train()
         for _ in train_iterator:
             train_iterator.set_description(f"Epoch {epoch_number} of {args.num_train_epochs}")
@@ -473,10 +470,16 @@ class MultiModalClassificationModel:
                 labels = batch[5]
 
                 inputs = self._get_inputs_dict(batch)
-                outputs = model(**inputs)
-                # model outputs are always tuple in pytorch-transformers (see doc)
-                logits = outputs[0]  # Different from default behaviour
-                loss = self.criterion(logits, labels)
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        # model outputs are always tuple in pytorch-transformers (see doc)
+                        loss = outputs[0]
+                else:
+                    outputs = model(**inputs)
+                    # model outputs are always tuple in pytorch-transformers (see doc)
+                    logits = outputs[0]  # Different from default behaviour
+                    loss = self.criterion(logits, labels)
 
                 if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -492,25 +495,21 @@ class MultiModalClassificationModel:
                     loss = loss / args.gradient_accumulation_steps
 
                 if args.fp16:
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                    # torch.nn.utils.clip_grad_norm_(
-                    #     amp.master_params(optimizer), args.max_grad_norm
-                    # )
+                    scaler.scale(loss).backward()
                 else:
                     loss.backward()
-                    # torch.nn.utils.clip_grad_norm_(
-                    #     model.parameters(), args.max_grad_norm
-                    # )
 
                 tr_loss += loss.item()
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
-                    else:
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                        scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
-                    optimizer.step()
+                    if args.fp16:
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1

@@ -2,12 +2,11 @@ import logging
 from statistics import mean
 
 import pandas as pd
+import wandb
 from sklearn.metrics import accuracy_score
 
-import wandb
 from simpletransformers.classification import ClassificationArgs, ClassificationModel
 from utils import load_rte_data_file
-
 
 logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")

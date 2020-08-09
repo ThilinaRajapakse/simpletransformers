@@ -111,54 +111,49 @@ def streamlit_runner(
     cuda_device=-1,
     **kwargs,
 ):
+    st.title("Simple Transformers Viewer")
+    st.markdown("---")
+    info_text = st.empty()
     if not (model_class and model_type and model_name):
         model_list = find_all_models(".", [])
         selected_dir = st.sidebar.selectbox("Choose Model", model_list)
         if selected_dir:
             selected_dir = selected_dir.split(":- ")[-1]
         else:
-            st.subheader("No models found in current directory.")
-            st.markdown(
+            info_text.markdown(
                 """
-            Simple Viewer looked everywhere in this directory and subdirectories but didn't find any Simple Transformers models. :(
+                ### No models found in current directory.
 
-            If you are trying to load models saved with an older Simple Transformers version, make sure the `model_args.json` file
-            contains the `model_class`, `model_type`, and `model_name`.
+                Simple Viewer looked everywhere in this directory and subdirectories but didn't find any Simple Transformers models. :worried:
 
-            Or, you can write a Python script like the one below and save it to `view.py`.
+                If you are trying to load models saved with an older Simple Transformers version, make sure the `model_args.json` file
+                contains the `model_class`, `model_type`, and `model_name`.
 
-            ```python
-            from simpletransformers.streamlit.simple_view import streamlit_runner
+                Or, you can specify the model paths manually through the "Specify model manually" option on the sidebar.
 
+                ---
 
-            streamlit_runner(model_class="ClassificationModel", model_type="distilbert", model_name="outputs")
-
-            ```
-
-            You can execute this with `streamlit run view.py`.
-
-            The `streamlit_runner()` function accepts all the same arguments as the corresponding Simple Transformers model.
-            """
+                """
             )
 
         manual_model = st.sidebar.checkbox("Specify model manually", value=False if selected_dir else True)
         if manual_model:
             st.sidebar.subheader("Model Details")
-            st.write("Please fill the Model details on the sidebar or select a model from the Choose Model dropdown.")
+            fill_info = st.empty()
+            fill_info.markdown("Please fill the Model details on the sidebar.")
             model_class = st.sidebar.selectbox("Model Class", list(model_class_map.keys()))
             model_type = st.sidebar.text_input("Model type (e.g. bert, roberta, xlnet)")
             model_name = st.sidebar.text_input("Model name (e.g. bert-base-cased, roberta-base)")
 
             if manual_model_load(model_class, model_type, model_name):
                 selected_dir = None
-
+                info_text.markdown("")
+                fill_info.markdown("")
     model, model_class = load_model(
         selected_dir, model_class, model_type, model_name, num_labels, weight, args, use_cuda, cuda_device, **kwargs
     )
     model.args.use_multiprocessing = False
 
-    st.title("Simple Transformers Viewer")
-    st.markdown("---")
     st.header(model_class_map[model_class])
 
     if model_class in ["ClassificationModel", "MultiLabelClassificationModel"]:

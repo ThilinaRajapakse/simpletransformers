@@ -6,10 +6,12 @@ import math
 import os
 import random
 import warnings
-from multiprocessing import cpu_count
 from dataclasses import asdict
+from multiprocessing import cpu_count
 
 import numpy as np
+import pandas as pd
+import torch
 from scipy.stats import pearsonr
 from sklearn.metrics import (
     confusion_matrix,
@@ -17,39 +19,19 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tqdm.auto import tqdm, trange
-
-import pandas as pd
-import torch
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import QuestionAnsweringArgs
-from simpletransformers.custom_models.models import ElectraForQuestionAnswering, XLMRobertaForQuestionAnswering
-from simpletransformers.question_answering.question_answering_utils import (
-    LazyQuestionAnsweringDataset,
-    RawResult,
-    RawResultExtended,
-    build_examples,
-    convert_examples_to_features,
-    get_best_predictions,
-    get_best_predictions_extended,
-    get_examples,
-    to_list,
-    write_predictions,
-    write_predictions_extended,
-    squad_convert_examples_to_features,
-)
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
+from tqdm.auto import tqdm, trange
 from transformers import (
     WEIGHTS_NAME,
     AdamW,
-    AutoConfig,
-    AutoTokenizer,
-    AutoModelForQuestionAnswering,
     AlbertConfig,
     AlbertForQuestionAnswering,
     AlbertTokenizer,
+    AutoConfig,
+    AutoModelForQuestionAnswering,
+    AutoTokenizer,
     BartConfig,
     BartForQuestionAnswering,
     BartTokenizer,
@@ -62,23 +44,41 @@ from transformers import (
     ElectraConfig,
     ElectraTokenizer,
     LongformerConfig,
-    LongformerTokenizer,
     LongformerForQuestionAnswering,
+    LongformerTokenizer,
     MobileBertConfig,
-    MobileBertTokenizer,
     MobileBertForQuestionAnswering,
+    MobileBertTokenizer,
     RobertaConfig,
     RobertaForQuestionAnswering,
     RobertaTokenizer,
     XLMConfig,
     XLMForQuestionAnswering,
-    XLMTokenizer,
     XLMRobertaConfig,
     XLMRobertaTokenizer,
+    XLMTokenizer,
     XLNetConfig,
     XLNetForQuestionAnswering,
     XLNetTokenizer,
     get_linear_schedule_with_warmup,
+)
+
+from simpletransformers.config.global_args import global_args
+from simpletransformers.config.model_args import QuestionAnsweringArgs
+from simpletransformers.custom_models.models import ElectraForQuestionAnswering, XLMRobertaForQuestionAnswering
+from simpletransformers.question_answering.question_answering_utils import (
+    LazyQuestionAnsweringDataset,
+    RawResult,
+    RawResultExtended,
+    build_examples,
+    convert_examples_to_features,
+    get_best_predictions,
+    get_best_predictions_extended,
+    get_examples,
+    squad_convert_examples_to_features,
+    to_list,
+    write_predictions,
+    write_predictions_extended,
 )
 
 try:
@@ -396,14 +396,6 @@ class QuestionAnsweringModel:
             optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
         )
 
-        if args.fp16:
-            try:
-                from apex import amp
-            except ImportError:
-                raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-
-            model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
-
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
@@ -445,6 +437,11 @@ class QuestionAnsweringModel:
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
+        if args.fp16:
+            from torch.cuda import amp
+
+            scaler = amp.GradScaler()
+
         model.train()
         for _ in train_iterator:
             if epochs_trained > 0:
@@ -464,10 +461,15 @@ class QuestionAnsweringModel:
                 batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
-
-                outputs = model(**inputs)
-                # model outputs are always tuple in pytorch-transformers (see doc)
-                loss = outputs[0]
+                if args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        # model outputs are always tuple in pytorch-transformers (see doc)
+                        loss = outputs[0]
+                else:
+                    outputs = model(**inputs)
+                    # model outputs are always tuple in pytorch-transformers (see doc)
+                    loss = outputs[0]
 
                 if args.n_gpu > 1:
                     loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -483,25 +485,21 @@ class QuestionAnsweringModel:
                     loss = loss / args.gradient_accumulation_steps
 
                 if args.fp16:
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                    # torch.nn.utils.clip_grad_norm_(
-                    #     amp.master_params(optimizer), args.max_grad_norm
-                    # )
+                    scaler.scale(loss).backward()
                 else:
                     loss.backward()
-                    # torch.nn.utils.clip_grad_norm_(
-                    #     model.parameters(), args.max_grad_norm
-                    # )
 
                 tr_loss += loss.item()
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16:
-                        torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
-                    else:
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                        scaler.unscale_(optimizer)
+                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
-                    optimizer.step()
+                    if args.fp16:
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        optimizer.step()
                     scheduler.step()  # Update learning rate schedule
                     model.zero_grad()
                     global_step += 1
@@ -854,7 +852,8 @@ class QuestionAnsweringModel:
             n_best_size (Optional): Number of predictions to return. args.n_best_size will be used if not specified.
 
         Returns:
-            preds: A python list containing the predicted answer, and id for each question in to_predict.
+            list: A python list  of dicts containing the predicted answer/answers, and id for each question in to_predict.
+            list: A python list  of dicts containing the predicted probability/probabilities, and id for each question in to_predict.
         """  # noqa: ignore flake8"
         tokenizer = self.tokenizer
         device = self.device
