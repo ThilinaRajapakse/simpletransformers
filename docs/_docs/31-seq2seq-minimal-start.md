@@ -2,7 +2,7 @@
 title: Seq2Seq Minimal Start
 permalink: /docs/seq2seq-minimal-start/
 excerpt: "Minimal start for Seq2Seq."
-last_modified_at: 2020/08/05 21:34:49
+last_modified_at: 2020/08/10 23:08:46
 ---
 
 ## Generic Encoder-Decoder minimal start
@@ -53,7 +53,7 @@ model_args.evaluate_during_training = True
 model_args.evaluate_during_training_verbose = True
 
 model = Seq2SeqModel(
-    "roberta,
+    "roberta",
     "roberta-base",
     "bert-base-cased",
     args=model_args,
