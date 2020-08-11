@@ -253,7 +253,6 @@ class MultiModalClassificationModel:
         """  # noqa: ignore flake8"
         # importing here and not at module level because function `predict` does not need the following import
         import pandas as pd
-        from tensorboardX import SummaryWriter
         
         if args:
             self.args.update_from_dict(args)
