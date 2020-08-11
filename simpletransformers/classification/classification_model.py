@@ -14,7 +14,6 @@ from dataclasses import asdict
 from multiprocessing import cpu_count
 
 import numpy as np
-import pandas as pd
 import torch
 from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
@@ -23,7 +22,6 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
@@ -235,6 +233,9 @@ class ClassificationModel:
             None
         """  # noqa: ignore flake8"
 
+        # importing here and not at module level because function `predict` does not need the following import
+        import pandas as pd
+
         if args:
             self.args.update_from_dict(args)
 
@@ -330,6 +331,9 @@ class ClassificationModel:
 
         Utility function to be used by the train_model() method. Not intended to be used directly.
         """
+        # importing here and not at module level because function `predict` does not need the following imports
+        import pandas as pd
+        from tensorboardX import SummaryWriter 
 
         model = self.model
         args = self.args
@@ -701,6 +705,9 @@ class ClassificationModel:
             model_outputs: List of model outputs for each row in eval_df
             wrong_preds: List of InputExample objects corresponding to each incorrect prediction by the model
         """  # noqa: ignore flake8"
+        
+        # importing here and not at module level because function `predict` does not need the following import
+        import pandas as pd
 
         if not output_dir:
             output_dir = self.args.output_dir
@@ -725,7 +732,10 @@ class ClassificationModel:
 
         Utility function to be used by the eval_model() method. Not intended to be used directly.
         """
-
+        
+        # importing here and not at module level because function `predict` does not need the following import
+        import pandas as pd
+        
         model = self.model
         args = self.args
         eval_output_dir = output_dir

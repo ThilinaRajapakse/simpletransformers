@@ -14,7 +14,6 @@ from dataclasses import asdict
 from multiprocessing import cpu_count
 
 import numpy as np
-import pandas as pd
 import torch
 from scipy.stats import mode, pearsonr
 from sklearn.metrics import (
@@ -23,7 +22,6 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
@@ -253,7 +251,10 @@ class MultiModalClassificationModel:
         Returns:
             None
         """  # noqa: ignore flake8"
-
+        # importing here and not at module level because function `predict` does not need the following import
+        import pandas as pd
+        from tensorboardX import SummaryWriter
+        
         if args:
             self.args.update_from_dict(args)
 
@@ -352,7 +353,10 @@ class MultiModalClassificationModel:
 
         Utility function to be used by the train_model() method. Not intended to be used directly.
         """
-
+        # importing here and not at module level because function `predict` does not need the following imports
+        import pandas as pd
+        from tensorboardX import SummaryWriter
+        
         device = self.device
         model = self.model
         args = self.args
@@ -740,6 +744,9 @@ class MultiModalClassificationModel:
             model_outputs: List of model outputs for each row in eval_df
         """  # noqa: ignore flake8"
 
+        # importing here and not at module level because function `predict` does not need the following import
+        import pandas as pd
+
         if text_label:
             self.args.text_label = text_label
 
@@ -795,6 +802,8 @@ class MultiModalClassificationModel:
 
         Utility function to be used by the eval_model() method. Not intended to be used directly.
         """
+        # importing here and not at module level because function `predict` does not need the following imports
+        import pandas as pd
 
         device = self.device
         model = self.model
