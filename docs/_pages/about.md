@@ -54,4 +54,12 @@ Happy [transforming](/docs/installation/)!
 
 ---
 
+## Donations and Support
+
+If you find Simple Transformers helpful, please consider becoming a Patron!
+
+<a href="https://www.patreon.com/bePatron?u=20014970" data-patreon-widget-type="become-patron-button">Become a Patron!</a><script async src="https://c6.patreon.com/becomePatronButton.bundle.js"></script>
+
+---
+
 Simple Transformers is developed, maintained, and updated by Thilina Rajapakse with the help of all these wonderful [contributors](https://github.com/ThilinaRajapakse/simpletransformers#contributors-)!
