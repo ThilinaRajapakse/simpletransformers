@@ -308,6 +308,7 @@ class ClassificationModel:
                         else:
                             outputs = model(**inputs)
                         # model outputs are always tuple in pytorch-transformers (see doc)
+                    loss = outputs[0]
                 else:
                     if self.sliding_window:
                         outputs = model(inputs)
