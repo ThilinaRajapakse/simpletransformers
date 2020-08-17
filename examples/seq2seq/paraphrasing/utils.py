@@ -3,14 +3,10 @@ import warnings
 import pandas as pd
 
 
-def load_data(
-    file_path, input_text_column, target_text_column, label_column, keep_label=1
-):
+def load_data(file_path, input_text_column, target_text_column, label_column, keep_label=1):
     df = pd.read_csv(file_path, sep="\t", error_bad_lines=False)
     df = df.loc[df[label_column] == keep_label]
-    df = df.rename(
-        columns={input_text_column: "input_text", target_text_column: "target_text"}
-    )
+    df = df.rename(columns={input_text_column: "input_text", target_text_column: "target_text"})
     df = df[["input_text", "target_text"]]
     df["prefix"] = "paraphrase"
 

@@ -25,15 +25,6 @@ Supports
 
 **New documentation is now live at [simpletransformers.ai](https://simpletransformers.ai/)**
 
-Currently added:
-
-- Text classification
-- NER
-- Question answering
-- Language model training
-  - Language model fine-tuning
-  - Training language models from scratch
-
 Any feedback will be immensely helpful in improving the documentation! If you have any feedback, please leave a comment in the [issue](https://github.com/ThilinaRajapakse/simpletransformers/issues/342) I've opened for this.
 
 

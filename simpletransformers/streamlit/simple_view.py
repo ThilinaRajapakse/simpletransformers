@@ -3,6 +3,7 @@ import json
 import logging
 
 import streamlit as st
+from torch.cuda import is_available
 
 from simpletransformers.classification import (
     ClassificationModel,
@@ -77,7 +78,7 @@ def create_model(model_class, model_type, model_name, num_labels, weight, args, 
     elif model_class == "QuestionAnsweringModel":
         return QuestionAnsweringModel(model_type, model_name, args, use_cuda, cuda_device, **kwargs)
     elif model_class == "NERModel":
-        return NERModel(model_type, model_name, args, use_cuda, cuda_device, **kwargs)
+        return NERModel(model_type, model_name, args=args, use_cuda=use_cuda, cuda_device=cuda_device, **kwargs)
     else:
         raise ValueError("{} is either invalid or not yet implemented.".format(model_class))
 
@@ -113,6 +114,9 @@ def streamlit_runner(
 ):
     st.title("Simple Transformers Viewer")
     st.markdown("---")
+    st.sidebar.subheader("CUDA")
+    use_cuda = st.sidebar.checkbox("Use CUDA", value=is_available())
+    st.sidebar.subheader("Models")
     info_text = st.empty()
     if not (model_class and model_type and model_name):
         model_list = find_all_models(".", [])
@@ -133,15 +137,15 @@ def streamlit_runner(
 
                 ---
 
-                """
+                """ # noqa
             )
 
         manual_model = st.sidebar.checkbox("Specify model manually", value=False if selected_dir else True)
         if manual_model:
             st.sidebar.subheader("Model Details")
             fill_info = st.empty()
-            fill_info.markdown("Please fill the Model details on the sidebar.")
-            model_class = st.sidebar.selectbox("Model Class", list(model_class_map.keys()))
+            fill_info.markdown("Please fill the Model details on the sidebar and click `Load Model`.")
+            model_class = st.sidebar.selectbox("Simple Transformers task", list(model_class_map.keys()))
             model_type = st.sidebar.text_input("Model type (e.g. bert, roberta, xlnet)")
             model_name = st.sidebar.text_input("Model name (e.g. bert-base-cased, roberta-base)")
 
@@ -149,6 +153,7 @@ def streamlit_runner(
                 selected_dir = None
                 info_text.markdown("")
                 fill_info.markdown("")
+
     model, model_class = load_model(
         selected_dir, model_class, model_type, model_name, num_labels, weight, args, use_cuda, cuda_device, **kwargs
     )

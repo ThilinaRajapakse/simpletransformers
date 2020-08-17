@@ -7,9 +7,7 @@ logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.ERROR)
 
-model = Seq2SeqModel(
-    encoder_decoder_type="bart", encoder_decoder_name="outputs"
-)
+model = Seq2SeqModel(encoder_decoder_type="bart", encoder_decoder_name="outputs")
 
 
 while True:
