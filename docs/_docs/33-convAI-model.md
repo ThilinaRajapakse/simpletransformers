@@ -2,177 +2,201 @@
 title: Conversational AI Model
 permalink: /docs/convAI-model/
 excerpt: "Conversational AI Model"
-last_modified_at: 2020/10/15 23:16:38
+last_modified_at: 2020/08/18 22:04:04
 toc: true
 ---
 
-Chatbot creation based on the Hugging Face [State-of-the-Art Conversational AI](https://github.com/huggingface/transfer-learning-conv-ai).
+## `ConvAIModel`
 
-Supported model types:
+The `ConvAIModel` class is used for Conversational AI.
 
-- GPT
-- GPT2
+To create a `ConvAIModel`, you must specify a `model_type` and a `model_name`.
 
-### Data format
+- `model_type` should be one of the model types from the [supported models](/docs/convAI-specifics/) (e.g. gpt2, gpt)
+- `model_name` specifies the exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
 
-Data format follows the [Facebook Persona-Chat](http://arxiv.org/abs/1801.07243) format. A JSON formatted version by Hugging Face is found [here](https://s3.amazonaws.com/datasets.huggingface.co/personachat/personachat_self_original.json). The JSON file is directly compatible with this library (and it will be automatically downloaded and used if no dataset is specified).
+    **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
+    {: .notice--info}
 
-Each entry in personachat is a **dict** with two keys `personality` and `utterances`, the dataset is a list of entries.
+    **Note:** For a list of community models, see [here](https://huggingface.co/models).
+    {: .notice--info}
 
-- `personality`:  **list of strings** containing the personality of the agent
-- `utterances`: **list of dictionaries**, each of which has two keys which are **lists of strings**.
-  - `candidates`: [next_utterance_candidate_1, ..., next_utterance_candidate_19]
-        The last candidate is the ground truth response observed in the conversational data
-  - `history`: [dialog_turn_0, ... dialog_turn N], where N is an odd number since the other user starts every conversation.
+    You may use any of these models provided the `model_type` is supported.
 
-Preprocessing:
+**Tip:** A GPT model trained for conversation is available from Hugging Face [here](https://s3.amazonaws.com/models.huggingface.co/transfer-learning-chatbot/gpt_personachat_cache.tar.gz). You can use it by downloading the model and extracting it to `gpt_personachat_cache`.
+{: .notice--success}
 
-- Spaces before periods at end of sentences
-- everything lowercase
+```python
+from simpletransformers.conv_ai import ConvAIModel
 
-Example train data:
 
-```json
-[
-    {
-        "personality": [
-            "i like computers .",
-            "i like reading books .",
-            "i like talking to chatbots .",
-            "i love listening to classical music ."
-        ],
-        "utterances": [
-            {
-                "candidates": [
-                    "i try to wear all black every day . it makes me feel comfortable .",
-                    "well nursing stresses you out so i wish luck with sister",
-                    "yeah just want to pick up nba nfl getting old",
-                    "i really like celine dion . what about you ?",
-                    "no . i live near farms .",
-                    "mother taught me to cook ! we are looking for an exterminator .",
-                    "i enjoy romantic movie . what is your favorite season ? mine is summer .",
-                    "editing photos takes a lot of work .",
-                    "you must be very fast . hunting is one of my favorite hobbies .",
-                    "hi there . i'm feeling great! how about you ?"
-                ],
-                "history": [
-                    "hi , how are you ?"
-                ]
-            },
-            {
-                "candidates": [
-                    "i have trouble getting along with family .",
-                    "i live in texas , what kind of stuff do you do in ",
-                    "toronto ?",
-                    "that's so unique ! veganism and line dancing usually don't mix !",
-                    "no , it isn't that big . do you travel a lot",
-                    "that's because they are real ; what do you do for work ?",
-                    "i am lazy all day lol . my mom wants me to get a job and move out",
-                    "i was born on arbor day , so plant a tree in my name",
-                    "okay , i should not tell you , its against the rules ",
-                    "i like to talk to chatbots too ! do you know why ? ."
-                ],
-                "history": [
-                    "hi , how are you ?",
-                    "hi there . i'm feeling great! how about you ?",
-                    "not bad ! i am trying out this chatbot ."
-                ]
-            },
-            {
-                "candidates": [
-                    "ll something like that . do you play games ?",
-                    "does anything give you relief ? i hate taking medicine for mine .",
-                    "i decorate cakes at a local bakery ! and you ?",
-                    "do you eat lots of meat",
-                    "i am so weird that i like to collect people and cats",
-                    "how are your typing skills ?",
-                    "yeah . i am headed to the gym in a bit to weight lift .",
-                    "yeah you have plenty of time",
-                    "metal is my favorite , but i can accept that people listen to country . haha",
-                    "that's why you desire to be controlled . let me control you person one .",
-                    "two dogs they are the best , how about you ?",
-                    "you do art ? what kind of art do you do ?",
-                    "i love watching baseball outdoors on sunny days .",
-                    "oh i see . do you ever think about moving ? i do , it is what i want .",
-                    "because i am a chatbot too, silly !"
-                ],
-                "history": [
-                    "hi , how are you ?",
-                    "hi there . i'm feeling great! how about you ?",
-                    "not bad ! i am trying out this chatbot .",
-                    "i like to talk to chatbots too ! do you know why ? .",
-                    "no clue, why don't you tell me ?"
-                ]
-            }
-        ]
-    }
-]
+model = ConvAIModel(
+    "gpt", "gpt_personachat_cache"
+)
 ```
 
-### ConvAIModel
+**Note:** For more information on working with Simple Transformers models, please refer to the [General Usage section](/docs/usage/#creating-a-task-specific-model).
+{: .notice--info}
 
-`class simpletransformers.conv_ai.ConvAIModel ( model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs)`
-This class is used to build Conversational AI.
 
-`Class attributes`
+### Configuring a `ConvAIModel`
 
-- `tokenizer`: The tokenizer to be used.
-- `model`: The model to be used.
-            model_name: Default Transformer model name or path to Transformer model file (pytorch_model.bin).
-- `device`: The device on which the model will be trained and evaluated.
-- `results`: A python dict of past evaluation results for the TransformerModel object.
-- `args`: A python dict of arguments used for training and evaluation.
+`ConvAIModel` has several task-specific configuration options.
 
-`Parameters`
+| Argument                 | Type  | Default | Description                                                                                |
+|--------------------------|-------|---------|--------------------------------------------------------------------------------------------|
+| num_candidates           | int   | 2       | Number of candidates for training                                                          |
+| personality_permutations | int   | 1       | Number of permutations of personality sentences                                            |
+| max_history              | int   | 2       | Number of previous exchanges to keep in history                                            |
+| lm_coef                  | float | 2.0     | Language Model loss coefficient                                                            |
+| mc_coef                  | float | 1.0     | Multiple-choice loss coefficient                                                           |
+| do_sample                | bool  | 20      | If set to False greedy decoding is used. Otherwise sampling is used.                       |
+| max_length               | int   | -1      | The maximum length of the sequence to be generated. Between 0 and infinity. Default to 20. |
+| min_length               | int   | 1       | The minimum length of the sequence to be generated. Between 0 and infinity. Default to 20. |
+| temperature              | float | 0.7     | Sampling softmax temperature                                                               |
+| top_k                    | int   | 0       | Filter top-k tokens before sampling (<=0: no filtering)                                    |
+| top_p                    | float | 0.9     | Nucleus filtering (top-p) before sampling (<=0.0: no filtering)                            |
 
-- `model_type`: (required) str - The type of model to use.
-- `model_name`: (required) str - The exact model to use. Could be a pretrained model name or path to a directory containing a model. See [Current Pretrained Models](#current-pretrained-models) for all available models.
-- `args`: (optional) python dict - A dictionary containing any settings that should be overwritten from the default values.
-- `use_cuda`: (optional) bool - Default = True. Flag used to indicate whether CUDA should be used.
-- `cuda_device`: (optional) int - Default = -1. Used to specify which GPU should be used.
+```python
+from simpletransformers.conv_ai import ConvAIModel, ConvAIArgs
 
-`class methods`
-**`train_model(self, train_file=None, output_dir=None, show_running_loss=True, args=None, eval_file=None)`**
+
+model_args = ConvAIArgs()
+model_args.max_history = 5
+
+model = ConvAIModel(
+    "gpt",
+    "gpt_personachat_cache",
+    args=model_args
+)
+```
+
+**Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
+{: .notice--info}
+
+
+## `Class ConvAIModel`
+
+> *simpletransformers.conv_ai.ConvAIModel*{: .function-name}(self, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,)
+
+Initializes a ConvAIModel model.
+{: .function-text}
+
+> Parameters
+{: .parameter-blockquote}
+
+* **model_type** *(`str`)* - The type of model to use ([model types](/docs/convAI-specifics/#supported-model-types))
+
+* **model_name** *(`str`)* - The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+
+* **args** *(`dict`, optional)* - [Default args](/docs/usage/#configuring-a-simple-transformers-model) will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args or a `ConvAIArgs` object.
+
+* **use_cuda** *(`bool`, optional)* - Use GPU if available. Setting to False will force model to use CPU only. (See [here](/docs/usage/#to-cuda-or-not-to-cuda))
+
+* **cuda_device** *(`int`, optional)* - Specific GPU that should be used. Will use the first available GPU by default. (See [here](/docs/usage/#selecting-a-cuda-device))
+
+* **kwargs** *(optional)* - For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied. (See [here](/docs/usage/#options-for-downloading-pre-trained-models))
+{: .parameter-list}
+
+> Returns
+{: .returns}
+
+* `None`
+{: .return-list}
+
+**Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
+{: .notice--info}
+
+
+## Training a `ConvAIModel`
+
+The `train_model()`  method is used to train the model.
+
+```python
+model.train_model(train_file)
+```
+
+> *simpletransformers.conv_ai.ConvAIModel*{: .function-name}(self, train_file, output_dir=None, show_running_loss=True, args=None, eval_file=None, verbose=True, **kwargs)
 
 Trains the model using 'train_file'
+{: .function-text}
 
-Args:
+> Parameters
+{: .parameter-blockquote}
 
-- train_df: ath to JSON file containing training data. The model will be trained on this file.
-            output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+* **train_file** - Path to a JSON file containing the training data.
+If not given, train dataset from PERSONA-CHAT will be used. The model will be trained on this data. Refer to the [Conversational AI Data Formats](/docs/convAI-data-formats) section for the correct formats.
 
-- output_dir (optional): The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+* **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
 
-- show_running_loss (Optional): Set to False to prevent training loss being printed.
+* **show_running_loss** *(`bool`, optional)* - If True, the running loss (training loss at current step) will be logged to the console.
 
-- args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+* **args** *(`dict`, optional)* - A dict of configuration options for the `ConvAIModel`. Any changes made will persist for the model.
 
-- eval_file (optional): Evaluation data against which evaluation will be performed when evaluate_during_training is enabled. If not given when evaluate_during_training is enabled, the evaluation data from PERSONA-CHAT will be used.
+* **eval_file** *(optional)* - Evaluation data (same format as train_file) against which evaluation will be performed when evaluate_during_training is enabled. If not given when evaluate_during_training is enabled, the evaluation data from PERSONA-CHAT will be used.
 
-Returns:
+* **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
+E.g. `f1=sklearn.metrics.f1_score`.
+A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+{: .parameter-list}
 
-- None
+> Returns
+{: .returns}
 
-**`eval_model(self, eval_file, output_dir=None, verbose=True, silent=False)`**
+* `None`
+{: .return-list}
 
-Evaluates the model on eval_file. Saves results to output_dir.
+**Note:** For more details on training models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
+{: .notice--info}
 
-Args:
 
-- eval_file: Path to JSON file containing evaluation data. The model will be evaluated on this file.
-If not given, eval dataset from PERSONA-CHAT will be used.
 
-- output_dir: The directory where model files will be saved. If not given, self.args['output_dir'] will be used.
+## Evaluating a `ConvAIModel`
 
-- verbose: If verbose, results will be printed to the console on completion of evaluation.
+The `eval_model()`  method is used to evaluate the model.
 
-- silent: If silent, tqdm progress bars will be hidden.
+The following metrics will be calculated by default:
 
-Returns:
+* `language_model_loss`
+* `f1_score`
 
-- result: Dictionary containing evaluation results. (correct, similar, incorrect)
 
-- text: A dictionary containing the 3 dictionaries correct_text, similar_text (the predicted answer is a substring of the correct answer or vise versa), incorrect_text.
+```python
+result, model_outputs, wrong_preds = model.eval_model(eval_file)
+```
+
+> *simpletransformers.conv_ai.ConvAIModel.eval_model*{: .function-name}(self, eval_file,
+> output_dir=None, verbose=True, silent=False, **kwargs)
+
+Evaluates the model using 'eval_file'
+{: .function-text}
+
+> Parameters
+{: .parameter-blockquote}
+
+* **eval_file** - Path to JSON file containing evaluation data OR list of Python dicts in the correct format. The model will be evaluated on this data. Refer to the [Conversational AI Data Formats](/docs/convAI-data-formats) section for the correct formats.
+
+* **output_dir** *(`str`, optional)* - The directory where model files will be saved. If not given, `self.args['output_dir']` will be used.
+
+* **verbose** *(`bool`, optional)* - If verbose, results will be printed to the console on completion of evaluation.
+
+* **verbose_logging** *(`bool`, optional)* - Log info related to feature conversion and writing predictions.
+
+* **silent** *(`bool`, optional)* - If silent, tqdm progress bars will be hidden.
+
+* **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
+E.g. `f1=sklearn.metrics.f1_score`.
+A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
+{: .parameter-list}
+
+> Returns
+{: .returns}
+
+* **result** *(`dict`)* - Dictionary containing evaluation results. (f1_score, language_model_loss)
+
+**Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.
+{: .notice--info}
+
 
 **`interact(self, personality=None)`**
 
@@ -212,65 +236,3 @@ Evaluates the model on eval_file.
 
 Loads, tokenizes, and prepares data for training and/or evaluation.
 *Utility function for train() and eval() methods. Not intended to be used directly*
-
-### Additional attributes for Conversational AI
-
-ConvAIModel has a few additional attributes in its `args` dictionary, given below with their default values.
-
-```python
-    "num_candidates": 2,
-    "personality_permutations": 1,
-    "max_history": 2,
-    "lm_coef": 2.0,
-    "mc_coef": 1.0,
-    "no_sample": False,
-    "max_length": 20,
-    "min_length": 1,
-    "temperature": 0.7,
-    "top_k": 0,
-    "top_p": 0.9,
-```
-
-#### *num_candidates: int*
-
-Number of candidates for training
-
-#### *personality_permutations: int*
-
-Number of permutations of personality sentences".
-
-#### *max_history: int*
-
-Number of previous exchanges to keep in history
-
-#### *lm_coef: int*
-
-LM loss coefficient
-
-#### *mc_coef: int*
-
-Multiple-choice loss coefficient
-
-#### *no_sample: bool*
-
-Set to use greedy decoding instead of sampling
-
-#### *max_length: int*
-
-Maximum length of the output utterances
-
-#### *min_length: int*
-
-Minimum length of the output utterances
-
-#### *temperature: float*
-
-Sampling softmax temperature
-
-#### *top_k: int*
-
-Filter top-k tokens before sampling (<=0: no filtering)
-
-#### *top_p: float*
-
-Nucleus filtering (top-p) before sampling (<=0.0: no filtering)
