@@ -424,6 +424,15 @@
         "code",
         "doc"
       ]
+    },
+    {
+      "login": "Sxela",
+      "name": "Alex",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/11751592?v=4",
+      "profile": "https://github.com/Sxela",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
