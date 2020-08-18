@@ -330,9 +330,15 @@ class ConvAIModel:
 
                 if args.fp16:
                     with amp.autocast():
-                        outputs = model(**inputs)
+                        (lm_loss), (mc_loss), *_ = model(
+                            input_ids,
+                            token_type_ids=token_type_ids,
+                            mc_token_ids=mc_token_ids,
+                            mc_labels=mc_labels,
+                            lm_labels=lm_labels,
+                        )
                         # model outputs are always tuple in pytorch-transformers (see doc)
-                        loss = outputs[0]
+                        loss = lm_loss * args.lm_coef + mc_loss * args.mc_coef
                 else:
                     (lm_loss), (mc_loss), *_ = model(
                         input_ids,
