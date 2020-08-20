@@ -44,26 +44,26 @@ class Seq2SeqDataset(Dataset):
         else:
             logger.info(" Creating features from dataset file at %s", args.cache_dir)
 
-        data = [
-            (input_text, target_text, encoder_tokenizer, decoder_tokenizer, args)
-            for input_text, target_text in zip(data["input_text"], data["target_text"])
-        ]
+            data = [
+                (input_text, target_text, encoder_tokenizer, decoder_tokenizer, args)
+                for input_text, target_text in zip(data["input_text"], data["target_text"])
+            ]
 
-        if args.use_multiprocessing:
-            with Pool(args.process_count) as p:
-                self.examples = list(
-                    tqdm(
-                        p.imap(preprocess_data, data, chunksize=args.multiprocessing_chunksize),
-                        total=len(data),
-                        disable=args.silent,
+            if args.use_multiprocessing:
+                with Pool(args.process_count) as p:
+                    self.examples = list(
+                        tqdm(
+                            p.imap(preprocess_data, data, chunksize=args.multiprocessing_chunksize),
+                            total=len(data),
+                            disable=args.silent,
+                        )
                     )
-                )
-        else:
-            self.examples = [preprocess_data(d) for d in tqdm(data, disable=args.silent)]
+            else:
+                self.examples = [preprocess_data(d) for d in tqdm(data, disable=args.silent)]
 
-        logger.info(" Saving features into cached file %s", cached_features_file)
-        with open(cached_features_file, "wb") as handle:
-            pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            logger.info(" Saving features into cached file %s", cached_features_file)
+            with open(cached_features_file, "wb") as handle:
+                pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def __len__(self):
         return len(self.examples)
@@ -76,11 +76,11 @@ def preprocess_data_bart(data):
     input_text, target_text, tokenizer, args = data
 
     input_ids = tokenizer.batch_encode_plus(
-        [input_text], max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt",
+        [input_text], max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
     )
 
     target_ids = tokenizer.batch_encode_plus(
-        [target_text], max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt"
+        [target_text], max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
     )
 
     return {
@@ -108,22 +108,22 @@ class SimpleSummarizationDataset(Dataset):
         else:
             logger.info(" Creating features from dataset file at %s", args.cache_dir)
 
-        data = [
-            (input_text, target_text, tokenizer, args)
-            for input_text, target_text in zip(data["input_text"], data["target_text"])
-        ]
+            data = [
+                (input_text, target_text, tokenizer, args)
+                for input_text, target_text in zip(data["input_text"], data["target_text"])
+            ]
 
-        if args.use_multiprocessing:
-            with Pool(args.process_count) as p:
-                self.examples = list(
-                    tqdm(
-                        p.imap(preprocess_data_bart, data, chunksize=args.multiprocessing_chunksize),
-                        total=len(data),
-                        disable=args.silent,
+            if args.use_multiprocessing:
+                with Pool(args.process_count) as p:
+                    self.examples = list(
+                        tqdm(
+                            p.imap(preprocess_data_bart, data, chunksize=args.multiprocessing_chunksize),
+                            total=len(data),
+                            disable=args.silent,
+                        )
                     )
-                )
-        else:
-            self.examples = [preprocess_data_bart(d) for d in tqdm(data, disable=args.silent)]
+            else:
+                self.examples = [preprocess_data_bart(d) for d in tqdm(data, disable=args.silent)]
 
     def __len__(self):
         return len(self.examples)

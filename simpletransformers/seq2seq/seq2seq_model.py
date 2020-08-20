@@ -208,25 +208,27 @@ class Seq2SeqModel:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args.wandb_project = None
 
-        if encoder_decoder_name:
-            self.args.model_name = encoder_decoder_name
+        # `model_name` could be provided in args
+        if self.args.model_name is None:
+            if encoder_decoder_name:
+                self.args.model_name = encoder_decoder_name
 
-            # # Checking if we are loading from a saved model or using a pre-trained model
-            # if not saved_model_args and encoder_decoder_type == "marian":
-            # Need to store base pre-trained model name to get the tokenizer when loading a saved model
-            self.args.base_marian_model_name = encoder_decoder_name
+                # # Checking if we are loading from a saved model or using a pre-trained model
+                # if not saved_model_args and encoder_decoder_type == "marian":
+                # Need to store base pre-trained model name to get the tokenizer when loading a saved model
+                self.args.base_marian_model_name = encoder_decoder_name
 
-        elif encoder_name and decoder_name:
-            self.args.model_name = encoder_name + "-" + decoder_name
-        else:
-            self.args.model_name = "encoder-decoder"
+            elif encoder_name and decoder_name:
+                self.args.model_name = encoder_name + "-" + decoder_name
+            else:
+                self.args.model_name = "encoder-decoder"
 
-        if encoder_decoder_type:
-            self.args.model_type = encoder_decoder_type
-        elif encoder_type:
-            self.args.model_type = encoder_type + "-bert"
-        else:
-            self.args.model_type = "encoder-decoder"
+            if encoder_decoder_type:
+                self.args.model_type = encoder_decoder_type
+            elif encoder_type:
+                self.args.model_type = encoder_type + "-bert"
+            else:
+                self.args.model_type = "encoder-decoder"
 
     def train_model(
         self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs,
