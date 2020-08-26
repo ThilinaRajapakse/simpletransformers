@@ -19,11 +19,11 @@ def preprocess_data(data):
     input_text, target_text, encoder_tokenizer, decoder_tokenizer, args = data
 
     input_text = encoder_tokenizer.encode(
-        input_text, max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt",
+        input_text, max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
     )
 
     target_text = decoder_tokenizer.encode(
-        target_text, max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt"
+        target_text, max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
     )
     return (torch.flatten(input_text), torch.flatten(target_text))
 
