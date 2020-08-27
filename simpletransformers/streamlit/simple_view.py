@@ -43,7 +43,7 @@ def load_model(
     num_labels=None,
     weight=None,
     args=None,
-    torch.cuda.is_available(),
+    use_cuda=torch.cuda.is_available()
     cuda_device=-1,
     **kwargs,
 ):
@@ -108,7 +108,7 @@ def streamlit_runner(
     num_labels=None,
     weight=None,
     args=None,
-    torch.cuda.is_available(),
+    use_cuda=torch.cuda.is_available()
     cuda_device=-1,
     **kwargs,
 ):

@@ -74,7 +74,7 @@ logger = logging.getLogger(__name__)
 
 class NERModel:
     def __init__(
-        self, model_type, model_name, labels=None, args=None, torch.cuda.is_available(), cuda_device=-1, **kwargs,
+        self, model_type, model_name, labels=None, args=None, use_cuda=torch.cuda.is_available() cuda_device=-1, **kwargs,
     ):
         """
         Initializes a NERModel

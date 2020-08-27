@@ -71,7 +71,7 @@ class MultiModalClassificationModel:
         num_labels=None,
         pos_weight=None,
         args=None,
-        torch.cuda.is_available(),
+        use_cuda=torch.cuda.is_available()
         cuda_device=-1,
         **kwargs,
     ):

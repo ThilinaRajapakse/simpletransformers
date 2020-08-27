@@ -103,7 +103,7 @@ class LanguageModelingModel:
         discriminator_name=None,
         train_files=None,
         args=None,
-        torch.cuda.is_available(),
+        use_cuda=torch.cuda.is_available()
         cuda_device=-1,
         **kwargs,
     ):
