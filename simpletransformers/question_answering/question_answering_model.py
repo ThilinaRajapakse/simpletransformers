@@ -93,7 +93,7 @@ logger = logging.getLogger(__name__)
 
 
 class QuestionAnsweringModel:
-    def __init__(self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs):
+    def __init__(self, model_type, model_name, args=None, torch.cuda.is_available(), cuda_device=-1, **kwargs):
 
         """
         Initializes a QuestionAnsweringModel model.

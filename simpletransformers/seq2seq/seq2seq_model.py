@@ -93,7 +93,7 @@ class Seq2SeqModel:
         encoder_decoder_name=None,
         config=None,
         args=None,
-        use_cuda=True,
+        torch.cuda.is_available(),
         cuda_device=-1,
         **kwargs,
     ):

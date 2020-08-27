@@ -71,7 +71,7 @@ PADDED_INPUTS = ["input_ids", "lm_labels", "token_type_ids"]
 
 class ConvAIModel:
     def __init__(
-        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_type, model_name, args=None, torch.cuda.is_available(), cuda_device=-1, **kwargs,
     ):
 
         """

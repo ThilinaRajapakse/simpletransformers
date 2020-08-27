@@ -70,7 +70,7 @@ from simpletransformers.experimental.classification.transformer_models.xlnet_mod
 
 class ClassificationModel:
     def __init__(
-        self, model_type, model_name, num_labels=None, weight=None, sliding_window=False, args=None, use_cuda=True
+        self, model_type, model_name, num_labels=None, weight=None, sliding_window=False, args=None, torch.cuda.is_available()
     ):
         """
         Initializes a ClassificationModel model.
