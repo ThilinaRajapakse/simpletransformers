@@ -41,7 +41,7 @@ def chunks(lst, n):
 
 class T5Model:
     def __init__(
-        self, model_name, args=None, use_cuda=torch.cuda.is_available() cuda_device=-1, **kwargs,
+        self, model_name, args=None, use_cuda=torch.cuda.is_available(), cuda_device=-1, **kwargs,
     ):
 
         """

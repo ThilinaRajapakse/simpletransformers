@@ -38,7 +38,7 @@ MAX_LENGTH = int(10000)  # Hardcoded max length to avoid infinite loop
 
 class LanguageGenerationModel:
     def __init__(
-        self, model_type, model_name, args=None, use_cuda=torch.cuda.is_available() cuda_device=-1, **kwargs,
+        self, model_type, model_name, args=None, use_cuda=torch.cuda.is_available(), cuda_device=-1, **kwargs,
     ):
 
         """

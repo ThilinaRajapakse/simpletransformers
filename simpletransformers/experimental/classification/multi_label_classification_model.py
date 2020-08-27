@@ -29,7 +29,7 @@ from simpletransformers.custom_models.models import (
 
 
 class MultiLabelClassificationModel(ClassificationModel):
-    def __init__(self, model_type, model_name, num_labels=None, pos_weight=None, args=None, use_cuda=torch.cuda.is_available():
+    def __init__(self, model_type, model_name, num_labels=None, pos_weight=None, args=None, use_cuda=torch.cuda.is_available()):
         """
         Initializes a MultiLabelClassification model.
 
