@@ -188,7 +188,10 @@ class ClassificationModel:
                 model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device), **kwargs,
             )
         else:
-            self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)    
+            self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
+
+        if self.args.dynamic_quantize:
+            self.model=torch.quantization.quantize_dynamic(self.model,{torch.nn.Linear},dtype=torch.qint8)        
 
         self.results = {}
 
