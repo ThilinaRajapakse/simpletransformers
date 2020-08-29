@@ -3283,7 +3283,7 @@ Specify an encoding to be used when reading text files.
 Set to True during inference on CPU/GPUs to obtain higher-through put.
 
 #### *thread_tune*
-Set to True during inference if you want pytorch to avoid using multiple-cores per process. this helps process avoid competing for the same limited resources (physical cores) and helps scale ML service with multiple workers.    
+Set to True during inference if you want pytorch to avoid using multiple-cores per process. this helps processes avoid competing for the same limited resources (physical cores) and helps scale ML service with multiple workers.    
 
 
 #### *config*
