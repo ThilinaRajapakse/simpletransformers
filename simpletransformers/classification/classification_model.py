@@ -1039,10 +1039,16 @@ class ClassificationModel:
         dummy_label = 0 if not self.args.labels_map else next(iter(self.args.labels_map.keys()))
 
         if multi_label:
-            eval_examples = [
-                InputExample(i, text, None, [dummy_label for i in range(self.num_labels)])
-                for i, text in enumerate(to_predict)
-            ]
+            if isinstance(to_predict[0], list):
+                eval_examples = [
+                    InputExample(i, text[0], text[1], [dummy_label for i in range(self.num_labels)])
+                    for i, text in enumerate(to_predict)
+                ]
+            else:
+                eval_examples = [
+                    InputExample(i, text, None, [dummy_label for i in range(self.num_labels)])
+                    for i, text in enumerate(to_predict)
+                ]
         else:
             if isinstance(to_predict[0], list):
                 eval_examples = [InputExample(i, text[0], text[1], dummy_label) for i, text in enumerate(to_predict)]
