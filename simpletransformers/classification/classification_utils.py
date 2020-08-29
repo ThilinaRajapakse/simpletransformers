@@ -104,6 +104,7 @@ def convert_example_to_feature(
         stride,
         pad_token,
         add_prefix_space,
+        pad_to_max_length
     ) = example_row
 
     if add_prefix_space and not example.text_a.startswith(" "):
@@ -172,19 +173,20 @@ def convert_example_to_feature(
     input_mask = [1 if mask_padding_with_zero else 0] * len(input_ids)
 
     # Zero-pad up to the sequence length.
-    padding_length = max_seq_length - len(input_ids)
-    if pad_on_left:
-        input_ids = ([pad_token] * padding_length) + input_ids
-        input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
-        segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
-    else:
-        input_ids = input_ids + ([pad_token] * padding_length)
-        input_mask = input_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
-        segment_ids = segment_ids + ([pad_token_segment_id] * padding_length)
+    if pad_to_max_length:
+        padding_length = max_seq_length - len(input_ids)
+        if pad_on_left:
+            input_ids = ([pad_token] * padding_length) + input_ids
+            input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
+            segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
+        else:
+            input_ids = input_ids + ([pad_token] * padding_length)
+            input_mask = input_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
+            segment_ids = segment_ids + ([pad_token_segment_id] * padding_length)
 
-    assert len(input_ids) == max_seq_length
-    assert len(input_mask) == max_seq_length
-    assert len(segment_ids) == max_seq_length
+        assert len(input_ids) == max_seq_length
+        assert len(input_mask) == max_seq_length
+        assert len(segment_ids) == max_seq_length
 
     # if output_mode == "classification":
     #     label_id = label_map[example.label]
@@ -336,6 +338,7 @@ def convert_examples_to_features(
     flatten=False,
     stride=None,
     add_prefix_space=False,
+    pad_to_max_length=True,
     args=None,
 ):
     """ Loads a data file into a list of `InputBatch`s

@@ -950,7 +950,9 @@ class ClassificationModel:
                 flatten=not evaluate,
                 stride=args.stride,
                 add_prefix_space=bool(args.model_type in ["roberta", "camembert", "xlmroberta", "longformer"]),
-                args=args,
+                #avoid padding in case of single example/online inferencing to decrease execution time
+                pad_to_max_length=bool(len(examples)>1),
+                args=args
             )
             if verbose and args.sliding_window:
                 logger.info(f" {len(features)} features created from {len(examples)} samples.")
