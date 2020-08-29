@@ -3279,6 +3279,13 @@ Set a manual seed if necessary for reproducible results.
 #### *encoding*
 Specify an encoding to be used when reading text files.
 
+#### *dynamic_quantize*
+Set to True during inference on CPU/GPUs to obtain higher-through put.
+
+#### *thread_tune*
+Set to True during inference if you want pytorch to avoid using multiple-cores per process. this helps process avoid competing for the same limited resources (physical cores) and helps scale ML service with multiple workers.    
+
+
 #### *config*
 A dictionary containing configuration options that should be overriden in a model's config.
 
