@@ -123,6 +123,10 @@ class ClassificationModel:
         }
 
         self.args = self._load_model_args(model_name)
+        
+        if self.args.thread_tune:
+            torch.set_num_threads(1) 
+
 
         if isinstance(args, dict):
             self.args.update_from_dict(args)
@@ -184,7 +188,7 @@ class ClassificationModel:
                 model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device), **kwargs,
             )
         else:
-            self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
+            self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)    
 
         self.results = {}
 
