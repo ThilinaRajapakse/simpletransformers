@@ -365,6 +365,7 @@ def convert_examples_to_features(
             stride,
             pad_token,
             add_prefix_space,
+            pad_to_max_length
         )
         for example in examples
     ]
