@@ -5,8 +5,8 @@ from simpletransformers.question_answering import QuestionAnsweringModel
 from simpletransformers.streamlit.streamlit_utils import get, simple_transformers_model
 
 
-QA_ANSWER_WRAPPER = """{} <span style="overflow-x: auto; border: 1px solid #e6e9ef; border-radius: 0.25rem; padding: 0.25rem; background: #a6e22d">{}</span> {}""" # noqa
-QA_EMPTY_ANSWER_WRAPPER = """{} <span style="overflow-x: auto; border: 1px solid #e6e9ef; border-radius: 0.25rem; padding: 0.25rem; background: #FF0000">{}</span> {}""" # noqa
+QA_ANSWER_WRAPPER = """{} <span style="overflow-x: auto; border: 1px solid #e6e9ef; border-radius: 0.25rem; padding: 0.25rem; background: #a6e22d">{}</span> {}"""  # noqa
+QA_EMPTY_ANSWER_WRAPPER = """{} <span style="overflow-x: auto; border: 1px solid #e6e9ef; border-radius: 0.25rem; padding: 0.25rem; background: #FF0000">{}</span> {}"""  # noqa
 
 
 def get_states(model, session_state=None):

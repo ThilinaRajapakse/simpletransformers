@@ -792,11 +792,19 @@ class Seq2SeqModel:
         ]:
             if self.args.model_type == "marian":
                 input_ids = self.encoder_tokenizer.prepare_translation_batch(
-                    batch, max_length=self.args.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
+                    batch,
+                    max_length=self.args.max_seq_length,
+                    pad_to_max_length=True,
+                    return_tensors="pt",
+                    truncation=True,
                 )["input_ids"]
             else:
                 input_ids = self.encoder_tokenizer.batch_encode_plus(
-                    batch, max_length=self.args.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
+                    batch,
+                    max_length=self.args.max_seq_length,
+                    pad_to_max_length=True,
+                    return_tensors="pt",
+                    truncation=True,
                 )["input_ids"]
             input_ids = input_ids.to(self.device)
 
