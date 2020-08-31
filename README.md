@@ -3284,7 +3284,7 @@ This affects only classification models for now , but this technique can be used
 Set to True during inference on CPU/GPUs to obtain higher-through put for
 
 #### *thread_count*
-During train and eval use the default value , in production/inference use this to control resource usage 
+During train and eval use the default value , in production/inference use this to control resource usage.  
 This affects only classification models for now , but this technique can be used in other models as well.
 Set to 1 during inference if you want pytorch to avoid using multiple-cores per process/worker. this helps processes avoid competing for the same limited resources (physical cores) and helps scale ML service with multiple workers.    
 
