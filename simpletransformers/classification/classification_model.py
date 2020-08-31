@@ -123,6 +123,10 @@ class ClassificationModel:
         }
 
         self.args = self._load_model_args(model_name)
+        
+        if self.args.thread_tune:
+            torch.set_num_threads(1) 
+
 
         if isinstance(args, dict):
             self.args.update_from_dict(args)
@@ -185,6 +189,9 @@ class ClassificationModel:
             )
         else:
             self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
+
+        if self.args.dynamic_quantize:
+            self.model=torch.quantization.quantize_dynamic(self.model,{torch.nn.Linear},dtype=torch.qint8)        
 
         self.results = {}
 
@@ -943,7 +950,9 @@ class ClassificationModel:
                 flatten=not evaluate,
                 stride=args.stride,
                 add_prefix_space=bool(args.model_type in ["roberta", "camembert", "xlmroberta", "longformer"]),
-                args=args,
+                #avoid padding in case of single example/online inferencing to decrease execution time
+                pad_to_max_length=bool(len(examples)>1),
+                args=args
             )
             if verbose and args.sliding_window:
                 logger.info(f" {len(features)} features created from {len(examples)} samples.")
