@@ -124,8 +124,8 @@ class ClassificationModel:
 
         self.args = self._load_model_args(model_name)
         
-        if self.args.thread_tune:
-            torch.set_num_threads(1) 
+        if self.args.thread_count:
+            torch.set_num_threads(self.args.thread_count) 
 
 
         if isinstance(args, dict):
