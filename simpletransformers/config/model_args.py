@@ -77,7 +77,7 @@ class ModelArgs:
     warmup_steps: int = 0
     weight_decay: int = 0
     dynamic_quantize: bool = False
-    thread_tune: bool = False
+    thread_count: int = None
     
 
     def update_from_dict(self, new_values):
