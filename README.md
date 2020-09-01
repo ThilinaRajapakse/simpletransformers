@@ -250,6 +250,8 @@ Any feedback will be immensely helpful in improving the documentation! If you ha
       - [*early_stopping_metric_minimize*](#early_stopping_metric_minimize)
       - [*manual_seed*](#manual_seed)
       - [*encoding*](#encoding)
+      - [*dynamic_quantize*](#dynamic_quantize)
+      - [*thread_count*](#thread_count)
       - [*config*](#config)
   - [Current Pretrained Models](#current-pretrained-models)
   - [Acknowledgements](#acknowledgements)
@@ -3280,13 +3282,13 @@ Set a manual seed if necessary for reproducible results.
 Specify an encoding to be used when reading text files.
 
 #### *dynamic_quantize*
-This affects only classification models for now , but this technique can be used in other models as well.
-Set to True during inference on CPU/GPUs to obtain higher-through put for
+Set to True during inference on CPU/GPUs to obtain higher inference throughput.
+*This affects only classification models for now.*
 
 #### *thread_count*
-During train and eval use the default value , in production/inference use this to control resource usage.  
-This affects only classification models for now , but this technique can be used in other models as well.
-Set to 1 during inference if you want pytorch to avoid using multiple-cores per process/worker. this helps processes avoid competing for the same limited resources (physical cores) and helps scale ML service with multiple workers.    
+During train and eval use the default value , in production/inference use this to control resource usage.
+*This affects only classification models for now.*
+Set to 1 during inference if you want pytorch to avoid using multiple threads per process/worker. This helps processes avoid competing for the same limited resources (physical cores) and helps scale ML service with multiple workers.
 
 
 #### *config*

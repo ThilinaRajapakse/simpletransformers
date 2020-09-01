@@ -104,7 +104,7 @@ def convert_example_to_feature(
         stride,
         pad_token,
         add_prefix_space,
-        pad_to_max_length
+        pad_to_max_length,
     ) = example_row
 
     if add_prefix_space and not example.text_a.startswith(" "):
@@ -365,7 +365,7 @@ def convert_examples_to_features(
             stride,
             pad_token,
             add_prefix_space,
-            pad_to_max_length
+            pad_to_max_length,
         )
         for example in examples
     ]

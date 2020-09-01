@@ -24,12 +24,12 @@ class ModelArgs:
     adam_epsilon: float = 1e-8
     best_model_dir: str = "outputs/best_model"
     cache_dir: str = "cache_dir/"
+    config: dict = field(default_factory=dict)
     custom_layer_parameters: list = field(default_factory=list)
     custom_parameter_groups: list = field(default_factory=list)
-    train_custom_parameters_only: bool = False
-    config: dict = field(default_factory=dict)
     dataloader_num_workers: int = field(default_factory=get_default_process_count)
     do_lower_case: bool = False
+    dynamic_quantize: bool = False
     early_stopping_consider_epochs: bool = False
     early_stopping_delta: float = 0
     early_stopping_metric: str = "eval_loss"
@@ -49,8 +49,8 @@ class ModelArgs:
     manual_seed: int = None
     max_grad_norm: float = 1.0
     max_seq_length: int = 128
-    model_type: str = None
     model_name: str = None
+    model_type: str = None
     multiprocessing_chunksize: int = 500
     n_gpu: int = 1
     no_cache: bool = False
@@ -63,11 +63,13 @@ class ModelArgs:
     save_best_model: bool = True
     save_eval_checkpoints: bool = True
     save_model_every_epoch: bool = True
-    save_steps: int = 2000
     save_optimizer_and_scheduler: bool = True
+    save_steps: int = 2000
     silent: bool = False
     tensorboard_dir: str = None
+    thread_count: int = None
     train_batch_size: int = 8
+    train_custom_parameters_only: bool = False
     use_cached_eval_features: bool = False
     use_early_stopping: bool = False
     use_multiprocessing: bool = True
@@ -76,9 +78,6 @@ class ModelArgs:
     warmup_ratio: float = 0.06
     warmup_steps: int = 0
     weight_decay: int = 0
-    dynamic_quantize: bool = False
-    thread_count: int = None
-    
 
     def update_from_dict(self, new_values):
         if isinstance(new_values, dict):
