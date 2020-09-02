@@ -389,6 +389,7 @@ def squad_convert_examples_to_features(
     doc_stride,
     max_query_length,
     is_training,
+    padding_strategy="max_length",
     return_dataset=False,
     threads=1,
     tqdm_enabled=True,
@@ -439,6 +440,7 @@ def squad_convert_examples_to_features(
                 max_seq_length=max_seq_length,
                 doc_stride=doc_stride,
                 max_query_length=max_query_length,
+                padding_strategy=padding_strategy,
                 is_training=is_training,
             )
             features = list(
