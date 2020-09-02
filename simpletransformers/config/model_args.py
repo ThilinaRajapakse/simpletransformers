@@ -59,6 +59,7 @@ class ModelArgs:
     output_dir: str = "outputs/"
     overwrite_output_dir: bool = False
     process_count: int = field(default_factory=get_default_process_count)
+    quantized_model: bool = False
     reprocess_input_data: bool = True
     save_best_model: bool = True
     save_eval_checkpoints: bool = True
