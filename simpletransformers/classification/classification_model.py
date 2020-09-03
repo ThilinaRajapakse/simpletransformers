@@ -933,7 +933,7 @@ class ClassificationModel:
                     logger.info(" Sliding window enabled")
 
             # If labels_map is defined, then labels need to be replaced with ints
-            if self.args.labels_map:
+            if self.args.labels_map and not self.args.regression:
                 for example in examples:
                     if multi_label:
                         example.label = [self.args.labels_map[label] for label in example.label]
