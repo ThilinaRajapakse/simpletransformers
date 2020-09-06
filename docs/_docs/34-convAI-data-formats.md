@@ -2,13 +2,11 @@
 title: Conversational AI Model
 permalink: /docs/convAI-data-formats/
 excerpt: "Conversational AI Model"
-last_modified_at: 2020/08/18 21:35:49
+last_modified_at: 2020/09/06 21:30:12
 toc: true
 ---
 
-
-
-### Data format
+## Data Formats
 
 Data format follows the [Facebook Persona-Chat](http://arxiv.org/abs/1801.07243) format. A JSON formatted version by Hugging Face is found [here](https://s3.amazonaws.com/datasets.huggingface.co/personachat/personachat_self_original.json). The JSON file is directly compatible with this library (and it will be automatically downloaded and used if no dataset is specified).
 
@@ -207,65 +205,3 @@ Evaluates the model on eval_file.
 
 Loads, tokenizes, and prepares data for training and/or evaluation.
 *Utility function for train() and eval() methods. Not intended to be used directly*
-
-### Additional attributes for Conversational AI
-
-ConvAIModel has a few additional attributes in its `args` dictionary, given below with their default values.
-
-```python
-    "num_candidates": 2,
-    "personality_permutations": 1,
-    "max_history": 2,
-    "lm_coef": 2.0,
-    "mc_coef": 1.0,
-    "no_sample": False,
-    "max_length": 20,
-    "min_length": 1,
-    "temperature": 0.7,
-    "top_k": 0,
-    "top_p": 0.9,
-```
-
-#### *num_candidates: int*
-
-Number of candidates for training
-
-#### *personality_permutations: int*
-
-Number of permutations of personality sentences".
-
-#### *max_history: int*
-
-Number of previous exchanges to keep in history
-
-#### *lm_coef: int*
-
-LM loss coefficient
-
-#### *mc_coef: int*
-
-Multiple-choice loss coefficient
-
-#### *no_sample: bool*
-
-Set to use greedy decoding instead of sampling
-
-#### *max_length: int*
-
-Maximum length of the output utterances
-
-#### *min_length: int*
-
-Minimum length of the output utterances
-
-#### *temperature: float*
-
-Sampling softmax temperature
-
-#### *top_k: int*
-
-Filter top-k tokens before sampling (<=0: no filtering)
-
-#### *top_p: float*
-
-Nucleus filtering (top-p) before sampling (<=0.0: no filtering)

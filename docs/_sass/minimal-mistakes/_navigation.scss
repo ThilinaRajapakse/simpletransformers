@@ -520,7 +520,7 @@
     @include yiq-contrasted($active-color);
   }
 
-  @include breakpoint(max-width $large - 1px) {
+  @include breakpoint(max-width $x-large - 1px) {
     position: relative;
   }
 }
