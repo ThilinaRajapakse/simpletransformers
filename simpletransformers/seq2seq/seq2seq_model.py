@@ -208,25 +208,27 @@ class Seq2SeqModel:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args.wandb_project = None
 
-        if encoder_decoder_name:
-            self.args.model_name = encoder_decoder_name
+        # `model_name` could be provided in args
+        if self.args.model_name is None:
+            if encoder_decoder_name:
+                self.args.model_name = encoder_decoder_name
 
-            # # Checking if we are loading from a saved model or using a pre-trained model
-            # if not saved_model_args and encoder_decoder_type == "marian":
-            # Need to store base pre-trained model name to get the tokenizer when loading a saved model
-            self.args.base_marian_model_name = encoder_decoder_name
+                # # Checking if we are loading from a saved model or using a pre-trained model
+                # if not saved_model_args and encoder_decoder_type == "marian":
+                # Need to store base pre-trained model name to get the tokenizer when loading a saved model
+                self.args.base_marian_model_name = encoder_decoder_name
 
-        elif encoder_name and decoder_name:
-            self.args.model_name = encoder_name + "-" + decoder_name
-        else:
-            self.args.model_name = "encoder-decoder"
+            elif encoder_name and decoder_name:
+                self.args.model_name = encoder_name + "-" + decoder_name
+            else:
+                self.args.model_name = "encoder-decoder"
 
-        if encoder_decoder_type:
-            self.args.model_type = encoder_decoder_type
-        elif encoder_type:
-            self.args.model_type = encoder_type + "-bert"
-        else:
-            self.args.model_type = "encoder-decoder"
+            if encoder_decoder_type:
+                self.args.model_type = encoder_decoder_type
+            elif encoder_type:
+                self.args.model_type = encoder_type + "-bert"
+            else:
+                self.args.model_type = "encoder-decoder"
 
     def train_model(
         self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs,
@@ -286,7 +288,7 @@ class Seq2SeqModel:
             **kwargs,
         )
 
-        self._save_model(self.args.output_dir, model=self.model)
+        self.save_model(self.args.output_dir, model=self.model)
 
         # model_to_save = self.model.module if hasattr(self.model, "module") else self.model
         # model_to_save.save_pretrained(output_dir)
@@ -524,7 +526,7 @@ class Seq2SeqModel:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        self._save_model(output_dir_current, optimizer, scheduler, model=model)
+                        self.save_model(output_dir_current, optimizer, scheduler, model=model)
 
                     if args.evaluate_during_training and (
                         args.evaluate_during_training_steps > 0
@@ -543,7 +545,7 @@ class Seq2SeqModel:
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
                         if args.save_eval_checkpoints:
-                            self._save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
+                            self.save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
 
                         training_progress_scores["global_step"].append(global_step)
                         training_progress_scores["train_loss"].append(current_loss)
@@ -560,14 +562,14 @@ class Seq2SeqModel:
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
                             if args.save_best_model:
-                                self._save_model(
+                                self.save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
                                 )
                         if best_eval_metric and args.early_stopping_metric_minimize:
                             if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 if args.save_best_model:
-                                    self._save_model(
+                                    self.save_model(
                                         args.best_model_dir, optimizer, scheduler, model=model, results=results
                                     )
                                 early_stopping_counter = 0
@@ -589,7 +591,7 @@ class Seq2SeqModel:
                             if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
                                 if args.save_best_model:
-                                    self._save_model(
+                                    self.save_model(
                                         args.best_model_dir, optimizer, scheduler, model=model, results=results
                                     )
                                 early_stopping_counter = 0
@@ -615,7 +617,7 @@ class Seq2SeqModel:
                 os.makedirs(output_dir_current, exist_ok=True)
 
             if args.save_model_every_epoch:
-                self._save_model(output_dir_current, optimizer, scheduler, model=model)
+                self.save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args.evaluate_during_training:
                 results = self.eval_model(
@@ -626,7 +628,7 @@ class Seq2SeqModel:
                 )
 
                 if args.save_eval_checkpoints:
-                    self._save_model(output_dir_current, optimizer, scheduler, results=results)
+                    self.save_model(output_dir_current, optimizer, scheduler, results=results)
 
                 training_progress_scores["global_step"].append(global_step)
                 training_progress_scores["train_loss"].append(current_loss)
@@ -641,12 +643,12 @@ class Seq2SeqModel:
                 if not best_eval_metric:
                     best_eval_metric = results[args.early_stopping_metric]
                     if args.save_best_model:
-                        self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                        self.save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                 if best_eval_metric and args.early_stopping_metric_minimize:
                     if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
                         if args.save_best_model:
-                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                            self.save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                     else:
                         if args.use_early_stopping and args.early_stopping_consider_epochs:
@@ -666,7 +668,7 @@ class Seq2SeqModel:
                     if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
                         if args.save_best_model:
-                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                            self.save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                     else:
                         if args.use_early_stopping and args.early_stopping_consider_epochs:
@@ -790,11 +792,19 @@ class Seq2SeqModel:
         ]:
             if self.args.model_type == "marian":
                 input_ids = self.encoder_tokenizer.prepare_translation_batch(
-                    batch, max_length=self.args.max_seq_length, pad_to_max_length=True, return_tensors="pt",
+                    batch,
+                    max_length=self.args.max_seq_length,
+                    pad_to_max_length=True,
+                    return_tensors="pt",
+                    truncation=True,
                 )["input_ids"]
             else:
                 input_ids = self.encoder_tokenizer.batch_encode_plus(
-                    batch, max_length=self.args.max_seq_length, pad_to_max_length=True, return_tensors="pt",
+                    batch,
+                    max_length=self.args.max_seq_length,
+                    pad_to_max_length=True,
+                    return_tensors="pt",
+                    truncation=True,
                 )["input_ids"]
             input_ids = input_ids.to(self.device)
 
@@ -921,7 +931,7 @@ class Seq2SeqModel:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def _save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
+    def save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
         if not output_dir:
             output_dir = self.args.output_dir
         os.makedirs(output_dir, exist_ok=True)
@@ -931,7 +941,7 @@ class Seq2SeqModel:
         if model and not self.args.no_save:
             # Take care of distributed/parallel training
             model_to_save = model.module if hasattr(model, "module") else model
-            self._save_model_args(output_dir)
+            self.save_model_args(output_dir)
 
             if self.args.model_type in ["bart", "marian"]:
                 os.makedirs(os.path.join(output_dir), exist_ok=True)
@@ -1001,7 +1011,7 @@ class Seq2SeqModel:
 
         return inputs
 
-    def _save_model_args(self, output_dir):
+    def save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
         self.args.save(output_dir)
 

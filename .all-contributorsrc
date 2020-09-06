@@ -424,6 +424,33 @@
         "code",
         "doc"
       ]
+    },
+    {
+      "login": "Sxela",
+      "name": "Alex",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/11751592?v=4",
+      "profile": "https://github.com/Sxela",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "karthik19967829",
+      "name": "Karthik Ganesan",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/35610230?v=4",
+      "profile": "https://github.com/karthik19967829",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "Zhylkaaa",
+      "name": "Zhylko Dima",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/18054828?v=4",
+      "profile": "https://www.facebook.com/profile.php?id=100009572680557",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

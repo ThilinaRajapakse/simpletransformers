@@ -326,7 +326,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Evaluation during training no longer displays progress bars.
 - Evaluation during training no longer prints results to console by default.
-- Moved model/results saving logic to `_save_model` for readability and maintainability.
+- Moved model/results saving logic to `save_model(` for readability and maintainability.
 - Updated README.
 
 ## [0.18.12] - 2020-01-25
@@ -553,7 +553,7 @@ Model checkpoint is now saved for all epochs again.
 
 ### Added
 
-- Added option to specify a GPU to be used when multiple GPUs are available. E.g.: `cuda_device=1` 
+- Added option to specify a GPU to be used when multiple GPUs are available. E.g.: `cuda_device=1`
 - Added `do_lower_case` argument for uncased models.
 
 ### Fixed

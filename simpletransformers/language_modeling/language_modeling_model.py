@@ -370,7 +370,7 @@ class LanguageModelingModel:
             **kwargs,
         )
 
-        self._save_model(output_dir, model=self.model)
+        self.save_model(output_dir, model=self.model)
         if self.args.model_type == "electra":
             self.save_discriminator()
             self.save_generator()
@@ -636,7 +636,7 @@ class LanguageModelingModel:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        self._save_model(output_dir_current, optimizer, scheduler, model=model)
+                        self.save_model(output_dir_current, optimizer, scheduler, model=model)
 
                     if args.evaluate_during_training and (
                         args.evaluate_during_training_steps > 0
@@ -657,7 +657,7 @@ class LanguageModelingModel:
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
                         if args.save_eval_checkpoints:
-                            self._save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
+                            self.save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
 
                         training_progress_scores["global_step"].append(global_step)
                         training_progress_scores["train_loss"].append(current_loss)
@@ -673,11 +673,11 @@ class LanguageModelingModel:
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
-                            self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                            self.save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         if best_eval_metric and args.early_stopping_metric_minimize:
                             if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
-                                self._save_model(
+                                self.save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
                                 )
                                 early_stopping_counter = 0
@@ -698,7 +698,7 @@ class LanguageModelingModel:
                         else:
                             if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
-                                self._save_model(
+                                self.save_model(
                                     args.best_model_dir, optimizer, scheduler, model=model, results=results
                                 )
                                 early_stopping_counter = 0
@@ -727,7 +727,7 @@ class LanguageModelingModel:
                 os.makedirs(output_dir_current, exist_ok=True)
 
             if args.save_model_every_epoch:
-                self._save_model(output_dir_current, optimizer, scheduler, model=model)
+                self.save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args.evaluate_during_training:
                 results = self.eval_model(
@@ -737,7 +737,7 @@ class LanguageModelingModel:
                     **kwargs,
                 )
 
-                self._save_model(output_dir_current, optimizer, scheduler, results=results)
+                self.save_model(output_dir_current, optimizer, scheduler, results=results)
 
                 training_progress_scores["global_step"].append(global_step)
                 training_progress_scores["train_loss"].append(current_loss)
@@ -751,11 +751,11 @@ class LanguageModelingModel:
 
                 if not best_eval_metric:
                     best_eval_metric = results[args.early_stopping_metric]
-                    self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                    self.save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                 if best_eval_metric and args.early_stopping_metric_minimize:
                     if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
-                        self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                        self.save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                     else:
                         if args.use_early_stopping and args.early_stopping_consider_epochs:
@@ -774,7 +774,7 @@ class LanguageModelingModel:
                 else:
                     if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
-                        self._save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                        self.save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
                         early_stopping_counter = 0
                     else:
                         if args.use_early_stopping and args.early_stopping_consider_epochs:
@@ -1067,7 +1067,7 @@ class LanguageModelingModel:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def _save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
+    def save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
         if not self.is_world_master():
             return
         if not output_dir:
@@ -1088,7 +1088,7 @@ class LanguageModelingModel:
             if optimizer and scheduler and self.args.save_optimizer_and_scheduler:
                 torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
                 torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
-            self._save_model_args(output_dir)
+            self.save_model_args(output_dir)
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
@@ -1096,7 +1096,7 @@ class LanguageModelingModel:
                 for key in sorted(results.keys()):
                     writer.write("{} = {}\n".format(key, str(results[key])))
 
-    def _save_model_args(self, output_dir):
+    def save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
         self.args.save(output_dir)
 

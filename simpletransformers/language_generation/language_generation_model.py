@@ -199,7 +199,7 @@ class LanguageGenerationModel:
 
         return generated_sequences
 
-    def _save_model_args(self, output_dir):
+    def save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
         self.args.save(output_dir)
 

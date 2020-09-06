@@ -115,10 +115,22 @@ class ConvAIModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.__dict__.update(kwargs)
-
-        self.model = model_class.from_pretrained(model_name, **kwargs)
         self.tokenizer = tokenizer_class.from_pretrained(model_name, **kwargs)
         self.add_special_tokens_(self.model, self.tokenizer)
+
+        if not self.args.quantized_model:
+            self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
+        else:
+            quantized_weights = torch.load(os.path.join(model_name, "pytorch_model.bin"))
+            self.model = model_class.from_pretrained(None, config=self.config, state_dict=quantized_weights)
+
+        if self.args.dynamic_quantize:
+            self.model = torch.quantization.quantize_dynamic(self.model, {torch.nn.Linear}, dtype=torch.qint8)
+        if self.args.quantized_model:
+            self.model.load_state_dict(quantized_weights)
+        if self.args.dynamic_quantize:
+            self.args.quantized_model = True
+
         self.results = {}
 
         if use_cuda:
@@ -208,7 +220,7 @@ class ConvAIModel:
             **kwargs,
         )
 
-        self._save_model(model=self.model)
+        self.save_model(model=self.model)
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_type, output_dir))
@@ -330,9 +342,15 @@ class ConvAIModel:
 
                 if args.fp16:
                     with amp.autocast():
-                        outputs = model(**inputs)
+                        (lm_loss), (mc_loss), *_ = model(
+                            input_ids,
+                            token_type_ids=token_type_ids,
+                            mc_token_ids=mc_token_ids,
+                            mc_labels=mc_labels,
+                            lm_labels=lm_labels,
+                        )
                         # model outputs are always tuple in pytorch-transformers (see doc)
-                        loss = outputs[0]
+                        loss = lm_loss * args.lm_coef + mc_loss * args.mc_coef
                 else:
                     (lm_loss), (mc_loss), *_ = model(
                         input_ids,
@@ -393,7 +411,7 @@ class ConvAIModel:
                         # Save model checkpoint
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
-                        self._save_model(output_dir_current, model=model)
+                        self.save_model(output_dir_current, model=model)
 
                     if args.evaluate_during_training and (
                         args.evaluate_during_training_steps > 0
@@ -412,7 +430,7 @@ class ConvAIModel:
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
 
                         if args.save_eval_checkpoints:
-                            self._save_model(output_dir_current, model=model, results=results)
+                            self.save_model(output_dir_current, model=model, results=results)
 
                         training_progress_scores["global_step"].append(global_step)
                         training_progress_scores["train_loss"].append(current_loss)
@@ -428,11 +446,11 @@ class ConvAIModel:
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
-                            self._save_model(args.best_model_dir, model=model, results=results)
+                            self.save_model(args.best_model_dir, model=model, results=results)
                         if best_eval_metric and args.early_stopping_metric_minimize:
                             if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
-                                self._save_model(args.best_model_dir, model=model, results=results)
+                                self.save_model(args.best_model_dir, model=model, results=results)
                                 early_stopping_counter = 0
                             else:
                                 if args.use_early_stopping:
@@ -451,7 +469,7 @@ class ConvAIModel:
                         else:
                             if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
-                                self._save_model(args.best_model_dir, model=model, results=results)
+                                self.save_model(args.best_model_dir, model=model, results=results)
                                 early_stopping_counter = 0
                             else:
                                 if args.use_early_stopping:
@@ -475,14 +493,14 @@ class ConvAIModel:
                 os.makedirs(output_dir_current, exist_ok=True)
 
             if args.save_model_every_epoch:
-                self._save_model(output_dir_current, model=model)
+                self.save_model(output_dir_current, model=model)
 
             if args.evaluate_during_training:
                 results, _, _ = self.eval_model(
                     eval_dataloader, verbose=verbose and args.evaluate_during_training_verbose, silent=True, **kwargs,
                 )
 
-                self._save_model(output_dir_current, results=results)
+                self.save_model(output_dir_current, results=results)
 
                 training_progress_scores["global_step"].append(global_step)
                 training_progress_scores["train_loss"].append(current_loss)
@@ -496,16 +514,16 @@ class ConvAIModel:
 
                 if not best_eval_metric:
                     best_eval_metric = results[args.early_stopping_metric]
-                    self._save_model(args.best_model_dir, model=model, results=results)
+                    self.save_model(args.best_model_dir, model=model, results=results)
                 if best_eval_metric and args.early_stopping_metric_minimize:
                     if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
-                        self._save_model(args.best_model_dir, model=model, results=results)
+                        self.save_model(args.best_model_dir, model=model, results=results)
                         early_stopping_counter = 0
                 else:
                     if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
-                        self._save_model(args.best_model_dir, model=model, results=results)
+                        self.save_model(args.best_model_dir, model=model, results=results)
                         early_stopping_counter = 0
 
         return global_step, tr_loss / global_step
@@ -832,7 +850,7 @@ class ConvAIModel:
 
         return training_progress_scores
 
-    def _save_model(self, output_dir=None, model=None, results=None):
+    def save_model(self, output_dir=None, model=None, results=None):
         if not output_dir:
             output_dir = self.args.output_dir
 
@@ -841,7 +859,7 @@ class ConvAIModel:
             model_to_save = model.module if hasattr(model, "module") else model
             model_to_save.save_pretrained(output_dir)
             self.tokenizer.save_pretrained(output_dir)
-            self._save_model_args(output_dir)
+            self.save_model_args(output_dir)
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
@@ -952,7 +970,7 @@ class ConvAIModel:
 
         return current_output
 
-    def _save_model_args(self, output_dir):
+    def save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
         self.args.save(output_dir)
 
