@@ -2,7 +2,7 @@
 title: T5 Specifics
 permalink: /docs/t5-specifics/
 excerpt: "Specific notes for T5 tasks."
-last_modified_at: 2020/06/26 02:33:01
+last_modified_at: 2020/09/06 21:53:21
 toc: true
 ---
 
@@ -13,7 +13,7 @@ Please refer to the *[Exploring the Limits of Transfer Learning with a Unified T
 **Tip:** This [Medium article](https://towardsdatascience.com/asking-the-right-questions-training-a-t5-transformer-model-on-a-new-task-691ebba2d72c?source=friends_link&sk=9f88c539546eca32b702cc0243abd0dd) explains how to train a T5 Model to perform a new task.
 {: .notice--success}
 
-**Tip:** This [Medium article](https://towardsdatascience.com/asking-the-right-questions-training-a-t5-transformer-model-on-a-new-task-691ebba2d72c?source=friends_link&sk=9f88c539546eca32b702cc0243abd0dd) explains how to train a single T5 Model to perform multiple tasks.
+**Tip:** This [Medium article](https://towardsdatascience.com/the-guide-to-multi-tasking-with-the-t5-transformer-90c70a08837b?source=friends_link&sk=ffe37deefa8dd4158f3f76e3dd46cf11) explains how to train a single T5 Model to perform multiple tasks.
 {: .notice--success}
 
 ## Specifying a Task
