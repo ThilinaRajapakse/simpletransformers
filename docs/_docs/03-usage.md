@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2020/07/25 01:12:52
+last_modified_at: 2020/09/06 15:38:42
 toc: true
 ---
 
@@ -145,6 +145,7 @@ Configuration options in Simple Transformers are defined as either dataclasses o
 | config                           | dict  | {}                                                        | A dictionary containing configuration options that should be overriden in a model's config.                                                                                              |
 | dataloader_num_workers           | int   | cpu_count ()  -   2   if   cpu_count ()  >   2   else   1 | Number of worker processed to use with the Pytorch dataloader.                                                                                                                           |
 | do_lower_case                    | bool  | False                                                     | Set to True when using uncased models.                                                                                                                                                   |
+| dynamic_quantize                 | bool  | False                                                     | Set to True to use dynamic quantization.                                                                                                                                                 |
 | early_stopping_consider_epochs   | bool  | False                                                     | If True, end of epoch evaluation score will be considered for early stopping.                                                                                                            |
 | early_stopping_delta             | float | 0                                                         | The improvement over best_eval_loss necessary to count as a better checkpoint.                                                                                                           |
 | early_stopping_metric            | str   | eval_loss                                                 | The metric that should be used with early stopping. (Should be computed during eval_during_training).                                                                                    |
@@ -170,6 +171,7 @@ Configuration options in Simple Transformers are defined as either dataclasses o
 | output_dir                       | str   | "outputs/"                                                | The directory where all outputs will be stored. This includes model checkpoints and evaluation results.                                                                                  |
 | overwrite_output_dir             | bool  | False                                                     | If True, the trained model will be saved to the ouput_dir and will overwrite existing saved models in the same directory.                                                                |
 | process_count                    | int   | cpu_count ()  -   2   if   cpu_count ()  >   2   else   1 | Number of cpu cores (processes) to use when converting examples to features. Default is (number of cores - 2) or 1 if (number of cores <= 2)                                             |
+| quantized_model                  | bool  | False                                                     | Set to True if loading a quantized model. Note that this will automatically be set to True if `dynamic_quantize` is enabled.                                                             |
 | reprocess_input_data             | bool  | True                                                      | If True, the input data will be reprocessed even if a cached file of the input data exists in the cache_dir.                                                                             |
 | save_eval_checkpoints            | bool  | True                                                      | Save a model checkpoint for every evaluation performed.                                                                                                                                  |
 | save_model_every_epoch           | bool  | True                                                      | Save a model checkpoint at the end of every epoch.                                                                                                                                       |
@@ -671,6 +673,33 @@ model = ClassificationModel(
 model.train_model(train_df)
 
 ```
+
+## Dynamic Quantization
+
+Dynamic Quantization is used to significantly reduce the size of a model at the expense of a little bit of model accuracy. Simple Transformers uses the native Pytorch implementation which currently only supports CPU inference.
+
+An example of how to quantize, save, and load a quantized model is given below.
+
+```python
+from simpletransformers.classification import ClassificationModel
+
+
+# Loading a trained model and quantizing
+model = ClassificationModel('roberta', "outputs", use_cuda=False, args={"dynamic_quantize": True})
+
+print(model.predict("Output for quantized model"))
+
+# Saving the quantized model
+model.save_model("outputs/quantized", model=model.model)
+
+# Load the saved (quantized) model
+model = ClassificationModel('roberta', "outputs/quantized", use_cuda=False)
+
+# The outputs for the loaded model should be identical to the original (after quantization) model
+print(model.predict("Output for quantized model"))
+
+```
+
 
 ## Options For Downloading Pre-Trained Models
 
