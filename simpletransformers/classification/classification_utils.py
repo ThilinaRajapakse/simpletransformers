@@ -227,6 +227,7 @@ def convert_example_to_feature_sliding_window(
         stride,
         pad_token,
         add_prefix_space,
+        pad_to_max_length,
     ) = example_row
 
     if stride < 1:

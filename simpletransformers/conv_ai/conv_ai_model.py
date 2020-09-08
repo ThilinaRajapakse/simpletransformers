@@ -115,14 +115,16 @@ class ConvAIModel:
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         self.__dict__.update(kwargs)
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, **kwargs)
-        self.add_special_tokens_(self.model, self.tokenizer)
+        self.config = config_class.from_pretrained(model_name, **self.args.config)
 
         if not self.args.quantized_model:
-            self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
+            self.model = model_class.from_pretrained(model_name, **kwargs)
         else:
             quantized_weights = torch.load(os.path.join(model_name, "pytorch_model.bin"))
             self.model = model_class.from_pretrained(None, config=self.config, state_dict=quantized_weights)
+
+        self.tokenizer = tokenizer_class.from_pretrained(model_name, **kwargs)
+        self.add_special_tokens_(self.model, self.tokenizer)
 
         if self.args.dynamic_quantize:
             self.model = torch.quantization.quantize_dynamic(self.model, {torch.nn.Linear}, dtype=torch.qint8)

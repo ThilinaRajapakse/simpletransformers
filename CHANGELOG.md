@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.48.1] - 2020-09-08
+
+### Fixed
+
+- Bug when using sliding window with multiclass classification
+- Bug in ConvAI where model was being accessed before being created
+
 ## [0.48.0] - 2020-09-06
 
 ### Added
@@ -1080,7 +1087,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.48.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d62ce56...HEAD
+[0.48.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d62ce56...8c1ae68
+
+[0.48.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d62ce56...8c1ae68
 
 [0.47.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bd4c397...d62ce56
 
