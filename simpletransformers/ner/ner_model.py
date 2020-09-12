@@ -752,6 +752,9 @@ class NERModel:
         for metric, func in kwargs.items():
             extra_metrics[metric] = func(out_label_list, preds_list)
 
+        print(out_label_list)
+        print(preds_list)
+
         result = {
             "eval_loss": eval_loss,
             "precision": precision_score(out_label_list, preds_list),

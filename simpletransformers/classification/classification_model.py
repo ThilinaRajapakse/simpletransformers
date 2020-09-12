@@ -275,9 +275,8 @@ class ClassificationModel:
         if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args.overwrite_output_dir:
             raise ValueError(
                 "Output directory ({}) already exists and is not empty."
-                " Use --overwrite_output_dir to overcome.".format(output_dir)
+                " Set overwrite_output_dir: True to automatically overwrite.".format(output_dir)
             )
-
         self._move_model_to_device()
 
         if isinstance(train_df, str) and self.args.lazy_loading:
