@@ -458,6 +458,7 @@ def squad_convert_examples_to_features(
             max_seq_length=max_seq_length,
             doc_stride=doc_stride,
             max_query_length=max_query_length,
+            padding_strategy=padding_strategy,
             is_training=is_training,
         )
         features = [annotate_(example) for example in tqdm(examples, disable=not tqdm_enabled)]
