@@ -181,6 +181,12 @@ class NERModel:
 
         self.results = {}
 
+        if self.args.fp16:
+            try:
+                from torch.cuda import amp
+            except AttributeError:
+                raise AttributeError("fp16 requires Pytorch >= 1.6. Please update Pytorch or turn off fp16.")
+
         self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
         self.args.model_name = model_name
@@ -387,7 +393,7 @@ class NERModel:
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
-        if args.fp16:
+        if self.args.fp16:
             from torch.cuda import amp
 
             scaler = amp.GradScaler()
@@ -412,7 +418,7 @@ class NERModel:
 
                 inputs = self._get_inputs_dict(batch)
 
-                if args.fp16:
+                if self.args.fp16:
                     with amp.autocast():
                         outputs = model(**inputs)
                         # model outputs are always tuple in pytorch-transformers (see doc)
@@ -435,18 +441,18 @@ class NERModel:
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps
 
-                if args.fp16:
+                if self.args.fp16:
                     scaler.scale(loss).backward()
                 else:
                     loss.backward()
 
                 tr_loss += loss.item()
                 if (step + 1) % args.gradient_accumulation_steps == 0:
-                    if args.fp16:
+                    if self.args.fp16:
                         scaler.unscale_(optimizer)
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
-                    if args.fp16:
+                    if self.args.fp16:
                         scaler.step(optimizer)
                         scaler.update()
                     else:
@@ -692,6 +698,9 @@ class NERModel:
         out_label_ids = None
         model.eval()
 
+        if self.args.fp16:
+            from torch.cuda import amp
+
         for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
             batch = tuple(t.to(device) for t in batch)
 
@@ -704,8 +713,14 @@ class NERModel:
                 # XLM and RoBERTa don"t use segment_ids
                 if args.model_type in ["bert", "xlnet"]:
                     inputs["token_type_ids"] = batch[2]
-                outputs = model(**inputs)
-                tmp_eval_loss, logits = outputs[:2]
+
+                if self.args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        tmp_eval_loss, logits = outputs[:2]
+                else:
+                    outputs = model(**inputs)
+                    tmp_eval_loss, logits = outputs[:2]
 
                 eval_loss += tmp_eval_loss.mean().item()
 
@@ -837,6 +852,8 @@ class NERModel:
         preds = None
         out_label_ids = None
         model.eval()
+        if self.args.fp16:
+            from torch.cuda import amp
 
         for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
             batch = tuple(t.to(device) for t in batch)
@@ -850,8 +867,14 @@ class NERModel:
                 # XLM and RoBERTa don"t use segment_ids
                 if args.model_type in ["bert", "xlnet"]:
                     inputs["token_type_ids"] = batch[2]
-                outputs = model(**inputs)
-                tmp_eval_loss, logits = outputs[:2]
+
+                if self.args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        tmp_eval_loss, logits = outputs[:2]
+                else:
+                    outputs = model(**inputs)
+                    tmp_eval_loss, logits = outputs[:2]
 
                 eval_loss += tmp_eval_loss.mean().item()
 

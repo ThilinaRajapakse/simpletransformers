@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.49.0] - 2020-09-17
+
+### Added
+
+- Added `convert_to_onnx` function to the following models:
+  - ClassificationModel
+
+- Converted ONNX models can be loaded (requires specifying the `onnx_execution_provider`) and used for prediction.
+- Added `fp16` support for evaluation and prediction (requires Pytorch >= 1.6) for the following models:
+  - ClassificationModel
+  - NERModel
+
+### Fixed
+
+- Thread count can now be specified for MultiLabelClassificationModel.
+
 ## [0.48.2] - 2020-09-08
 
 ### Fixed

@@ -99,6 +99,9 @@ class MultiLabelClassificationModel(ClassificationModel):
         elif isinstance(args, MultiLabelClassificationArgs):
             self.args = args
 
+        if self.args.thread_count:
+            torch.set_num_threads(self.args.thread_count)
+
         if "sweep_config" in kwargs:
             sweep_config = kwargs.pop("sweep_config")
             sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
