@@ -175,6 +175,12 @@ class QuestionAnsweringModel:
 
         self.results = {}
 
+        if self.args.fp16:
+            try:
+                from torch.cuda import amp
+            except AttributeError:
+                raise AttributeError("fp16 requires Pytorch >= 1.6. Please update Pytorch or turn off fp16.")
+
         self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
         self.args.model_name = model_name
@@ -747,6 +753,9 @@ class QuestionAnsweringModel:
         nb_eval_steps = 0
         model.eval()
 
+        if self.args.fp16:
+            from torch.cuda import amp
+
         all_results = []
         for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Evaluation"):
             batch = tuple(t.to(device) for t in batch)
@@ -774,8 +783,13 @@ class QuestionAnsweringModel:
                 if args.model_type in ["xlnet", "xlm"]:
                     inputs.update({"cls_index": batch[4], "p_mask": batch[5]})
 
-                outputs = model(**inputs)
-                eval_loss += outputs[0].mean().item()
+                if self.args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        eval_loss += outputs[0].mean().item()
+                else:
+                    outputs = model(**inputs)
+                    eval_loss += outputs[0].mean().item()
 
                 for i, example_index in enumerate(example_indices):
                     eval_feature = features[example_index.item()]
@@ -885,6 +899,8 @@ class QuestionAnsweringModel:
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
         model.eval()
+        if self.args.fp16:
+            from torch.cuda import amp
 
         all_results = []
         for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
@@ -913,7 +929,11 @@ class QuestionAnsweringModel:
                 if args.model_type in ["xlnet", "xlm"]:
                     inputs.update({"cls_index": batch[4], "p_mask": batch[5]})
 
-                outputs = model(**inputs)
+                if self.args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                else:
+                    outputs = model(**inputs)
 
                 for i, example_index in enumerate(example_indices):
                     eval_feature = features[example_index.item()]

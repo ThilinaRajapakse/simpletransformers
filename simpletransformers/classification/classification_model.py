@@ -1098,7 +1098,7 @@ class ClassificationModel:
         out_label_ids = None
 
         if self.args.onnx:
-            model_inputs = self.tokenizer.batch_encode_plus(to_predict, return_tensors="pt", padding=True)
+            model_inputs = self.tokenizer.batch_encode_plus(to_predict, return_tensors="pt", padding=True, truncation=True)
 
             for input_ids, attention_mask in zip(model_inputs["input_ids"], model_inputs["attention_mask"]):
                 input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()

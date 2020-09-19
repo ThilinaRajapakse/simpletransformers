@@ -152,6 +152,7 @@ class NERArgs(ModelArgs):
     labels_list: list = field(default_factory=list)
     lazy_loading: bool = False
     lazy_loading_start_line: int = 0
+    onnx: bool = False
 
 
 @dataclass

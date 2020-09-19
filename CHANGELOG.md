@@ -10,11 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added `convert_to_onnx` function to the following models:
   - ClassificationModel
+  - NERModel
 
-- Converted ONNX models can be loaded (requires specifying the `onnx_execution_provider`) and used for prediction.
+- Converted ONNX models can be loaded (requires specifying `onnx: True` in model_args) and used for prediction.
 - Added `fp16` support for evaluation and prediction (requires Pytorch >= 1.6) for the following models:
   - ClassificationModel
   - NERModel
+  - QuestionAnsweringModel
 
 ### Fixed
 
