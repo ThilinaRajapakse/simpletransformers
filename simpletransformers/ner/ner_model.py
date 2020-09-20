@@ -712,12 +712,12 @@ class NERModel:
             nb_eval_steps += 1
 
             if preds is None:
-                preds = logits.detach().cpu().numpy()
+                preds = np.argmax(logits.detach().cpu().numpy(), axis=2)
                 out_label_ids = inputs["labels"].detach().cpu().numpy()
                 out_input_ids = inputs["input_ids"].detach().cpu().numpy()
                 out_attention_mask = inputs["attention_mask"].detach().cpu().numpy()
             else:
-                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                preds = np.append(preds, np.argmax(logits.detach().cpu().numpy(), axis=2), axis=0)
                 out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
                 out_input_ids = np.append(out_input_ids, inputs["input_ids"].detach().cpu().numpy(), axis=0)
                 out_attention_mask = np.append(
@@ -726,7 +726,6 @@ class NERModel:
 
         eval_loss = eval_loss / nb_eval_steps
         token_logits = preds
-        preds = np.argmax(preds, axis=2)
 
         label_map = {i: label for i, label in enumerate(self.args.labels_list)}
 
