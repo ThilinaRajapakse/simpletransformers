@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `convert_to_onnx` function to the following models:
   - ClassificationModel
   - NERModel
-
 - Converted ONNX models can be loaded (requires specifying `onnx: True` in model_args) and used for prediction.
 - Added `fp16` support for evaluation and prediction (requires Pytorch >= 1.6) for the following models:
   - ClassificationModel
@@ -25,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### TODO
 
 - Add multigpu prediction/eval
+## [0.48.4] - 2020-09-23
+
+### Fixed
+
+- Fixed compatibility issue with transformers 3.2. (BertPreTrainedModel was being imported from an incompatible path)
+
+## [0.48.3] - 2020-09-08
+
+- Version numbering issue fixed.
 
 ## [0.48.2] - 2020-09-08
 
@@ -1115,9 +1123,11 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.48.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d62ce56...8c1ae68
+[0.48.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7ef56b0...HEAD
 
-[0.48.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d62ce56...8c1ae68
+[0.48.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/8c1ae68...7ef56b0
+
+[0.48.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d62ce56...0f678f2
 
 [0.47.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bd4c397...d62ce56
 
