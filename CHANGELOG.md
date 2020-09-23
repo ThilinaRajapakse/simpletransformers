@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Thread count can now be specified for MultiLabelClassificationModel.
 
+### TODO
+
+- Add multigpu prediction/eval
+
 ## [0.48.2] - 2020-09-08
 
 ### Fixed
