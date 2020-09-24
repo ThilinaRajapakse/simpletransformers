@@ -621,13 +621,24 @@ class T5Model:
         nb_eval_steps = 0
         model.eval()
 
+        if args.n_gpu > 1:
+            model = torch.nn.DataParallel(model)
+
+        if self.args.fp16:
+            from torch.cuda import amp
+
         for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
             batch = tuple(t.to(device) for t in batch)
 
             inputs = self._get_inputs_dict(batch)
             with torch.no_grad():
-                outputs = model(**inputs)
-                loss = outputs[0]
+                if self.args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        loss = outputs[0]
+                else:
+                    outputs = model(**inputs)
+                    loss = outputs[0]
                 eval_loss += loss.mean().item()
             nb_eval_steps += 1
 

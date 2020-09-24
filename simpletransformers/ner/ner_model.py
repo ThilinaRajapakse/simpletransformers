@@ -78,7 +78,15 @@ logger = logging.getLogger(__name__)
 
 class NERModel:
     def __init__(
-        self, model_type, model_name, labels=None, args=None, use_cuda=True, cuda_device=-1, onnx_execution_provider=None, **kwargs,
+        self,
+        model_type,
+        model_name,
+        labels=None,
+        args=None,
+        use_cuda=True,
+        cuda_device=-1,
+        onnx_execution_provider=None,
+        **kwargs,
     ):
         """
         Initializes a NERModel
@@ -717,6 +725,9 @@ class NERModel:
         out_label_ids = None
         model.eval()
 
+        if args.n_gpu > 1:
+            model = torch.nn.DataParallel(model)
+
         if self.args.fp16:
             from torch.cuda import amp
 
@@ -869,7 +880,9 @@ class NERModel:
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
         if self.args.onnx:
-            model_inputs = self.tokenizer.batch_encode_plus(to_predict, return_tensors="pt", padding=True, truncation=True)
+            model_inputs = self.tokenizer.batch_encode_plus(
+                to_predict, return_tensors="pt", padding=True, truncation=True
+            )
 
             for input_ids, attention_mask in zip(model_inputs["input_ids"], model_inputs["attention_mask"]):
                 input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
@@ -886,9 +899,7 @@ class NERModel:
                 else:
                     preds = np.append(preds, output[0], axis=0)
                     out_input_ids = np.append(out_input_ids, inputs_onnx["input_ids"], axis=0)
-                    out_attention_mask = np.append(
-                        out_attention_mask, inputs_onnx["attention_mask"], axis=0,
-                    )
+                    out_attention_mask = np.append(out_attention_mask, inputs_onnx["attention_mask"], axis=0,)
             out_label_ids = np.zeros_like(out_input_ids)
         else:
             self._move_model_to_device()
@@ -898,6 +909,10 @@ class NERModel:
             preds = None
             out_label_ids = None
             model.eval()
+
+            if args.n_gpu > 1:
+                model = torch.nn.DataParallel(model)
+
             if self.args.fp16:
                 from torch.cuda import amp
 
@@ -1114,7 +1129,7 @@ class NERModel:
         Args:
             output_dir (str, optional): If specified, ONNX model will be saved to output_dir (else args.output_dir will be used). Defaults to None.
             set_onnx_arg (bool, optional): Updates the model args to set onnx=True. Defaults to True.
-        """ # noqa
+        """  # noqa
         if not output_dir:
             output_dir = os.path.join(self.args.output_dir, "onnx")
         os.makedirs(output_dir, exist_ok=True)
@@ -1130,12 +1145,14 @@ class NERModel:
         with tempfile.TemporaryDirectory() as temp_dir:
             self.save_model(output_dir=temp_dir, model=self.model)
 
-            convert(framework="pt",
-                    model=temp_dir,
-                    tokenizer=self.tokenizer,
-                    output=Path(onnx_model_name),
-                    pipeline_name="ner",
-                    opset=11)
+            convert(
+                framework="pt",
+                model=temp_dir,
+                tokenizer=self.tokenizer,
+                output=Path(onnx_model_name),
+                pipeline_name="ner",
+                opset=11,
+            )
 
         self.args.onnx = True
         self.tokenizer.save_pretrained(output_dir)

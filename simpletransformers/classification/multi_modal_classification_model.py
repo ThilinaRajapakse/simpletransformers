@@ -819,6 +819,12 @@ class MultiModalClassificationModel:
         out_label_ids = None
         model.eval()
 
+        if args.n_gpu > 1:
+            model = torch.nn.DataParallel(model)
+
+        if args.fp16:
+            from torch.cuda import amp
+
         for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
             batch = tuple(t.to(device) for t in batch)
             labels = batch[5]
@@ -1018,14 +1024,24 @@ class MultiModalClassificationModel:
         preds = None
         out_label_ids = None
 
+        if args.n_gpu > 1:
+            model = torch.nn.DataParallel(model)
+
+        if args.fp16:
+            from torch.cuda import amp
+
         for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
             batch = tuple(t.to(device) for t in batch)
             labels = batch[5]
             with torch.no_grad():
                 inputs = self._get_inputs_dict(batch)
-
-                outputs = model(**inputs)
-                logits = outputs[0]  # Different from default behaviour
+                if self.args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        logits = outputs[0]  # Different from default behaviour
+                else:
+                    outputs = model(**inputs)
+                    logits = outputs[0]  # Different from default behaviour
                 tmp_eval_loss = self.criterion(logits, labels)
 
                 eval_loss += tmp_eval_loss.mean().item()

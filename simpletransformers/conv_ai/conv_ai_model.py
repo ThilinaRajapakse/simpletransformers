@@ -587,13 +587,27 @@ class ConvAIModel:
         }
         model.eval()
 
+        if args.n_gpu > 1:
+            model = torch.nn.DataParallel(model)
+
+        if args.fp16:
+            from torch.cuda import amp
+
         for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
                 input_ids, mc_token_ids, lm_labels, mc_labels, token_type_ids = batch
 
-                lm_logits, mc_logits, *_ = model(input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,)
+                if args.fp16:
+                    with amp.autocast():
+                        lm_logits, mc_logits, *_ = model(
+                            input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,
+                        )
+                else:
+                    lm_logits, mc_logits, *_ = model(
+                        input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,
+                    )
                 # model outputs are always tuple in pytorch-transformers (see doc)
 
                 lm_logits_flat_shifted = lm_logits[..., :-1, :].contiguous().view(-1, lm_logits.size(-1))
@@ -739,6 +753,9 @@ class ConvAIModel:
         tokenizer = self.tokenizer
         process_count = self.args.process_count
 
+        if self.args.fp16:
+            from torch.cuda import amp
+
         self._move_model_to_device()
 
         if not personality:
@@ -764,7 +781,11 @@ class ConvAIModel:
                 raw_text = input(">>> ")
             history.append(tokenizer.encode(raw_text))
             with torch.no_grad():
-                out_ids = self.sample_sequence(personality, history, tokenizer, model, args)
+                if args.fp16:
+                    with amp.autocast():
+                        out_ids = self.sample_sequence(personality, history, tokenizer, model, args)
+                else:
+                    out_ids = self.sample_sequence(personality, history, tokenizer, model, args)
             history.append(out_ids)
             history = history[-(2 * args.max_history + 1) :]
             out_text = tokenizer.decode(out_ids, skip_special_tokens=True)
@@ -791,6 +812,9 @@ class ConvAIModel:
         tokenizer = self.tokenizer
         process_count = self.args.process_count
 
+        if self.args.fp16:
+            from torch.cuda import amp
+
         self._move_model_to_device()
 
         if not personality:
@@ -813,7 +837,11 @@ class ConvAIModel:
             history = [tokenizer.encode(sentence) for sentence in history]
         history.append(tokenizer.encode(message))
         with torch.no_grad():
-            out_ids = self.sample_sequence(personality, history, tokenizer, model, args)
+            if args.fp16:
+                with amp.autocast():
+                    out_ids = self.sample_sequence(personality, history, tokenizer, model, args)
+            else:
+                out_ids = self.sample_sequence(personality, history, tokenizer, model, args)
         out_text = tokenizer.decode(out_ids, skip_special_tokens=True)
 
         if encode_history:

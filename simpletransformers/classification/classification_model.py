@@ -93,7 +93,16 @@ logger = logging.getLogger(__name__)
 
 class ClassificationModel:
     def __init__(
-        self, model_type, model_name, num_labels=None, weight=None, args=None, use_cuda=True, cuda_device=-1, onnx_execution_provider=None, **kwargs,
+        self,
+        model_type,
+        model_name,
+        num_labels=None,
+        weight=None,
+        args=None,
+        use_cuda=True,
+        cuda_device=-1,
+        onnx_execution_provider=None,
+        **kwargs,
     ):
 
         """
@@ -818,11 +827,15 @@ class ClassificationModel:
         eval_sampler = SequentialSampler(eval_dataset)
         eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
+        if args.n_gpu > 1:
+            model = torch.nn.DataParallel(model)
+
         eval_loss = 0.0
         nb_eval_steps = 0
         preds = None
         out_label_ids = None
         model.eval()
+
         if self.args.fp16:
             from torch.cuda import amp
 
@@ -1096,8 +1109,10 @@ class ClassificationModel:
         preds = None
         out_label_ids = None
 
-        if self.args.onnx:
-            model_inputs = self.tokenizer.batch_encode_plus(to_predict, return_tensors="pt", padding=True, truncation=True)
+        if not multi_label and self.args.onnx:
+            model_inputs = self.tokenizer.batch_encode_plus(
+                to_predict, return_tensors="pt", padding=True, truncation=True
+            )
 
             for input_ids, attention_mask in zip(model_inputs["input_ids"], model_inputs["attention_mask"]):
                 input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
@@ -1119,6 +1134,9 @@ class ClassificationModel:
             self._move_model_to_device()
             dummy_label = 0 if not self.args.labels_map else next(iter(self.args.labels_map.keys()))
 
+            if args.n_gpu > 1:
+                model = torch.nn.DataParallel(model)
+
             if multi_label:
                 if isinstance(to_predict[0], list):
                     eval_examples = [
@@ -1132,7 +1150,9 @@ class ClassificationModel:
                     ]
             else:
                 if isinstance(to_predict[0], list):
-                    eval_examples = [InputExample(i, text[0], text[1], dummy_label) for i, text in enumerate(to_predict)]
+                    eval_examples = [
+                        InputExample(i, text[0], text[1], dummy_label) for i, text in enumerate(to_predict)
+                    ]
                 else:
                     eval_examples = [InputExample(i, text, None, dummy_label) for i, text in enumerate(to_predict)]
             if args.sliding_window:
@@ -1175,7 +1195,9 @@ class ClassificationModel:
                     if preds is None:
                         preds = logits.detach().cpu().numpy()
                         out_label_ids = inputs["labels"].detach().cpu().numpy()
-                        all_layer_hidden_states = np.array([state.detach().cpu().numpy() for state in layer_hidden_states])
+                        all_layer_hidden_states = np.array(
+                            [state.detach().cpu().numpy() for state in layer_hidden_states]
+                        )
                         all_embedding_outputs = embedding_outputs.detach().cpu().numpy()
                     else:
                         preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
@@ -1272,7 +1294,7 @@ class ClassificationModel:
         Args:
             output_dir (str, optional): If specified, ONNX model will be saved to output_dir (else args.output_dir will be used). Defaults to None.
             set_onnx_arg (bool, optional): Updates the model args to set onnx=True. Defaults to True.
-        """ # noqa
+        """  # noqa
         if not output_dir:
             output_dir = os.path.join(self.args.output_dir, "onnx")
         os.makedirs(output_dir, exist_ok=True)
@@ -1288,12 +1310,14 @@ class ClassificationModel:
         with tempfile.TemporaryDirectory() as temp_dir:
             self.save_model(output_dir=temp_dir, model=self.model)
 
-            convert(framework="pt",
-                    model=temp_dir,
-                    tokenizer=self.tokenizer,
-                    output=Path(onnx_model_name),
-                    pipeline_name="sentiment-analysis",
-                    opset=11)
+            convert(
+                framework="pt",
+                model=temp_dir,
+                tokenizer=self.tokenizer,
+                output=Path(onnx_model_name),
+                pipeline_name="sentiment-analysis",
+                opset=11,
+            )
 
         self.args.onnx = True
         self.tokenizer.save_pretrained(output_dir)

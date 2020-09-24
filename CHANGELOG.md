@@ -16,14 +16,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ClassificationModel
   - NERModel
   - QuestionAnsweringModel
+  - Seq2Seq
+  - T5Model
+  - ConvAI
+  - MultiModalClassificationModel
+- Added multigpu prediction/eval in
+  - ClassificationModel
+  - MultiModalClassificationModel
+  - ConvAI
+  - NERModel
+  - QuestionAnsweringModel
+  - Seq2Seq
+  - T5Model
 
 ### Fixed
 
 - Thread count can now be specified for MultiLabelClassificationModel.
 
-### TODO
 
-- Add multigpu prediction/eval
 ## [0.48.4] - 2020-09-23
 
 ### Fixed
