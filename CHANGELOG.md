@@ -14,16 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Converted ONNX models can be loaded (requires specifying `onnx: True` in model_args) and used for prediction.
 - Added `fp16` support for evaluation and prediction (requires Pytorch >= 1.6) for the following models:
   - ClassificationModel
+  - ConvAI
+  - MultiModalClassificationModel
   - NERModel
   - QuestionAnsweringModel
   - Seq2Seq
   - T5Model
-  - ConvAI
-  - MultiModalClassificationModel
 - Added multigpu prediction/eval in
   - ClassificationModel
-  - MultiModalClassificationModel
   - ConvAI
+  - MultiModalClassificationModel
   - NERModel
   - QuestionAnsweringModel
   - Seq2Seq
