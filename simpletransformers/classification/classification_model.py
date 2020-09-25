@@ -671,7 +671,7 @@ class ClassificationModel:
             if args.save_model_every_epoch:
                 self.save_model(output_dir_current, optimizer, scheduler, model=model)
 
-            if args.evaluate_during_training:
+            if args.evaluate_during_training and args.evaluate_each_epoch:
                 results, _, _ = self.eval_model(
                     eval_df,
                     verbose=verbose and args.evaluate_during_training_verbose,

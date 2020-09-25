@@ -50,6 +50,9 @@ from transformers import (
     XLMRobertaConfig,
     XLMRobertaForTokenClassification,
     XLMRobertaTokenizer,
+    LayoutLMConfig,
+    LayoutLMForTokenClassification,
+    LayoutLMTokenizer,
     get_linear_schedule_with_warmup,
 )
 from wandb import config
@@ -110,6 +113,7 @@ class NERModel:
             "longformer": (LongformerConfig, LongformerForTokenClassification, LongformerTokenizer),
             "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
+            "layoutlm": (LayoutLMConfig, LayoutLMForTokenClassification, LayoutLMTokenizer),
         }
 
         self.args = self._load_model_args(model_name)
@@ -600,7 +604,7 @@ class NERModel:
             if args.save_model_every_epoch:
                 self.save_model(output_dir_current, optimizer, scheduler, model=model)
 
-            if args.evaluate_during_training:
+            if args.evaluate_during_training and args.evaluate_each_epoch:
                 results, _, _ = self.eval_model(
                     eval_data, verbose=verbose and args.evaluate_during_training_verbose, wandb_log=False, **kwargs
                 )
@@ -735,14 +739,7 @@ class NERModel:
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
-                inputs = {
-                    "input_ids": batch[0],
-                    "attention_mask": batch[1],
-                    "labels": batch[3],
-                }
-                # XLM and RoBERTa don"t use segment_ids
-                if args.model_type in ["bert", "xlnet"]:
-                    inputs["token_type_ids"] = batch[2]
+                inputs = self._get_inputs_dict(batch)
 
                 if self.args.fp16:
                     with amp.autocast():
@@ -796,9 +793,6 @@ class NERModel:
         extra_metrics = {}
         for metric, func in kwargs.items():
             extra_metrics[metric] = func(out_label_list, preds_list)
-
-        print(out_label_list)
-        print(preds_list)
 
         result = {
             "eval_loss": eval_loss,
@@ -864,15 +858,31 @@ class NERModel:
         preds = None
 
         if split_on_space:
-            predict_examples = [
-                InputExample(i, sentence.split(), [self.args.labels_list[0] for word in sentence.split()])
-                for i, sentence in enumerate(to_predict)
-            ]
+            if self.args.model_type == "layoutlm":
+                predict_examples = [
+                    InputExample(
+                        i, sentence.split(), [self.args.labels_list[0] for word in sentence.split()], x0, y0, x1, y1
+                    )
+                    for i, (sentence, x0, y0, x1, y1) in enumerate(to_predict)
+                ]
+                to_predict = [sentence for sentence, *_ in to_predict]
+            else:
+                predict_examples = [
+                    InputExample(i, sentence.split(), [self.args.labels_list[0] for word in sentence.split()])
+                    for i, sentence in enumerate(to_predict)
+                ]
         else:
-            predict_examples = [
-                InputExample(i, sentence, [self.args.labels_list[0] for word in sentence])
-                for i, sentence in enumerate(to_predict)
-            ]
+            if self.args.model_type == "layoutlm":
+                predict_examples = [
+                    InputExample(i, sentence, [self.args.labels_list[0] for word in sentence], x0, y0, x1, y1)
+                    for i, (sentence, x0, y0, x1, y1) in enumerate(to_predict)
+                ]
+                to_predict = [sentence for sentence, *_ in to_predict]
+            else:
+                predict_examples = [
+                    InputExample(i, sentence, [self.args.labels_list[0] for word in sentence])
+                    for i, sentence in enumerate(to_predict)
+                ]
 
         eval_dataset = self.load_and_cache_examples(None, to_predict=predict_examples)
 
@@ -920,14 +930,7 @@ class NERModel:
                 batch = tuple(t.to(device) for t in batch)
 
                 with torch.no_grad():
-                    inputs = {
-                        "input_ids": batch[0],
-                        "attention_mask": batch[1],
-                        "labels": batch[3],
-                    }
-                    # XLM and RoBERTa don"t use segment_ids
-                    if args.model_type in ["bert", "xlnet"]:
-                        inputs["token_type_ids"] = batch[2]
+                    inputs = self._get_inputs_dict(batch)
 
                     if self.args.fp16:
                         with amp.autocast():
@@ -1062,7 +1065,7 @@ class NERModel:
                 else:
                     if self.args.lazy_loading:
                         raise ValueError("Input must be given as a path to a file when using lazy loading")
-                    examples = get_examples_from_df(data)
+                    examples = get_examples_from_df(data, bbox=True if self.args.model_type == "layoutlm" else False)
             else:
                 examples = to_predict
                 no_cache = True
@@ -1116,10 +1119,16 @@ class NERModel:
             all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
             all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
 
+            if self.args.model_type == "layoutlm":
+                all_bboxes = torch.tensor([f.bboxes for f in features], dtype=torch.long)
+
             if self.args.onnx:
                 return all_label_ids
 
-            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+            if self.args.model_type == "layoutlm":
+                dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_bboxes)
+            else:
+                dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
         return dataset
 
@@ -1172,8 +1181,11 @@ class NERModel:
             "labels": batch[3],
         }
         # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
-        if self.args.model_type in ["bert", "xlnet", "albert"]:
+        if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
             inputs["token_type_ids"] = batch[2]
+
+        if self.args.model_type == "layoutlm":
+            inputs["bbox"] = batch[4]
 
         return inputs
 

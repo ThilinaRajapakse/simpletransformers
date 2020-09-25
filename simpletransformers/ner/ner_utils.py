@@ -33,27 +33,34 @@ from tqdm.auto import tqdm
 class InputExample(object):
     """A single training/test example for token classification."""
 
-    def __init__(self, guid, words, labels):
+    def __init__(self, guid, words, labels, x0=None, y0=None, x1=None, y1=None):
         """Constructs a InputExample.
         Args:
             guid: Unique id for the example.
             words: list. The words of the sequence.
             labels: (Optional) list. The labels for each word of the sequence. This should be
             specified for train and dev examples, but not for test examples.
+            bbox: (Optional) list. The bounding boxes for each word of the sequence.
         """
         self.guid = guid
         self.words = words
         self.labels = labels
+        if x0 is None:
+            self.bboxes = None
+        else:
+            self.bboxes = [[a, b, c, d] for a, b, c, d in zip(x0, y0, x1, y1)]
 
 
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, label_ids):
+    def __init__(self, input_ids, input_mask, segment_ids, label_ids, bboxes=None):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
         self.label_ids = label_ids
+        if bboxes:
+            self.bboxes = bboxes
 
 
 def read_examples_from_file(data_file, mode):
@@ -83,11 +90,25 @@ def read_examples_from_file(data_file, mode):
     return examples
 
 
-def get_examples_from_df(data):
-    return [
-        InputExample(guid=sentence_id, words=sentence_df["words"].tolist(), labels=sentence_df["labels"].tolist(),)
-        for sentence_id, sentence_df in data.groupby(["sentence_id"])
-    ]
+def get_examples_from_df(data, bbox=False):
+    if bbox:
+        return [
+            InputExample(
+                guid=sentence_id,
+                words=sentence_df["words"].tolist(),
+                labels=sentence_df["labels"].tolist(),
+                x0=sentence_df["x0"].tolist(),
+                y0=sentence_df["y0"].tolist(),
+                x1=sentence_df["x1"].tolist(),
+                y1=sentence_df["y1"].tolist(),
+            )
+            for sentence_id, sentence_df in data.groupby(["sentence_id"])
+        ]
+    else:
+        return [
+            InputExample(guid=sentence_id, words=sentence_df["words"].tolist(), labels=sentence_df["labels"].tolist(),)
+            for sentence_id, sentence_df in data.groupby(["sentence_id"])
+        ]
 
 
 def convert_example_to_feature(example_row):
@@ -111,18 +132,34 @@ def convert_example_to_feature(example_row):
 
     tokens = []
     label_ids = []
-    for word, label in zip(example.words, example.labels):
-        word_tokens = tokenizer.tokenize(word)
-        tokens.extend(word_tokens)
-        # Use the real label id for the first token of the word, and padding ids for the remaining tokens
-        if word_tokens:  # avoid non printable character like '\u200e' which are tokenized as a void token ''
+    bboxes = []
+    if example.bboxes:
+        for word, label, bbox in zip(example.words, example.labels, example.bboxes):
+            word_tokens = tokenizer.tokenize(word)
+            tokens.extend(word_tokens)
+            # Use the real label id for the first token of the word, and padding ids for the remaining tokens
             label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
+            bboxes.extend([bbox] * len(word_tokens))
+
+        cls_token_box = [0, 0, 0, 0]
+        sep_token_box = [1000, 1000, 1000, 1000]
+        pad_token_box = [0, 0, 0, 0]
+
+    else:
+        for word, label in zip(example.words, example.labels):
+            word_tokens = tokenizer.tokenize(word)
+            tokens.extend(word_tokens)
+            # Use the real label id for the first token of the word, and padding ids for the remaining tokens
+            if word_tokens:  # avoid non printable character like '\u200e' which are tokenized as a void token ''
+                label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
 
     # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
     special_tokens_count = 3 if sep_token_extra else 2
     if len(tokens) > max_seq_length - special_tokens_count:
         tokens = tokens[: (max_seq_length - special_tokens_count)]
         label_ids = label_ids[: (max_seq_length - special_tokens_count)]
+        if bboxes:
+            bboxes = bboxes[: (max_seq_length - special_tokens_count)]
 
     # The convention in BERT is:
     # (a) For sequence pairs:
@@ -144,10 +181,14 @@ def convert_example_to_feature(example_row):
     # the entire model is fine-tuned.
     tokens += [sep_token]
     label_ids += [pad_token_label_id]
+    if bboxes:
+        bboxes += [sep_token_box]
     if sep_token_extra:
         # roberta uses an extra separator b/w pairs of sentences
         tokens += [sep_token]
         label_ids += [pad_token_label_id]
+        if bboxes:
+            bboxes += [sep_token_box]
     segment_ids = [sequence_a_segment_id] * len(tokens)
 
     if cls_token_at_end:
@@ -158,6 +199,8 @@ def convert_example_to_feature(example_row):
         tokens = [cls_token] + tokens
         label_ids = [pad_token_label_id] + label_ids
         segment_ids = [cls_token_segment_id] + segment_ids
+        if bboxes:
+            bboxes = [cls_token_box] + bboxes
 
     input_ids = tokenizer.convert_tokens_to_ids(tokens)
 
@@ -177,13 +220,22 @@ def convert_example_to_feature(example_row):
         input_mask += [0 if mask_padding_with_zero else 1] * padding_length
         segment_ids += [pad_token_segment_id] * padding_length
         label_ids += [pad_token_label_id] * padding_length
+        if bboxes:
+            bboxes += [pad_token_box] * padding_length
 
     assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
     assert len(segment_ids) == max_seq_length
     assert len(label_ids) == max_seq_length
+    if bboxes:
+        assert len(bboxes) == max_seq_length
 
-    return InputFeatures(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids,)
+    if bboxes:
+        return InputFeatures(
+            input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids, bboxes=bboxes
+        )
+    else:
+        return InputFeatures(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids,)
 
 
 def convert_examples_to_features(

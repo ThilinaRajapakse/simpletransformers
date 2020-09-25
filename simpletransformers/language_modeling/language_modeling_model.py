@@ -729,7 +729,7 @@ class LanguageModelingModel:
             if args.save_model_every_epoch:
                 self.save_model(output_dir_current, optimizer, scheduler, model=model)
 
-            if args.evaluate_during_training:
+            if args.evaluate_during_training and args.evaluate_each_epoch:
                 results = self.eval_model(
                     eval_file,
                     verbose=verbose and args.evaluate_during_training_verbose,
