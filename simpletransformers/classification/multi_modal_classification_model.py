@@ -835,7 +835,9 @@ class MultiModalClassificationModel:
                 logits = outputs[0]  # Different from default behaviour
                 tmp_eval_loss = self.criterion(logits, labels)
 
-                eval_loss += tmp_eval_loss.mean().item()
+                if self.args.n_gpu > 1:
+                    tmp_eval_loss = tmp_eval_loss.mean()
+                eval_loss += tmp_eval_loss.item()
 
             nb_eval_steps += 1
 
@@ -1044,7 +1046,9 @@ class MultiModalClassificationModel:
                     logits = outputs[0]  # Different from default behaviour
                 tmp_eval_loss = self.criterion(logits, labels)
 
-                eval_loss += tmp_eval_loss.mean().item()
+                if self.args.n_gpu > 1:
+                    tmp_eval_loss = tmp_eval_loss.mean()
+                eval_loss += tmp_eval_loss.item()
 
             nb_eval_steps += 1
 

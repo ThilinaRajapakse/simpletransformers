@@ -765,11 +765,13 @@ class Seq2SeqModel:
                 if self.args.fp16:
                     with amp.autocast():
                         outputs = model(**inputs)
-                        loss = outputs[0]
+                        tmp_eval_loss = outputs[0]
                 else:
                     outputs = model(**inputs)
-                    loss = outputs[0]
-                eval_loss += loss.mean().item()
+                    tmp_eval_loss = outputs[0]
+                if self.args.n_gpu > 1:
+                    tmp_eval_loss = tmp_eval_loss.mean()
+                eval_loss += tmp_eval_loss.item()
             nb_eval_steps += 1
 
         eval_loss = eval_loss / nb_eval_steps

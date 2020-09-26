@@ -639,7 +639,9 @@ class T5Model:
                 else:
                     outputs = model(**inputs)
                     loss = outputs[0]
-                eval_loss += loss.mean().item()
+                if self.args.n_gpu > 1:
+                    loss = loss.mean()
+                eval_loss += loss.item()
             nb_eval_steps += 1
 
         eval_loss = eval_loss / nb_eval_steps

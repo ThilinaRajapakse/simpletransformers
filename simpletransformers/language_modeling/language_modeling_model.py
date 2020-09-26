@@ -861,7 +861,9 @@ class LanguageModelingModel:
                     lm_loss = g_loss + args.discriminator_loss_weight * d_loss
                 else:
                     lm_loss = outputs[0]
-                eval_loss += lm_loss.mean().item()
+                if self.args.n_gpu > 1:
+                    lm_loss = lm_loss.mean()
+                eval_loss += lm_loss.item()
             nb_eval_steps += 1
 
         eval_loss = eval_loss / nb_eval_steps

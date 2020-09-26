@@ -855,7 +855,9 @@ class ClassificationModel:
 
                 if multi_label:
                     logits = logits.sigmoid()
-                eval_loss += tmp_eval_loss.mean().item()
+                if self.args.n_gpu > 1:
+                    tmp_eval_loss = tmp_eval_loss.mean()
+                eval_loss += tmp_eval_loss.item()
 
             nb_eval_steps += 1
 
@@ -1188,7 +1190,9 @@ class ClassificationModel:
                         if multi_label:
                             logits = logits.sigmoid()
 
-                        eval_loss += tmp_eval_loss.mean().item()
+                        if self.args.n_gpu > 1:
+                            tmp_eval_loss = tmp_eval_loss.mean()
+                        eval_loss += tmp_eval_loss.item()
 
                     nb_eval_steps += 1
 
@@ -1229,7 +1233,9 @@ class ClassificationModel:
                         if multi_label:
                             logits = logits.sigmoid()
 
-                        eval_loss += tmp_eval_loss.mean().item()
+                        if self.args.n_gpu > 1:
+                            tmp_eval_loss = tmp_eval_loss.mean()
+                        eval_loss += tmp_eval_loss.item()
 
                     nb_eval_steps += 1
 
