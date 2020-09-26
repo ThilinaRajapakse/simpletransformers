@@ -2,7 +2,7 @@
 title: NER Data Formats
 permalink: /docs/ner-data-formats/
 excerpt: "Data formats for named entity recognition."
-last_modified_at: 2020/09/26 13:46:57
+last_modified_at: 2020/09/26 13:52:23
 toc: true
 ---
 
@@ -83,6 +83,9 @@ Although the paper discusses using combinations of text, layout, and image featu
 
 The data format for LayoutLM is similar to the default format described above but it also includes the bounding box information in addition to the text.
 
+**Note:** The bounding box coordinates must be normalized to between 0-1000 where (0,0) is the top-left corner of the image.
+{: .notice--info}
+
 Dataframe format:
 
 | sentence_id | words      | labels | xo  | y0  | x1  | y1  |
@@ -124,6 +127,10 @@ of I-ORG 956 902 968 904
 the I-ORG 945 963 948 966
 Phoenix I-ORG 914 912 924 926
 ```
+
+
+**Note:** The bounding box coordinates in the two examples above are random values and may not be realistic!
+{: .notice--info}
 
 ## Train Data Format
 
