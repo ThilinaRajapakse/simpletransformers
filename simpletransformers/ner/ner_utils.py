@@ -25,6 +25,7 @@ from multiprocessing import Pool, cpu_count
 
 import pandas as pd
 import torch
+from torch.functional import split
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
@@ -63,7 +64,7 @@ class InputFeatures(object):
             self.bboxes = bboxes
 
 
-def read_examples_from_file(data_file, mode):
+def read_examples_from_file(data_file, mode, bbox=False):
     file_path = data_file
     guid_index = 1
     examples = []
@@ -71,22 +72,65 @@ def read_examples_from_file(data_file, mode):
         words = []
         labels = []
         for line in f:
-            if line.startswith("-DOCSTART-") or line == "" or line == "\n":
-                if words:
-                    examples.append(InputExample(guid="{}-{}".format(mode, guid_index), words=words, labels=labels,))
-                    guid_index += 1
-                    words = []
-                    labels = []
-            else:
-                splits = line.split(" ")
-                words.append(splits[0])
-                if len(splits) > 1:
-                    labels.append(splits[-1].replace("\n", ""))
+            if bbox:
+                if line.startswith("-DOCSTART-") or line == "" or line == "\n":
+                    if words:
+                        examples.append(
+                            InputExample(
+                                guid="{}-{}".format(mode, guid_index),
+                                words=words,
+                                labels=labels,
+                                x0=x0,
+                                y0=y0,
+                                x1=x1,
+                                y1=y1,
+                            )
+                        )
+                        guid_index += 1
+                        words = []
+                        labels = []
+                        x0 = []
+                        y0 = []
+                        x1 = []
+                        y1 = []
                 else:
-                    # Examples could have no label for mode = "test"
-                    labels.append("O")
+                    splits = line.split(" ")
+                    words.append(splits[0])
+                    if len(splits) > 1:
+                        labels.append(splits[1].replace("\n", ""))
+                        x0.append(split[2].replace("\n", ""))
+                        y0.append(split[3].replace("\n", ""))
+                        x1.append(split[4].replace("\n", ""))
+                        y1.append(split[5].replace("\n", ""))
+                    else:
+                        # Examples could have no label for mode = "test"
+                        labels.append("O")
+            else:
+                if line.startswith("-DOCSTART-") or line == "" or line == "\n":
+                    if words:
+                        examples.append(
+                            InputExample(guid="{}-{}".format(mode, guid_index), words=words, labels=labels)
+                        )
+                        guid_index += 1
+                        words = []
+                        labels = []
+                else:
+                    splits = line.split(" ")
+                    words.append(splits[0])
+                    if len(splits) > 1:
+                        labels.append(splits[-1].replace("\n", ""))
+                    else:
+                        # Examples could have no label for mode = "test"
+                        labels.append("O")
         if words:
-            examples.append(InputExample(guid="%s-%d".format(mode, guid_index), words=words, labels=labels))
+            if bbox:
+                examples.append(
+                    InputExample(
+                        guid="%s-%d".format(mode, guid_index), words=words, labels=labels, x0=x0, y0=y0, x1=x1, y1=y1
+                    )
+                )
+            else:
+                examples.append(InputExample(guid="%s-%d".format(mode, guid_index), words=words, labels=labels))
     return examples
 
 

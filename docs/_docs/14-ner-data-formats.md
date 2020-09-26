@@ -2,7 +2,7 @@
 title: NER Data Formats
 permalink: /docs/ner-data-formats/
 excerpt: "Data formats for named entity recognition."
-last_modified_at: 2020-05-02 17:58:53
+last_modified_at: 2020/09/26 13:46:57
 toc: true
 ---
 
@@ -23,7 +23,7 @@ Consider the two sentences below;
 These two sentences can be prepared in a DataFrame as follows.
 
 | sentence_id | words      | labels |
-|-------------|------------|--------|
+| ----------- | ---------- | ------ |
 | 0           | Harry      | B-PER  |
 | 0           | Potter     | I-PER  |
 | 0           | was        | O      |
@@ -73,6 +73,57 @@ Phoenix I-ORG
 
 **Note:** You can use custom labels as explained in the [Custom Labels](/docs/ner-specifics/#custom-labels) section.
 {: .notice--info}
+
+### Data format for LayoutLM models
+
+[LayoutLM](https://arxiv.org/pdf/1912.13318.pdf) model (LayoutLM: Pre-training of Text and Layout for
+Document Image Understanding) is pre-trained to consider both the text and layout information for document image understanding and information extraction tasks.
+
+Although the paper discusses using combinations of text, layout, and image features, Simple Transformers currently only supports text + layout as inputs.
+
+The data format for LayoutLM is similar to the default format described above but it also includes the bounding box information in addition to the text.
+
+Dataframe format:
+
+| sentence_id | words      | labels | xo  | y0  | x1  | y1  |
+| ----------- | ---------- | ------ | --- | --- | --- | --- |
+| 0           | Harry      | B-PER  | 12  | 34  | 29  | 50  |
+| 0           | Potter     | I-PER  | 30  | 34  | 40  | 50  |
+| 0           | was        | O      | 56  | 23  | 78  | 45  |
+| 0           | a          | O      | 11  | 24  | 16  | 56  |
+| 0           | student    | B-MISC | 43  | 33  | 67  | 54  |
+| 0           | at         | O      | 24  | 43  | 40  | 42  |
+| 0           | Hogwarts   | B-LOC  | 43  | 24  | 40  | 50  |
+| 1           | Albus      | B-PER  | 11  | 34  | 43  | 654 |
+| 1           | Dumbledore | I-PER  | 30  | 24  | 42  | 43  |
+| 1           | founded    | O      | 24  | 34  | 752 | 784 |
+| 1           | the        | O      | 30  | 11  | 752 | 224 |
+| 1           | Order      | B-ORG  | 11  | 34  | 543 | 543 |
+| 1           | of         | I-ORG  | 30  | 11  | 654 | 714 |
+| 1           | the        | I-ORG  | 30  | 11  | 224 | 999 |
+| 1           | Phoenix    | I-ORG  | 30  | 34  | 654 | 752 |
+{: .text-center}
+
+CoNLL format:
+
+```text
+Harry B-PER 12 55 14 68 59
+Potter I-PER 15 56 19 59
+was O 20 30 40 50
+a O 42 16 52 69
+student B-MISC 14 56 44 95
+at B-PER 58 110 64 180
+Hogwarts I-PER 56 56 85 89
+
+Albus B-PER 510 520 530 525
+Dumbledore I-PER 518 548 539 569
+founded O 645 648 656 657
+the O 644 688 677 699
+Order B-ORG 540 585 576 598
+of I-ORG 956 902 968 904
+the I-ORG 945 963 948 966
+Phoenix I-ORG 914 912 924 926
+```
 
 ## Train Data Format
 

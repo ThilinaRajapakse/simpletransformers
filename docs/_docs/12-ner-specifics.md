@@ -2,7 +2,7 @@
 title: Named Entitty Recognition Specifics
 permalink: /docs/ner-specifics/
 excerpt: "Specific notes for Named Entity Recognition tasks."
-last_modified_at: 2020/07/16 03:40:47
+last_modified_at: 2020/09/26 13:30:27
 toc: true
 ---
 
@@ -30,6 +30,7 @@ New model types are regularly added to the library. Named Entity Recognition tas
 | RoBERTa     | roberta                   |
 | DistilBERT  | distilbert                |
 | ELECTRA     | electra                   |
+| LayoutLM    | layoutlm                  |
 | Longformer  | longformer                |
 | MobileBERT  | mobilebert                |
 | XLM-RoBERTa | xlmroberta                |

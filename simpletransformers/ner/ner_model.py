@@ -1065,7 +1065,9 @@ class NERModel:
         else:
             if not to_predict:
                 if isinstance(data, str):
-                    examples = read_examples_from_file(data, mode)
+                    examples = read_examples_from_file(
+                        data, mode, bbox=True if self.args.model_type == "layoutlm" else False
+                    )
                 else:
                     if self.args.lazy_loading:
                         raise ValueError("Input must be given as a path to a file when using lazy loading")
