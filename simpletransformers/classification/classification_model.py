@@ -37,6 +37,7 @@ from transformers import (
     AlbertTokenizer,
     BertConfig,
     BertTokenizer,
+    BertweetTokenizer,
     CamembertConfig,
     CamembertTokenizer,
     DistilBertConfig,
@@ -123,6 +124,7 @@ class ClassificationModel:
         MODEL_CLASSES = {
             "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
             "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
+            "bertweet": (RobertaConfig, RobertaForSequenceClassification, BertweetTokenizer),
             "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
