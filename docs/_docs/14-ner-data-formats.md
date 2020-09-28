@@ -2,7 +2,7 @@
 title: NER Data Formats
 permalink: /docs/ner-data-formats/
 excerpt: "Data formats for named entity recognition."
-last_modified_at: 2020/09/26 13:52:23
+last_modified_at: 2020/09/26 16:43:47
 toc: true
 ---
 
@@ -129,7 +129,7 @@ Phoenix I-ORG 914 912 924 926
 ```
 
 
-**Note:** The bounding box coordinates in the two examples above are random values and may not be realistic!
+**Note:** The bounding box coordinates in the two examples above are random values and may not be realistic.
 {: .notice--info}
 
 ## Train Data Format
