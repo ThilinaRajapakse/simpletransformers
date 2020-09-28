@@ -103,7 +103,7 @@ class ClassificationModel:
         use_cuda=True,
         cuda_device=-1,
         onnx_execution_provider=None,
-        normalization=False,
+        bertweet_normalization=False,
         **kwargs,
     ):
 
@@ -252,7 +252,7 @@ class ClassificationModel:
                 raise AttributeError("fp16 requires Pytorch >= 1.6. Please update Pytorch or turn off fp16.")
                 
         if model_name == 'vinai/bertweet-base':
-            self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, normalization=normalization, **kwargs)
+            self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, normalization=bertweet_normalization, **kwargs)
         else:
             self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
         
