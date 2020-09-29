@@ -113,6 +113,7 @@ def test_multiclass_classification(model_type, model_name):
         #     ("roberta", "roberta-base"),
         #     ("distilbert", "distilbert-base-uncased"),
         #     ("albert", "albert-base-v1"),
+        # ("camembert", "camembert-base")
     ],
 )
 def test_multilabel_classification(model_type, model_name):
