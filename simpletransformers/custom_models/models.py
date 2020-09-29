@@ -418,9 +418,6 @@ class FlaubertForMultiLabelSequenceClassification(FlaubertModel):
         return outputs
 
 
-
-
-
 class XLMRobertaForMultiLabelSequenceClassification(RobertaForMultiLabelSequenceClassification):
     config_class = XLMRobertaConfig
     pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
