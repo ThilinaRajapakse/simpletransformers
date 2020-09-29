@@ -12,6 +12,8 @@ from transformers import (
     AlbertTokenizer,
     BertConfig,
     BertTokenizer,
+    CamembertConfig,
+    CamembertTokenizer,
     DistilBertConfig,
     DistilBertTokenizer,
     ElectraConfig,
@@ -34,6 +36,7 @@ from simpletransformers.config.model_args import MultiLabelClassificationArgs
 from simpletransformers.custom_models.models import (
     AlbertForMultiLabelSequenceClassification,
     BertForMultiLabelSequenceClassification,
+    CamembertForMultiLabelSequenceClassification,
     DistilBertForMultiLabelSequenceClassification,
     ElectraForMultiLabelSequenceClassification,
     FlaubertForMultiLabelSequenceClassification,
@@ -82,6 +85,7 @@ class MultiLabelClassificationModel(ClassificationModel):
 
         MODEL_CLASSES = {
             "bert": (BertConfig, BertForMultiLabelSequenceClassification, BertTokenizer,),
+            "camembert": (CamembertConfig, CamembertForMultiLabelSequenceClassification, CamembertTokenizer,),
             "roberta": (RobertaConfig, RobertaForMultiLabelSequenceClassification, RobertaTokenizer,),
             "xlnet": (XLNetConfig, XLNetForMultiLabelSequenceClassification, XLNetTokenizer,),
             "xlm": (XLMConfig, XLMForMultiLabelSequenceClassification, XLMTokenizer),

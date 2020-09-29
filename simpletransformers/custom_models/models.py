@@ -14,6 +14,7 @@ from transformers import (
     XLNetModel,
     XLNetPreTrainedModel,
 )
+from transformers.configuration_camembert import CamembertConfig
 from transformers.configuration_distilbert import DistilBertConfig
 from transformers.configuration_roberta import RobertaConfig
 from transformers.configuration_xlm_roberta import XLMRobertaConfig
@@ -24,6 +25,10 @@ from transformers.modeling_electra import (
     ElectraConfig,
     ElectraModel,
     ElectraPreTrainedModel,
+)
+from transformers.modeling_camembert import (
+    CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
+
 )
 from transformers.modeling_roberta import (
     ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
@@ -121,6 +126,20 @@ class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
             outputs = (loss,) + outputs
 
         return outputs
+
+
+class CamembertForMultiLabelSequenceClassification(RobertaForMultiLabelSequenceClassification):
+    """
+    Camembert model adapted for multi-label sequence classification.
+    Camembert shares the Roberta architecture, so we can reuse the simpletransformers
+    RobertaForMultiLabelSequenceClassification implementation, as it is done in
+    the transformers library
+    (https://github.com/huggingface/transformers/blob/master/src/transformers/modeling_camembert.py).
+    """
+
+    config_class = CamembertConfig
+    pretrained_model_archive_map = CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
+    base_model_prefix = "camembert"
 
 
 class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
@@ -398,6 +417,9 @@ class FlaubertForMultiLabelSequenceClassification(FlaubertModel):
             outputs = (loss,) + outputs
 
         return outputs
+
+
+
 
 
 class XLMRobertaForMultiLabelSequenceClassification(RobertaForMultiLabelSequenceClassification):
