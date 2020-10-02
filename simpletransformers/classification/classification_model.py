@@ -832,14 +832,18 @@ class ClassificationModel:
 
         eval_loss = 0.0
         nb_eval_steps = 0
-        preds = None
-        out_label_ids = None
+        n_batches = len(eval_dataloader)
+        preds = np.empty((len(eval_dataset), self.num_labels))
+        if multi_label:
+            out_label_ids = np.empty((len(eval_dataset), self.num_labels))
+        else:
+            out_label_ids = np.empty((len(eval_dataset)))
         model.eval()
 
         if self.args.fp16:
             from torch.cuda import amp
 
-        for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
+        for i, batch in enumerate(tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation")):
             # batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
@@ -861,12 +865,17 @@ class ClassificationModel:
 
             nb_eval_steps += 1
 
-            if preds is None:
-                preds = logits.detach().cpu().numpy()
-                out_label_ids = inputs["labels"].detach().cpu().numpy()
-            else:
-                preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+            start_index = self.args.eval_batch_size * i
+            end_index = start_index + self.args.eval_batch_size if i != (n_batches - 1) else len(eval_dataset)
+            preds[start_index: end_index] = logits.detach().cpu().numpy()
+            out_label_ids[start_index: end_index] = inputs["labels"].detach().cpu().numpy()
+
+            # if preds is None:
+            #     preds = logits.detach().cpu().numpy()
+            #     out_label_ids = inputs["labels"].detach().cpu().numpy()
+            # else:
+            #     preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+            #     out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
 
         eval_loss = eval_loss / nb_eval_steps
 
@@ -1108,15 +1117,18 @@ class ClassificationModel:
 
         eval_loss = 0.0
         nb_eval_steps = 0
-        preds = None
-        out_label_ids = None
+        preds = np.empty((len(to_predict), self.num_labels))
+        if multi_label:
+            out_label_ids = np.empty((len(to_predict), self.num_labels))
+        else:
+            out_label_ids = np.empty((len(to_predict)))
 
         if not multi_label and self.args.onnx:
             model_inputs = self.tokenizer.batch_encode_plus(
                 to_predict, return_tensors="pt", padding=True, truncation=True
             )
 
-            for input_ids, attention_mask in zip(model_inputs["input_ids"], model_inputs["attention_mask"]):
+            for i, (input_ids, attention_mask) in enumerate(zip(model_inputs["input_ids"], model_inputs["attention_mask"])):
                 input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
                 attention_mask = attention_mask.unsqueeze(0).detach().cpu().numpy()
                 inputs_onnx = {"input_ids": input_ids, "attention_mask": attention_mask}
@@ -1124,10 +1136,11 @@ class ClassificationModel:
                 # Run the model (None = get all the outputs)
                 output = self.model.run(None, inputs_onnx)
 
-                if preds is None:
-                    preds = output[0]
-                else:
-                    preds = np.append(preds, output[0], axis=0)
+                preds[i] = output[0]
+                # if preds is None:
+                #     preds = output[0]
+                # else:
+                #     preds = np.append(preds, output[0], axis=0)
 
             model_outputs = preds
             preds = np.argmax(preds, axis=1)
@@ -1171,10 +1184,11 @@ class ClassificationModel:
                 from torch.cuda import amp
 
             if self.config.output_hidden_states:
-                for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
-                    model.eval()
+                model.eval()
+                preds = None
+                out_label_ids = None
+                for i, batch in enumerate(tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction")):
                     # batch = tuple(t.to(device) for t in batch)
-
                     with torch.no_grad():
                         inputs = self._get_inputs_dict(batch)
 
@@ -1204,8 +1218,8 @@ class ClassificationModel:
                         )
                         all_embedding_outputs = embedding_outputs.detach().cpu().numpy()
                     else:
-                        preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                        out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+                        # preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                        # out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
                         all_layer_hidden_states = np.append(
                             all_layer_hidden_states,
                             np.array([state.detach().cpu().numpy() for state in layer_hidden_states]),
@@ -1215,7 +1229,8 @@ class ClassificationModel:
                             all_embedding_outputs, embedding_outputs.detach().cpu().numpy(), axis=0
                         )
             else:
-                for batch in tqdm(eval_dataloader, disable=args.silent):
+                n_batches = len(eval_dataloader)
+                for i, batch in enumerate(tqdm(eval_dataloader, disable=args.silent)):
                     model.eval()
                     # batch = tuple(t.to(device) for t in batch)
 
@@ -1239,12 +1254,17 @@ class ClassificationModel:
 
                     nb_eval_steps += 1
 
-                    if preds is None:
-                        preds = logits.detach().cpu().numpy()
-                        out_label_ids = inputs["labels"].detach().cpu().numpy()
-                    else:
-                        preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                        out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+                    start_index = self.args.eval_batch_size * i
+                    end_index = start_index + self.args.eval_batch_size if i != (n_batches - 1) else len(eval_dataset)
+                    preds[start_index: end_index] = logits.detach().cpu().numpy()
+                    out_label_ids[start_index: end_index] = inputs["labels"].detach().cpu().numpy()
+
+                    # if preds is None:
+                    #     preds = logits.detach().cpu().numpy()
+                    #     out_label_ids = inputs["labels"].detach().cpu().numpy()
+                    # else:
+                    #     preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                    #     out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
 
             eval_loss = eval_loss / nb_eval_steps
 
