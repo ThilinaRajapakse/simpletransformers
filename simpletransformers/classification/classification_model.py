@@ -834,7 +834,10 @@ class ClassificationModel:
         nb_eval_steps = 0
         n_batches = len(eval_dataloader)
         preds = np.empty((len(eval_dataset), self.num_labels))
-        out_label_ids = np.empty((len(eval_dataset)))
+        if multi_label:
+            out_label_ids = np.empty((len(eval_dataset), self.num_labels))
+        else:
+            out_label_ids = np.empty((len(eval_dataset)))
         model.eval()
 
         if self.args.fp16:
@@ -1115,7 +1118,10 @@ class ClassificationModel:
         eval_loss = 0.0
         nb_eval_steps = 0
         preds = np.empty((len(to_predict), self.num_labels))
-        out_label_ids = np.empty((len(to_predict)))
+        if multi_label:
+            out_label_ids = np.empty((len(to_predict), self.num_labels))
+        else:
+            out_label_ids = np.empty((len(to_predict)))
 
         if not multi_label and self.args.onnx:
             model_inputs = self.tokenizer.batch_encode_plus(
