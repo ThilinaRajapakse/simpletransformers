@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.48.7] - 2020-09-26
+
+### Added
+
+-  Added support for multilabel classification with the CamemBERT model. [@adrienrenaud](https://github.com/adrienrenaud)
+
+### Changed
+
+- Output arrays in classification evaluate/predict now avoids `np.append()`. This should be more time and memory efficient.
+
 ## [0.48.6] - 2020-09-26
 
 ### Added
@@ -1143,7 +1153,11 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.48.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/39d25d0...HEAD
+[0.48.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/25fa010...HEAD
+
+[0.48.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6f75f8e...25fa010
+
+[0.48.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/39d25d0...6f75f8e
 
 [0.48.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7ef56b0...39d25d0
 
