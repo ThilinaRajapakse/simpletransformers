@@ -36,7 +36,7 @@ New model types are regularly added to the library. Text classification tasks cu
 | ----------- | ------------------------------------ |
 | ALBERT      | albert                               |
 | BERT        | bert                                 |
-| *CamemBERT  | camembert                            |
+| CamemBERT   | camembert                            |
 | RoBERTa     | roberta                              |
 | DistilBERT  | distilbert                           |
 | ELECTRA     | electra                              |
