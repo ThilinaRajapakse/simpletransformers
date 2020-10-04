@@ -102,7 +102,7 @@ class ClassificationModel:
         args=None,
         use_cuda=True,
         cuda_device=-1,
-        onnx_execution_provider=None
+        onnx_execution_provider=None,
         **kwargs,
     ):
 
