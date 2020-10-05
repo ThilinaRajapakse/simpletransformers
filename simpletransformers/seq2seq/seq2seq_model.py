@@ -191,16 +191,14 @@ class Seq2SeqModel:
                 self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
                     os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
                 )
-                self.model.encoder = model_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
-                self.model.decoder = BertForMaskedLM.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
                 self.encoder_tokenizer = tokenizer_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
-                self.decoder_tokenizer = BertTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
+                self.decoder_tokenizer = AutoTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
             else:
                 self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
                     encoder_name, decoder_name, config=config
                 )
                 self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_name)
-                self.decoder_tokenizer = BertTokenizer.from_pretrained(decoder_name)
+                self.decoder_tokenizer = AutoTokenizer.from_pretrained(decoder_name)
             self.encoder_config = self.model.config.encoder
             self.decoder_config = self.model.config.decoder
 
