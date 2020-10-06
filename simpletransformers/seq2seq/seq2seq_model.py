@@ -207,10 +207,10 @@ class Seq2SeqModel:
             self.decoder_config = self.model.config.decoder
 
         if additional_special_tokens_encoder is not None:
-            self.encoder_tokenizer.add_specila_tokens({"additional_special_tokens": additional_special_tokens_encoder})
+            self.encoder_tokenizer.add_special_tokens({"additional_special_tokens": additional_special_tokens_encoder})
 
         if additional_special_tokens_decoder is not None:
-            self.decoder_tokenizer.add_specila_tokens({"additional_special_tokens": additional_special_tokens_decoder})
+            self.decoder_tokenizer.add_special_tokens({"additional_special_tokens": additional_special_tokens_decoder})
 
         if self.args.wandb_project and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
