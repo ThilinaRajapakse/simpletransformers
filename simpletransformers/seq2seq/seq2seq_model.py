@@ -110,8 +110,8 @@ class Seq2SeqModel:
                                     Must be the same "size" as the encoder model (base/base, large/large, etc.)
             encoder_decoder_type (optional): The type of encoder-decoder model. (E.g. bart)
             encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART or MarianMT model.
-            additional_special_tokens_encoder (optional): list of special tokens to add to encoder tokenizer
-            additional_special_tokens_decoder (optional): list of special tokens to add to decoder tokenizer
+            additional_special_tokens_encoder (optional): dict of special tokens to add to encoder tokenizer
+            additional_special_tokens_decoder (optional): dict of special tokens to add to decoder tokenizer
             config (optional): A configuration file to build an EncoderDecoderModel.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
@@ -207,10 +207,10 @@ class Seq2SeqModel:
             self.decoder_config = self.model.config.decoder
 
         if additional_special_tokens_encoder is not None:
-            self.encoder_tokenizer.add_special_tokens({"additional_special_tokens": additional_special_tokens_encoder})
+            self.encoder_tokenizer.add_special_tokens(additional_special_tokens_encoder)
 
         if additional_special_tokens_decoder is not None:
-            self.decoder_tokenizer.add_special_tokens({"additional_special_tokens": additional_special_tokens_decoder})
+            self.decoder_tokenizer.add_special_tokens(additional_special_tokens_decoder)
 
         if self.args.wandb_project and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
