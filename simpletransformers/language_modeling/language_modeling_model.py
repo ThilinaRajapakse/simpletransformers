@@ -538,8 +538,8 @@ class LanguageModelingModel:
 
             scaler = amp.GradScaler()
 
-        model.train()
         for current_epoch in train_iterator:
+            model.train()
             if isinstance(train_dataloader, DataLoader) and isinstance(train_dataloader.sampler, DistributedSampler):
                 train_dataloader.sampler.set_epoch(current_epoch)
             if epochs_trained > 0:

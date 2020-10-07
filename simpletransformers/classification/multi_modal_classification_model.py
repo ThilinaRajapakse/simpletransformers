@@ -455,8 +455,8 @@ class MultiModalClassificationModel:
 
             scaler = amp.GradScaler()
 
-        model.train()
         for _ in train_iterator:
+            model.train()
             train_iterator.set_description(f"Epoch {epoch_number} of {args.num_train_epochs}")
             train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
             batch_iterator = tqdm(

@@ -429,8 +429,8 @@ class NERModel:
 
             scaler = amp.GradScaler()
 
-        model.train()
         for _ in train_iterator:
+            model.train()
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue

@@ -294,8 +294,8 @@ class ClassificationModel:
 
             scaler = amp.GradScaler()
 
-        model.train()
         for _ in train_iterator:
+            model.train()
             # epoch_iterator = tqdm(train_dataloader, desc="Iteration")
             for step, batch in enumerate(tqdm(train_dataloader, desc=f"Running Training", disable=args["silent"])):
                 batch = tuple(t.to(self.device) for t in batch)
