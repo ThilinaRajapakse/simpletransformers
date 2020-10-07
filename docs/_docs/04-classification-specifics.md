@@ -2,7 +2,7 @@
 title: Classification Specifics
 permalink: /docs/classification-specifics/
 excerpt: "Specific notes for text classification tasks."
-last_modified_at: 2020/07/16 03:40:08
+last_modified_at: 2020/10/07 17:30:08
 toc: true
 ---
 
@@ -36,6 +36,7 @@ New model types are regularly added to the library. Text classification tasks cu
 | ----------- | ------------------------------------ |
 | ALBERT      | albert                               |
 | BERT        | bert                                 |
+| BERTweet    | bertweet                             |
 | CamemBERT   | camembert                            |
 | RoBERTa     | roberta                              |
 | DistilBERT  | distilbert                           |

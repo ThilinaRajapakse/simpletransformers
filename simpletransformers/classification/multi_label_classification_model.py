@@ -84,16 +84,16 @@ class MultiLabelClassificationModel(ClassificationModel):
         """  # noqa: ignore flake8"
 
         MODEL_CLASSES = {
+            "albert": (AlbertConfig, AlbertForMultiLabelSequenceClassification, AlbertTokenizer,),
             "bert": (BertConfig, BertForMultiLabelSequenceClassification, BertTokenizer,),
             "camembert": (CamembertConfig, CamembertForMultiLabelSequenceClassification, CamembertTokenizer,),
-            "roberta": (RobertaConfig, RobertaForMultiLabelSequenceClassification, RobertaTokenizer,),
-            "xlnet": (XLNetConfig, XLNetForMultiLabelSequenceClassification, XLNetTokenizer,),
-            "xlm": (XLMConfig, XLMForMultiLabelSequenceClassification, XLMTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForMultiLabelSequenceClassification, DistilBertTokenizer,),
-            "albert": (AlbertConfig, AlbertForMultiLabelSequenceClassification, AlbertTokenizer,),
-            "flaubert": (FlaubertConfig, FlaubertForMultiLabelSequenceClassification, FlaubertTokenizer,),
-            "xlmroberta": (XLMRobertaConfig, XLMRobertaForMultiLabelSequenceClassification, XLMRobertaTokenizer,),
             "electra": (ElectraConfig, ElectraForMultiLabelSequenceClassification, ElectraTokenizer),
+            "flaubert": (FlaubertConfig, FlaubertForMultiLabelSequenceClassification, FlaubertTokenizer,),
+            "roberta": (RobertaConfig, RobertaForMultiLabelSequenceClassification, RobertaTokenizer,),
+            "xlm": (XLMConfig, XLMForMultiLabelSequenceClassification, XLMTokenizer),
+            "xlmroberta": (XLMRobertaConfig, XLMRobertaForMultiLabelSequenceClassification, XLMRobertaTokenizer,),
+            "xlnet": (XLNetConfig, XLNetForMultiLabelSequenceClassification, XLNetTokenizer,),
         }
 
         self.args = self._load_model_args(model_name)

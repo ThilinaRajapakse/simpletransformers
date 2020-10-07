@@ -37,6 +37,7 @@ from transformers import (
     AlbertTokenizer,
     BertConfig,
     BertTokenizer,
+    BertweetTokenizer,
     CamembertConfig,
     CamembertTokenizer,
     DistilBertConfig,
@@ -123,6 +124,7 @@ class ClassificationModel:
         MODEL_CLASSES = {
             "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
             "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
+            "bertweet": (RobertaConfig, RobertaForSequenceClassification, BertweetTokenizer),
             "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
@@ -248,7 +250,18 @@ class ClassificationModel:
             except AttributeError:
                 raise AttributeError("fp16 requires Pytorch >= 1.6. Please update Pytorch or turn off fp16.")
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
+        if model_name in [
+            "vinai/bertweet-base",
+            "vinai/bertweet-covid19-base-cased",
+            "vinai/bertweet-covid19-base-uncased",
+        ]:
+            self.tokenizer = tokenizer_class.from_pretrained(
+                model_name, do_lower_case=self.args.do_lower_case, normalization=True, **kwargs
+            )
+        else:
+            self.tokenizer = tokenizer_class.from_pretrained(
+                model_name, do_lower_case=self.args.do_lower_case, **kwargs
+            )
 
         self.args.model_name = model_name
         self.args.model_type = model_type
@@ -867,8 +880,8 @@ class ClassificationModel:
 
             start_index = self.args.eval_batch_size * i
             end_index = start_index + self.args.eval_batch_size if i != (n_batches - 1) else len(eval_dataset)
-            preds[start_index: end_index] = logits.detach().cpu().numpy()
-            out_label_ids[start_index: end_index] = inputs["labels"].detach().cpu().numpy()
+            preds[start_index:end_index] = logits.detach().cpu().numpy()
+            out_label_ids[start_index:end_index] = inputs["labels"].detach().cpu().numpy()
 
             # if preds is None:
             #     preds = logits.detach().cpu().numpy()
@@ -1128,7 +1141,9 @@ class ClassificationModel:
                 to_predict, return_tensors="pt", padding=True, truncation=True
             )
 
-            for i, (input_ids, attention_mask) in enumerate(zip(model_inputs["input_ids"], model_inputs["attention_mask"])):
+            for i, (input_ids, attention_mask) in enumerate(
+                zip(model_inputs["input_ids"], model_inputs["attention_mask"])
+            ):
                 input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
                 attention_mask = attention_mask.unsqueeze(0).detach().cpu().numpy()
                 inputs_onnx = {"input_ids": input_ids, "attention_mask": attention_mask}
@@ -1256,8 +1271,8 @@ class ClassificationModel:
 
                     start_index = self.args.eval_batch_size * i
                     end_index = start_index + self.args.eval_batch_size if i != (n_batches - 1) else len(eval_dataset)
-                    preds[start_index: end_index] = logits.detach().cpu().numpy()
-                    out_label_ids[start_index: end_index] = inputs["labels"].detach().cpu().numpy()
+                    preds[start_index:end_index] = logits.detach().cpu().numpy()
+                    out_label_ids[start_index:end_index] = inputs["labels"].detach().cpu().numpy()
 
                     # if preds is None:
                     #     preds = logits.detach().cpu().numpy()

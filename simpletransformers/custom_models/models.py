@@ -26,9 +26,7 @@ from transformers.modeling_electra import (
     ElectraModel,
     ElectraPreTrainedModel,
 )
-from transformers.modeling_camembert import (
-    CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
-)
+from transformers.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
 from transformers.modeling_roberta import (
     ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
     RobertaClassificationHead,
