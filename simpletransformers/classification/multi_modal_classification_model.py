@@ -49,6 +49,7 @@ from simpletransformers.classification.classification_utils import (
 from simpletransformers.classification.transformer_models.mmbt_model import MMBTForClassification
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import MultiModalClassificationArgs
+from simpletransformers.config.utils import sweep_config_to_sweep_values
 
 try:
     import wandb
@@ -105,7 +106,7 @@ class MultiModalClassificationModel:
 
         if "sweep_config" in kwargs:
             sweep_config = kwargs.pop("sweep_config")
-            sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
+            sweep_values = sweep_config_to_sweep_values(sweep_config)
             self.args.update_from_dict(sweep_values)
 
         if self.args.manual_seed:
