@@ -80,6 +80,7 @@ class ModelArgs:
     warmup_ratio: float = 0.06
     warmup_steps: int = 0
     weight_decay: int = 0
+    skip_special_tokens: bool = True
 
     def update_from_dict(self, new_values):
         if isinstance(new_values, dict):

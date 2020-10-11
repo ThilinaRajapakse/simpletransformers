@@ -717,7 +717,7 @@ class T5Model:
             self._move_model_to_device()
         else:
             outputs = [
-                self.tokenizer.decode(output_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+                self.tokenizer.decode(output_id, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True)
                 for output_id in all_outputs
             ]
 
@@ -730,7 +730,7 @@ class T5Model:
             return outputs
 
     def _decode(self, output_id):
-        return self.tokenizer.decode(output_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+        return self.tokenizer.decode(output_id, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True)
 
     def compute_metrics(self, labels, preds, **kwargs):
         """

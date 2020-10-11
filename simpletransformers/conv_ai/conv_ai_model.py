@@ -788,7 +788,7 @@ class ConvAIModel:
                     out_ids = self.sample_sequence(personality, history, tokenizer, model, args)
             history.append(out_ids)
             history = history[-(2 * args.max_history + 1) :]
-            out_text = tokenizer.decode(out_ids, skip_special_tokens=True)
+            out_text = tokenizer.decode(out_ids, skip_special_tokens=self.args.skip_special_tokens)
             print(out_text)
 
     def interact_single(self, message, history, personality=None, encode_history=True):
@@ -842,7 +842,7 @@ class ConvAIModel:
                     out_ids = self.sample_sequence(personality, history, tokenizer, model, args)
             else:
                 out_ids = self.sample_sequence(personality, history, tokenizer, model, args)
-        out_text = tokenizer.decode(out_ids, skip_special_tokens=True)
+        out_text = tokenizer.decode(out_ids, skip_special_tokens=self.args.skip_special_tokens)
 
         if encode_history:
             raw_history.append(out_text)

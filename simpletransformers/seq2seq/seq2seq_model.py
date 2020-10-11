@@ -91,6 +91,8 @@ class Seq2SeqModel:
         decoder_name=None,
         encoder_decoder_type=None,
         encoder_decoder_name=None,
+        additional_special_tokens_encoder=None,
+        additional_special_tokens_decoder=None,
         config=None,
         args=None,
         use_cuda=True,
@@ -108,6 +110,8 @@ class Seq2SeqModel:
                                     Must be the same "size" as the encoder model (base/base, large/large, etc.)
             encoder_decoder_type (optional): The type of encoder-decoder model. (E.g. bart)
             encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART or MarianMT model.
+            additional_special_tokens_encoder (optional): dict of special tokens to add to encoder tokenizer
+            additional_special_tokens_decoder (optional): dict of special tokens to add to decoder tokenizer
             config (optional): A configuration file to build an EncoderDecoderModel.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
@@ -191,18 +195,22 @@ class Seq2SeqModel:
                 self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
                     os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
                 )
-                self.model.encoder = model_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
-                self.model.decoder = BertForMaskedLM.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
                 self.encoder_tokenizer = tokenizer_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
-                self.decoder_tokenizer = BertTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
+                self.decoder_tokenizer = AutoTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
             else:
                 self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
                     encoder_name, decoder_name, config=config
                 )
                 self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_name)
-                self.decoder_tokenizer = BertTokenizer.from_pretrained(decoder_name)
+                self.decoder_tokenizer = AutoTokenizer.from_pretrained(decoder_name)
             self.encoder_config = self.model.config.encoder
             self.decoder_config = self.model.config.decoder
+
+        if additional_special_tokens_encoder is not None:
+            self.encoder_tokenizer.add_special_tokens(additional_special_tokens_encoder)
+
+        if additional_special_tokens_decoder is not None:
+            self.decoder_tokenizer.add_special_tokens(additional_special_tokens_decoder)
 
         if self.args.wandb_project and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
@@ -865,7 +873,7 @@ class Seq2SeqModel:
             self._move_model_to_device()
         else:
             outputs = [
-                self.decoder_tokenizer.decode(output_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+                self.decoder_tokenizer.decode(output_id, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True)
                 for output_id in all_outputs
             ]
 
@@ -878,7 +886,7 @@ class Seq2SeqModel:
             return outputs
 
     def _decode(self, output_id):
-        return self.decoder_tokenizer.decode(output_id, skip_special_tokens=True, clean_up_tokenization_spaces=True)
+        return self.decoder_tokenizer.decode(output_id, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True)
 
     def compute_metrics(self, labels, preds, **kwargs):
         """
