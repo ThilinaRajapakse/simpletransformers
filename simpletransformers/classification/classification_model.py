@@ -302,7 +302,8 @@ class ClassificationModel:
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
-            None
+            global_step: Number of global steps trained
+            training_details: Average training loss if evaluate_during_training is False or full training progress scores if evaluate_during_training is True
         """  # noqa: ignore flake8"
 
         if args:
@@ -365,7 +366,7 @@ class ClassificationModel:
 
         os.makedirs(output_dir, exist_ok=True)
 
-        global_step, tr_loss = self.train(
+        global_step, training_details = self.train(
             train_dataloader,
             output_dir,
             multi_label=multi_label,
@@ -383,6 +384,8 @@ class ClassificationModel:
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_type, output_dir))
+
+        return global_step, training_details
 
     def train(
         self,
@@ -473,6 +476,7 @@ class ClassificationModel:
             model = torch.nn.DataParallel(model)
 
         global_step = 0
+        training_progress_scores = None
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
         train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.silent, mininterval=0)
@@ -652,7 +656,12 @@ class ClassificationModel:
                                             logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
-                                        return global_step, tr_loss / global_step
+                                        return (
+                                            global_step,
+                                            tr_loss / global_step
+                                            if not self.args.evaluate_during_training
+                                            else training_progress_scores,
+                                        )
                         else:
                             if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
@@ -673,7 +682,12 @@ class ClassificationModel:
                                             logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
-                                        return global_step, tr_loss / global_step
+                                        return (
+                                            global_step,
+                                            tr_loss / global_step
+                                            if not self.args.evaluate_during_training
+                                            else training_progress_scores,
+                                        )
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
@@ -726,7 +740,12 @@ class ClassificationModel:
                                     logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
-                                return global_step, tr_loss / global_step
+                                return (
+                                    global_step,
+                                    tr_loss / global_step
+                                    if not self.args.evaluate_during_training
+                                    else training_progress_scores,
+                                )
                 else:
                     if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
@@ -745,9 +764,17 @@ class ClassificationModel:
                                     logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
-                                return global_step, tr_loss / global_step
+                                return (
+                                    global_step,
+                                    tr_loss / global_step
+                                    if not self.args.evaluate_during_training
+                                    else training_progress_scores,
+                                )
 
-        return global_step, tr_loss / global_step
+        return (
+            global_step,
+            tr_loss / global_step if not self.args.evaluate_during_training else training_progress_scores,
+        )
 
     def eval_model(
         self, eval_df, multi_label=False, output_dir=None, verbose=True, silent=False, wandb_log=True, **kwargs

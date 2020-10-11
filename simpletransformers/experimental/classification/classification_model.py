@@ -230,7 +230,7 @@ class ClassificationModel:
             ]
 
         train_dataset = self.load_and_cache_examples(train_examples)
-        global_step, tr_loss = self.train(
+        global_step, training_details = self.train(
             train_dataset, output_dir, show_running_loss=show_running_loss, eval_df=eval_df
         )
 
@@ -365,7 +365,10 @@ class ClassificationModel:
                         model_to_save.save_pretrained(output_dir_current)
                         self.tokenizer.save_pretrained(output_dir_current)
 
-        return global_step, tr_loss / global_step
+        return (
+            global_step,
+            tr_loss / global_step if not self.args.evaluate_during_training else training_progress_scores,
+        )
 
     def eval_model(self, eval_df, multi_label=False, output_dir=None, verbose=False, **kwargs):
         """

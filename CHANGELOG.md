@@ -4,7 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.48.8] - 2020-10-11
+## [0.48.11] - 2020-10-11
+
+### Changed
+
+-  The `train_model()` method now returns training details. Specifically;
+global_step: Number of global steps trained
+training_details: Average training loss if evaluate_during_training is False or full training progress scores if evaluate_during_training is True
+
+
+## [0.48.10] - 2020-10-11
 
 ### Added
 
@@ -1171,7 +1180,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.48.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6370a1b...HEAD
+[0.48.11]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1b59118...HEAD
+
+[0.48.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6370a1b...1b59118
 
 [0.48.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1c231e1...6370a1b
 

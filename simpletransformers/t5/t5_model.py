@@ -129,7 +129,8 @@ class T5Model:
                         will be lists of strings. Note that this will slow down training significantly as the predicted sequences need to be generated.
 
         Returns:
-            None
+            global_step: Number of global steps trained
+            training_details: Average training loss if evaluate_during_training is False or full training progress scores if evaluate_during_training is True
         """  # noqa: ignore flake8"
 
         if args:
@@ -159,7 +160,7 @@ class T5Model:
 
         os.makedirs(output_dir, exist_ok=True)
 
-        global_step, tr_loss = self.train(
+        global_step, training_details = self.train(
             train_dataset,
             output_dir,
             show_running_loss=show_running_loss,
@@ -172,6 +173,8 @@ class T5Model:
 
         if verbose:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_name, output_dir))
+
+        return global_step, training_details
 
     def train(
         self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True, **kwargs,
@@ -278,6 +281,7 @@ class T5Model:
         logger.info(" Training started")
 
         global_step = 0
+        training_progress_scores = None
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
         train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.silent, mininterval=0)
@@ -456,7 +460,12 @@ class T5Model:
                                             logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
-                                        return global_step, tr_loss / global_step
+                                        return (
+                                            global_step,
+                                            tr_loss / global_step
+                                            if not self.args.evaluate_during_training
+                                            else training_progress_scores,
+                                        )
                         else:
                             if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                                 best_eval_metric = results[args.early_stopping_metric]
@@ -477,7 +486,12 @@ class T5Model:
                                             logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
-                                        return global_step, tr_loss / global_step
+                                        return (
+                                            global_step,
+                                            tr_loss / global_step
+                                            if not self.args.evaluate_during_training
+                                            else training_progress_scores,
+                                        )
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
@@ -529,7 +543,12 @@ class T5Model:
                                     logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
-                                return global_step, tr_loss / global_step
+                                return (
+                                    global_step,
+                                    tr_loss / global_step
+                                    if not self.args.evaluate_during_training
+                                    else training_progress_scores,
+                                )
                 else:
                     if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
                         best_eval_metric = results[args.early_stopping_metric]
@@ -548,9 +567,17 @@ class T5Model:
                                     logger.info(f" Patience of {args.early_stopping_patience} steps reached")
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
-                                return global_step, tr_loss / global_step
+                                return (
+                                    global_step,
+                                    tr_loss / global_step
+                                    if not self.args.evaluate_during_training
+                                    else training_progress_scores,
+                                )
 
-        return global_step, tr_loss / global_step
+        return (
+            global_step,
+            tr_loss / global_step if not self.args.evaluate_during_training else training_progress_scores,
+        )
 
     def eval_model(self, eval_data, output_dir=None, verbose=True, silent=False, **kwargs):
         """
@@ -717,7 +744,9 @@ class T5Model:
             self._move_model_to_device()
         else:
             outputs = [
-                self.tokenizer.decode(output_id, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True)
+                self.tokenizer.decode(
+                    output_id, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True
+                )
                 for output_id in all_outputs
             ]
 
@@ -730,7 +759,9 @@ class T5Model:
             return outputs
 
     def _decode(self, output_id):
-        return self.tokenizer.decode(output_id, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True)
+        return self.tokenizer.decode(
+            output_id, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True
+        )
 
     def compute_metrics(self, labels, preds, **kwargs):
         """
