@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.48.8] - 2020-10-11
+
+### Added
+
+-  Added support for special tokens with `Seq2SeqModel`. [Zhylkaaa](https://github.com/Zhylkaaa)
+
+## [0.48.9] - 2020-10-07
+
+### Changed
+
+-  Moved `model.train()` inside `train()` method.
+
 ## [0.48.8] - 2020-10-07
 
 ### Added
@@ -1159,7 +1171,11 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.48.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/edb9fdd...HEAD
+[0.48.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6370a1b...HEAD
+
+[0.48.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1c231e1...6370a1b
+
+[0.48.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/edb9fdd...1c231e1
 
 [0.48.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/25fa010...edb9fdd
 
