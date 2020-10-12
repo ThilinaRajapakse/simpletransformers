@@ -13,6 +13,7 @@ import torch
 from transformers import BertConfig, BertTokenizer, GPT2Config, GPT2Tokenizer, RobertaConfig, RobertaTokenizer
 
 from simpletransformers.config.model_args import ModelArgs
+from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.language_representation.transformer_models.bert_model import BertForTextRepresentation
 from simpletransformers.language_representation.transformer_models.gpt2_model import GPT2ForTextRepresentation
 
@@ -73,7 +74,7 @@ class RepresentationModel:
 
         if "sweep_config" in kwargs:
             sweep_config = kwargs.pop("sweep_config")
-            sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
+            sweep_values = sweep_config_to_sweep_values(sweep_config)
             self.args.update_from_dict(sweep_values)
 
         if self.args.manual_seed:
