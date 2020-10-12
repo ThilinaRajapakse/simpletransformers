@@ -2,7 +2,7 @@
 title: Seq2Seq Minimal Start
 permalink: /docs/seq2seq-minimal-start/
 excerpt: "Minimal start for Seq2Seq."
-last_modified_at: 2020/08/10 23:08:46
+last_modified_at: 2020/10/12 14:09:22
 ---
 
 ## Generic Encoder-Decoder minimal start
@@ -47,7 +47,6 @@ eval_df = pd.DataFrame(eval_data, columns=["input_text", "target_text"])
 # Configure the model
 model_args = Seq2SeqArgs()
 model_args.num_train_epochs = 200
-model_args.no_save = True
 model_args.evaluate_generated_text = True
 model_args.evaluate_during_training = True
 model_args.evaluate_during_training_verbose = True
@@ -76,7 +75,7 @@ print(
 
 # Loading a saved model
 model_reloaded = Seq2SeqModel(
-    "roberta,
+    "roberta",
     encoder_decoder_name="outputs",
     args=model_args,
 )
@@ -135,7 +134,6 @@ eval_df = pd.DataFrame(eval_data, columns=["input_text", "target_text"])
 # Configure the model
 model_args = Seq2SeqArgs()
 model_args.num_train_epochs = 200
-model_args.no_save = True
 model_args.evaluate_generated_text = True
 model_args.evaluate_during_training = True
 model_args.evaluate_during_training_verbose = True
