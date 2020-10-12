@@ -568,9 +568,17 @@ class LanguageModelingModel:
 
                 if args.fp16:
                     with amp.autocast():
-                        outputs = model(**inputs)
+                        if args.model_type == "longformer":
+                            outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
+                        else:
+                            outputs = model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
                         # model outputs are always tuple in pytorch-transformers (see doc)
-                        loss = outputs[0]
+                        if args.model_type == "electra":
+                            g_loss = outputs[0]
+                            d_loss = outputs[1]
+                            loss = g_loss + args.discriminator_loss_weight * d_loss
+                        else:
+                            loss = outputs[0]
                 else:
                     if args.model_type == "longformer":
                         outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
