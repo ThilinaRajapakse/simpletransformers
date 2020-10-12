@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.48.12] - 2020-10-11
+
+### Fixed
+
+- Fixed compatibility issues with W&B Sweeps. [jonatanklosko](https://github.com/jonatanklosko)
+
 ## [0.48.11] - 2020-10-11
 
 ### Changed
@@ -1180,7 +1186,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.48.11]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1b59118...HEAD
+[0.48.12]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b908bb5...HEAD
+
+[0.48.11]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1b59118...b908bb5
 
 [0.48.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6370a1b...1b59118
 
