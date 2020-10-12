@@ -1215,6 +1215,11 @@ class ClassificationModel:
                     eval_examples = [InputExample(i, text, None, dummy_label) for i, text in enumerate(to_predict)]
             if args.sliding_window:
                 eval_dataset, window_counts = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
+                preds = np.empty((len(eval_dataset), self.num_labels))
+                if multi_label:
+                    out_label_ids = np.empty((len(eval_dataset), self.num_labels))
+                else:
+                    out_label_ids = np.empty((len(eval_dataset)))
             else:
                 eval_dataset = self.load_and_cache_examples(
                     eval_examples, evaluate=True, multi_label=multi_label, no_cache=True

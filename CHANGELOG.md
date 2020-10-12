@@ -4,13 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.48.13] - 2020-10-11
+## [0.48.14] - 2020-10-12
+
+### Fixed
+
+- Fixed `predict()` function issue when using `sliding_window`.
+- Fixed issues with simple-viewer (streamlit compatibility issues)
+
+## [0.48.13] - 2020-10-12
 
 ### Fixed
 
 - Fixed issues with using mixed precision training with `LanguageModelingModel`.
 
-## [0.48.12] - 2020-10-11
+## [0.48.12] - 2020-10-12
 
 ### Fixed
 
@@ -1192,7 +1199,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.48.13]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6881e5c...HEAD
+[0.48.14]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3ce9288...HEAD
+
+[0.48.13]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6881e5c...3ce9288
 
 [0.48.12]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b908bb5...6881e5c
 

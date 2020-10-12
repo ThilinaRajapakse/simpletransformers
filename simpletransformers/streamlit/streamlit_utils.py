@@ -5,9 +5,8 @@ import collections
 import functools
 import inspect
 import textwrap
-import streamlit.ReportThread as ReportThread
-from streamlit.server.Server import Server
-
+from streamlit.report_thread import get_report_ctx
+from streamlit.server.server import Server
 
 def cache_on_button_press(label, **cache_kwargs):
     """Function decorator to memoize function executions.
@@ -127,27 +126,12 @@ def get(**kwargs):
     """
     # Hack to get the session object from Streamlit.
 
-    ctx = ReportThread.get_report_ctx()
+    ctx = get_report_ctx()
 
     this_session = None
 
-    current_server = Server.get_current()
-    if hasattr(current_server, "_session_infos"):
-        # Streamlit < 0.56
-        session_infos = Server.get_current()._session_infos.values()
-    else:
-        session_infos = Server.get_current()._session_info_by_id.values()
-
-    for session_info in session_infos:
-        s = session_info.session
-        if (
-            # Streamlit < 0.54.0
-            (hasattr(s, "_main_dg") and s._main_dg == ctx.main_dg)
-            or
-            # Streamlit >= 0.54.0
-            (not hasattr(s, "_main_dg") and s.enqueue == ctx.enqueue)
-        ):
-            this_session = s
+    session_info = Server.get_current()._get_session_info(ctx.session_id)
+    this_session = session_info.session
 
     if this_session is None:
         raise RuntimeError(
