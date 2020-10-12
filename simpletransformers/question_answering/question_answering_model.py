@@ -65,6 +65,7 @@ from transformers import (
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import QuestionAnsweringArgs
+from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.custom_models.models import ElectraForQuestionAnswering, XLMRobertaForQuestionAnswering
 from simpletransformers.question_answering.question_answering_utils import (
     LazyQuestionAnsweringDataset,
@@ -131,7 +132,7 @@ class QuestionAnsweringModel:
 
         if "sweep_config" in kwargs:
             sweep_config = kwargs.pop("sweep_config")
-            sweep_values = {key: value["value"] for key, value in sweep_config.as_dict().items() if key != "_wandb"}
+            sweep_values = sweep_config_to_sweep_values(sweep_config)
             self.args.update_from_dict(sweep_values)
 
         if self.args.manual_seed:
