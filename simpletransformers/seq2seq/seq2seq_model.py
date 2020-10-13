@@ -24,6 +24,9 @@ from transformers import (
     BartConfig,
     BartForConditionalGeneration,
     BartTokenizer,
+    MBartConfig,
+    MBartForConditionalGeneration,
+    MBartTokenizer,
     BertConfig,
     BertForMaskedLM,
     BertModel,
@@ -73,6 +76,7 @@ logger = logging.getLogger(__name__)
 MODEL_CLASSES = {
     "auto": (AutoConfig, AutoModel, AutoTokenizer),
     "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
+    "mbart": (MBartConfig, MBartForConditionalGeneration, MBartTokenizer),
     "bert": (BertConfig, BertModel, BertTokenizer),
     "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
     "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
