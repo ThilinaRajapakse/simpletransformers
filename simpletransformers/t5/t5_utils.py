@@ -26,18 +26,19 @@ def preprocess_data(data):
             max_length=args.max_seq_length,
             pad_to_max_length=True,
             return_tensors="pt",
+            truncation=True
         )
 
         target_text = tokenizer.encode(
-            target_text + " </s>", max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt"
+            target_text + " </s>", max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
         )
     else:
         input_text = tokenizer.encode(
-            prefix + input_text, max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt"
+            prefix + input_text, max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
         )
 
         target_text = tokenizer.encode(
-            target_text, max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt"
+            target_text, max_length=args.max_seq_length, pad_to_max_length=True, return_tensors="pt", truncation=True
         )
     return (torch.flatten(input_text), torch.flatten(target_text))
 
