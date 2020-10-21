@@ -396,7 +396,7 @@ class T5Model:
                             wandb.log(
                                 {
                                     "Training loss": current_loss,
-                                    "lr": scheduler.get_lr()[0],
+                                    "lr": scheduler.get_last_lr()[0],
                                     "global_step": global_step,
                                 }
                             )
