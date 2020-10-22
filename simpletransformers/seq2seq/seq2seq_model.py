@@ -843,7 +843,7 @@ class Seq2SeqModel:
                 input_ids = self.encoder_tokenizer.prepare_translation_batch(
                     batch,
                     max_length=self.args.max_seq_length,
-                    pad_to_max_length=True,
+                    padding="max_length",
                     return_tensors="pt",
                     truncation=True,
                 )["input_ids"]
@@ -851,7 +851,7 @@ class Seq2SeqModel:
                 input_ids = self.encoder_tokenizer.batch_encode_plus(
                     batch,
                     max_length=self.args.max_seq_length,
-                    pad_to_max_length=True,
+                    padding="max_length",
                     return_tensors="pt",
                     truncation=True,
                 )["input_ids"]
