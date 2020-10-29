@@ -350,7 +350,7 @@ class ClassificationModel:
                             results, _, _ = self.eval_model(eval_df, verbose=True)
                             for key, value in results.items():
                                 tb_writer.add_scalar("eval_{}".format(key), value, global_step)
-                        tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
+                        tb_writer.add_scalar("lr", scheduler.get_last_lr()[0], global_step)
                         tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args["logging_steps"], global_step)
                         logging_loss = tr_loss
 

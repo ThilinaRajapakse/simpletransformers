@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Updated some tokenizer arguments to the new argument names. [macabdul9](https://github.com/macabdul9)
+- Learning rate is now obtained from the `get_last_lr()` method. [sarapapi](https://github.com/sarapapi)
 
 ## [0.48.14] - 2020-10-12
 
@@ -1205,7 +1206,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.48.14]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3ce9288...HEAD
+[0.48.15]: https://github.com/ThilinaRajapakse/simpletransformers/compare/38d0cd8...HEAD
+
+[0.48.14]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3ce9288...38d0cd8
 
 [0.48.13]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6881e5c...3ce9288
 

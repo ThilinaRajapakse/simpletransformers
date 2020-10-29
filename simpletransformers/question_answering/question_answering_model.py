@@ -528,7 +528,7 @@ class QuestionAnsweringModel:
 
                     if args.logging_steps > 0 and global_step % args.logging_steps == 0:
                         # Log metrics
-                        tb_writer.add_scalar("lr", scheduler.get_lr()[0], global_step)
+                        tb_writer.add_scalar("lr", scheduler.get_last_lr()[0], global_step)
                         tb_writer.add_scalar(
                             "loss", (tr_loss - logging_loss) / args.logging_steps, global_step,
                         )
@@ -537,7 +537,7 @@ class QuestionAnsweringModel:
                             wandb.log(
                                 {
                                     "Training loss": current_loss,
-                                    "lr": scheduler.get_lr()[0],
+                                    "lr": scheduler.get_last_lr()[0],
                                     "global_step": global_step,
                                 }
                             )
