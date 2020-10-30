@@ -11,6 +11,7 @@ from tokenizers.processors import BertProcessing
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
+from transformers.modeling_bart import shift_tokens_right
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +90,27 @@ def preprocess_data_bart(data):
         "target_ids": target_ids["input_ids"].squeeze(),
     }
 
+def preprocess_data_mbart(data):
+    input_text, target_text, tokenizer, args = data
+
+    src_lang = args.src_lang if args.src_lang is not None else 'en_XX'
+    tgt_lang = args.tgt_lang if args.tgt_lang is not None else 'ro_RO'
+
+    tokenized_example = tokenizer.prepare_seq2seq_batch(src_texts=[input_text], tgt_texts=[target_text], src_lang=src_lang, tgt_lang=tgt_lang)
+
+    decoder_input_ids = tokenized_example['labels']
+    decoder_input_ids = shift_tokens_right(decoder_input_ids, tokenizer.pad_token_id)
+
+    labels = tokenized_example['labels']
+    labels[labels == tokenizer.pad_token_id] = -100
+
+    return {
+        "input_ids": tokenized_example['input_ids'].squeeze(),
+        "attention_mask": tokenized_example["attention_mask"].squeeze(),
+        "decoder_input_ids": decoder_input_ids.squeeze(),
+        "labels": labels
+    }
+
 
 class SimpleSummarizationDataset(Dataset):
     def __init__(self, tokenizer, args, data, mode):
@@ -113,17 +135,19 @@ class SimpleSummarizationDataset(Dataset):
                 for input_text, target_text in zip(data["input_text"], data["target_text"])
             ]
 
+            preprocess_fn = preprocess_data_mbart if args.model_type == 'mbart' else preprocess_data_bart
+
             if args.use_multiprocessing:
                 with Pool(args.process_count) as p:
                     self.examples = list(
                         tqdm(
-                            p.imap(preprocess_data_bart, data, chunksize=args.multiprocessing_chunksize),
+                            p.imap(preprocess_fn, data, chunksize=args.multiprocessing_chunksize),
                             total=len(data),
                             disable=args.silent,
                         )
                     )
             else:
-                self.examples = [preprocess_data_bart(d) for d in tqdm(data, disable=args.silent)]
+                self.examples = [preprocess_fn(d) for d in tqdm(data, disable=args.silent)]
 
     def __len__(self):
         return len(self.examples)

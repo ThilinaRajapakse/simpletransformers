@@ -851,6 +851,15 @@ class Seq2SeqModel:
                     return_tensors="pt",
                     truncation=True,
                 )["input_ids"]
+            elif self.args.model_type in ["mbart"]:
+                input_ids = self.encoder_tokenizer.prepare_seq2seq_batch(
+                    src_texts=batch,
+                    max_length=self.args.max_seq_length,
+                    pad_to_max_length=True,
+                    return_tensors="pt",
+                    truncation=True,
+                    src_lang=self.args.src_lang
+                )["input_ids"]
             else:
                 input_ids = self.encoder_tokenizer.batch_encode_plus(
                     batch,
@@ -861,9 +870,28 @@ class Seq2SeqModel:
                 )["input_ids"]
             input_ids = input_ids.to(self.device)
 
-            if self.args.model_type in ["bart", "mbart", "marian"]:
+            if self.args.model_type in ["bart", "marian"]:
                 outputs = self.model.generate(
                     input_ids=input_ids,
+                    num_beams=self.args.num_beams,
+                    max_length=self.args.max_length,
+                    length_penalty=self.args.length_penalty,
+                    early_stopping=self.args.early_stopping,
+                    repetition_penalty=self.args.repetition_penalty,
+                    do_sample=self.args.do_sample,
+                    top_k=self.args.top_k,
+                    top_p=self.args.top_p,
+                    num_return_sequences=self.args.num_return_sequences,
+                )
+            elif self.args.model_type in ["mbart"]:
+
+                tgt_lang_token = (
+                    self.decoder_tokenizer._convert_token_to_id(self.args.tgt_lang) if self.args.tgt_lang else None
+                )
+
+                outputs = self.model.generate(
+                    input_ids=input_ids,
+                    decoder_start_token_id=tgt_lang_token,
                     num_beams=self.args.num_beams,
                     max_length=self.args.max_length,
                     length_penalty=self.args.length_penalty,
@@ -1042,7 +1070,7 @@ class Seq2SeqModel:
 
     def _get_inputs_dict(self, batch):
         device = self.device
-        if self.args.model_type in ["bart", "mbart", "marian"]:
+        if self.args.model_type in ["bart", "marian"]:
             pad_token_id = self.encoder_tokenizer.pad_token_id
             source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
             y_ids = y[:, :-1].contiguous()
@@ -1053,7 +1081,14 @@ class Seq2SeqModel:
                 "input_ids": source_ids.to(device),
                 "attention_mask": source_mask.to(device),
                 "decoder_input_ids": y_ids.to(device),
-                "lm_labels": lm_labels.to(device),
+                "labels": lm_labels.to(device),
+            }
+        elif self.args.model_type in ['mbart']:
+            inputs = {
+                "input_ids": batch['input_ids'].to(device),
+                "attention_mask": batch['attention_mask'].to(device),
+                "decoder_input_ids": batch['decoder_input_ids'].to(device),
+                "labels": batch['labels'].to(device),
             }
         else:
             lm_labels = batch[1]
