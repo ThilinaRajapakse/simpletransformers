@@ -102,7 +102,7 @@ def preprocess_data_mbart(data):
         src_lang=src_lang,
         tgt_lang=tgt_lang,
         max_length=args.max_seq_length,
-        pad_to_max_length=True,
+        padding='max_length',  # pad_to_max_length=True won't work in this case
         return_tensors="pt",
         truncation=True
     )
