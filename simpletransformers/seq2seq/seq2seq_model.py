@@ -884,10 +884,7 @@ class Seq2SeqModel:
                     num_return_sequences=self.args.num_return_sequences,
                 )
             elif self.args.model_type in ["mbart"]:
-
-                tgt_lang_token = (
-                    self.decoder_tokenizer._convert_token_to_id(self.args.tgt_lang) if self.args.tgt_lang else None
-                )
+                tgt_lang_token = self.decoder_tokenizer._convert_token_to_id(self.args.tgt_lang)
 
                 outputs = self.model.generate(
                     input_ids=input_ids,

@@ -93,14 +93,11 @@ def preprocess_data_bart(data):
 def preprocess_data_mbart(data):
     input_text, target_text, tokenizer, args = data
 
-    src_lang = args.src_lang if args.src_lang is not None else 'en_XX'
-    tgt_lang = args.tgt_lang if args.tgt_lang is not None else 'ro_RO'
-
     tokenized_example = tokenizer.prepare_seq2seq_batch(
         src_texts=[input_text],
         tgt_texts=[target_text],
-        src_lang=src_lang,
-        tgt_lang=tgt_lang,
+        src_lang=args.src_lang,
+        tgt_lang=args.tgt_lang,
         max_length=args.max_seq_length,
         padding='max_length',  # pad_to_max_length=True won't work in this case
         return_tensors="pt",
