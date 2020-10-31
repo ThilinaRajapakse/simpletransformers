@@ -107,7 +107,7 @@ def preprocess_data_mbart(data):
         truncation=True
     )
 
-    decoder_input_ids = tokenized_example['labels']
+    decoder_input_ids = tokenized_example['labels'].clone()
     decoder_input_ids = shift_tokens_right(decoder_input_ids, tokenizer.pad_token_id)
 
     labels = tokenized_example['labels']
@@ -117,7 +117,7 @@ def preprocess_data_mbart(data):
         "input_ids": tokenized_example['input_ids'].squeeze(),
         "attention_mask": tokenized_example["attention_mask"].squeeze(),
         "decoder_input_ids": decoder_input_ids.squeeze(),
-        "labels": labels
+        "labels": labels.squeeze()
     }
 
 
