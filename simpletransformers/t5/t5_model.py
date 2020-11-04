@@ -42,7 +42,7 @@ def chunks(lst, n):
 
 class T5Model:
     def __init__(
-        self, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_name=None, args=None, config=None, tokenizer=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
 
         """
@@ -91,11 +91,17 @@ class T5Model:
 
         self.results = {}
 
-        self.config = T5Config.from_pretrained(model_name, **self.args.config)
+        if model_name==None:
+            self.config = config
+            self.model = T5ForConditionalGeneration(config=self.config)
+        else:
+            self.config = T5Config.from_pretrained(model_name, **self.args.config)
+            self.model = T5ForConditionalGeneration.from_pretrained(model_name, config=self.config)
 
-        self.model = T5ForConditionalGeneration.from_pretrained(model_name, config=self.config)
-
-        self.tokenizer = T5Tokenizer.from_pretrained(model_name, truncate=True)
+        if isinstance(tokenizer, T5Tokenizer):
+            self.tokenizer = tokenizer
+        else:
+            self.tokenizer = T5Tokenizer.from_pretrained(model_name, truncate=True)
 
         if self.args.dynamic_quantize:
             self.model = torch.quantization.quantize_dynamic(self.model, {torch.nn.Linear}, dtype=torch.qint8)
@@ -104,7 +110,10 @@ class T5Model:
             self.args.fp16 = False
 
         self.args.model_type = "T5"
-        self.args.model_name = model_name
+        if model_name==None:
+            self.args.model_name = "T5fromScratch"
+        else:
+            self.args.model_name = model_name
 
         if self.args.wandb_project and not wandb_available:
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
