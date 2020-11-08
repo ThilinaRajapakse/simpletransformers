@@ -421,7 +421,7 @@ class LongformerForMultiLabelSequenceClassification(LongformerPreTrainedModel):
     """
     Longformer model adapted for multilabel sequence classification.
     """
-     def __init__(self, config, pos_weight=None):
+    def __init__(self, config, pos_weight=None):
         super(LongformerForMultiLabelSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
         self.pos_weight = pos_weight
@@ -442,7 +442,6 @@ class LongformerForMultiLabelSequenceClassification(LongformerPreTrainedModel):
         labels=None
     ):
         if global_attention_mask is None:
-            logger.info("Initializing global attention on CLS token...")
             global_attention_mask = torch.zeros_like(input_ids)
             # global attention on cls token
             global_attention_mask[:, 0] = 1
