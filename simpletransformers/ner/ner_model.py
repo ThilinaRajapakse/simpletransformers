@@ -109,7 +109,7 @@ class NERModel:
         MODEL_CLASSES = {
             "auto": (AutoConfig, AutoTokenizer, AutoModelForTokenClassification),
             "bert": (BertConfig, BertForTokenClassification, BertTokenizer),
-            "bertweet": (RobertaConfig, RobertaForSequenceClassification, BertweetTokenizer),
+            "bertweet": (RobertaConfig, RobertaForTokenClassification, BertweetTokenizer),
             "camembert": (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForTokenClassification, ElectraTokenizer),
