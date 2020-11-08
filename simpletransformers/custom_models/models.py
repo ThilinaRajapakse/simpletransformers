@@ -36,7 +36,7 @@ from transformers.modeling_roberta import (
 )
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
 from transformers.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
-
+from transformers.modeling_longformer import LongformerClassificationHead
 
 class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
     """
@@ -426,8 +426,8 @@ class LongformerForMultiLabelSequenceClassification(LongformerPreTrainedModel):
         self.num_labels = config.num_labels
         self.pos_weight = pos_weight
 
-        self.transformer = LongformerModel(config)
-        self.sequence_summary = SequenceSummary(config)
+        self.longformer = LongformerModel(config)
+        self.classifier = LongformerClassificationHead(config)
 
         self.init_weights()
 
@@ -435,31 +435,29 @@ class LongformerForMultiLabelSequenceClassification(LongformerPreTrainedModel):
         self,
         input_ids=None,
         attention_mask=None,
-        langs=None,
+        global_attention_mask=None,
         token_type_ids=None,
         position_ids=None,
-        lengths=None,
-        cache=None,
-        head_mask=None,
         inputs_embeds=None,
-        labels=None,
+        labels=None
     ):
-        transformer_outputs = self.transformer(
+        if global_attention_mask is None:
+            logger.info("Initializing global attention on CLS token...")
+            global_attention_mask = torch.zeros_like(input_ids)
+            # global attention on cls token
+            global_attention_mask[:, 0] = 1
+            
+        outputs = self.longformer(
             input_ids,
             attention_mask=attention_mask,
-            langs=langs,
+            global_attention_mask=global_attention_mask,
             token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            lengths=lengths,
-            cache=cache,
-            head_mask=head_mask,
+            position_ids=position_ids
         )
-
-        output = transformer_outputs[0]
-        logits = self.sequence_summary(output)
-
-        outputs = (logits,) + transformer_outputs[1:]  # Keep new_mems and attention/hidden states if they are here
-
+        sequence_output = outputs[0]
+        logits = self.classifier(sequence_output)   
+        
+        outputs = (logits,) + outputs[2:]
         if labels is not None:
             loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
             labels = labels.float()
@@ -467,7 +465,6 @@ class LongformerForMultiLabelSequenceClassification(LongformerPreTrainedModel):
             outputs = (loss,) + outputs
 
         return outputs
-    
 
 class XLMRobertaForMultiLabelSequenceClassification(RobertaForMultiLabelSequenceClassification):
     config_class = XLMRobertaConfig
