@@ -322,6 +322,7 @@ Supported model types:
 * XLM
 * XLM-RoBERTa
 * XLNet
+* Longformer
 * BERTweet
 
 ### Task Specific Notes
