@@ -2,7 +2,7 @@
 title: Classification Specifics
 permalink: /docs/classification-specifics/
 excerpt: "Specific notes for text classification tasks."
-last_modified_at: 2020/10/07 17:30:08
+last_modified_at: 2020/11/09 18:23:19
 toc: true
 ---
 
@@ -42,6 +42,7 @@ New model types are regularly added to the library. Text classification tasks cu
 | DistilBERT  | distilbert                           |
 | ELECTRA     | electra                              |
 | FlauBERT    | flaubert                             |
+| *LayoutLM   | layoutlm                             |
 | *Longformer | longformer                           |
 | *MobileBERT | mobilebert                           |
 | XLM         | xlm                                  |

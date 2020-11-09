@@ -1091,7 +1091,10 @@ class NERModel:
         if not to_predict and isinstance(data, str) and self.args.lazy_loading:
             dataset = LazyNERDataset(data, tokenizer, self.args)
         else:
-            if not to_predict:
+            if to_predict:
+                examples = to_predict
+                no_cache = True
+            else:
                 if isinstance(data, str):
                     examples = read_examples_from_file(
                         data, mode, bbox=True if self.args.model_type == "layoutlm" else False
@@ -1100,9 +1103,6 @@ class NERModel:
                     if self.args.lazy_loading:
                         raise ValueError("Input must be given as a path to a file when using lazy loading")
                     examples = get_examples_from_df(data, bbox=True if self.args.model_type == "layoutlm" else False)
-            else:
-                examples = to_predict
-                no_cache = True
 
             cached_features_file = os.path.join(
                 args.cache_dir,

@@ -26,15 +26,23 @@ def preprocess_data(data):
             max_length=args.max_seq_length,
             padding="max_length",
             return_tensors="pt",
-            truncation=True
+            truncation=True,
         )
 
         target_text = tokenizer.encode(
-            target_text + " </s>", max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+            target_text + " </s>",
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="pt",
+            truncation=True,
         )
     else:
         input_text = tokenizer.encode(
-            prefix + input_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+            prefix + input_text,
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="pt",
+            truncation=True,
         )
 
         target_text = tokenizer.encode(

@@ -60,6 +60,8 @@ from transformers import (
     XLMTokenizer,
     XLNetConfig,
     XLNetTokenizer,
+    LayoutLMConfig,
+    LayoutLMTokenizer,
     get_linear_schedule_with_warmup,
 )
 from transformers.convert_graph_to_onnx import convert, quantize
@@ -74,6 +76,7 @@ from simpletransformers.classification.transformer_models.bert_model import Bert
 from simpletransformers.classification.transformer_models.camembert_model import CamembertForSequenceClassification
 from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
 from simpletransformers.classification.transformer_models.flaubert_model import FlaubertForSequenceClassification
+from simpletransformers.classification.transformer_models.layoutlm_model import LayoutLMForSequenceClassification
 from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
 from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
 from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
@@ -136,6 +139,7 @@ class ClassificationModel:
             "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
+            "layoutlm": (LayoutLMConfig, LayoutLMForSequenceClassification, LayoutLMTokenizer),
         }
 
         self.args = self._load_model_args(model_name)
@@ -332,22 +336,42 @@ class ClassificationModel:
         if isinstance(train_df, str) and self.args.lazy_loading:
             if self.args.sliding_window:
                 raise ValueError("Lazy loading cannot be used with sliding window.")
+            if self.args.model_type == "layoutlm":
+                raise NotImplementedError("Lazy loading is not implemented for LayoutLM models")
             train_dataset = LazyClassificationDataset(train_df, self.tokenizer, self.args)
         else:
             if self.args.lazy_loading:
                 raise ValueError("Input must be given as a path to a file when using lazy loading")
             if "text" in train_df.columns and "labels" in train_df.columns:
-                train_examples = [
-                    InputExample(i, text, None, label)
-                    for i, (text, label) in enumerate(zip(train_df["text"].astype(str), train_df["labels"]))
-                ]
+                if self.args.model_type == "layoutlm":
+                    train_examples = [
+                        InputExample(i, text, None, label, x0, y0, x1, y1)
+                        for i, (text, label, x0, y0, x1, y1) in enumerate(
+                            zip(
+                                train_df["text"].astype(str),
+                                train_df["labels"],
+                                train_df["x0"],
+                                train_df["y0"],
+                                train_df["x1"],
+                                train_df["y1"],
+                            )
+                        )
+                    ]
+                else:
+                    train_examples = [
+                        InputExample(i, text, None, label)
+                        for i, (text, label) in enumerate(zip(train_df["text"].astype(str), train_df["labels"]))
+                    ]
             elif "text_a" in train_df.columns and "text_b" in train_df.columns:
-                train_examples = [
-                    InputExample(i, text_a, text_b, label)
-                    for i, (text_a, text_b, label) in enumerate(
-                        zip(train_df["text_a"].astype(str), train_df["text_b"].astype(str), train_df["labels"])
-                    )
-                ]
+                if self.args.model_type == "layoutlm":
+                    raise ValueError("LayoutLM cannot be used with sentence-pair tasks")
+                else:
+                    train_examples = [
+                        InputExample(i, text_a, text_b, label)
+                        for i, (text_a, text_b, label) in enumerate(
+                            zip(train_df["text_a"].astype(str), train_df["text_b"].astype(str), train_df["labels"])
+                        )
+                    ]
             else:
                 warnings.warn(
                     "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
@@ -829,23 +853,44 @@ class ClassificationModel:
 
         results = {}
         if isinstance(eval_df, str) and self.args.lazy_loading:
+            if self.args.model_type == "layoutlm":
+                raise NotImplementedError("Lazy loading is not implemented for LayoutLM models")
             eval_dataset = LazyClassificationDataset(eval_df, self.tokenizer, self.args)
             eval_examples = None
         else:
             if self.args.lazy_loading:
                 raise ValueError("Input must be given as a path to a file when using lazy loading")
+
             if "text" in eval_df.columns and "labels" in eval_df.columns:
-                eval_examples = [
-                    InputExample(i, text, None, label)
-                    for i, (text, label) in enumerate(zip(eval_df["text"].astype(str), eval_df["labels"]))
-                ]
+                if self.args.model_type == "layoutlm":
+                    eval_examples = [
+                        InputExample(i, text, None, label, x0, y0, x1, y1)
+                        for i, (text, label, x0, y0, x1, y1) in enumerate(
+                            zip(
+                                eval_df["text"].astype(str),
+                                eval_df["labels"],
+                                eval_df["x0"],
+                                eval_df["y0"],
+                                eval_df["x1"],
+                                eval_df["y1"],
+                            )
+                        )
+                    ]
+                else:
+                    eval_examples = [
+                        InputExample(i, text, None, label)
+                        for i, (text, label) in enumerate(zip(eval_df["text"].astype(str), eval_df["labels"]))
+                    ]
             elif "text_a" in eval_df.columns and "text_b" in eval_df.columns:
-                eval_examples = [
-                    InputExample(i, text_a, text_b, label)
-                    for i, (text_a, text_b, label) in enumerate(
-                        zip(eval_df["text_a"].astype(str), eval_df["text_b"].astype(str), eval_df["labels"])
-                    )
-                ]
+                if self.args.model_type == "layoutlm":
+                    raise ValueError("LayoutLM cannot be used with sentence-pair tasks")
+                else:
+                    eval_examples = [
+                        InputExample(i, text_a, text_b, label)
+                        for i, (text_a, text_b, label) in enumerate(
+                            zip(eval_df["text_a"].astype(str), eval_df["text_b"].astype(str), eval_df["labels"])
+                        )
+                    ]
             else:
                 warnings.warn(
                     "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
@@ -1083,12 +1128,18 @@ class ClassificationModel:
         all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
         all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
 
+        if self.args.model_type == "layoutlm":
+            all_bboxes = torch.tensor([f.bboxes for f in features], dtype=torch.long)
+
         if output_mode == "classification":
             all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
         elif output_mode == "regression":
             all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
 
-        dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+        if self.args.model_type == "layoutlm":
+            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_bboxes)
+        else:
+            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
         if args.sliding_window and evaluate:
             return dataset, window_counts
@@ -1417,7 +1468,12 @@ class ClassificationModel:
 
             # XLM, DistilBERT and RoBERTa don't use segment_ids
             if self.args.model_type != "distilbert":
-                inputs["token_type_ids"] = batch[2] if self.args.model_type in ["bert", "xlnet", "albert"] else None
+                inputs["token_type_ids"] = (
+                    batch[2] if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"] else None
+                )
+
+        if self.args.model_type == "layoutlm":
+            inputs["bbox"] = batch[4]
 
         return inputs
 

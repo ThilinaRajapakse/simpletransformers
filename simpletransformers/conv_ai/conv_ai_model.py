@@ -808,7 +808,9 @@ class ConvAIModel:
             while not raw_text:
                 print("Prompt should not be empty!")
                 raw_text = input(">>> ")
-            history.append(tokenizer.encode(raw_text) if self.args.model_type not in ["blender", "blender-small"] else raw_text)
+            history.append(
+                tokenizer.encode(raw_text) if self.args.model_type not in ["blender", "blender-small"] else raw_text
+            )
             with torch.no_grad():
                 if args.fp16:
                     with amp.autocast():
@@ -1004,20 +1006,26 @@ class ConvAIModel:
         if self.args.model_type in ["blender", "blender-small"]:
             print("Input >>>>>>> ", "\n".join(personality) + "\n" + "\n".join(history))
             print("---------------------------------")
-            inputs = self.tokenizer(["\n".join(history).strip("\n")], return_tensors='pt')
+            inputs = self.tokenizer(["\n".join(history).strip("\n")], return_tensors="pt")
             # inputs = self.tokenizer(["\n".join(personality) + "\n" + "\n".join(history)], return_tensors='pt')
             inputs["input_ids"] = inputs["input_ids"].to(self.device)
             inputs["attention_mask"] = inputs["attention_mask"].to(self.device)
             reply_ids = self.model.generate(**inputs)
-            reply = [tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=True) for g in reply_ids]
-            return reply[0][10: -8] if self.args.model_type == "blender-small" else reply[0] # To remove the "__start__ " and " __end__"
+            reply = [
+                tokenizer.decode(g, skip_special_tokens=True, clean_up_tokenization_spaces=True) for g in reply_ids
+            ]
+            return (
+                reply[0][10:-8] if self.args.model_type == "blender-small" else reply[0]
+            )  # To remove the "__start__ " and " __end__"
         else:
             special_tokens_ids = tokenizer.convert_tokens_to_ids(SPECIAL_TOKENS)
             if current_output is None:
                 current_output = []
 
             for i in range(args.max_length):
-                instance = self.build_input_from_segments(personality, history, current_output, tokenizer, with_eos=False)
+                instance = self.build_input_from_segments(
+                    personality, history, current_output, tokenizer, with_eos=False
+                )
 
                 input_ids = torch.tensor(instance["input_ids"], device=self.device).unsqueeze(0)
                 token_type_ids = torch.tensor(instance["token_type_ids"], device=self.device).unsqueeze(0)
@@ -1040,7 +1048,6 @@ class ConvAIModel:
                 if prev.item() in special_tokens_ids:
                     break
                 current_output.append(prev.item())
-
 
         return current_output
 

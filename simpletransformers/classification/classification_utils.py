@@ -48,7 +48,7 @@ csv.field_size_limit(2147483647)
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
 
-    def __init__(self, guid, text_a, text_b=None, label=None):
+    def __init__(self, guid, text_a, text_b=None, label=None, x0=None, y0=None, x1=None, y1=None):
         """
         Constructs a InputExample.
 
@@ -66,16 +66,22 @@ class InputExample(object):
         self.text_a = text_a
         self.text_b = text_b
         self.label = label
+        if x0 is None:
+            self.bboxes = None
+        else:
+            self.bboxes = [[a, b, c, d] for a, b, c, d in zip(x0, y0, x1, y1)]
 
 
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, label_id):
+    def __init__(self, input_ids, input_mask, segment_ids, label_id, bboxes=None):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
         self.label_id = label_id
+        if bboxes:
+            self.bboxes = bboxes
 
 
 def convert_example_to_feature(
@@ -107,10 +113,23 @@ def convert_example_to_feature(
         pad_to_max_length,
     ) = example_row
 
-    if add_prefix_space and not example.text_a.startswith(" "):
-        tokens_a = tokenizer.tokenize(" " + example.text_a)
+    bboxes = []
+    if example.bboxes:
+        tokens_a = []
+        for word, bbox in zip(example.text_a.split(), example.bboxes):
+            word_tokens = tokenizer.tokenize(word)
+            tokens_a.extend(word_tokens)
+            bboxes.extend([bbox] * len(word_tokens))
+
+        cls_token_box = [0, 0, 0, 0]
+        sep_token_box = [1000, 1000, 1000, 1000]
+        pad_token_box = [0, 0, 0, 0]
+
     else:
-        tokens_a = tokenizer.tokenize(example.text_a)
+        if add_prefix_space and not example.text_a.startswith(" "):
+            tokens_a = tokenizer.tokenize(" " + example.text_a)
+        else:
+            tokens_a = tokenizer.tokenize(example.text_a)
 
     tokens_b = None
     if example.text_b:
@@ -128,6 +147,8 @@ def convert_example_to_feature(
         special_tokens_count = 3 if sep_token_extra else 2
         if len(tokens_a) > max_seq_length - special_tokens_count:
             tokens_a = tokens_a[: (max_seq_length - special_tokens_count)]
+            if example.bboxes:
+                bboxes = bboxes[: (max_seq_length - special_tokens_count)]
 
     # The convention in BERT is:
     # (a) For sequence pairs:
@@ -150,6 +171,9 @@ def convert_example_to_feature(
     tokens = tokens_a + [sep_token]
     segment_ids = [sequence_a_segment_id] * len(tokens)
 
+    if bboxes:
+        bboxes += [sep_token_box]
+
     if tokens_b:
         if sep_token_extra:
             tokens += [sep_token]
@@ -165,6 +189,8 @@ def convert_example_to_feature(
     else:
         tokens = [cls_token] + tokens
         segment_ids = [cls_token_segment_id] + segment_ids
+        if bboxes:
+            bboxes = [cls_token_box] + bboxes
 
     input_ids = tokenizer.convert_tokens_to_ids(tokens)
 
@@ -183,11 +209,14 @@ def convert_example_to_feature(
             input_ids = input_ids + ([pad_token] * padding_length)
             input_mask = input_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
             segment_ids = segment_ids + ([pad_token_segment_id] * padding_length)
+            if bboxes:
+                bboxes += [pad_token_box] * padding_length
 
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
-
+        if bboxes:
+            assert len(bboxes) == max_seq_length
     # if output_mode == "classification":
     #     label_id = label_map[example.label]
     # elif output_mode == "regression":
@@ -198,7 +227,14 @@ def convert_example_to_feature(
     # if output_mode == "regression":
     #     label_id = float(example.label)
 
-    return InputFeatures(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=example.label,)
+    if bboxes:
+        return InputFeatures(
+            input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=example.label, bboxes=bboxes
+        )
+    else:
+        return InputFeatures(
+            input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=example.label,
+        )
 
 
 def convert_example_to_feature_sliding_window(

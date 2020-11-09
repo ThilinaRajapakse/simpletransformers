@@ -2,7 +2,7 @@
 title: Classification Data Formats
 permalink: /docs/classification-data-formats/
 excerpt: "Classification data formats."
-last_modified_at: 2020/07/02 01:40:54
+last_modified_at: 2020/11/09 18:35:34
 toc: true
 ---
 
@@ -53,6 +53,28 @@ train_df = pd.DataFrame(train_data)
 train_df.columns = ["text", "labels"]
 ```
 
+#### Data format for LayoutLM models
+
+[LayoutLM](https://arxiv.org/pdf/1912.13318.pdf) model (LayoutLM: Pre-training of Text and Layout for
+Document Image Understanding) is pre-trained to consider both the text and layout information for document image understanding and information extraction tasks.
+
+Although the paper discusses using combinations of text, layout, and image features, Simple Transformers currently only supports text + layout as inputs.
+
+The data format for LayoutLM is similar to the default format described above but it also includes the bounding box information (`x0`, `y0`, `x1`, `y1`) in addition to the text. Here, `x0` and `y0` is the list of coordinates of the top-left vertices of the bounding boxes and `x1` and `y1` is the list of coordinates of the bottom-right vertices of the bounding boxes. Each list contains the list of coordinates for each word in `text`.
+
+**Note:** The bounding box coordinates must be normalized to between 0-1000 where (0,0) is the top-left corner of the image.
+{: .notice--info}
+
+| text                            | labels | x0                       | y0                       | x1                       | y1                       |
+|---------------------------------|--------|--------------------------|--------------------------|--------------------------|--------------------------|
+| Aragorn was the heir of Isildur | 1      | [10, 20, 30, 40, 50, 60] | [10, 10, 10, 10, 20, 20] | [20, 30, 40, 50, 60, 70] | [20, 20, 20, 20, 30, 40] |
+| Frodo was the heir of Isildur   | 0      | [15, 20, 30, 40, 50, 60] | [10, 10, 10, 10, 20, 20] | [20, 30, 45, 50, 60, 70] | [20, 20, 20, 20, 30, 40] |
+
+
+**Warning:** Pandas can cause issues when saving and loading lists stored in a column. Check whether your list has been converted to a String!
+{: .notice--warning}
+
+
 ### Regression
 
 Identical to binary classification, except the labels are continuous values and the labels column is of type `float`.
@@ -98,7 +120,6 @@ train_df.columns = ["text", "labels"]
 
 **Warning:** Pandas can cause issues when saving and loading lists stored in a column. Check whether your list has been converted to a String!
 {: .notice--warning}
-
 
 
 ## Evaluation Data Format

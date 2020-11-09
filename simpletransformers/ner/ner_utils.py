@@ -41,7 +41,10 @@ class InputExample(object):
             words: list. The words of the sequence.
             labels: (Optional) list. The labels for each word of the sequence. This should be
             specified for train and dev examples, but not for test examples.
-            bbox: (Optional) list. The bounding boxes for each word of the sequence.
+            x0: (Optional) list. The list of x0 coordinates for each word.
+            y0: (Optional) list. The list of y0 coordinates for each word.
+            x1: (Optional) list. The list of x1 coordinates for each word.
+            y1: (Optional) list. The list of y1 coordinates for each word.
         """
         self.guid = guid
         self.words = words

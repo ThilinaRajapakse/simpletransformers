@@ -8,6 +8,7 @@ import textwrap
 from streamlit.report_thread import get_report_ctx
 from streamlit.server.server import Server
 
+
 def cache_on_button_press(label, **cache_kwargs):
     """Function decorator to memoize function executions.
     Parameters

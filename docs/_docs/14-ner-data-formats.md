@@ -2,7 +2,7 @@
 title: NER Data Formats
 permalink: /docs/ner-data-formats/
 excerpt: "Data formats for named entity recognition."
-last_modified_at: 2020/09/26 16:43:47
+last_modified_at: 2020/11/09 18:27:48
 toc: true
 ---
 
@@ -81,7 +81,7 @@ Document Image Understanding) is pre-trained to consider both the text and layou
 
 Although the paper discusses using combinations of text, layout, and image features, Simple Transformers currently only supports text + layout as inputs.
 
-The data format for LayoutLM is similar to the default format described above but it also includes the bounding box information in addition to the text.
+The data format for LayoutLM is similar to the default format described above but it also includes the bounding box information (`x0`, `y0`, `x1`, `y1`) in addition to the text. Here, `x0` and `y0` are the coordinates of the top-left vertex of the bounding box and `x1` and `y1` are the coordinates of the bottom-right vertex of the bounding box.
 
 **Note:** The bounding box coordinates must be normalized to between 0-1000 where (0,0) is the top-left corner of the image.
 {: .notice--info}

@@ -715,7 +715,11 @@ class T5Model:
                 )["input_ids"]
             else:
                 input_ids = self.tokenizer.batch_encode_plus(
-                    batch, max_length=self.args.max_seq_length, padding="max_length", truncation=True, return_tensors="pt",
+                    batch,
+                    max_length=self.args.max_seq_length,
+                    padding="max_length",
+                    truncation=True,
+                    return_tensors="pt",
                 )["input_ids"]
             input_ids = input_ids.to(self.device)
             outputs = self.model.generate(
