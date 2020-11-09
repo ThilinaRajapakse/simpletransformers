@@ -98,7 +98,7 @@ class NERModel:
 
         Args:
             model_type: The type of model (bert, roberta)
-            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
+            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_model.bin).
             labels (optional): A list of all Named Entity labels.  If not given, ["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"] will be used.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
