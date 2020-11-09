@@ -322,6 +322,8 @@ Supported model types:
 * XLM
 * XLM-RoBERTa
 * XLNet
+* Longformer
+* BERTweet
 
 ### Task Specific Notes
 
@@ -658,6 +660,7 @@ Supported model types:
 * ELECTRA
 * RoBERTa
 * XLM-RoBERTa
+* BERTweet
 
 ```python
 model = NERModel('bert', 'bert-base-cased', labels=["LABEL_1", "LABEL_2", "LABEL_3"])
