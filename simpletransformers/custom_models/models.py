@@ -35,7 +35,8 @@ from transformers.modeling_roberta import (
 )
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
 from transformers.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
-from transformers.modeling_longformer import LongformerClassificationHead, LongformerPreTrainedModel 
+from transformers.modeling_longformer import LongformerClassificationHead, LongformerPreTrainedModel
+
 
 class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
     """
@@ -416,10 +417,12 @@ class FlaubertForMultiLabelSequenceClassification(FlaubertModel):
 
         return outputs
 
+
 class LongformerForMultiLabelSequenceClassification(LongformerPreTrainedModel):
     """
     Longformer model adapted for multilabel sequence classification.
     """
+
     def __init__(self, config, pos_weight=None):
         super(LongformerForMultiLabelSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
@@ -438,23 +441,23 @@ class LongformerForMultiLabelSequenceClassification(LongformerPreTrainedModel):
         token_type_ids=None,
         position_ids=None,
         inputs_embeds=None,
-        labels=None
+        labels=None,
     ):
         if global_attention_mask is None:
             global_attention_mask = torch.zeros_like(input_ids)
             # global attention on cls token
             global_attention_mask[:, 0] = 1
-            
+
         outputs = self.longformer(
             input_ids,
             attention_mask=attention_mask,
             global_attention_mask=global_attention_mask,
             token_type_ids=token_type_ids,
-            position_ids=position_ids
+            position_ids=position_ids,
         )
         sequence_output = outputs[0]
-        logits = self.classifier(sequence_output)   
-        
+        logits = self.classifier(sequence_output)
+
         outputs = (logits,) + outputs[2:]
         if labels is not None:
             loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
@@ -463,6 +466,7 @@ class LongformerForMultiLabelSequenceClassification(LongformerPreTrainedModel):
             outputs = (loss,) + outputs
 
         return outputs
+
 
 class XLMRobertaForMultiLabelSequenceClassification(RobertaForMultiLabelSequenceClassification):
     config_class = XLMRobertaConfig

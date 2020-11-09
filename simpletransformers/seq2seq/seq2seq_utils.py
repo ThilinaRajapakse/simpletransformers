@@ -90,6 +90,7 @@ def preprocess_data_bart(data):
         "target_ids": target_ids["input_ids"].squeeze(),
     }
 
+
 def preprocess_data_mbart(data):
     input_text, target_text, tokenizer, args = data
 
@@ -99,22 +100,22 @@ def preprocess_data_mbart(data):
         src_lang=args.src_lang,
         tgt_lang=args.tgt_lang,
         max_length=args.max_seq_length,
-        padding='max_length',  # pad_to_max_length=True won't work in this case
+        padding="max_length",  # pad_to_max_length=True won't work in this case
         return_tensors="pt",
-        truncation=True
+        truncation=True,
     )
 
-    decoder_input_ids = tokenized_example['labels'].clone()
+    decoder_input_ids = tokenized_example["labels"].clone()
     decoder_input_ids = shift_tokens_right(decoder_input_ids, tokenizer.pad_token_id)
 
-    labels = tokenized_example['labels']
+    labels = tokenized_example["labels"]
     labels[labels == tokenizer.pad_token_id] = -100
 
     return {
-        "input_ids": tokenized_example['input_ids'].squeeze(),
+        "input_ids": tokenized_example["input_ids"].squeeze(),
         "attention_mask": tokenized_example["attention_mask"].squeeze(),
         "decoder_input_ids": decoder_input_ids.squeeze(),
-        "labels": labels.squeeze()
+        "labels": labels.squeeze(),
     }
 
 
@@ -141,7 +142,7 @@ class SimpleSummarizationDataset(Dataset):
                 for input_text, target_text in zip(data["input_text"], data["target_text"])
             ]
 
-            preprocess_fn = preprocess_data_mbart if args.model_type == 'mbart' else preprocess_data_bart
+            preprocess_fn = preprocess_data_mbart if args.model_type == "mbart" else preprocess_data_bart
 
             if args.use_multiprocessing:
                 with Pool(args.process_count) as p:

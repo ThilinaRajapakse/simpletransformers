@@ -220,11 +220,19 @@ class NERModel:
                 from torch.cuda import amp
             except AttributeError:
                 raise AttributeError("fp16 requires Pytorch >= 1.6. Please update Pytorch or turn off fp16.")
-        
-        if model_name in ['vinai/bertweet-base', 'vinai/bertweet-covid19-base-cased', 'vinai/bertweet-covid19-base-uncased']:
-            self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, normalization=True, **kwargs)
+
+        if model_name in [
+            "vinai/bertweet-base",
+            "vinai/bertweet-covid19-base-cased",
+            "vinai/bertweet-covid19-base-uncased",
+        ]:
+            self.tokenizer = tokenizer_class.from_pretrained(
+                model_name, do_lower_case=self.args.do_lower_case, normalization=True, **kwargs
+            )
         else:
-            self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
+            self.tokenizer = tokenizer_class.from_pretrained(
+                model_name, do_lower_case=self.args.do_lower_case, **kwargs
+            )
 
         self.args.model_name = model_name
         self.args.model_type = model_type

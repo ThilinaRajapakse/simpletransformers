@@ -1224,7 +1224,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.48.15]: https://github.com/ThilinaRajapakse/simpletransformers/compare/38d0cd8...HEAD
+[0.49.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/77da311...HEAD
+
+[0.48.15]: https://github.com/ThilinaRajapakse/simpletransformers/compare/38d0cd8...77da311
 
 [0.48.14]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3ce9288...38d0cd8
 

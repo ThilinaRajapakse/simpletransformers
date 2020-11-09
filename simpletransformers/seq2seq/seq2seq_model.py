@@ -856,9 +856,9 @@ class Seq2SeqModel:
                     src_texts=batch,
                     max_length=self.args.max_seq_length,
                     pad_to_max_length=True,
-                    padding='max_length',
+                    padding="max_length",
                     truncation=True,
-                    src_lang=self.args.src_lang
+                    src_lang=self.args.src_lang,
                 )["input_ids"]
             else:
                 input_ids = self.encoder_tokenizer.batch_encode_plus(
@@ -1080,12 +1080,12 @@ class Seq2SeqModel:
                 "decoder_input_ids": y_ids.to(device),
                 "labels": lm_labels.to(device),
             }
-        elif self.args.model_type in ['mbart']:
+        elif self.args.model_type in ["mbart"]:
             inputs = {
-                "input_ids": batch['input_ids'].to(device),
-                "attention_mask": batch['attention_mask'].to(device),
-                "decoder_input_ids": batch['decoder_input_ids'].to(device),
-                "labels": batch['labels'].to(device),
+                "input_ids": batch["input_ids"].to(device),
+                "attention_mask": batch["attention_mask"].to(device),
+                "decoder_input_ids": batch["decoder_input_ids"].to(device),
+                "labels": batch["labels"].to(device),
             }
         else:
             lm_labels = batch[1]
