@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added LayoutLM for Classification.
+- Added MBart. [Zhylkaaa](https://github.com/Zhylkaaa)
+- Added BERTweet for NER. [@manueltonneau](https://github.com/manueltonneau)
+- Added Longformer for Multilabel Classification. [@manueltonneau](https://github.com/manueltonneau)
 
 ### Fixed
 

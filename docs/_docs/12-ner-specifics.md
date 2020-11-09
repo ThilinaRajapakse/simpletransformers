@@ -2,7 +2,7 @@
 title: Named Entitty Recognition Specifics
 permalink: /docs/ner-specifics/
 excerpt: "Specific notes for Named Entity Recognition tasks."
-last_modified_at: 2020/09/26 13:30:27
+last_modified_at: 2020/11/09 19:05:11
 toc: true
 ---
 
@@ -26,6 +26,7 @@ New model types are regularly added to the library. Named Entity Recognition tas
 | Model       | Model code for `NERModel` |
 | ----------- | ------------------------- |
 | BERT        | bert                      |
+| BERTweet    | bertweet                  |
 | CamemBERT   | camembert                 |
 | RoBERTa     | roberta                   |
 | DistilBERT  | distilbert                |
