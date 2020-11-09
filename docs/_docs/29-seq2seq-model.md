@@ -2,7 +2,7 @@
 title: Seq2Seq Model
 permalink: /docs/seq2seq-model/
 excerpt: "Seq2SeqModel for Seq2Seq tasks."
-last_modified_at: 2020/08/10 01:15:58
+last_modified_at: 2020/11/09 18:57:12
 toc: true
 ---
 
@@ -105,25 +105,40 @@ model = Seq2SeqModel(
     {: .notice--info}
 
 
+### MBART Models
+
+- `encoder_decoder_type`: This should be `"mbart"`.
+- `encoder_decoder_name`: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+
+    **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
+    {: .notice--info}
+
+    **Note:** For a list of community models, see [here](https://huggingface.co/models).
+    {: .notice--info}
+
+
 ### Configuring a `Seq2SeqModel`
 
 `Seq2SeqModel` has the following task-specific configuration options.
 
-| Argument                    | Type    | Default | Description                                                                                                                                       |
-|-----------------------------|---------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------|
-| dataset_class               | Dataset | None    | A custom dataset class to use. (Subclass of Pytorch Dataset)                                                                                      |
-| do_sample                   | bool    | False   | If set to False greedy decoding is used. Otherwise sampling is used. Defaults to False as defined in configuration_utils.PretrainedConfig.        |
-| early_stopping              | bool    | True    | if set to True beam search is stopped when at least num_beams sentences finished per batch.                                                       |
-| evaluate_generated_text     | bool    | False   | Generate sequences for evaluation.                                                                                                                |
-| length_penalty              | float   | 2.0     | Exponential penalty to the length. Default to 2.                                                                                                  |
-| max_length                  | int     | 20      | The max length of the sequence to be generated. Between 0 and infinity. Default to 20.                                                            |
-| max_steps                   | int     | -1      | Maximum number of training steps. Will override the effect of num_train_epochs.                                                                   |
-| num_beams                   | int     | 1       | Number of beams for beam search. Must be between 1 and infinity. 1 means no beam search. Default to 1.                                            |
-| num_return_sequences        | int     | 1       | The number of samples to generate.                                                                                                                |
-| repetition_penalty          | float   | 1.0     | The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no penalty. Default to 1.0.                                             |
-| top_k                       | float   | None    | Filter top-k tokens before sampling (<=0: no filtering)                                                                                           |
-| top_p                       | float   | None    | Nucleus filtering (top-p) before sampling (<=0.0: no filtering)                                                                                   |
-| use_multiprocessed_decoding | bool    | False    | Use multiprocessing when decoding outputs. Significantly speeds up decoding (CPU intensive). Turn off if multiprocessing causes insatibility.                                                      |                                               |
+| Argument                    | Type    | Default | Description                                                                                                                                   |
+| --------------------------- | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| dataset_class               | Dataset | None    | A custom dataset class to use. (Subclass of Pytorch Dataset)                                                                                  |
+| do_sample                   | bool    | False   | If set to False greedy decoding is used. Otherwise sampling is used. Defaults to False as defined in configuration_utils.PretrainedConfig.    |
+| early_stopping              | bool    | True    | if set to True beam search is stopped when at least num_beams sentences finished per batch.                                                   |
+| evaluate_generated_text     | bool    | False   | Generate sequences for evaluation.                                                                                                            |
+| length_penalty              | float   | 2.0     | Exponential penalty to the length. Default to 2.                                                                                              |
+| max_length                  | int     | 20      | The max length of the sequence to be generated. Between 0 and infinity. Default to 20.                                                        |
+| max_steps                   | int     | -1      | Maximum number of training steps. Will override the effect of num_train_epochs.                                                               |
+| num_beams                   | int     | 1       | Number of beams for beam search. Must be between 1 and infinity. 1 means no beam search. Default to 1.                                        |
+| num_return_sequences        | int     | 1       | The number of samples to generate.                                                                                                            |
+| repetition_penalty          | float   | 1.0     | The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no penalty. Default to 1.0.                                         |
+| top_k                       | float   | None    | Filter top-k tokens before sampling (<=0: no filtering)                                                                                       |
+| top_p                       | float   | None    | Nucleus filtering (top-p) before sampling (<=0.0: no filtering)                                                                               |
+| use_multiprocessed_decoding | bool    | False   | Use multiprocessing when decoding outputs. Significantly speeds up decoding (CPU intensive). Turn off if multiprocessing causes insatibility. |
+| src_lang                    | str     | en_XX   | Code for the source language. Only relevant to MBART model.                                                                                   |
+| tgt_lang                    | str     | ro_RO   | Code for the target language. Only relevant to MBART model.                                                                                   |
+
 
 ```python
 from simpletransformers.seq2seq import Seq2SeqModel, Seq2SeqArgs

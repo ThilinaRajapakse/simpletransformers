@@ -8,7 +8,10 @@ from simpletransformers.seq2seq import Seq2SeqArgs, Seq2SeqModel
 
 @pytest.mark.parametrize(
     "encoder_decoder_type, encoder_decoder_name, encoder_type",
-    [("bart", "facebook/bart-large", "bart"), ("roberta-base", "bert-base-cased", "roberta")],
+    [
+        ("bart", "facebook/bart-large", "bart"),
+        ("roberta-base", "bert-base-cased", "roberta"),
+    ],
 )
 def test_seq2seq(encoder_decoder_type, encoder_decoder_name, encoder_type):
     train_data = [

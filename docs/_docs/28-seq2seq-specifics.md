@@ -2,7 +2,7 @@
 title: Seq2Seq Specifics
 permalink: /docs/seq2seq-specifics/
 excerpt: "Specific notes for Seq2Seq tasks."
-last_modified_at: 2020/07/23 23:56:17
+last_modified_at: 2020/11/09 18:57:28
 toc: true
 ---
 
@@ -11,6 +11,7 @@ Sequence-to-Sequence models (`Seq2SeqModel`) are models where both the input and
 Currently, three main types of Sequence-to-Sequence models are available.
 
 - BART *(Summarization)*
+- MBART *(Translation)*
 - MarianMT *(Translation)*
 - Encoder-Decoder *(Generic)*
 
