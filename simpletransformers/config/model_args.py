@@ -249,6 +249,8 @@ class Seq2SeqArgs(ModelArgs):
     top_k: float = None
     top_p: float = None
     use_multiprocessed_decoding: bool = False
+    src_lang: str = 'en_XX'
+    tgt_lang: str = 'ro_RO'
 
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
