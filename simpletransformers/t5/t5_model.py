@@ -42,7 +42,7 @@ def chunks(lst, n):
 
 class T5Model:
     def __init__(
-        self, model_name=None, args=None, config=None, tokenizer=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_name, args=None, tokenizer=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
 
         """
