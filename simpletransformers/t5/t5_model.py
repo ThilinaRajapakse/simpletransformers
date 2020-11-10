@@ -92,7 +92,7 @@ class T5Model:
         self.results = {}
 
         if model_name is None:
-            self.config = config
+            self.config = self.args.config
             self.model = T5ForConditionalGeneration(config=self.config)
         else:
             self.config = T5Config.from_pretrained(model_name, **self.args.config)
