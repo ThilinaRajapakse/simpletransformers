@@ -844,7 +844,7 @@ class Seq2SeqModel:
             to_predict[i : i + self.args.eval_batch_size] for i in range(0, len(to_predict), self.args.eval_batch_size)
         ]:
             if self.args.model_type == "marian":
-                input_ids = self.encoder_tokenizer.prepare_translation_batch(
+                input_ids = self.encoder_tokenizer.prepare_seq2seq_batch(
                     batch,
                     max_length=self.args.max_seq_length,
                     padding="max_length",
