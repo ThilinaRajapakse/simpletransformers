@@ -91,7 +91,7 @@ class T5Model:
 
         self.results = {}
 
-        if model_name==None:
+        if model_name is None:
             self.config = config
             self.model = T5ForConditionalGeneration(config=self.config)
         else:
