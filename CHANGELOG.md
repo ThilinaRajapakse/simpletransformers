@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.49.1] - 2020-11-09
+
+### Fixed
+
+- Fixed issue with Marian models using deprecated function. [@bestvater](https://github.com/bestvater)
+- Added custom tokenizer option and random (no-pretraining) initialization option for `T5Model`. [sarapapi](https://github.com/sarapapi)
+
 ## [0.49.0] - 2020-11-09
 
 ### Added
@@ -1224,7 +1231,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.49.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/77da311...HEAD
+[0.49.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d4d66d6...HEAD
+
+[0.49.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/77da311...d4d66d6
 
 [0.48.15]: https://github.com/ThilinaRajapakse/simpletransformers/compare/38d0cd8...77da311
 
