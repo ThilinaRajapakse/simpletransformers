@@ -111,8 +111,8 @@ class T5Model:
             self.args.fp16 = False
 
         self.args.model_type = "T5"
-        if model_name==None:
-            self.args.model_name = "T5fromScratch"
+        if model_name is None:
+            self.args.model_name = "T5_from_scratch"
         else:
             self.args.model_name = model_name
 
