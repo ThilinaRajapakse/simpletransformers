@@ -102,7 +102,7 @@ class T5Model:
             self.tokenizer = tokenizer
         else:
             self.tokenizer = T5Tokenizer.from_pretrained(model_name, truncate=True)
-        self.model.resize_token_embeddings(len(tokenizer))
+        self.model.resize_token_embeddings(len(self.tokenizer))
 
         if self.args.dynamic_quantize:
             self.model = torch.quantization.quantize_dynamic(self.model, {torch.nn.Linear}, dtype=torch.qint8)
