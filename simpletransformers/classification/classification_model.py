@@ -538,7 +538,7 @@ class ClassificationModel:
 
         if args.wandb_project:
             if "sweep_config" not in kwargs:
-            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+                wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         if self.args.fp16:
