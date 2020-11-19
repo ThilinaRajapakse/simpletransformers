@@ -537,7 +537,7 @@ class ClassificationModel:
             training_progress_scores = self._create_training_progress_scores(multi_label, **kwargs)
 
         if args.wandb_project:
-            if "sweep_config" not in kwargs:
+            if not wandb.setup().settings.sweep_id:
                 logger.info(" Initializing WandB run.")
                 wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
