@@ -1997,7 +1997,7 @@ model_args = {
 # Initialize model
 model = Seq2SeqModel(
     encoder_decoder_type="bart",
-    encoder_decoder_name="bart-large",
+    encoder_decoder_name="facebook/bart-large",
     args=model_args,
 )
 
