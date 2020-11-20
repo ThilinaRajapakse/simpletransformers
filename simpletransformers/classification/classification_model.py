@@ -996,6 +996,8 @@ class ClassificationModel:
 
             if not multi_label:
                 preds = np.argmax(preds, axis=1)
+            else:
+                preds = (preds > 0.5).astype(int)
 
         result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples, **kwargs)
         result["eval_loss"] = eval_loss
