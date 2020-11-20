@@ -538,7 +538,7 @@ class ClassificationModel:
 
         if args.wandb_project:
             if not wandb.setup().settings.sweep_id:
-                logger.info(" Initializing WandB run.")
+                logger.info(" Initializing WandB run for training.")
                 wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
@@ -1009,6 +1009,8 @@ class ClassificationModel:
                 writer.write("{} = {}\n".format(key, str(result[key])))
 
         if self.args.wandb_project and wandb_log and not multi_label and not self.args.regression:
+             #if not wandb.setup().settings.sweep_id:
+            logger.info(" Initializing WandB run for evaluation.")
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             if not args.labels_map:
                 self.args.labels_map = {i: i for i in range(self.num_labels)}
