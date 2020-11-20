@@ -1008,11 +1008,10 @@ class ClassificationModel:
             for key in sorted(result.keys()):
                 writer.write("{} = {}\n".format(key, str(result[key])))
 
-        logger.info(f" DEBUG: project: {self.args.wandb_project}, wandb_log: {wandb_log}, multi_label: {multi_label}, self.args.regression: {self.args.regression}")
         if self.args.wandb_project and wandb_log and not multi_label and not self.args.regression:
-             #if not wandb.setup().settings.sweep_id:
-            logger.info(" Initializing WandB run for evaluation.")
-            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+            if not wandb.setup().settings.sweep_id:
+                logger.info(" Initializing WandB run for evaluation.")
+                wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             if not args.labels_map:
                 self.args.labels_map = {i: i for i in range(self.num_labels)}
 
