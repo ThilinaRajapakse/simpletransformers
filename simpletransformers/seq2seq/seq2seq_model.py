@@ -147,9 +147,12 @@ class Seq2SeqModel:
             self.args = args
 
         if "sweep_config" in kwargs:
+            self.is_sweeping = True
             sweep_config = kwargs.pop("sweep_config")
             sweep_values = sweep_config_to_sweep_values(sweep_config)
             self.args.update_from_dict(sweep_values)
+        else:
+            self.is_sweeping = False
 
         if self.args.manual_seed:
             random.seed(self.args.manual_seed)
@@ -530,7 +533,7 @@ class Seq2SeqModel:
                         tb_writer.add_scalar("lr", scheduler.get_last_lr()[0], global_step)
                         tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args.logging_steps, global_step)
                         logging_loss = tr_loss
-                        if args.wandb_project:
+                        if args.wandb_project or self.is_sweeping:
                             wandb.log(
                                 {
                                     "Training loss": current_loss,
@@ -573,7 +576,7 @@ class Seq2SeqModel:
                             os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                         )
 
-                        if args.wandb_project:
+                        if args.wandb_project or self.is_sweeping:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
                         if not best_eval_metric:
@@ -664,7 +667,7 @@ class Seq2SeqModel:
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(os.path.join(args.output_dir, "training_progress_scores.csv"), index=False)
 
-                if args.wandb_project:
+                if args.wandb_project or self.is_sweeping:
                     wandb.log(self._get_last_metrics(training_progress_scores))
 
                 if not best_eval_metric:
