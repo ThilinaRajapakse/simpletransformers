@@ -1015,16 +1015,18 @@ class ClassificationModel:
             inverse_labels_map = {value: key for key, value in self.args.labels_map.items()}
 
             truth = [inverse_labels_map[out] for out in out_label_ids]
-            # ROC
-            wandb.log({"roc": wandb.plots.ROC(truth, model_outputs, labels_list)})
-
-            # Precision Recall
-            wandb.log({"pr": wandb.plots.precision_recall(truth, model_outputs, labels_list)})
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
-                truth, [inverse_labels_map[np.argmax(out)] for out in model_outputs], labels=labels_list,
+                truth, [inverse_labels_map[pred] for pred in preds], labels=labels_list,
             )
+
+            if not self.args.sliding_window:
+                # ROC`
+                wandb.log({"roc": wandb.plots.ROC(truth, model_outputs, labels_list)})
+
+                # Precision Recall
+                wandb.log({"pr": wandb.plots.precision_recall(truth, model_outputs, labels_list)})
 
         return results, model_outputs, wrong
 

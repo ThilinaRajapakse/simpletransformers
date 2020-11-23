@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.49.1] - 2020-11-09
 
+### Changed
+
+- ROC and PR W&B charts are no longer generated when using sliding window to avoid an error.
+
+## [0.49.1] - 2020-11-09
+
 ### Fixed
 
 - Fixed issue with Marian models using deprecated function. [@bestvater](https://github.com/bestvater)
