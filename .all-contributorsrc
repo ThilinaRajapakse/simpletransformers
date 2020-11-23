@@ -506,6 +506,15 @@
       "contributions": [
         "question"
       ]
+    },
+    {
+      "login": "khituras",
+      "name": "Erik Fäßler",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/4648560?v=4",
+      "profile": "http://julielab.de/Staff/Erik+F%C3%A4%C3%9Fler.html",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
