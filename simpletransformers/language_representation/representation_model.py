@@ -143,16 +143,17 @@ class RepresentationModel:
         """
 
         self.model.to(self.device)
-
+        self.model.eval()
         batches = batch_iterable(text_list, batch_size=batch_size)
         embeddings = np.array([])
         for batch in batches:
             encoded = self._tokenize(batch)
-            token_vectors = self.model(
-                input_ids=encoded["input_ids"].to(self.device),
-                attention_mask=encoded["attention_mask"].to(self.device),
-                token_type_ids=encoded["token_type_ids"].to(self.device),
-            )
+            with torch.no_grad():
+                token_vectors = self.model(
+                    input_ids=encoded["input_ids"].to(self.device),
+                    attention_mask=encoded["attention_mask"].to(self.device),
+                    token_type_ids=encoded["token_type_ids"].to(self.device),
+                )
             if combine_strategy:
                 embedding_func_mapping = {"mean": mean_across_all_tokens, "concat": concat_all_tokens}
                 if embedding_func_mapping[combine_strategy]:
