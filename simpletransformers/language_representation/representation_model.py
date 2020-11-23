@@ -122,10 +122,15 @@ class RepresentationModel:
 
     def _tokenize(self, text_list):
         # Tokenize the text with the provided tokenizer
-        input_ids = self.tokenizer.batch_encode_plus(
-            text_list, add_special_tokens=True, max_length=self.args.max_seq_length, padding=True, truncation=True
-        )["input_ids"]
-        return torch.LongTensor(input_ids)
+        encoded = self.tokenizer.batch_encode_plus(
+            text_list,
+            add_special_tokens=True,
+            max_length=self.args.max_seq_length,
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
+        )
+        return encoded
 
     def encode_sentences(self, text_list, combine_strategy=None, batch_size=32):
         """
@@ -136,11 +141,19 @@ class RepresentationModel:
         :param batch_size
         :return: list of lists of sentence embeddings(if `combine_strategy=None`) OR list of sentence embeddings(if `combine_strategy!=None`)
         """
+
+        self.model.to(self.device)
+        self.model.eval()
         batches = batch_iterable(text_list, batch_size=batch_size)
         embeddings = np.array([])
         for batch in batches:
-            input_ids_tensor = self._tokenize(batch)
-            token_vectors = self.model(input_ids=input_ids_tensor)
+            encoded = self._tokenize(batch)
+            with torch.no_grad():
+                token_vectors = self.model(
+                    input_ids=encoded["input_ids"].to(self.device),
+                    attention_mask=encoded["attention_mask"].to(self.device),
+                    token_type_ids=encoded["token_type_ids"].to(self.device),
+                )
             if combine_strategy:
                 embedding_func_mapping = {"mean": mean_across_all_tokens, "concat": concat_all_tokens}
                 if embedding_func_mapping[combine_strategy]:
@@ -149,13 +162,13 @@ class RepresentationModel:
                     raise ValueError(
                         "Provided combine_strategy is not valid." "supported values are: 'concat', 'mean' and None."
                     )
-                batch_embeddings = embedding_func(token_vectors).detach().numpy()
+                batch_embeddings = embedding_func(token_vectors).detach()
             else:
-                batch_embeddings = token_vectors.detach().numpy()
+                batch_embeddings = token_vectors.detach()
             if len(embeddings) == 0:
-                embeddings = batch_embeddings
+                embeddings = batch_embeddings.cpu().detach().numpy()
             else:
-                embeddings = np.concatenate((embeddings, batch_embeddings), axis=0)
+                embeddings = np.concatenate((embeddings, batch_embeddings.cpu().detach().numpy()), axis=0)
 
         return embeddings
 
