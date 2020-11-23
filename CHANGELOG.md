@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - ROC and PR W&B charts are no longer generated when using sliding window to avoid an error.
+- Fixed issue with ONNX in NER [gaganmanku96](https://github.com/gaganmanku96)
 
 ## [0.49.1] - 2020-11-09
 
