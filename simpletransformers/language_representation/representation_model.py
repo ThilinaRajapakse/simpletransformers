@@ -122,10 +122,15 @@ class RepresentationModel:
 
     def _tokenize(self, text_list):
         # Tokenize the text with the provided tokenizer
-        input_ids = self.tokenizer.batch_encode_plus(
-            text_list, add_special_tokens=True, max_length=self.args.max_seq_length, padding=True, truncation=True
-        )["input_ids"]
-        return torch.LongTensor(input_ids)
+        encoded = self.tokenizer.batch_encode_plus(
+            text_list,
+            add_special_tokens=True,
+            max_length=self.args.max_seq_length,
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
+        )
+        return encoded
 
     def encode_sentences(self, text_list, combine_strategy=None, batch_size=32):
         """
@@ -139,8 +144,12 @@ class RepresentationModel:
         batches = batch_iterable(text_list, batch_size=batch_size)
         embeddings = np.array([])
         for batch in batches:
-            input_ids_tensor = self._tokenize(batch)
-            token_vectors = self.model(input_ids=input_ids_tensor)
+            encoded = self._tokenize(batch)
+            token_vectors = self.model(
+                input_ids=encoded["input_ids"],
+                attention_mask=encoded["attention_mask"],
+                token_type_ids=encoded["token_type_ids"],
+            )
             if combine_strategy:
                 embedding_func_mapping = {"mean": mean_across_all_tokens, "concat": concat_all_tokens}
                 if embedding_func_mapping[combine_strategy]:
