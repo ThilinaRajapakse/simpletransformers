@@ -4,12 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.49.1] - 2020-11-09
+## [0.49.3] - 2020-11-09
 
 ### Changed
 
 - ROC and PR W&B charts are no longer generated when using sliding window to avoid an error.
 - Fixed issue with ONNX in NER [gaganmanku96](https://github.com/gaganmanku96)
+- Fixed issues with wandb sweeps [khituras](https://github.com/khituras) [ohstopityou](https://github.com/ohstopityou)
 
 ## [0.49.1] - 2020-11-09
 
@@ -1238,7 +1239,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.49.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d4d66d6...HEAD
+[0.49.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9440c6e...HEAD
+
+[0.49.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d4d66d6...9440c6e
 
 [0.49.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/77da311...d4d66d6
 
