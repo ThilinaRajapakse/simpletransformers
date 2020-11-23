@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-52-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-53-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -1997,7 +1997,7 @@ model_args = {
 # Initialize model
 model = Seq2SeqModel(
     encoder_decoder_type="bart",
-    encoder_decoder_name="bart-large",
+    encoder_decoder_name="facebook/bart-large",
     args=model_args,
 )
 
@@ -3405,9 +3405,10 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://jonatanklosko.com"><img src="https://avatars1.githubusercontent.com/u/17034772?v=4" width="100px;" alt=""/><br /><sub><b>Jonatan Kłosko</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=jonatanklosko" title="Code">💻</a></td>
   </tr>
   <tr>
-    <td align="center"><a href="https://github.com/sarapapi"><img src="https://avatars0.githubusercontent.com/u/57095209?v=4" width="100px;" alt=""/><br /><sub><b>sarapapi</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=sarapapi" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/sarapapi"><img src="https://avatars0.githubusercontent.com/u/57095209?v=4" width="100px;" alt=""/><br /><sub><b>sarapapi</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=sarapapi" title="Code">💻</a> <a href="#question-sarapapi" title="Answering Questions">💬</a></td>
     <td align="center"><a href="https://ab-cse.web.app"><img src="https://avatars0.githubusercontent.com/u/25720695?v=4" width="100px;" alt=""/><br /><sub><b>Abdul</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=macabdul9" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/jamesmilliman"><img src="https://avatars1.githubusercontent.com/u/8591478?v=4" width="100px;" alt=""/><br /><sub><b>James Milliman</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=jamesmilliman" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://parmarsuraj99.github.io/suraj-parmar/"><img src="https://avatars3.githubusercontent.com/u/9317265?v=4" width="100px;" alt=""/><br /><sub><b>Suraj Parmar</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=parmarsuraj99" title="Documentation">📖</a></td>
   </tr>
 </table>
 

@@ -467,7 +467,8 @@
       "avatar_url": "https://avatars0.githubusercontent.com/u/57095209?v=4",
       "profile": "https://github.com/sarapapi",
       "contributions": [
-        "code"
+        "code",
+        "question"
       ]
     },
     {
@@ -484,6 +485,15 @@
       "name": "James Milliman",
       "avatar_url": "https://avatars1.githubusercontent.com/u/8591478?v=4",
       "profile": "https://github.com/jamesmilliman",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "parmarsuraj99",
+      "name": "Suraj Parmar",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/9317265?v=4",
+      "profile": "https://parmarsuraj99.github.io/suraj-parmar/",
       "contributions": [
         "doc"
       ]
