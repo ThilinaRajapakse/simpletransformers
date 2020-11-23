@@ -537,7 +537,9 @@ class ClassificationModel:
             training_progress_scores = self._create_training_progress_scores(multi_label, **kwargs)
 
         if args.wandb_project:
-            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+            if not wandb.setup().settings.sweep_id:
+                logger.info(" Initializing WandB run for training.")
+                wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             wandb.watch(self.model)
 
         if self.args.fp16:
@@ -1007,7 +1009,9 @@ class ClassificationModel:
                 writer.write("{} = {}\n".format(key, str(result[key])))
 
         if self.args.wandb_project and wandb_log and not multi_label and not self.args.regression:
-            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+            if not wandb.setup().settings.sweep_id:
+                logger.info(" Initializing WandB run for evaluation.")
+                wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
             if not args.labels_map:
                 self.args.labels_map = {i: i for i in range(self.num_labels)}
 
