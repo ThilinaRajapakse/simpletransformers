@@ -954,6 +954,9 @@ class NERModel:
                     out_input_ids = np.append(out_input_ids, inputs_onnx["input_ids"], axis=0)
                     out_attention_mask = np.append(out_attention_mask, inputs_onnx["attention_mask"], axis=0,)
             out_label_ids = np.zeros_like(out_input_ids)
+            for index in range(len(out_label_ids)):
+                out_label_ids[index][0] = -100
+                out_label_ids[index][-1] = -100
         else:
             self._move_model_to_device()
 
