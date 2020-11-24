@@ -1240,9 +1240,20 @@ class ClassificationModel:
 
         extra_metrics = {}
         for metric, func in kwargs.items():
-            extra_metrics[metric] = func(labels, preds)
+            if hasattr(func, '__call__'):
+                extra_metrics[metric] = func(labels, preds)
 
-        mismatched = labels != preds
+        if multi_label:
+            thrs = kwargs["threshold"] if "threshold" in kwargs else 0.5
+            if isinstance(thrs, list):
+                mismatched = labels != [
+                    [self._threshold(pred, thrs[i]) for i, pred in enumerate(example)]
+                    for example in preds
+                ]
+            else:
+                mismatched = labels != [[self._threshold(pred, thrs) for pred in example] for example in preds]
+        else:
+            mismatched = labels != preds
 
         if eval_examples:
             wrong = [i for (i, v) in zip(eval_examples, mismatched) if v.any()]
