@@ -42,6 +42,10 @@ def select_a_token(token_vectors, token_index):
     return token_vectors[:, token_index, :]
 
 
+def get_all_tokens(token_vectors):
+    return token_vectors
+
+
 def batch_iterable(iterable, batch_size=1):
     l = len(iterable)
     for ndx in range(0, l, batch_size):
@@ -128,10 +132,15 @@ class RepresentationModel:
 
     def _tokenize(self, text_list):
         # Tokenize the text with the provided tokenizer
-        input_ids = self.tokenizer.batch_encode_plus(
-            text_list, add_special_tokens=True, max_length=self.args.max_seq_length, padding=True, truncation=True
-        )["input_ids"]
-        return torch.LongTensor(input_ids)
+        encoded = self.tokenizer.batch_encode_plus(
+            text_list,
+            add_special_tokens=True,
+            max_length=self.args.max_seq_length,
+            padding=True,	
+            truncation=True,	
+            return_tensors="pt",	
+        )	
+        return encoded
 
     def encode_sentences(self, text_list, combine_strategy=None, batch_size=32):
         """
@@ -144,30 +153,33 @@ class RepresentationModel:
         embeddings (if `combine_strategy!=None`)
         """
 
-        self.model.to(self.device)
+        if combine_strategy is not None:
+            if type(combine_strategy) == int:
+                embedding_func = partial(select_a_token, token_index=combine_strategy)
+            else:
+                embedding_func_mapping = {"mean": mean_across_all_tokens, "concat": concat_all_tokens}
+                try:
+                    embedding_func = embedding_func_mapping[combine_strategy]
+                except KeyError:
+                    raise ValueError(
+                        "Provided combine_strategy is not valid." "supported values are: 'concat', 'mean' and None."
+                    )
+        else:
+            embedding_func = get_all_tokens
 
+        self.model.to(self.device)
+        self.model.eval()	
         batches = batch_iterable(text_list, batch_size=batch_size)
         embeddings = list()
-        self.model.eval()
-        with torch.no_grad():
-            for batch in tqdm(batches, total=np.ceil(len(text_list)/batch_size)):
-                input_ids_tensor = self._tokenize(batch)
-                input_ids_tensor = input_ids_tensor.to(self.device)
-                token_vectors = self.model(input_ids=input_ids_tensor)
-                if combine_strategy is not None:
-                    if type(combine_strategy) == int:
-                        embedding_func = partial(select_a_token, token_index=combine_strategy)
-                    else:
-                        embedding_func_mapping = {"mean": mean_across_all_tokens, "concat": concat_all_tokens}
-                        try:
-                            embedding_func = embedding_func_mapping[combine_strategy]
-                        except KeyError:
-                            raise ValueError(
-                                "Provided combine_strategy is not valid." "supported values are: 'concat', 'mean' and None."
-                            )
-                    embeddings.append(embedding_func(token_vectors).cpu().detach().numpy())
-                else:
-                    embeddings.append(token_vectors.cpu().detach().numpy())
+        for batch in batches:
+            encoded = self._tokenize(batch)	
+            with torch.no_grad():
+                token_vectors = self.model(	    
+                    input_ids=encoded["input_ids"].to(self.device),	 
+                    attention_mask=encoded["attention_mask"].to(self.device),
+                    token_type_ids=encoded["token_type_ids"].to(self.device),
+                )
+            embeddings.append(embedding_func(token_vectors).cpu().detach().numpy())
         embeddings = np.concatenate(embeddings, axis=0)
 
         return embeddings
