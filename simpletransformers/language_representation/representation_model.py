@@ -83,9 +83,12 @@ class RepresentationModel:
             self.args = args
 
         if "sweep_config" in kwargs:
+            self.is_sweeping = True
             sweep_config = kwargs.pop("sweep_config")
             sweep_values = sweep_config_to_sweep_values(sweep_config)
             self.args.update_from_dict(sweep_values)
+        else:
+            self.is_sweeping = False
 
         if self.args.manual_seed:
             random.seed(self.args.manual_seed)
@@ -136,10 +139,10 @@ class RepresentationModel:
             text_list,
             add_special_tokens=True,
             max_length=self.args.max_seq_length,
-            padding=True,	
-            truncation=True,	
-            return_tensors="pt",	
-        )	
+            padding=True,
+            truncation=True,
+            return_tensors="pt",
+        )
         return encoded
 
     def encode_sentences(self, text_list, combine_strategy=None, batch_size=32):
@@ -168,14 +171,14 @@ class RepresentationModel:
             embedding_func = get_all_tokens
 
         self.model.to(self.device)
-        self.model.eval()	
+        self.model.eval()
         batches = batch_iterable(text_list, batch_size=batch_size)
         embeddings = list()
         for batch in batches:
-            encoded = self._tokenize(batch)	
+            encoded = self._tokenize(batch)
             with torch.no_grad():
-                token_vectors = self.model(	    
-                    input_ids=encoded["input_ids"].to(self.device),	 
+                token_vectors = self.model(
+                    input_ids=encoded["input_ids"].to(self.device),
                     attention_mask=encoded["attention_mask"].to(self.device),
                     token_type_ids=encoded["token_type_ids"].to(self.device),
                 )
