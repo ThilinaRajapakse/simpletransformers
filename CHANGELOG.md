@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.49.3] - 2020-11-09
 
+### Added
+
+- Added `not_saved_args` to `model_args`. Any args specified in this set will not be saved when the model is saved.
+
+## [0.49.3] - 2020-11-09
+
 ### Changed
 
 - ROC and PR W&B charts are no longer generated when using sliding window to avoid an error.

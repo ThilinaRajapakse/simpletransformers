@@ -57,6 +57,7 @@ class ModelArgs:
     n_gpu: int = 1
     no_cache: bool = False
     no_save: bool = False
+    not_saved_args: set = field(default_factory=set)
     num_train_epochs: int = 1
     output_dir: str = "outputs/"
     overwrite_output_dir: bool = False
@@ -90,10 +91,14 @@ class ModelArgs:
         else:
             raise (TypeError(f"{new_values} is not a Python dict."))
 
+    def get_args_for_saving(self):
+        args_for_saving = {key: value for key, value in asdict(self).items() if key not in self.not_saved_args}
+        return args_for_saving
+
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
         with open(os.path.join(output_dir, "model_args.json"), "w") as f:
-            json.dump(asdict(self), f)
+            json.dump(self.get_args_for_saving(), f)
 
     def load(self, input_dir):
         if input_dir:
@@ -255,10 +260,10 @@ class Seq2SeqArgs(ModelArgs):
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
         with open(os.path.join(output_dir, "model_args.json"), "w") as f:
-            args_dict = asdict(self)
+            args_dict = self.get_args_for_saving()
             if args_dict["dataset_class"] is not None:
                 args_dict["dataset_class"] = type(args_dict["dataset_class"]).__name__
-            json.dump(asdict(self), f)
+            json.dump(self.get_args_for_saving(), f)
 
     def load(self, input_dir):
         if input_dir:
