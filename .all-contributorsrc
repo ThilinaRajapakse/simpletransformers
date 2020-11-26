@@ -534,6 +534,15 @@
         "code",
         "doc"
       ]
+    },
+    {
+      "login": "aesuli",
+      "name": "Andrea Esuli",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/6543521?v=4",
+      "profile": "http://www.esuli.it/",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

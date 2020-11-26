@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-57-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-58-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -3415,6 +3415,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/gaganmanku96"><img src="https://avatars0.githubusercontent.com/u/20324385?v=4" width="100px;" alt=""/><br /><sub><b>Gagandeep Singh</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=gaganmanku96" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=gaganmanku96" title="Documentation">📖</a></td>
+    <td align="center"><a href="http://www.esuli.it/"><img src="https://avatars3.githubusercontent.com/u/6543521?v=4" width="100px;" alt=""/><br /><sub><b>Andrea Esuli</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=aesuli" title="Code">💻</a></td>
   </tr>
 </table>
 
