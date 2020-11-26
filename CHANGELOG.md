@@ -4,11 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.49.3] - 2020-11-09
+## [0.49.4] - 2020-11-09
 
 ### Added
 
 - Added `not_saved_args` to `model_args`. Any args specified in this set will not be saved when the model is saved.
+- `RepresentationModel` improvements. [aesuli](https://github.com/aesuli)
 
 ## [0.49.3] - 2020-11-09
 
@@ -1245,7 +1246,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.49.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9440c6e...HEAD
+[0.49.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6025b6f...HEAD
+
+[0.49.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9440c6e...6025b6f
 
 [0.49.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d4d66d6...9440c6e
 
