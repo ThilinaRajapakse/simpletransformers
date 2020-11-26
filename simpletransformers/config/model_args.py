@@ -57,7 +57,7 @@ class ModelArgs:
     n_gpu: int = 1
     no_cache: bool = False
     no_save: bool = False
-    not_saved_args: set = field(default_factory=set)
+    not_saved_args: list = field(default_factory=list)
     num_train_epochs: int = 1
     output_dir: str = "outputs/"
     overwrite_output_dir: bool = False

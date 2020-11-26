@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2020/11/26 16:15:43
+last_modified_at: 2020/11/26 21:40:40
 toc: true
 ---
 
@@ -167,7 +167,7 @@ Configuration options in Simple Transformers are defined as either dataclasses o
 | n_gpu                            | int   | 1                                                         | Number of GPUs to use.                                                                                                                                                                   |
 | no_cache                         | bool  | False                                                     | Cache features to disk.                                                                                                                                                                  |
 | no_save                          | bool  | False                                                     | If `True`, models will not be saved to disk.                                                                                                                                             |
-| not_saved_args                   | set   | ()                                                        | The `model_args` which should not be saved when the model is saved. If any `model_args` are not JSON serializable, those argument names should be specified here.                        |
+| not_saved_args                   | list  | ()                                                        | The `model_args` which should not be saved when the model is saved. If any `model_args` are not JSON serializable, those argument names should be specified here.                        |
 | num_train_epochs                 | int   | 1                                                         | The number of epochs the model will be trained for.                                                                                                                                      |
 | output_dir                       | str   | "outputs/"                                                | The directory where all outputs will be stored. This includes model checkpoints and evaluation results.                                                                                  |
 | overwrite_output_dir             | bool  | False                                                     | If True, the trained model will be saved to the ouput_dir and will overwrite existing saved models in the same directory.                                                                |
