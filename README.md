@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-56-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-57-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -3412,6 +3412,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://velog.io/@kwanhong66"><img src="https://avatars3.githubusercontent.com/u/5180452?v=4" width="100px;" alt=""/><br /><sub><b>KwanHong Lee</b></sub></a><br /><a href="#question-kwanhong66" title="Answering Questions">💬</a></td>
     <td align="center"><a href="http://julielab.de/Staff/Erik+F%C3%A4%C3%9Fler.html"><img src="https://avatars1.githubusercontent.com/u/4648560?v=4" width="100px;" alt=""/><br /><sub><b>Erik Fäßler</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=khituras" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/ohstopityou"><img src="https://avatars3.githubusercontent.com/u/21691517?v=4" width="100px;" alt=""/><br /><sub><b>Thomas Søvik</b></sub></a><br /><a href="#question-ohstopityou" title="Answering Questions">💬</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://github.com/gaganmanku96"><img src="https://avatars0.githubusercontent.com/u/20324385?v=4" width="100px;" alt=""/><br /><sub><b>Gagandeep Singh</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=gaganmanku96" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=gaganmanku96" title="Documentation">📖</a></td>
   </tr>
 </table>
 
