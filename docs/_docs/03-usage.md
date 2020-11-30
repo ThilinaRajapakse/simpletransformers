@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2020/11/26 21:40:40
+last_modified_at: 2020/11/30 17:11:14
 toc: true
 ---
 
@@ -176,7 +176,7 @@ Configuration options in Simple Transformers are defined as either dataclasses o
 | reprocess_input_data             | bool  | True                                                      | If True, the input data will be reprocessed even if a cached file of the input data exists in the cache_dir.                                                                             |
 | save_eval_checkpoints            | bool  | True                                                      | Save a model checkpoint for every evaluation performed.                                                                                                                                  |
 | save_model_every_epoch           | bool  | True                                                      | Save a model checkpoint at the end of every epoch.                                                                                                                                       |
-| save_steps                       | int   | 2000                                                      | Save a model checkpoint at every specified number of steps.                                                                                                                              |
+| save_steps                       | int   | 2000                                                      | Save a model checkpoint at every specified number of steps. Set to -1 to disable.                                                                                                        |
 | save_optimizer_and_scheduler     | bool  | True                                                      | Save optimizer and scheduler whenever they are available.                                                                                                                                |
 | silent                           | bool  | False                                                     | Disables progress bars.                                                                                                                                                                  |
 | tensorboard_dir                  | str   | None                                                      | The directory where Tensorboard events will be stored during training. By default, Tensorboard events will be saved in a subfolder inside runs/ like runs/Dec02_09-32-58_36d9e58955b0/.  |
