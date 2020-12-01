@@ -808,10 +808,10 @@ class T5Model:
         self.model.to(self.device)
 
     def _get_inputs_dict(self, batch):
-        lm_labels = batch[1]
-        lm_labels[lm_labels == self.tokenizer.pad_token_id] = -100
+        labels = batch[1]
+        labels[labels == self.tokenizer.pad_token_id] = -100
 
-        inputs = {"input_ids": batch[0], "lm_labels": lm_labels}
+        inputs = {"input_ids": batch[0], "labels": labels}
 
         return inputs
 

@@ -1,6 +1,6 @@
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
-from transformers.modeling_distilbert import DistilBertModel, DistilBertPreTrainedModel
+from transformers.models.distilbert.modeling_distilbert import DistilBertModel, DistilBertPreTrainedModel
 
 
 class DistilBertForSequenceClassification(DistilBertPreTrainedModel):

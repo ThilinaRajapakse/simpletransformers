@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.49.4] - 2020-11-09
+## [0.50.0] - 2020-11-25
+
+### Changed
+
+- Compatibility with Transformers 4.0.0.
+
+## [0.49.4] - 2020-11-25
 
 ### Added
 
@@ -19,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed issue with ONNX in NER [gaganmanku96](https://github.com/gaganmanku96)
 - Fixed issues with wandb sweeps [khituras](https://github.com/khituras) [ohstopityou](https://github.com/ohstopityou)
 
-## [0.49.1] - 2020-11-09
+## [0.49.1] - 2020-11-22
 
 ### Fixed
 
@@ -1246,7 +1252,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.49.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6025b6f...HEAD
+[0.50.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2e2c50e...HEAD
+
+[0.49.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6025b6f...2e2c50e
 
 [0.49.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9440c6e...6025b6f
 

@@ -36,7 +36,7 @@ from transformers import (
     BertTokenizer,
     get_linear_schedule_with_warmup,
 )
-from transformers.configuration_mmbt import MMBTConfig
+from transformers.models.mmbt.configuration_mmbt import MMBTConfig
 
 from simpletransformers.classification.classification_utils import (
     ImageEncoder,

@@ -233,9 +233,9 @@ class LanguageModelingModel:
                     self.discriminator_config.vocab_size = len(self.tokenizer)
 
         if self.args.block_size <= 0:
-            self.args.block_size = min(self.args.max_seq_length, self.tokenizer.max_len)
+            self.args.block_size = min(self.args.max_seq_length, self.tokenizer.model_max_length)
         else:
-            self.args.block_size = min(self.args.block_size, self.tokenizer.max_len, self.args.max_seq_length)
+            self.args.block_size = min(self.args.block_size, self.tokenizer.model_max_length, self.args.max_seq_length)
 
         if self.args.model_name:
             if self.args.model_type == "electra":
@@ -572,11 +572,9 @@ class LanguageModelingModel:
                 if args.fp16:
                     with amp.autocast():
                         if args.model_type == "longformer":
-                            outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
+                            outputs = model(inputs, attention_mask=None, labels=labels)
                         else:
-                            outputs = (
-                                model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
-                            )
+                            outputs = model(inputs, labels=labels) if args.mlm else model(inputs, labels=labels)
                         # model outputs are always tuple in pytorch-transformers (see doc)
                         if args.model_type == "electra":
                             g_loss = outputs[0]
@@ -586,9 +584,9 @@ class LanguageModelingModel:
                             loss = outputs[0]
                 else:
                     if args.model_type == "longformer":
-                        outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
+                        outputs = model(inputs, attention_mask=None, labels=labels)
                     else:
-                        outputs = model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
+                        outputs = model(inputs, labels=labels) if args.mlm else model(inputs, labels=labels)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     if args.model_type == "electra":
                         g_loss = outputs[0]
@@ -901,7 +899,7 @@ class LanguageModelingModel:
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             with torch.no_grad():
-                outputs = model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
+                outputs = model(inputs, labels=labels) if args.mlm else model(inputs, labels=labels)
                 if args.model_type == "electra":
                     g_loss = outputs[0]
                     d_loss = outputs[1]

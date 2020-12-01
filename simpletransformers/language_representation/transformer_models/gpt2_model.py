@@ -1,4 +1,4 @@
-from transformers.modeling_gpt2 import GPT2Model, GPT2PreTrainedModel
+from transformers.models.gpt2.modeling_gpt2 import GPT2Model, GPT2PreTrainedModel
 
 
 # supports both BERT & ROBERTA BASED MODELS

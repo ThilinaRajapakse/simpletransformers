@@ -1,5 +1,5 @@
-from transformers.configuration_camembert import CamembertConfig
-from transformers.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
+from transformers.models.camembert.configuration_camembert import CamembertConfig
+from transformers.models.camembert.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
 
 from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
 

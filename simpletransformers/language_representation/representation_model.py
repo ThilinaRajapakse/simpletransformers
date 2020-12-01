@@ -177,11 +177,17 @@ class RepresentationModel:
         for batch in batches:
             encoded = self._tokenize(batch)
             with torch.no_grad():
-                token_vectors = self.model(
-                    input_ids=encoded["input_ids"].to(self.device),
-                    attention_mask=encoded["attention_mask"].to(self.device),
-                    token_type_ids=encoded["token_type_ids"].to(self.device),
-                )
+                if self.args.model_type not in ["roberta", "gpt2"]:
+                    token_vectors = self.model(
+                        input_ids=encoded["input_ids"].to(self.device),
+                        attention_mask=encoded["attention_mask"].to(self.device),
+                        token_type_ids=encoded["token_type_ids"].to(self.device),
+                    )
+                else:
+                    token_vectors = self.model(
+                        input_ids=encoded["input_ids"].to(self.device),
+                        attention_mask=encoded["attention_mask"].to(self.device),
+                    )
             embeddings.append(embedding_func(token_vectors).cpu().detach().numpy())
         embeddings = np.concatenate(embeddings, axis=0)
 

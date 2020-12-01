@@ -1,7 +1,11 @@
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
-from transformers.modeling_electra import ElectraModel, ElectraPreTrainedModel, ElectraClassificationHead
+from transformers.models.electra.modeling_electra import (
+    ElectraModel,
+    ElectraPreTrainedModel,
+    ElectraClassificationHead,
+)
 
 
 class ElectraForSequenceClassification(ElectraPreTrainedModel):

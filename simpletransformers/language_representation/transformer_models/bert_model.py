@@ -1,4 +1,4 @@
-from transformers.modeling_bert import BertModel, BertPreTrainedModel
+from transformers.models.bert.modeling_bert import BertModel, BertPreTrainedModel
 
 
 # supports both BERT & ROBERTA BASED MODELS
