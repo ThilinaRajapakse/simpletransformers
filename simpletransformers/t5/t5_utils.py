@@ -21,34 +21,53 @@ def preprocess_data(data):
 
     # Add EOS again if truncated?
     if args.preprocess_inputs:
-        input_text = tokenizer.encode(
-            prefix + ": " + input_text + " </s>",
+        batch = tokenizer.prepare_seq2seq_batch(
+            src_texts=[prefix + ": " + input_text],
+            tgt_texts=[target_text],
             max_length=args.max_seq_length,
             padding="max_length",
             return_tensors="pt",
             truncation=True,
         )
+        # input_text = tokenizer.encode(
+        #     prefix + ": " + input_text,
+        #     max_length=args.max_seq_length,
+        #     padding="max_length",
+        #     return_tensors="pt",
+        #     truncation=True,
+        # )
 
-        target_text = tokenizer.encode(
-            target_text + " </s>",
-            max_length=args.max_seq_length,
-            padding="max_length",
-            return_tensors="pt",
-            truncation=True,
-        )
+        # target_text = tokenizer.encode(
+        #     target_text,
+        #     max_length=args.max_seq_length,
+        #     padding="max_length",
+        #     return_tensors="pt",
+        #     truncation=True,
+        # )
     else:
-        input_text = tokenizer.encode(
-            prefix + input_text,
+        batch = tokenizer.prepare_seq2seq_batch(
+            src_texts=[prefix + input_text],
+            tgt_texts=[target_text],
             max_length=args.max_seq_length,
             padding="max_length",
             return_tensors="pt",
             truncation=True,
         )
+        # input_text = tokenizer.encode(
+        #     prefix + input_text,
+        #     max_length=args.max_seq_length,
+        #     padding="max_length",
+        #     return_tensors="pt",
+        #     truncation=True,
+        # )
 
-        target_text = tokenizer.encode(
-            target_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
-        )
-    return (torch.flatten(input_text), torch.flatten(target_text))
+        # target_text = tokenizer.encode(
+        #     target_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+        # )
+    input_ids = batch["input_ids"][0]
+    attention_mask = batch["attention_mask"][0]
+    labels = batch["labels"][0]
+    return (input_ids, attention_mask, labels)
 
 
 class T5Dataset(Dataset):

@@ -31,7 +31,6 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
 from tqdm.contrib import tenumerate
 from transformers import (
-    WEIGHTS_NAME,
     AdamW,
     AlbertConfig,
     AlbertTokenizer,
@@ -46,6 +45,8 @@ from transformers import (
     ElectraTokenizer,
     FlaubertConfig,
     FlaubertTokenizer,
+    LayoutLMConfig,
+    LayoutLMTokenizer,
     LongformerConfig,
     LongformerForSequenceClassification,
     LongformerTokenizer,
@@ -54,14 +55,13 @@ from transformers import (
     MobileBertTokenizer,
     RobertaConfig,
     RobertaTokenizer,
+    WEIGHTS_NAME,
     XLMConfig,
     XLMRobertaConfig,
     XLMRobertaTokenizer,
     XLMTokenizer,
     XLNetConfig,
     XLNetTokenizer,
-    LayoutLMConfig,
-    LayoutLMTokenizer,
     get_linear_schedule_with_warmup,
 )
 from transformers.convert_graph_to_onnx import convert, quantize
@@ -133,13 +133,13 @@ class ClassificationModel:
             "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
             "flaubert": (FlaubertConfig, FlaubertForSequenceClassification, FlaubertTokenizer),
+            "layoutlm": (LayoutLMConfig, LayoutLMForSequenceClassification, LayoutLMTokenizer),
             "longformer": (LongformerConfig, LongformerForSequenceClassification, LongformerTokenizer),
             "mobilebert": (MobileBertConfig, MobileBertForSequenceClassification, MobileBertTokenizer),
             "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-            "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
             "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
-            "layoutlm": (LayoutLMConfig, LayoutLMForSequenceClassification, LayoutLMTokenizer),
+            "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
         }
 
         self.args = self._load_model_args(model_name)

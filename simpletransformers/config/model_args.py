@@ -26,6 +26,7 @@ class ModelArgs:
     best_model_dir: str = "outputs/best_model"
     cache_dir: str = "cache_dir/"
     config: dict = field(default_factory=dict)
+    cosine_schedule_num_cycles: float = 0.5
     custom_layer_parameters: list = field(default_factory=list)
     custom_parameter_groups: list = field(default_factory=list)
     dataloader_num_workers: int = field(default_factory=get_default_process_count)
@@ -37,6 +38,13 @@ class ModelArgs:
     early_stopping_metric_minimize: bool = True
     early_stopping_patience: int = 3
     encoding: str = None
+    adafactor_eps: tuple = field(default_factory=lambda: (1e-30, 1e-3))
+    adafactor_clip_threshold: float = 1.0
+    adafactor_decay_rate: float = -0.8
+    adafactor_beta1: float = None
+    adafactor_scale_parameter: bool = True
+    adafactor_relative_step: bool = True
+    adafactor_warmup_init: bool = True
     eval_batch_size: int = 8
     evaluate_during_training: bool = False
     evaluate_during_training_silent: bool = True
@@ -59,9 +67,12 @@ class ModelArgs:
     no_save: bool = False
     not_saved_args: list = field(default_factory=list)
     num_train_epochs: int = 1
+    optimizer: str = "AdamW"
     output_dir: str = "outputs/"
     overwrite_output_dir: bool = False
     process_count: int = field(default_factory=get_default_process_count)
+    polynomial_decay_schedule_lr_end: float = 1e-7
+    polynomial_decay_schedule_power: float = 1.0
     quantized_model: bool = False
     reprocess_input_data: bool = True
     save_best_model: bool = True
@@ -69,7 +80,9 @@ class ModelArgs:
     save_model_every_epoch: bool = True
     save_optimizer_and_scheduler: bool = True
     save_steps: int = 2000
+    scheduler: str = "linear_schedule_with_warmup"
     silent: bool = False
+    skip_special_tokens: bool = True
     tensorboard_dir: str = None
     thread_count: int = None
     train_batch_size: int = 8
@@ -81,8 +94,7 @@ class ModelArgs:
     wandb_project: str = None
     warmup_ratio: float = 0.06
     warmup_steps: int = 0
-    weight_decay: int = 0
-    skip_special_tokens: bool = True
+    weight_decay: float = 0.0
 
     def update_from_dict(self, new_values):
         if isinstance(new_values, dict):
@@ -198,6 +210,12 @@ class T5Args(ModelArgs):
     num_return_sequences: int = 1
     preprocess_inputs: bool = True
     repetition_penalty: float = 1.0
+    scheduler: str = "constant_schedule_with_warmup"
+    adafactor_relative_step: bool = False
+    adafactor_scale_parameter: bool = False
+    adafactor_warmup_init: bool = False
+    learning_rate: float = 1e-3
+    optimizer: str = "Adafactor"
     top_k: float = None
     top_p: float = None
     use_multiprocessed_decoding: bool = True
