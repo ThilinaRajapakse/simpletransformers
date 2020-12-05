@@ -629,7 +629,7 @@ class NERModel:
 
         return global_step, tr_loss / global_step
 
-    def eval_model(self, eval_data, output_dir=None, verbose=True, silent=False, wandb_log=True, **kwargs):
+    def eval_model(self, eval_data, output_dir=None, verbose=True, silent=False, wandb_log=True, return_logits=True, **kwargs):
         """
         Evaluates the model on eval_data. Saves results to output_dir.
 
@@ -659,7 +659,7 @@ class NERModel:
         eval_dataset = self.load_and_cache_examples(eval_data, evaluate=True)
 
         result, model_outputs, preds_list = self.evaluate(
-            eval_dataset, output_dir, verbose=verbose, silent=silent, wandb_log=wandb_log, **kwargs
+            eval_dataset, output_dir, verbose=verbose, silent=silent, wandb_log=wandb_log, return_logits=return_logits, **kwargs
         )
         self.results.update(result)
 
@@ -668,7 +668,7 @@ class NERModel:
 
         return result, model_outputs, preds_list
 
-    def evaluate(self, eval_dataset, output_dir, verbose=True, silent=False, wandb_log=True, **kwargs):
+    def evaluate(self, eval_dataset, output_dir, verbose=True, silent=False, wandb_log=True, return_logits=True, **kwargs):
         """
         Evaluates the model on eval_dataset.
 
@@ -688,36 +688,56 @@ class NERModel:
 
         eval_loss = 0.0
         nb_eval_steps = 0
-        preds = None
+        n_batches = len(eval_dataloader)
+        
+        if return_logits:
+            preds = np.empty((len(eval_dataset) ,args.max_seq_length, self.num_labels))
+        else:
+            preds = np.empty((len(eval_dataset), args.max_seq_length))
+
         out_label_ids = None
         model.eval()
 
-        for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
+        if args.n_gpu > 1:
+            model = torch.nn.DataParallel(model)
+
+        if self.args.fp16:
+            from torch.cuda import amp
+
+        for i, batch in enumerate(tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation")):
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
-                inputs = {
-                    "input_ids": batch[0],
-                    "attention_mask": batch[1],
-                    "labels": batch[3],
-                }
-                # XLM and RoBERTa don"t use segment_ids
-                if args.model_type in ["bert", "xlnet"]:
-                    inputs["token_type_ids"] = batch[2]
-                outputs = model(**inputs)
-                tmp_eval_loss, logits = outputs[:2]
+                inputs = self._get_inputs_dict(batch)
 
-                eval_loss += tmp_eval_loss.mean().item()
+                if self.args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                        tmp_eval_loss, logits = outputs[:2]
+                else:
+                    outputs = model(**inputs)
+                    tmp_eval_loss, logits = outputs[:2]
+
+                if self.args.n_gpu > 1:
+                    tmp_eval_loss = tmp_eval_loss.mean()
+                eval_loss += tmp_eval_loss.item()
 
             nb_eval_steps += 1
+            
+            start_index = self.args.eval_batch_size * i
+            end_index = start_index + self.args.eval_batch_size if i != (n_batches - 1) else len(eval_dataset)
+            
+            if return_logits:
+                preds[start_index:end_index] = logits.detach().cpu().numpy()
+            else:
+                preds[start_index:end_index] = np.argmax(logits.detach().cpu().numpy(), axis=2)
+            
 
-            if preds is None:
-                preds = np.argmax(logits.detach().cpu().numpy(), axis=2)
+            if i==0:
                 out_label_ids = inputs["labels"].detach().cpu().numpy()
                 out_input_ids = inputs["input_ids"].detach().cpu().numpy()
                 out_attention_mask = inputs["attention_mask"].detach().cpu().numpy()
             else:
-                preds = np.append(preds, np.argmax(logits.detach().cpu().numpy(), axis=2), axis=0)
                 out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
                 out_input_ids = np.append(out_input_ids, inputs["input_ids"].detach().cpu().numpy(), axis=0)
                 out_attention_mask = np.append(
@@ -725,7 +745,10 @@ class NERModel:
                 )
 
         eval_loss = eval_loss / nb_eval_steps
-        token_logits = preds
+        
+        if return_logits:
+            token_logits = preds
+            preds = np.argmax(preds, axis=2)
 
         label_map = {i: label for i, label in enumerate(self.args.labels_list)}
 
@@ -737,15 +760,18 @@ class NERModel:
                 if out_label_ids[i, j] != pad_token_label_id:
                     out_label_list[i].append(label_map[out_label_ids[i][j]])
                     preds_list[i].append(label_map[preds[i][j]])
+        
+        if return_logits:
+            word_tokens = []
+            for i in range(len(preds_list)):
+                w_log = self._convert_tokens_to_word_logits(
+                    out_input_ids[i], out_label_ids[i], out_attention_mask[i], token_logits[i],
+                )
+                word_tokens.append(w_log)
 
-        word_tokens = []
-        for i in range(len(preds_list)):
-            w_log = self._convert_tokens_to_word_logits(
-                out_input_ids[i], out_label_ids[i], out_attention_mask[i], token_logits[i],
-            )
-            word_tokens.append(w_log)
-
-        model_outputs = [[word_tokens[i][j] for j in range(len(preds_list[i]))] for i in range(len(preds_list))]
+            model_outputs = [[word_tokens[i][j] for j in range(len(preds_list[i]))] for i in range(len(preds_list))]
+        else:
+            model_outputs = None
 
         extra_metrics = {}
         for metric, func in kwargs.items():
@@ -770,7 +796,7 @@ class NERModel:
             for key in sorted(result.keys()):
                 writer.write("{} = {}\n".format(key, str(result[key])))
 
-        if self.args.wandb_project and wandb_log:
+        if self.args.wandb_project and wandb_log and return_logits:
             wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
 
             labels_list = sorted(self.args.labels_list)
@@ -791,6 +817,7 @@ class NERModel:
             )
 
         return results, model_outputs, preds_list
+
 
     def predict(self, to_predict, split_on_space=True):
         """
