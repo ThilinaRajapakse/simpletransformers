@@ -2,7 +2,7 @@
 title: T5 Specifics
 permalink: /docs/t5-specifics/
 excerpt: "Specific notes for T5 tasks."
-last_modified_at: 2020/09/06 21:53:21
+last_modified_at: 2020/12/04 22:18:32
 toc: true
 ---
 
@@ -43,7 +43,13 @@ Using a T5 Model in Simple Transformers follows the [standard pattern](/docs/usa
 
 ## Supported Model Types
 
-Since the T5 model is one-of-a-kind (for the moment), there is only one model type, i.e. `T5`. Because of this, the `T5Model` does not accept a `model_type` argument.
+| Model | Model code for `NERModel` |
+| ----- | ------------------------- |
+| T5    | t5                        |
+| MT5   | mt5                       |
+
+**Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
+{: .notice--success}
 
 
 ## Evaluating Generated Sequences
@@ -89,7 +95,7 @@ model_args.evaluate_generated_text = True
 model_args.evaluate_during_training = True
 model_args.evaluate_during_training_verbose = True
 
-model = T5Model("t5-base", args=model_args)
+model = T5Model("t5", "t5-base", args=model_args)
 
 
 def count_matches(labels, preds):

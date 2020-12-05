@@ -2,7 +2,7 @@
 title: T5 Minimal Start
 permalink: /docs/t5-minimal-start/
 excerpt: "Minimal start for T5."
-last_modified_at: 2020/06/26 02:55:11
+last_modified_at: 2020/12/04 22:16:51
 ---
 
 ```python
@@ -42,7 +42,7 @@ model_args.evaluate_generated_text = True
 model_args.evaluate_during_training = True
 model_args.evaluate_during_training_verbose = True
 
-model = T5Model("t5-base", args=model_args)
+model = T5Model("t5", "t5-base", args=model_args)
 
 # Train the model
 model.train_model(train_df, eval_data=eval_df)

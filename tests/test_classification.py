@@ -43,7 +43,12 @@ def test_binary_classification(model_type, model_name):
         model_type,
         model_name,
         use_cuda=False,
-        args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True},
+        args={
+            "no_save": True,
+            "reprocess_input_data": True,
+            "overwrite_output_dir": True,
+            "scheduler": "constant_schedule",
+        },
     )
 
     # Train the model

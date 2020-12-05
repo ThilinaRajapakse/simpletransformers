@@ -189,6 +189,8 @@ class MultiLabelClassificationModel(ClassificationModel):
             warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
             self.args.wandb_project = None
 
+        self.weight = None  # Not implemented for multilabel
+
     def _load_model_args(self, input_dir):
         args = MultiLabelClassificationArgs()
         args.load(input_dir)

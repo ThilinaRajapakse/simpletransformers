@@ -55,6 +55,7 @@ class FlaubertForSequenceClassification(FlaubertModel):
         head_mask=None,
         inputs_embeds=None,
         labels=None,
+        class_weights=None,
     ):
         transformer_outputs = self.transformer(
             input_ids,
@@ -78,7 +79,7 @@ class FlaubertForSequenceClassification(FlaubertModel):
                 loss_fct = MSELoss()
                 loss = loss_fct(logits.view(-1), labels.view(-1))
             else:
-                loss_fct = CrossEntropyLoss(weight=self.weight)
+                loss_fct = CrossEntropyLoss(weight=class_weights)
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             outputs = (loss,) + outputs
 

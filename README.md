@@ -1618,7 +1618,7 @@ model_args = {
 }
 
 # Create T5 Model
-model = T5Model("t5-base", args=model_args)
+model = T5Model("t5", "t5-base", args=model_args)
 
 # Train T5 Model on new task
 model.train_model(train_df)
@@ -1686,7 +1686,7 @@ model_args = {
     "evaluate_during_training_verbose": True,
 }
 
-model = T5Model("t5-base", args=model_args)
+model = T5Model("t5", "t5-base", args=model_args)
 
 
 def count_matches(labels, preds):
