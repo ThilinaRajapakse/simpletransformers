@@ -1549,9 +1549,6 @@ class ClassificationModel:
         if self.args.model_type == "layoutlm":
             inputs["bbox"] = batch[4]
 
-        if self.weight is not None:
-            inputs["class_weights"] = self.weight
-
         return inputs
 
     def _get_last_metrics(self, metric_values):

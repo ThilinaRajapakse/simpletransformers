@@ -54,7 +54,6 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
         head_mask=None,
         inputs_embeds=None,
         labels=None,
-        class_weights=None,
     ):
 
         discriminator_hidden_states = self.electra(
@@ -71,7 +70,11 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
                 loss_fct = MSELoss()
                 loss = loss_fct(logits.view(-1), labels.view(-1))
             else:
-                loss_fct = CrossEntropyLoss(weight=class_weights)
+                if self.weight is not None:
+                    weight = self.weight.to(labels.device)
+                else:
+                    weight = None
+                loss_fct = CrossEntropyLoss(weight=weight)
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
 
         output = (logits,) + discriminator_hidden_states[1:]
