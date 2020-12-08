@@ -32,10 +32,10 @@ Supports
   - [Usage](#usage)
     - [A quick example](#a-quick-example)
   - [Current Pretrained Models](#current-pretrained-models)
-  - [Acknowledgements](#acknowledgements)
+  - [Contributors ✨](#contributors-)
   - [How to Contribute](#how-to-contribute)
     - [How to Update Docs](#how-to-update-docs)
-  - [Contributors ✨](#contributors-)
+  - [Acknowledgements](#acknowledgements)
 <!--te-->
 
 ## Setup
@@ -155,28 +155,6 @@ dictionary.
 
 ---
 
-## Acknowledgements
-
-None of this would have been possible without the hard work by the HuggingFace team in developing the [Transformers](https://github.com/huggingface/transformers) library.
-
-_<div>Icon for the Social Media Preview made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>_
-
-## How to Contribute
-
-### How to Update Docs
-The latest version of the docs is hosted on [Github Pages](https://simpletransformers.ai/), if you want to help document Simple Transformers
-below are the steps to edit the docs.
-Docs are built using [Jekyll](https://jekyllrb.com/) library, refer to their webpage for a detailed explanation of how it works.
-1) **Install [Jekyll](https://jekyllrb.com/)**: Run the command `gem install bundler jekyll`
-2) **Visualizing the docs on your local computer**:
-In your terminal cd into the docs directory of this repo, eg: `cd simpletransformers/docs`
-From the docs directory run this command to serve the Jekyll docs locally: `bundle exec jekyll serve`
-Browse to http://localhost:4000 or whatever url you see in the console to visualize the docs.
-3) **Edit and visualize changes**:
-All the section pages of our docs can be found under `docs/_docs` directory, you can edit any file you want by following the markdown format and visualize the changes after refreshing the browser tab.
-
-**Note**: The docs present in the readme.md file are going to be deprecated soon and removed, so we don't recommend spending time on it.
-
 ## Contributors ✨
 
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
@@ -270,3 +248,26 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 This project follows the [all-contributors](https://github.com/all-contributors/all-contributors) specification. Contributions of any kind welcome!
 
 *If you should be on this list but you aren't, or you are on the list but don't want to be, please don't hesitate to contact me!*
+
+---
+## How to Contribute
+
+### How to Update Docs
+The latest version of the docs is hosted on [Github Pages](https://simpletransformers.ai/), if you want to help document Simple Transformers
+below are the steps to edit the docs.
+Docs are built using [Jekyll](https://jekyllrb.com/) library, refer to their webpage for a detailed explanation of how it works.
+1) **Install [Jekyll](https://jekyllrb.com/)**: Run the command `gem install bundler jekyll`
+2) **Visualizing the docs on your local computer**:
+In your terminal cd into the docs directory of this repo, eg: `cd simpletransformers/docs`
+From the docs directory run this command to serve the Jekyll docs locally: `bundle exec jekyll serve`
+Browse to http://localhost:4000 or whatever url you see in the console to visualize the docs.
+3) **Edit and visualize changes**:
+All the section pages of our docs can be found under `docs/_docs` directory, you can edit any file you want by following the markdown format and visualize the changes after refreshing the browser tab.
+
+---
+
+## Acknowledgements
+
+None of this would have been possible without the hard work by the HuggingFace team in developing the [Transformers](https://github.com/huggingface/transformers) library.
+
+_<div>Icon for the Social Media Preview made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>_
