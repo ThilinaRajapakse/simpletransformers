@@ -119,12 +119,20 @@ docs:
         url: /docs/convAI-data-formats/
       - title: "Conversational AI Minimal Start"
         url: /docs/convAI-minimal-start/
-  - title: Text Representation Generation
+  - title: Text Representation
     children:
       - title: "Text Representation Examples"
         url: /docs/text-rep-examples/
       - title: "Text Representation Model"
         url: /docs/text-rep-model/
+  - title: Langauge Generation
+    children:
+      - title: "Language Generation Specifics"
+        url: /docs/language-generation-specifics/
+      - title: "Language Generation Model"
+        url: /docs/language-generation-model/
+      - title: "Language Generation Minimal Start"
+        url: /docs/language-generation-minimal-start/
   - title: Meta
     children:
       - title: "History"

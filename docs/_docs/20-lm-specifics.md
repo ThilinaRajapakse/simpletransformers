@@ -2,7 +2,7 @@
 title: Language Modeling Specifics
 permalink: /docs/lm-specifics/
 excerpt: "Specific notes for Language Modeling tasks."
-last_modified_at: 2020-05-02 17:58:53
+last_modified_at: 2020/12/08 00:05:36
 toc: true
 ---
 
@@ -19,6 +19,8 @@ To perform these tasks successfully, the model has to learn the probabilities of
 **Tip:** This [Medium article](https://towardsdatascience.com/understanding-electra-and-training-an-electra-language-model-3d33e3a9660d?source=friends_link&sk=2b4b4a79954e3d7c84ab863efaea8c65) provides more information on pre-training and language modeling.
 {: .notice--success}
 
+**Tip:** This [Medium article](https://towardsdatascience.com/understanding-electra-and-training-an-electra-language-model-3d33e3a9660d?source=friends_link&sk=2b4b4a79954e3d7c84ab863efaea8c65) provides more information on fine-tuning language models and language generation.
+{: .notice--success}
 
 ## Language Model Fine-Tuning vs Training a Language Model From Scratch
 
