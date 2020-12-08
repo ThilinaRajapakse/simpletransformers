@@ -925,6 +925,7 @@ class Seq2SeqModel:
                     max_length=self.args.max_seq_length,
                     pad_to_max_length=True,
                     padding="max_length",
+                    return_tensors="pt",
                     truncation=True,
                     src_lang=self.args.src_lang,
                 )["input_ids"]
