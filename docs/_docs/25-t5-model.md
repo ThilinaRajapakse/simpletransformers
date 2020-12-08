@@ -2,17 +2,18 @@
 title: T5 Model
 permalink: /docs/t5-model/
 excerpt: "T5Model for T5 tasks."
-last_modified_at: 2020/08/18 21:47:44
+last_modified_at: 2020/12/08 00:06:50
 toc: true
 ---
 
 
 ## `T5Model`
 
-The `T5Model` class is used for any NLP task performed with a T5 model.
+The `T5Model` class is used for any NLP task performed with a T5 model or a mT5 model.
 
-To create a `T5Model`, you must specify a `model_name`.
+To create a `T5Model`, you must specify the `model_type` and `model_name`.
 
+- `model_type` should be one of the model types from the [supported models](/docs/t5-specifics/#supported-model-types) (`t5` or `mt5`)
 - `model_name` specifies the exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
 
     **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
@@ -28,6 +29,7 @@ from simpletransformers.t5 import T5Model
 
 
 model = T5Model(
+    "t5",
     "t5-base"
 )
 ```
