@@ -908,9 +908,11 @@ class Seq2SeqModel:
 
         all_outputs = []
         # Batching
-        for batch in [
-            to_predict[i : i + self.args.eval_batch_size] for i in range(0, len(to_predict), self.args.eval_batch_size)
-        ]:
+        for batch in tqdm(
+            [to_predict[i : i + self.args.eval_batch_size] for i in range(0, len(to_predict), self.args.eval_batch_size)],
+            desc="Generating outputs",
+            disable=self.args.silent,
+        ):
             if self.args.model_type == "marian":
                 input_ids = self.encoder_tokenizer.prepare_seq2seq_batch(
                     batch,

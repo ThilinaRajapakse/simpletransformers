@@ -799,6 +799,7 @@ class T5Model:
                 for i in range(0, len(to_predict), self.args.eval_batch_size)
             ],
             desc="Generating outputs",
+            disable=self.args.silent,
         ):
             input_batch = self.tokenizer.prepare_seq2seq_batch(
                 src_texts=batch,

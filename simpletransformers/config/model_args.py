@@ -250,6 +250,28 @@ class LanguageModelingArgs(ModelArgs):
     strip_accents: bool = True
     local_rank: int = -1
 
+    def save(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        with open(os.path.join(output_dir, "model_args.json"), "w") as f:
+            args_dict = self.get_args_for_saving()
+            if args_dict["dataset_class"] is not None:
+                args_dict["dataset_class"] = type(args_dict["dataset_class"]).__name__
+            json.dump(self.get_args_for_saving(), f)
+
+    def load(self, input_dir):
+        if input_dir:
+            model_args_file = os.path.join(input_dir, "model_args.json")
+            if os.path.isfile(model_args_file):
+                with open(model_args_file, "r") as f:
+                    model_args = json.load(f)
+                if model_args["dataset_class"]:
+                    warnings.warn(
+                        "This model was trained using a custom dataset_class."
+                        "This cannot be loaded automatically and must be specified in the model args"
+                        "when loading the model."
+                    )
+                self.update_from_dict(model_args)
+
 
 @dataclass
 class Seq2SeqArgs(ModelArgs):
