@@ -909,7 +909,10 @@ class Seq2SeqModel:
         all_outputs = []
         # Batching
         for batch in tqdm(
-            [to_predict[i : i + self.args.eval_batch_size] for i in range(0, len(to_predict), self.args.eval_batch_size)],
+            [
+                to_predict[i : i + self.args.eval_batch_size]
+                for i in range(0, len(to_predict), self.args.eval_batch_size)
+            ],
             desc="Generating outputs",
             disable=self.args.silent,
         ):

@@ -1243,14 +1243,15 @@ class ClassificationModel:
             extra_metrics[metric] = func(labels, preds)
 
         if multi_label:
-            thrs = self.args.threshold if self.args.threshold else 0.5
-            if isinstance(thrs, list):
+            threshold_values = self.args.threshold if self.args.threshold else 0.5
+            if isinstance(threshold_values, list):
                 mismatched = labels != [
-                    [self._threshold(pred, thrs[i]) for i, pred in enumerate(example)]
-                    for example in preds
+                    [self._threshold(pred, threshold_values[i]) for i, pred in enumerate(example)] for example in preds
                 ]
             else:
-                mismatched = labels != [[self._threshold(pred, thrs) for pred in example] for example in preds]
+                mismatched = labels != [
+                    [self._threshold(pred, threshold_values) for pred in example] for example in preds
+                ]
         else:
             mismatched = labels != preds
 
