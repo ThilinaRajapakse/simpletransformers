@@ -35,6 +35,6 @@ setup(
         "tokenizers",
         "wandb",
         "streamlit",
-        "sentencepiece"
+        "sentencepiece",
     ],
 )

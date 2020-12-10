@@ -1242,7 +1242,18 @@ class ClassificationModel:
         for metric, func in kwargs.items():
             extra_metrics[metric] = func(labels, preds)
 
-        mismatched = labels != preds
+        if multi_label:
+            threshold_values = self.args.threshold if self.args.threshold else 0.5
+            if isinstance(threshold_values, list):
+                mismatched = labels != [
+                    [self._threshold(pred, threshold_values[i]) for i, pred in enumerate(example)] for example in preds
+                ]
+            else:
+                mismatched = labels != [
+                    [self._threshold(pred, threshold_values) for pred in example] for example in preds
+                ]
+        else:
+            mismatched = labels != preds
 
         if eval_examples:
             wrong = [i for (i, v) in zip(eval_examples, mismatched) if v.any()]
