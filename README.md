@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-59-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-60-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -239,6 +239,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/gaganmanku96"><img src="https://avatars0.githubusercontent.com/u/20324385?v=4" width="100px;" alt=""/><br /><sub><b>Gagandeep Singh</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=gaganmanku96" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=gaganmanku96" title="Documentation">📖</a></td>
     <td align="center"><a href="http://www.esuli.it/"><img src="https://avatars3.githubusercontent.com/u/6543521?v=4" width="100px;" alt=""/><br /><sub><b>Andrea Esuli</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=aesuli" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/DM2493"><img src="https://avatars1.githubusercontent.com/u/59502011?v=4" width="100px;" alt=""/><br /><sub><b>DM2493</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=DM2493" title="Code">💻</a></td>
+    <td align="center"><a href="https://mapmeld.com/ml"><img src="https://avatars0.githubusercontent.com/u/643918?v=4" width="100px;" alt=""/><br /><sub><b>Nick Doiron</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=mapmeld" title="Code">💻</a></td>
   </tr>
 </table>
 
