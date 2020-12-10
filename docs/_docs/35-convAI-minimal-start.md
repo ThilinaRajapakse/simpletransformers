@@ -1,6 +1,6 @@
 ---
 title: Conversational AI Examples
-permalink: /docs/convAI-examples/
+permalink: /docs/convAI-minimal-start/
 excerpt: "Conversational AI Examples"
 last_modified_at: 2020/10/15 23:16:38
 toc: true
