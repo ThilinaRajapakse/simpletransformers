@@ -131,6 +131,7 @@ class ClassificationArgs(ModelArgs):
     model_class: str = "ClassificationModel"
     labels_list: list = field(default_factory=list)
     labels_map: dict = field(default_factory=dict)
+    special_tokens_list: list = field(default_factory=list)
     lazy_delimiter: str = "\t"
     lazy_labels_column: int = 1
     lazy_loading: bool = False
