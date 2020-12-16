@@ -42,7 +42,7 @@ def get_states(model, session_state=None):
     return session_state, model
 
 
-# @st.cache(hash_funcs={T5Model: simple_transformers_model})
+@st.cache(hash_funcs={T5Model: simple_transformers_model})
 def get_prediction(model, input_text, prefix_text):
     if prefix_text:
         predictions = model.predict([prefix_text + ": " + input_text])
