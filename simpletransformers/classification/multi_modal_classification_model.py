@@ -233,7 +233,7 @@ class MultiModalClassificationModel:
         **kwargs,
     ):
         """
-        Trains the model using 'train_df'
+        Trains the model using 'train_data'
 
         Args:
             data: Path to data directory containing text files (JSON) and image files OR a Pandas DataFrame.
@@ -791,7 +791,7 @@ class MultiModalClassificationModel:
 
     def eval_model(
         self,
-        data,
+        eval_data,
         files_list=None,
         image_path=None,
         text_label=None,
@@ -805,7 +805,7 @@ class MultiModalClassificationModel:
         **kwargs,
     ):
         """
-        Evaluates the model on eval_df. Saves results to output_dir.
+        Evaluates the model on eval_data. Saves results to output_dir.
 
         Args:
             data: Path to data directory containing text files (JSON) and image files OR a Pandas DataFrame.
@@ -833,7 +833,7 @@ class MultiModalClassificationModel:
 
         Returns:
             result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
-            model_outputs: List of model outputs for each row in eval_df
+            model_outputs: List of model outputs for each row in eval_data
         """  # noqa: ignore flake8"
 
         if text_label:

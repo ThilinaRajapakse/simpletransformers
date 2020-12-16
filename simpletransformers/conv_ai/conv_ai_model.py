@@ -1099,7 +1099,7 @@ class ConvAIModel:
                 token_type_ids = torch.tensor(instance["token_type_ids"], device=self.device).unsqueeze(0)
 
                 logits = model(input_ids, token_type_ids=token_type_ids)
-                if isinstance(logits, tuple):  # for gpt2 and maybe others
+                if args.model_type in ["gpt2", "gpt"]:  # for gpt2 and maybe others
                     logits = logits[0]
                 logits = logits[0, -1, :] / args.temperature
                 logits = self.top_filtering(logits, top_k=args.top_k, top_p=args.top_p)

@@ -919,7 +919,7 @@ class NERModel:
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
             if args.classification_report:
-                cls_report = classification_report(out_label_list, preds_list)
+                cls_report = classification_report(out_label_list, preds_list, digits=4)
                 writer.write("{}\n".format(cls_report))
             for key in sorted(result.keys()):
                 writer.write("{} = {}\n".format(key, str(result[key])))

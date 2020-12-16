@@ -133,6 +133,12 @@ docs:
         url: /docs/language-generation-model/
       - title: "Language Generation Minimal Start"
         url: /docs/language-generation-minimal-start/
+  - title: Multi-Modal Classification
+    children:
+      - title: "Multi-Modal Classification Specifics"
+        url: /docs/multi-modal-classification-specifics/
+      - title: "Multi-Modal Classification Model"
+        url: /docs/multi-modal-classification-model/
   - title: Meta
     children:
       - title: "History"
