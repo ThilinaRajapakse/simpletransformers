@@ -570,6 +570,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "martinnormark",
+      "name": "Martin H. Normark",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/67565?v=4",
+      "profile": "https://martinnormark.com",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
