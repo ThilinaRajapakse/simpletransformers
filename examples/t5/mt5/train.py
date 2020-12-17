@@ -7,8 +7,8 @@ logging.basicConfig(level=logging.INFO)
 transformers_logger = logging.getLogger("transformers")
 transformers_logger.setLevel(logging.WARNING)
 
-train_df = pd.read_csv("data_balanced/train.tsv", sep="\t").astype(str)
-eval_df = pd.read_csv("data_balanced/eval.tsv", sep="\t").astype(str)
+train_df = pd.read_csv("data/train.tsv", sep="\t").astype(str)
+eval_df = pd.read_csv("data/eval.tsv", sep="\t").astype(str)
 
 model_args = T5Args()
 model_args.max_seq_length = 196
