@@ -258,47 +258,6 @@ With this configuration, the training will terminate if the `mcc` score of the m
 **Pro tip:** You can use the evaluation during training functionality without invoking early stopping by setting `evaluate_during_training` to `True` while keeping `use_early_stopping` as `False`.
 {: .notice--success}
 
-### Don't save model checkpoints
-
-When training takes little time we may want to save no intermediary checkpoints to reduce disk space usage and training time.   
-Note that the model artifacts will still be saved to `output_dir` when the training process finishes.  
-We can prevent the model from saving intermediary checkpoints by setting the following arguments: set `save_steps` to `-1` and  `save_model_every_epoch` to `False`
-
-
-
-```python
-from simpletransformers.classification import ClassificationModel, ClassificationArgs
-
-
-model_args = ClassificationArgs()
-model_args["save_steps"] = -1
-model_args["save_model_every_epoch"] = False
-model = ClassficationModel("bert", "bert-base-cased", args=model_args)
-```
-
-### Save model checkpoint every 3 ephocs
-
-Every model checkpoint takes the same disk space as a final model, When training transformer models for a high number of ephocs we may not want to save checkpoints for every single ephoc since this would take a lot of disk space. In the following example
-You will see how to save a checkpoint every 3 ephocs.
-
-The procedure just requires two steps:
-- Turn off automatic save after every ephoc by setting `save_model_every_epoch` arg to `False`
-- `save_steps` must be set to N(save every N ephocs) times the number of steps the model will perform for every ephoc
-
-
-```python
-from simpletransformers.classification import ClassificationModel, ClassificationArgs
-import math
-SAVE_EVERY_N_EPHOCS = 3
-model_args = ClassificationArgs()
-steps_per_ephoc = math.floor(len(train_df) / SAVE_EVERY_N_EPHOCS)
-if(len(train_df) % SAVE_EVERY_N_EPHOCS > 0):
-    steps_per_ephoc +=1
-model_args["save_steps"] = steps_per_ephoc * SAVE_EVERY_N_EPHOCS
-model_args["save_model_every_epoch"] = False
-model = ClassficationModel("bert", "bert-base-cased", args=model_args)
-```
-
 
 ### Additional evaluation metrics
 
