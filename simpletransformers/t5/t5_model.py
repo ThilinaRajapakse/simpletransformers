@@ -17,7 +17,17 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
-from transformers import AdamW, T5Config, T5ForConditionalGeneration, T5Tokenizer, get_linear_schedule_with_warmup
+from transformers import T5Config, T5ForConditionalGeneration, T5Tokenizer
+from transformers.optimization import (
+    get_constant_schedule,
+    get_constant_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
+    get_cosine_schedule_with_warmup,
+    get_cosine_with_hard_restarts_schedule_with_warmup,
+    get_polynomial_decay_schedule_with_warmup,
+)
+from transformers.optimization import AdamW, Adafactor
+from transformers import MT5Config, MT5ForConditionalGeneration
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import T5Args
@@ -40,15 +50,22 @@ def chunks(lst, n):
         yield lst[i : i + n]
 
 
+MODEL_CLASSES = {
+    "t5": (T5Config, T5ForConditionalGeneration),
+    "mt5": (MT5Config, MT5ForConditionalGeneration),
+}
+
+
 class T5Model:
     def __init__(
-        self, model_name, args=None, tokenizer=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self, model_type, model_name, args=None, tokenizer=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
 
         """
         Initializes a T5Model model.
 
         Args:
+            model_type: The type of model (t5, mt5)
             model_name: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
@@ -94,18 +111,20 @@ class T5Model:
 
         self.results = {}
 
+        config_class, model_class = MODEL_CLASSES[model_type]
+
         if model_name is None:
             self.config = self.args.config
-            self.model = T5ForConditionalGeneration(config=self.config)
+            self.model = model_class(config=self.config)
         else:
-            self.config = T5Config.from_pretrained(model_name, **self.args.config)
-            self.model = T5ForConditionalGeneration.from_pretrained(model_name, config=self.config)
+            self.config = config_class.from_pretrained(model_name, **self.args.config)
+            self.model = model_class.from_pretrained(model_name, config=self.config)
 
         if isinstance(tokenizer, T5Tokenizer):
             self.tokenizer = tokenizer
+            self.model.resize_token_embeddings(len(self.tokenizer))
         else:
             self.tokenizer = T5Tokenizer.from_pretrained(model_name, truncate=True)
-        self.model.resize_token_embeddings(len(self.tokenizer))
 
         if self.args.dynamic_quantize:
             self.model = torch.quantization.quantize_dynamic(self.model, {torch.nn.Linear}, dtype=torch.qint8)
@@ -113,7 +132,7 @@ class T5Model:
         if not use_cuda:
             self.args.fp16 = False
 
-        self.args.model_type = "T5"
+        self.args.model_type = model_type
         if model_name is None:
             self.args.model_name = "T5_from_scratch"
         else:
@@ -275,10 +294,67 @@ class T5Model:
         warmup_steps = math.ceil(t_total * args.warmup_ratio)
         args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
 
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
-        )
+        if args.optimizer == "AdamW":
+            optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+        elif args.optimizer == "Adafactor":
+            optimizer = Adafactor(
+                optimizer_grouped_parameters,
+                lr=args.learning_rate,
+                eps=args.adafactor_eps,
+                clip_threshold=args.adafactor_clip_threshold,
+                decay_rate=args.adafactor_decay_rate,
+                beta1=args.adafactor_beta1,
+                weight_decay=args.weight_decay,
+                scale_parameter=args.adafactor_scale_parameter,
+                relative_step=args.adafactor_relative_step,
+                warmup_init=args.adafactor_warmup_init,
+            )
+            print("Using Adafactor for T5")
+        else:
+            raise ValueError(
+                "{} is not a valid optimizer class. Please use one of ('AdamW', 'Adafactor') instead.".format(
+                    args.optimizer
+                )
+            )
+
+        if args.scheduler == "constant_schedule":
+            scheduler = get_constant_schedule(optimizer)
+
+        elif args.scheduler == "constant_schedule_with_warmup":
+            scheduler = get_constant_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps)
+
+        elif args.scheduler == "linear_schedule_with_warmup":
+            scheduler = get_linear_schedule_with_warmup(
+                optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+            )
+
+        elif args.scheduler == "cosine_schedule_with_warmup":
+            scheduler = get_cosine_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                num_cycles=args.cosine_schedule_num_cycles,
+            )
+
+        elif args.scheduler == "cosine_with_hard_restarts_schedule_with_warmup":
+            scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                num_cycles=args.cosine_schedule_num_cycles,
+            )
+
+        elif args.scheduler == "polynomial_decay_schedule_with_warmup":
+            scheduler = get_polynomial_decay_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                lr_end=args.polynomial_decay_schedule_lr_end,
+                power=args.polynomial_decay_schedule_lr_end,
+            )
+
+        else:
+            raise ValueError("{} is not a valid scheduler.".format(args.scheduler))
 
         if (
             args.model_name
@@ -389,7 +465,8 @@ class T5Model:
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16:
                         scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                    if args.optimizer == "AdamW":
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                     if args.fp16:
                         scaler.step(optimizer)
@@ -624,10 +701,15 @@ class T5Model:
         self.results.update(result)
 
         if self.args.evaluate_generated_text:
-            to_predict = [
-                prefix + ": " + input_text + " </s>"
-                for prefix, input_text in zip(eval_data["prefix"], eval_data["input_text"])
-            ]
+            if self.args.preprocess_inputs:
+                to_predict = [
+                    prefix + ": " + input_text
+                    for prefix, input_text in zip(eval_data["prefix"], eval_data["input_text"])
+                ]
+            else:
+                to_predict = [
+                    prefix + input_text for prefix, input_text in zip(eval_data["prefix"], eval_data["input_text"])
+                ]
             preds = self.predict(to_predict)
 
             result = self.compute_metrics(eval_data["target_text"].tolist(), preds, **kwargs)
@@ -717,26 +799,24 @@ class T5Model:
                 for i in range(0, len(to_predict), self.args.eval_batch_size)
             ],
             desc="Generating outputs",
+            disable=self.args.silent,
         ):
-            if self.args.preprocess_inputs:
-                input_ids = self.tokenizer.batch_encode_plus(
-                    [t + " </s>" for t in batch],
-                    max_length=self.args.max_seq_length,
-                    padding="max_length",
-                    truncation=True,
-                    return_tensors="pt",
-                )["input_ids"]
-            else:
-                input_ids = self.tokenizer.batch_encode_plus(
-                    batch,
-                    max_length=self.args.max_seq_length,
-                    padding="max_length",
-                    truncation=True,
-                    return_tensors="pt",
-                )["input_ids"]
+            input_batch = self.tokenizer.prepare_seq2seq_batch(
+                src_texts=batch,
+                max_length=self.args.max_seq_length,
+                padding="max_length",
+                return_tensors="pt",
+                truncation=True,
+            )
+            input_ids = input_batch["input_ids"]
+            attention_mask = input_batch["attention_mask"]
+
             input_ids = input_ids.to(self.device)
+            attention_mask = attention_mask.to(self.device)
+
             outputs = self.model.generate(
                 input_ids=input_ids,
+                attention_mask=attention_mask,
                 num_beams=self.args.num_beams,
                 max_length=self.args.max_length,
                 length_penalty=self.args.length_penalty,
@@ -808,10 +888,12 @@ class T5Model:
         self.model.to(self.device)
 
     def _get_inputs_dict(self, batch):
-        lm_labels = batch[1]
-        lm_labels[lm_labels == self.tokenizer.pad_token_id] = -100
+        input_ids = batch[0]
+        attention_mask = batch[1]
+        labels = batch[2]
+        labels[labels == self.tokenizer.pad_token_id] = -100
 
-        inputs = {"input_ids": batch[0], "lm_labels": lm_labels}
+        inputs = {"input_ids": input_ids, "attention_mask": attention_mask, "labels": labels}
 
         return inputs
 

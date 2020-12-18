@@ -4,7 +4,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.49.4] - 2020-11-09
+## [0.51.4] - 2020-12-10
+
+### Added
+
+- Added support for T5/mT5 models in Simple Viewer
+
+## [0.51.3] - 2020-12-10
+
+### Fixed
+
+- Fixed bug in `MultiLabelClassificationModel` evaluation. [mapmeld](https://github.com/mapmeld) [abhinavg97](https://github.com/abhinavg97)
+
+## [0.51.2] - 2020-12-09
+
+### Fixed
+
+- Fixed bug in ConvAI interact_single() method
+
+## [0.51.1] - 2020-12-08
+
+### Fixed
+
+- Fixed bug in `mbart` `predict()` function. [DM2493](https://github.com/DM2493)
+
+### Added
+
+- Added docs for language generation and multi-modal classifcation
+
+## [0.51.0] - 2020-12-05
+
+### Added
+
+- Added support for MT5
+- Added support for Adafactor optimizer
+- Added support for various schedulers:
+  - get_constant_schedule
+  - get_constant_schedule_with_warmup
+  - get_linear_schedule_with_warmup
+  - get_cosine_schedule_with_warmup
+  - get_cosine_with_hard_restarts_schedule_with_warmup
+  - get_polynomial_decay_schedule_with_warmup
+
+### Changed
+
+- `T5Model` now has a required `model_type` parameter (`"t5"` or `"mt5"`)
+
+### Fixed
+
+- Fixed issue with class weights not working in `ClassificationModel` when using mult-GPU training
+
+## [0.50.0] - 2020-12-01
+
+### Changed
+
+- Compatibility with Transformers 4.0.0.
+
+## [0.49.4] - 2020-11-25
 
 ### Added
 
@@ -19,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed issue with ONNX in NER [gaganmanku96](https://github.com/gaganmanku96)
 - Fixed issues with wandb sweeps [khituras](https://github.com/khituras) [ohstopityou](https://github.com/ohstopityou)
 
-## [0.49.1] - 2020-11-09
+## [0.49.1] - 2020-11-22
 
 ### Fixed
 
@@ -1246,7 +1302,19 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.49.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6025b6f...HEAD
+[0.51.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0609ccd...HEAD
+
+[0.51.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c733785...0609ccd
+
+[0.51.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d583c6a...c733785
+
+[0.51.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/5f4bc8d...d583c6a
+
+[0.51.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a0f382e...5f4bc8d
+
+[0.50.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2e2c50e...a0f382e
+
+[0.49.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6025b6f...2e2c50e
 
 [0.49.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9440c6e...6025b6f
 

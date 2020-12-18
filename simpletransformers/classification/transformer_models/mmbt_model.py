@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
-from transformers.modeling_mmbt import MMBTModel
+from transformers.models.mmbt.modeling_mmbt import MMBTModel
 
 
 class MMBTForClassification(nn.Module):
@@ -83,7 +83,11 @@ class MMBTForClassification(nn.Module):
                 loss_fct = MSELoss()
                 loss = loss_fct(logits.view(-1), labels.view(-1))
             else:
-                loss_fct = CrossEntropyLoss()
+                if self.weight is not None:
+                    weight = self.weight.to(labels.device)
+                else:
+                    weight = None
+                loss_fct = CrossEntropyLoss(weight=weight)
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
             outputs = (loss,) + outputs
 

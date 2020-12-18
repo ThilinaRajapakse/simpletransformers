@@ -16,8 +16,16 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
+from transformers.optimization import (
+    get_constant_schedule,
+    get_constant_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
+    get_cosine_schedule_with_warmup,
+    get_cosine_with_hard_restarts_schedule_with_warmup,
+    get_polynomial_decay_schedule_with_warmup,
+)
+from transformers.optimization import AdamW, Adafactor
 from transformers import (
-    AdamW,
     AutoConfig,
     AutoModel,
     AutoTokenizer,
@@ -56,7 +64,6 @@ from transformers import (
     RobertaConfig,
     RobertaModel,
     RobertaTokenizer,
-    get_linear_schedule_with_warmup,
 )
 
 from simpletransformers.config.global_args import global_args
@@ -403,10 +410,67 @@ class Seq2SeqModel:
         args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
 
         # TODO: Use custom optimizer like with BertSum?
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
-        )
+        if args.optimizer == "AdamW":
+            optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+        elif args.optimizer == "Adafactor":
+            optimizer = Adafactor(
+                optimizer_grouped_parameters,
+                lr=args.learning_rate,
+                eps=args.adafactor_eps,
+                clip_threshold=args.adafactor_clip_threshold,
+                decay_rate=args.adafactor_decay_rate,
+                beta1=args.adafactor_beta1,
+                weight_decay=args.weight_decay,
+                scale_parameter=args.adafactor_scale_parameter,
+                relative_step=args.adafactor_relative_step,
+                warmup_init=args.adafactor_warmup_init,
+            )
+            print("Using Adafactor for T5")
+        else:
+            raise ValueError(
+                "{} is not a valid optimizer class. Please use one of ('AdamW', 'Adafactor') instead.".format(
+                    args.optimizer
+                )
+            )
+
+        if args.scheduler == "constant_schedule":
+            scheduler = get_constant_schedule(optimizer)
+
+        elif args.scheduler == "constant_schedule_with_warmup":
+            scheduler = get_constant_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps)
+
+        elif args.scheduler == "linear_schedule_with_warmup":
+            scheduler = get_linear_schedule_with_warmup(
+                optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+            )
+
+        elif args.scheduler == "cosine_schedule_with_warmup":
+            scheduler = get_cosine_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                num_cycles=args.cosine_schedule_num_cycles,
+            )
+
+        elif args.scheduler == "cosine_with_hard_restarts_schedule_with_warmup":
+            scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                num_cycles=args.cosine_schedule_num_cycles,
+            )
+
+        elif args.scheduler == "polynomial_decay_schedule_with_warmup":
+            scheduler = get_polynomial_decay_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                lr_end=args.polynomial_decay_schedule_lr_end,
+                power=args.polynomial_decay_schedule_lr_end,
+            )
+
+        else:
+            raise ValueError("{} is not a valid scheduler.".format(args.scheduler))
 
         if (
             args.model_name
@@ -517,7 +581,8 @@ class Seq2SeqModel:
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16:
                         scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                    if args.optimizer == "AdamW":
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                     if args.fp16:
                         scaler.step(optimizer)
@@ -843,9 +908,14 @@ class Seq2SeqModel:
 
         all_outputs = []
         # Batching
-        for batch in [
-            to_predict[i : i + self.args.eval_batch_size] for i in range(0, len(to_predict), self.args.eval_batch_size)
-        ]:
+        for batch in tqdm(
+            [
+                to_predict[i : i + self.args.eval_batch_size]
+                for i in range(0, len(to_predict), self.args.eval_batch_size)
+            ],
+            desc="Generating outputs",
+            disable=self.args.silent,
+        ):
             if self.args.model_type == "marian":
                 input_ids = self.encoder_tokenizer.prepare_seq2seq_batch(
                     batch,
@@ -860,6 +930,7 @@ class Seq2SeqModel:
                     max_length=self.args.max_seq_length,
                     pad_to_max_length=True,
                     padding="max_length",
+                    return_tensors="pt",
                     truncation=True,
                     src_lang=self.args.src_lang,
                 )["input_ids"]
@@ -1074,14 +1145,14 @@ class Seq2SeqModel:
             pad_token_id = self.encoder_tokenizer.pad_token_id
             source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
             y_ids = y[:, :-1].contiguous()
-            lm_labels = y[:, 1:].clone()
-            lm_labels[y[:, 1:] == pad_token_id] = -100
+            labels = y[:, 1:].clone()
+            labels[y[:, 1:] == pad_token_id] = -100
 
             inputs = {
                 "input_ids": source_ids.to(device),
                 "attention_mask": source_mask.to(device),
                 "decoder_input_ids": y_ids.to(device),
-                "labels": lm_labels.to(device),
+                "labels": labels.to(device),
             }
         elif self.args.model_type in ["mbart"]:
             inputs = {
@@ -1091,14 +1162,14 @@ class Seq2SeqModel:
                 "labels": batch["labels"].to(device),
             }
         else:
-            lm_labels = batch[1]
-            lm_labels_masked = lm_labels.clone()
-            lm_labels_masked[lm_labels_masked == self.decoder_tokenizer.pad_token_id] = -100
+            labels = batch[1]
+            labels_masked = labels.clone()
+            labels_masked[labels_masked == self.decoder_tokenizer.pad_token_id] = -100
 
             inputs = {
                 "input_ids": batch[0].to(device),
-                "decoder_input_ids": lm_labels.to(device),
-                "labels": lm_labels_masked.to(device),
+                "decoder_input_ids": labels.to(device),
+                "labels": labels_masked.to(device),
             }
 
         return inputs

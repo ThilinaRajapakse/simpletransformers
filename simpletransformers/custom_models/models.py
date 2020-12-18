@@ -15,27 +15,27 @@ from transformers import (
     XLNetModel,
     XLNetPreTrainedModel,
 )
-from transformers.configuration_camembert import CamembertConfig
-from transformers.configuration_distilbert import DistilBertConfig
-from transformers.configuration_roberta import RobertaConfig
-from transformers.configuration_xlm_roberta import XLMRobertaConfig
-from transformers.modeling_albert import AlbertConfig, AlbertModel, AlbertPreTrainedModel
-from transformers.modeling_distilbert import DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST
-from transformers.modeling_electra import (
+from transformers.models.camembert.configuration_camembert import CamembertConfig
+from transformers.models.distilbert.configuration_distilbert import DistilBertConfig
+from transformers.models.roberta.configuration_roberta import RobertaConfig
+from transformers.models.xlm_roberta.configuration_xlm_roberta import XLMRobertaConfig
+from transformers.models.albert.modeling_albert import AlbertConfig, AlbertModel, AlbertPreTrainedModel
+from transformers.models.distilbert.modeling_distilbert import DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST
+from transformers.models.electra.modeling_electra import (
     ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
     ElectraConfig,
     ElectraModel,
     ElectraPreTrainedModel,
 )
-from transformers.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
-from transformers.modeling_roberta import (
+from transformers.models.camembert.modeling_camembert import CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
+from transformers.models.roberta.modeling_roberta import (
     ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
     RobertaClassificationHead,
     RobertaForQuestionAnswering,
 )
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
-from transformers.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
-from transformers.modeling_longformer import LongformerClassificationHead, LongformerPreTrainedModel
+from transformers.models.xlm_roberta.modeling_xlm_roberta import XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
+from transformers.models.longformer.modeling_longformer import LongformerClassificationHead, LongformerPreTrainedModel
 
 
 class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
@@ -508,12 +508,12 @@ class ElectraForLanguageModelingModel(PreTrainedModel):
     def tie_generator_and_discriminator_embeddings(self):
         self.discriminator_model.set_input_embeddings(self.generator_model.get_input_embeddings())
 
-    def forward(self, inputs, masked_lm_labels, attention_mask=None, token_type_ids=None):
+    def forward(self, inputs, labels, attention_mask=None, token_type_ids=None):
         d_inputs = inputs.clone()
 
         # run masked LM.
         g_out = self.generator_model(
-            inputs, masked_lm_labels=masked_lm_labels, attention_mask=attention_mask, token_type_ids=token_type_ids
+            inputs, labels=labels, attention_mask=attention_mask, token_type_ids=token_type_ids
         )
 
         # get samples from masked LM.
@@ -524,14 +524,14 @@ class ElectraForLanguageModelingModel(PreTrainedModel):
         sampled_tokens = sampled_tokens.view(d_inputs.shape[0], -1)
 
         # labels have a -100 value to mask out loss from unchanged tokens.
-        mask = masked_lm_labels.ne(-100)
+        mask = labels.ne(-100)
 
         # replace the masked out tokens of the input with the generator predictions.
         d_inputs[mask] = sampled_tokens[mask]
 
         # turn mask into new target labels.  1 (True) for corrupted, 0 otherwise.
         # if the prediction was correct, mark it as uncorrupted.
-        correct_preds = sampled_tokens == masked_lm_labels
+        correct_preds = sampled_tokens == labels
         d_labels = mask.long()
         d_labels[correct_preds] = 0
 

@@ -33,7 +33,7 @@ def test_t5():
     }
 
     # Create T5 Model
-    model = T5Model("t5-base", args=model_args, use_cuda=False)
+    model = T5Model("t5", "t5-base", args=model_args, use_cuda=False)
 
     # Train T5 Model on new task
     model.train_model(train_df)
@@ -45,7 +45,7 @@ def test_t5():
     model.predict(["convert: four", "convert: five"])
 
     # Load test
-    model = T5Model("outputs", args=model_args, use_cuda=False)
+    model = T5Model("t5", "outputs", args=model_args, use_cuda=False)
 
     # Evaluate T5 Model on new task
     model.eval_model(eval_df)

@@ -1,7 +1,11 @@
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
-from transformers.modeling_electra import ElectraModel, ElectraPreTrainedModel, ElectraClassificationHead
+from transformers.models.electra.modeling_electra import (
+    ElectraModel,
+    ElectraPreTrainedModel,
+    ElectraClassificationHead,
+)
 
 
 class ElectraForSequenceClassification(ElectraPreTrainedModel):
@@ -66,7 +70,11 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
                 loss_fct = MSELoss()
                 loss = loss_fct(logits.view(-1), labels.view(-1))
             else:
-                loss_fct = CrossEntropyLoss(weight=self.weight)
+                if self.weight is not None:
+                    weight = self.weight.to(labels.device)
+                else:
+                    weight = None
+                loss_fct = CrossEntropyLoss(weight=weight)
                 loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
 
         output = (logits,) + discriminator_hidden_states[1:]

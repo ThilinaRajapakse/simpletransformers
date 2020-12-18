@@ -30,9 +30,17 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
+from transformers.optimization import (
+    get_constant_schedule,
+    get_constant_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
+    get_cosine_schedule_with_warmup,
+    get_cosine_with_hard_restarts_schedule_with_warmup,
+    get_polynomial_decay_schedule_with_warmup,
+)
+from transformers.optimization import AdamW, Adafactor
 from transformers import (
     WEIGHTS_NAME,
-    AdamW,
     AutoConfig,
     AutoModelWithLMHead,
     AutoTokenizer,
@@ -63,7 +71,6 @@ from transformers import (
     RobertaConfig,
     RobertaForMaskedLM,
     RobertaTokenizer,
-    get_linear_schedule_with_warmup,
 )
 from transformers.data.datasets.language_modeling import LineByLineTextDataset, TextDataset
 
@@ -233,9 +240,9 @@ class LanguageModelingModel:
                     self.discriminator_config.vocab_size = len(self.tokenizer)
 
         if self.args.block_size <= 0:
-            self.args.block_size = min(self.args.max_seq_length, self.tokenizer.max_len)
+            self.args.block_size = min(self.args.max_seq_length, self.tokenizer.model_max_length)
         else:
-            self.args.block_size = min(self.args.block_size, self.tokenizer.max_len, self.args.max_seq_length)
+            self.args.block_size = min(self.args.block_size, self.tokenizer.model_max_length, self.args.max_seq_length)
 
         if self.args.model_name:
             if self.args.model_type == "electra":
@@ -477,10 +484,67 @@ class LanguageModelingModel:
         warmup_steps = math.ceil(t_total * args.warmup_ratio)
         args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
 
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
-        )
+        if args.optimizer == "AdamW":
+            optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+        elif args.optimizer == "Adafactor":
+            optimizer = Adafactor(
+                optimizer_grouped_parameters,
+                lr=args.learning_rate,
+                eps=args.adafactor_eps,
+                clip_threshold=args.adafactor_clip_threshold,
+                decay_rate=args.adafactor_decay_rate,
+                beta1=args.adafactor_beta1,
+                weight_decay=args.weight_decay,
+                scale_parameter=args.adafactor_scale_parameter,
+                relative_step=args.adafactor_relative_step,
+                warmup_init=args.adafactor_warmup_init,
+            )
+            print("Using Adafactor for T5")
+        else:
+            raise ValueError(
+                "{} is not a valid optimizer class. Please use one of ('AdamW', 'Adafactor') instead.".format(
+                    args.optimizer
+                )
+            )
+
+        if args.scheduler == "constant_schedule":
+            scheduler = get_constant_schedule(optimizer)
+
+        elif args.scheduler == "constant_schedule_with_warmup":
+            scheduler = get_constant_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps)
+
+        elif args.scheduler == "linear_schedule_with_warmup":
+            scheduler = get_linear_schedule_with_warmup(
+                optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+            )
+
+        elif args.scheduler == "cosine_schedule_with_warmup":
+            scheduler = get_cosine_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                num_cycles=args.cosine_schedule_num_cycles,
+            )
+
+        elif args.scheduler == "cosine_with_hard_restarts_schedule_with_warmup":
+            scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                num_cycles=args.cosine_schedule_num_cycles,
+            )
+
+        elif args.scheduler == "polynomial_decay_schedule_with_warmup":
+            scheduler = get_polynomial_decay_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                lr_end=args.polynomial_decay_schedule_lr_end,
+                power=args.polynomial_decay_schedule_lr_end,
+            )
+
+        else:
+            raise ValueError("{} is not a valid scheduler.".format(args.scheduler))
 
         if (
             args.model_name
@@ -572,11 +636,9 @@ class LanguageModelingModel:
                 if args.fp16:
                     with amp.autocast():
                         if args.model_type == "longformer":
-                            outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
+                            outputs = model(inputs, attention_mask=None, labels=labels)
                         else:
-                            outputs = (
-                                model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
-                            )
+                            outputs = model(inputs, labels=labels) if args.mlm else model(inputs, labels=labels)
                         # model outputs are always tuple in pytorch-transformers (see doc)
                         if args.model_type == "electra":
                             g_loss = outputs[0]
@@ -586,9 +648,9 @@ class LanguageModelingModel:
                             loss = outputs[0]
                 else:
                     if args.model_type == "longformer":
-                        outputs = model(inputs, attention_mask=None, masked_lm_labels=labels)
+                        outputs = model(inputs, attention_mask=None, labels=labels)
                     else:
-                        outputs = model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
+                        outputs = model(inputs, labels=labels) if args.mlm else model(inputs, labels=labels)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     if args.model_type == "electra":
                         g_loss = outputs[0]
@@ -624,7 +686,8 @@ class LanguageModelingModel:
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16:
                         scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                    if args.optimizer == "AdamW":
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                     if args.fp16:
                         scaler.step(optimizer)
@@ -901,7 +964,7 @@ class LanguageModelingModel:
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             with torch.no_grad():
-                outputs = model(inputs, masked_lm_labels=labels) if args.mlm else model(inputs, labels=labels)
+                outputs = model(inputs, labels=labels) if args.mlm else model(inputs, labels=labels)
                 if args.model_type == "electra":
                     g_loss = outputs[0]
                     d_loss = outputs[1]

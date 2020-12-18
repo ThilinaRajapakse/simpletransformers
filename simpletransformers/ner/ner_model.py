@@ -20,9 +20,17 @@ from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from tqdm.auto import tqdm, trange
+from transformers.optimization import (
+    get_constant_schedule,
+    get_constant_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
+    get_cosine_schedule_with_warmup,
+    get_cosine_with_hard_restarts_schedule_with_warmup,
+    get_polynomial_decay_schedule_with_warmup,
+)
+from transformers.optimization import AdamW, Adafactor
 from transformers import (
     WEIGHTS_NAME,
-    AdamW,
     AutoConfig,
     AutoModelForTokenClassification,
     AutoTokenizer,
@@ -54,7 +62,6 @@ from transformers import (
     LayoutLMConfig,
     LayoutLMForTokenClassification,
     LayoutLMTokenizer,
-    get_linear_schedule_with_warmup,
 )
 from wandb import config
 from transformers.convert_graph_to_onnx import convert, quantize
@@ -399,10 +406,67 @@ class NERModel:
         warmup_steps = math.ceil(t_total * args.warmup_ratio)
         args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
 
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon,)
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
-        )
+        if args.optimizer == "AdamW":
+            optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+        elif args.optimizer == "Adafactor":
+            optimizer = Adafactor(
+                optimizer_grouped_parameters,
+                lr=args.learning_rate,
+                eps=args.adafactor_eps,
+                clip_threshold=args.adafactor_clip_threshold,
+                decay_rate=args.adafactor_decay_rate,
+                beta1=args.adafactor_beta1,
+                weight_decay=args.weight_decay,
+                scale_parameter=args.adafactor_scale_parameter,
+                relative_step=args.adafactor_relative_step,
+                warmup_init=args.adafactor_warmup_init,
+            )
+            print("Using Adafactor for T5")
+        else:
+            raise ValueError(
+                "{} is not a valid optimizer class. Please use one of ('AdamW', 'Adafactor') instead.".format(
+                    args.optimizer
+                )
+            )
+
+        if args.scheduler == "constant_schedule":
+            scheduler = get_constant_schedule(optimizer)
+
+        elif args.scheduler == "constant_schedule_with_warmup":
+            scheduler = get_constant_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps)
+
+        elif args.scheduler == "linear_schedule_with_warmup":
+            scheduler = get_linear_schedule_with_warmup(
+                optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+            )
+
+        elif args.scheduler == "cosine_schedule_with_warmup":
+            scheduler = get_cosine_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                num_cycles=args.cosine_schedule_num_cycles,
+            )
+
+        elif args.scheduler == "cosine_with_hard_restarts_schedule_with_warmup":
+            scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                num_cycles=args.cosine_schedule_num_cycles,
+            )
+
+        elif args.scheduler == "polynomial_decay_schedule_with_warmup":
+            scheduler = get_polynomial_decay_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                lr_end=args.polynomial_decay_schedule_lr_end,
+                power=args.polynomial_decay_schedule_lr_end,
+            )
+
+        else:
+            raise ValueError("{} is not a valid scheduler.".format(args.scheduler))
 
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
@@ -502,7 +566,8 @@ class NERModel:
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if self.args.fp16:
                         scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                    if args.optimizer == "AdamW":
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                     if self.args.fp16:
                         scaler.step(optimizer)
@@ -854,7 +919,7 @@ class NERModel:
         output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
             if args.classification_report:
-                cls_report = classification_report(out_label_list, preds_list)
+                cls_report = classification_report(out_label_list, preds_list, digits=4)
                 writer.write("{}\n".format(cls_report))
             for key in sorted(result.keys()):
                 writer.write("{} = {}\n".format(key, str(result[key])))

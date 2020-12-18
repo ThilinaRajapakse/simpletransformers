@@ -543,6 +543,42 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "DM2493",
+      "name": "DM2493",
+      "avatar_url": "https://avatars1.githubusercontent.com/u/59502011?v=4",
+      "profile": "https://github.com/DM2493",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "mapmeld",
+      "name": "Nick Doiron",
+      "avatar_url": "https://avatars0.githubusercontent.com/u/643918?v=4",
+      "profile": "https://mapmeld.com/ml",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "abhinavg97",
+      "name": "Abhinav Gupta",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/26171694?v=4",
+      "profile": "https://github.com/abhinavg97",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "martinnormark",
+      "name": "Martin H. Normark",
+      "avatar_url": "https://avatars3.githubusercontent.com/u/67565?v=4",
+      "profile": "https://martinnormark.com",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,

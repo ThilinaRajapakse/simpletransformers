@@ -23,6 +23,6 @@ model_args = {
     "wandb_project": "T5 mixed tasks - Binary, Multi-Label, Regression",
 }
 
-model = T5Model("t5-base", args=model_args)
+model = T5Model("t5", "t5-base", args=model_args)
 
 model.train_model(train_df, eval_data=eval_df)

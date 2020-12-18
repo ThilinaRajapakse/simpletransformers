@@ -23,7 +23,7 @@ from transformers.data.processors.squad import (
     squad_convert_example_to_features,
     squad_convert_example_to_features_init,
 )
-from transformers.tokenization_bert import BasicTokenizer, whitespace_tokenize
+from transformers.models.bert.tokenization_bert import BasicTokenizer, whitespace_tokenize
 
 logger = logging.getLogger(__name__)
 

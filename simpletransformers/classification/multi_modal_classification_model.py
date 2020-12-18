@@ -27,16 +27,23 @@ from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
+from transformers.optimization import (
+    get_constant_schedule,
+    get_constant_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
+    get_cosine_schedule_with_warmup,
+    get_cosine_with_hard_restarts_schedule_with_warmup,
+    get_polynomial_decay_schedule_with_warmup,
+)
+from transformers.optimization import AdamW, Adafactor
 from transformers import (
     BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
     WEIGHTS_NAME,
-    AdamW,
     BertConfig,
     BertModel,
     BertTokenizer,
-    get_linear_schedule_with_warmup,
 )
-from transformers.configuration_mmbt import MMBTConfig
+from transformers.models.mmbt.configuration_mmbt import MMBTConfig
 
 from simpletransformers.classification.classification_utils import (
     ImageEncoder,
@@ -226,7 +233,7 @@ class MultiModalClassificationModel:
         **kwargs,
     ):
         """
-        Trains the model using 'train_df'
+        Trains the model using 'train_data'
 
         Args:
             data: Path to data directory containing text files (JSON) and image files OR a Pandas DataFrame.
@@ -434,10 +441,67 @@ class MultiModalClassificationModel:
         warmup_steps = math.ceil(t_total * args.warmup_ratio)
         args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
 
-        optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
-        )
+        if args.optimizer == "AdamW":
+            optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+        elif args.optimizer == "Adafactor":
+            optimizer = Adafactor(
+                optimizer_grouped_parameters,
+                lr=args.learning_rate,
+                eps=args.adafactor_eps,
+                clip_threshold=args.adafactor_clip_threshold,
+                decay_rate=args.adafactor_decay_rate,
+                beta1=args.adafactor_beta1,
+                weight_decay=args.weight_decay,
+                scale_parameter=args.adafactor_scale_parameter,
+                relative_step=args.adafactor_relative_step,
+                warmup_init=args.adafactor_warmup_init,
+            )
+            print("Using Adafactor for T5")
+        else:
+            raise ValueError(
+                "{} is not a valid optimizer class. Please use one of ('AdamW', 'Adafactor') instead.".format(
+                    args.optimizer
+                )
+            )
+
+        if args.scheduler == "constant_schedule":
+            scheduler = get_constant_schedule(optimizer)
+
+        elif args.scheduler == "constant_schedule_with_warmup":
+            scheduler = get_constant_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps)
+
+        elif args.scheduler == "linear_schedule_with_warmup":
+            scheduler = get_linear_schedule_with_warmup(
+                optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+            )
+
+        elif args.scheduler == "cosine_schedule_with_warmup":
+            scheduler = get_cosine_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                num_cycles=args.cosine_schedule_num_cycles,
+            )
+
+        elif args.scheduler == "cosine_with_hard_restarts_schedule_with_warmup":
+            scheduler = get_cosine_with_hard_restarts_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                num_cycles=args.cosine_schedule_num_cycles,
+            )
+
+        elif args.scheduler == "polynomial_decay_schedule_with_warmup":
+            scheduler = get_polynomial_decay_schedule_with_warmup(
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
+                lr_end=args.polynomial_decay_schedule_lr_end,
+                power=args.polynomial_decay_schedule_lr_end,
+            )
+
+        else:
+            raise ValueError("{} is not a valid scheduler.".format(args.scheduler))
 
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
@@ -511,7 +575,8 @@ class MultiModalClassificationModel:
                 if (step + 1) % args.gradient_accumulation_steps == 0:
                     if args.fp16:
                         scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                    if args.optimizer == "AdamW":
+                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                     if args.fp16:
                         scaler.step(optimizer)
@@ -726,7 +791,7 @@ class MultiModalClassificationModel:
 
     def eval_model(
         self,
-        data,
+        eval_data,
         files_list=None,
         image_path=None,
         text_label=None,
@@ -740,7 +805,7 @@ class MultiModalClassificationModel:
         **kwargs,
     ):
         """
-        Evaluates the model on eval_df. Saves results to output_dir.
+        Evaluates the model on eval_data. Saves results to output_dir.
 
         Args:
             data: Path to data directory containing text files (JSON) and image files OR a Pandas DataFrame.
@@ -768,7 +833,7 @@ class MultiModalClassificationModel:
 
         Returns:
             result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
-            model_outputs: List of model outputs for each row in eval_df
+            model_outputs: List of model outputs for each row in eval_data
         """  # noqa: ignore flake8"
 
         if text_label:
