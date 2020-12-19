@@ -103,9 +103,10 @@ class T5Dataset(Dataset):
             else:
                 self.examples = [preprocess_data(d) for d in tqdm(data, disable=args.silent)]
 
-            logger.info(" Saving features into cached file %s", cached_features_file)
-            with open(cached_features_file, "wb") as handle:
-                pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            if not args.no_cache:
+                logger.info(" Saving features into cached file %s", cached_features_file)
+                with open(cached_features_file, "wb") as handle:
+                    pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def __len__(self):
         return len(self.examples)
