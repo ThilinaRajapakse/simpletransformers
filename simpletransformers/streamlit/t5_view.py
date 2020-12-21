@@ -74,9 +74,7 @@ def t5_viewer(model):
         "Max Generated Text Length", min_value=1, max_value=512, value=model.args.max_length
     )
 
-    model.args.length_penalty = st.sidebar.number_input(
-        "Length Penalty", value=model.args.length_penalty
-    )
+    model.args.length_penalty = st.sidebar.number_input("Length Penalty", value=model.args.length_penalty)
 
     model.args.early_stopping = st.sidebar.radio(
         "Early Stopping", ("True", "False"), index=0 if model.args.early_stopping else 1
@@ -94,24 +92,24 @@ def t5_viewer(model):
         model.args.num_beams = 1
 
     if model.args.do_sample:
-        model.args.top_k = st.sidebar.number_input(
-            "Top-k", value=model.args.top_k if model.args.top_k else 50
-        )
+        model.args.top_k = st.sidebar.number_input("Top-k", value=model.args.top_k if model.args.top_k else 50)
 
         model.args.top_p = st.sidebar.slider(
             "Top-p", min_value=0.0, max_value=1.0, value=model.args.top_p if model.args.top_p else 0.95
         )
     else:
-        model.args.num_beams = st.sidebar.number_input(
-            "Number of Beams", value=model.args.num_beams
-        )
+        model.args.num_beams = st.sidebar.number_input("Number of Beams", value=model.args.num_beams)
 
     st.markdown("## Instructions: ")
     st.markdown("The input to a T5 model can be providied in two ways.")
     st.markdown("### Using Prefix")
-    st.markdown("If you provide a value for the `prefix`, Simple Viewer will automatically insert `: ` between the `prefix` text and the `input` text.")
+    st.markdown(
+        "If you provide a value for the `prefix`, Simple Viewer will automatically insert `: ` between the `prefix` text and the `input` text."
+    )
     st.markdown("### Blank prefix")
-    st.markdown("You may also leave the `prefix` blank. In this case, you can provide a prefix and a separator at the start of the `input` text (if your model requires a prefix).")
+    st.markdown(
+        "You may also leave the `prefix` blank. In this case, you can provide a prefix and a separator at the start of the `input` text (if your model requires a prefix)."
+    )
 
     st.subheader("Enter prefix: ")
     prefix_text = st.text_input("")
