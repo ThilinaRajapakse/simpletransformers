@@ -12,6 +12,7 @@ from transformers import (
     AlbertTokenizer,
     BertConfig,
     BertTokenizer,
+    BertweetTokenizer,
     CamembertConfig,
     CamembertTokenizer,
     DistilBertConfig,
@@ -39,6 +40,7 @@ from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.custom_models.models import (
     AlbertForMultiLabelSequenceClassification,
     BertForMultiLabelSequenceClassification,
+    BertweetForMultiLabelSequenceClassification,
     CamembertForMultiLabelSequenceClassification,
     DistilBertForMultiLabelSequenceClassification,
     ElectraForMultiLabelSequenceClassification,
@@ -90,6 +92,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         MODEL_CLASSES = {
             "albert": (AlbertConfig, AlbertForMultiLabelSequenceClassification, AlbertTokenizer,),
             "bert": (BertConfig, BertForMultiLabelSequenceClassification, BertTokenizer,),
+            "bertweet": (RobertaConfig, BertweetForMultiLabelSequenceClassification, BertweetTokenizer),
             "camembert": (CamembertConfig, CamembertForMultiLabelSequenceClassification, CamembertTokenizer,),
             "distilbert": (DistilBertConfig, DistilBertForMultiLabelSequenceClassification, DistilBertTokenizer,),
             "electra": (ElectraConfig, ElectraForMultiLabelSequenceClassification, ElectraTokenizer),

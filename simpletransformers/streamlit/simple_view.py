@@ -32,7 +32,7 @@ model_class_map = {
     "MultiLabelClassificationModel": "Multi-Label Classification Model",
     "QuestionAnsweringModel": "Question Answering Model",
     "NERModel": "NER Model",
-    "T5Model": "T5 Model"
+    "T5Model": "T5 Model",
 }
 
 
