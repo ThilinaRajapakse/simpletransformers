@@ -601,7 +601,8 @@ class T5Model:
                     **kwargs,
                 )
 
-                self.save_model(output_dir_current, optimizer, scheduler, results=results)
+                if args.save_eval_checkpoints:
+                    self.save_model(output_dir_current, optimizer, scheduler, results=results)
 
                 training_progress_scores["global_step"].append(global_step)
                 training_progress_scores["train_loss"].append(current_loss)
