@@ -347,7 +347,7 @@ def convert_examples_to_features(
             )
     else:
         features = []
-        for example in tqdm(examples):
+        for example in tqdm(examples, disable=silent):
             features.append(convert_example_to_feature(example))
     return features
 
