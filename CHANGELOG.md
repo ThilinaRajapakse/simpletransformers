@@ -6,9 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.51.6] - 2020-12-10
 
+### Added
+
+- Added BERTweet for multilabel classification [@manueltonneau](https://github.com/manueltonneau)
+
 ### Fixed
 
 - Fixed bug where `T5Model` would save evaluation checkpoints even when `save_eval_checkpoints` is False.
+- Fixed bug where `args.silent` was not used in `NERModel`. [mossadhelali](https://github.com/mossadhelali)
 
 ### Changed
 
