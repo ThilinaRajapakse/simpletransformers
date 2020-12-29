@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.7] - 2020-12-29
+
+### Fixed
+
+- Fixed bug during predicton when `sliding_window=True` and `output_hidden_states=True` [calebchiam](https://github.com/calebchiam)
+
 ## [0.51.6] - 2020-12-10
 
 ### Added
@@ -1321,7 +1327,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.51.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0609ccd...HEAD
+[0.51.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/58a563e...HEAD
+
+[0.51.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0609ccd...58a563e
 
 [0.51.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c733785...0609ccd
 
