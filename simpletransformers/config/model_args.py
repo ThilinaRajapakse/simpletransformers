@@ -29,7 +29,7 @@ class ModelArgs:
     cosine_schedule_num_cycles: float = 0.5
     custom_layer_parameters: list = field(default_factory=list)
     custom_parameter_groups: list = field(default_factory=list)
-    dataloader_num_workers: int = field(default_factory=get_default_process_count)
+    dataloader_num_workers: int = 0
     do_lower_case: bool = False
     dynamic_quantize: bool = False
     early_stopping_consider_epochs: bool = False

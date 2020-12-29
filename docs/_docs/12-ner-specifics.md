@@ -1,8 +1,8 @@
 ---
-title: Named Entitty Recognition Specifics
+title: Named Entity Recognition Specifics
 permalink: /docs/ner-specifics/
 excerpt: "Specific notes for Named Entity Recognition tasks."
-last_modified_at: 2020/11/09 19:05:11
+last_modified_at: 2020/12/17 12:51:46
 toc: true
 ---
 

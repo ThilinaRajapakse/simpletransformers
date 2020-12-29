@@ -127,6 +127,16 @@ class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
         return outputs
 
 
+class BertweetForMultiLabelSequenceClassification(RobertaForMultiLabelSequenceClassification):
+    """
+    BERTweet model adapted for multi-label sequence classification.
+    BERTweet shares the Roberta architecture, so we can reuse the simpletransformers
+    RobertaForMultiLabelSequenceClassification implementation
+    """
+
+    base_model_prefix = "bertweet"
+
+
 class CamembertForMultiLabelSequenceClassification(RobertaForMultiLabelSequenceClassification):
     """
     Camembert model adapted for multi-label sequence classification.

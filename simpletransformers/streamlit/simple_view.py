@@ -11,12 +11,13 @@ from simpletransformers.classification import (
 )
 from simpletransformers.ner import NERModel
 from simpletransformers.question_answering import QuestionAnsweringModel
-from simpletransformers.t5 import T5Model
+from simpletransformers.t5 import T5Model, T5Args
 from simpletransformers.seq2seq import Seq2SeqModel
 from simpletransformers.streamlit.streamlit_utils import cache_on_button_press
 from simpletransformers.streamlit.qa_view import qa_viewer
 from simpletransformers.streamlit.classification_view import classification_viewer
 from simpletransformers.streamlit.ner_view import ner_viewer
+from simpletransformers.streamlit.t5_view import t5_viewer
 
 
 logging.basicConfig(level=logging.WARNING)
@@ -31,6 +32,7 @@ model_class_map = {
     "MultiLabelClassificationModel": "Multi-Label Classification Model",
     "QuestionAnsweringModel": "Question Answering Model",
     "NERModel": "NER Model",
+    "T5Model": "T5 Model",
 }
 
 
@@ -79,6 +81,10 @@ def create_model(model_class, model_type, model_name, num_labels, weight, args, 
         return QuestionAnsweringModel(model_type, model_name, args, use_cuda, cuda_device, **kwargs)
     elif model_class == "NERModel":
         return NERModel(model_type, model_name, args=args, use_cuda=use_cuda, cuda_device=cuda_device, **kwargs)
+    elif model_class == "T5Model":
+        args = T5Args()
+        args.use_multiprocessed_decoding = False
+        return T5Model(model_type, model_name, args=args, use_cuda=use_cuda, cuda_device=cuda_device, **kwargs)
     else:
         raise ValueError("{} is either invalid or not yet implemented.".format(model_class))
 
@@ -167,3 +173,5 @@ def streamlit_runner(
         model = qa_viewer(model)
     elif model_class == "NERModel":
         model = ner_viewer(model)
+    elif model_class == "T5Model":
+        model = t5_viewer(model)

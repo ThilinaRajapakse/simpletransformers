@@ -1406,8 +1406,8 @@ class ClassificationModel:
                         )
                         all_embedding_outputs = embedding_outputs.detach().cpu().numpy()
                     else:
-                        # preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                        # out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
+                        preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
+                        out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
                         all_layer_hidden_states = np.append(
                             all_layer_hidden_states,
                             np.array([state.detach().cpu().numpy() for state in layer_hidden_states]),
