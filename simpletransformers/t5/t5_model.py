@@ -132,6 +132,10 @@ class T5Model:
         if not use_cuda:
             self.args.fp16 = False
 
+        if self.args.special_tokens_list:
+            self.tokenizer.add_tokens(self.args.special_tokens_list, special_tokens=True)
+            self.model.resize_token_embeddings(len(self.tokenizer))
+
         self.args.model_type = model_type
         if model_name is None:
             self.args.model_name = "T5_from_scratch"

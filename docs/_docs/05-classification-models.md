@@ -2,7 +2,7 @@
 title: "Classification Models"
 permalink: /docs/classification-models/
 excerpt: "Model class used for text classification"
-last_modified_at: 2020/08/10 01:17:45
+last_modified_at: 2020/12/29 17:01:00
 toc: true
 ---
 
@@ -137,6 +137,7 @@ model = ClassificationModel(
 | lazy_text_column        | int       | `0`     | The column (based on the delimiter) containing text for lazy loading single sentence datasets                                                         |
 | regression              | int       | `False` | Set True when doing regression. `num_labels` parameter in the model must also be set to `1`.                                                          |
 | sliding_window          | bool      | `False` | Whether to use sliding window technique to prevent truncating longer sequences                                                                        |
+| special_tokens_list     | list      | []      | The list of special tokens to be added to the model tokenizer                                                                                         |
 | stride                  | float/int | `0.8`   | The distance to move the window when generating sub-sequences using a sliding window. Can be a fraction of the `max_seq_length` OR a number of tokens |
 | tie_value               | int       | `1`     | The tie_value will be used as the prediction label for any samples where the sliding window predictions are tied                                      |
 

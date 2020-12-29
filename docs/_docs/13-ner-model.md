@@ -2,7 +2,7 @@
 title: NER Model
 permalink: /docs/ner-model/
 excerpt: "NERModel for named entity recognition."
-last_modified_at: 2020/08/10 01:17:45
+last_modified_at: 2020/12/29 17:01:21
 toc: true
 ---
 
@@ -45,6 +45,7 @@ model = NERModel(
 | --------------------- | ---- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | classification_report | bool | `True`                                                                             | If True, a sklearn classification report will be written to the `output_dir` |
 | labels_list           | list | `["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"]` | A list of all token labels.                                                  |
+| special_tokens_list     | list      | []      | The list of special tokens to be added to the model tokenizer                                                                                         |
 
 ```python
 from simpletransformers.ner import NERModel, NERArgs

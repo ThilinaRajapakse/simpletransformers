@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.8] - 2020-12-29
+
+### Added
+
+- Added the `special_tokens_list` arg which can be used to add additional special tokens to the tokenizer [karthik19967829](https://github.com/karthik19967829)
+
 ## [0.51.7] - 2020-12-29
 
 ### Fixed
@@ -1327,7 +1333,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.51.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/58a563e...HEAD
+[0.51.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3cfc400...HEAD
+
+[0.51.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/58a563e...3cfc400
 
 [0.51.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0609ccd...58a563e
 

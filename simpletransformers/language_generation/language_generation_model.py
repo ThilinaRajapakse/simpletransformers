@@ -99,6 +99,10 @@ class LanguageGenerationModel:
         else:
             self.device = "cpu"
 
+        if self.args.special_tokens_list:
+            self.tokenizer.add_tokens(self.args.special_tokens_list, special_tokens=True)
+            self.model.resize_token_embeddings(len(self.tokenizer))
+
         self.args.model_name = model_name
         self.args.model_type = model_type
 

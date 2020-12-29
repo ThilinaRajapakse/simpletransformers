@@ -2,7 +2,7 @@
 title: Multi-Modal Classification Model
 permalink: /docs/multi-modal-classification-model/
 excerpt: "MultiModalClassificationModel for Multi-Modal Classification tasks."
-last_modified_at: 2020/12/08 15:22:42
+last_modified_at: 2020/12/29 17:01:58
 toc: true
 ---
 
@@ -51,6 +51,7 @@ model = MultiModalClassificationModel(
 | images_label               | str   | `images`    | The name of the *images* column/field in the dataset.                                                        |
 | image_type_extension               | str   | `""`    | The file type extension for image files (e.g. .json, .jpg). Only required if filepaths in the datasets do not include the file extensions.                                                        |
 | data_type_extension               | str   | `""`    | The file type extension for text files (e.g. .json, .jpg). Only required if filepaths in the datasets do not include the file extensions.                                                        |
+| special_tokens_list     | list      | []      | The list of special tokens to be added to the model tokenizer                                                                                         |
 
 ```python
 from simpletransformers.classification import MultiModalClassificationModel, MultiModalClassificationArgs

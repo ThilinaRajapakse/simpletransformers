@@ -183,15 +183,9 @@ class MultiModalClassificationModel:
 
         self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
 
-        self.args.model_name = model_name
-        self.args.model_type = model_type
-
-        if model_type in ["camembert", "xlmroberta"]:
-            warnings.warn(
-                f"use_multiprocessing automatically disabled as {model_type}"
-                " fails when using multiprocessing for feature conversion."
-            )
-            self.args.use_multiprocessing = False
+        if self.args.special_tokens_list:
+            self.tokenizer.add_tokens(self.args.special_tokens_list, special_tokens=True)
+            self.model.resize_token_embeddings(len(self.tokenizer))
 
         self.args.model_name = model_name
         self.args.model_type = model_type

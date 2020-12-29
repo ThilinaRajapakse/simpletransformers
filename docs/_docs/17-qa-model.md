@@ -2,7 +2,7 @@
 title: Question Answering Model
 permalink: /docs/qa-model/
 excerpt: "QuestionAnsweringModel for Question Answering tasks."
-last_modified_at: 2020/08/10 01:17:45
+last_modified_at: 2020/12/29 17:01:27
 toc: true
 ---
 
@@ -49,6 +49,7 @@ model = QuestionAnsweringModel(
 | n_best_size               | int   | `20`    | The number of predictions given per question.                                                        |
 | max_answer_length         | int   | `100`   | The maximum token length of an answer that can be generated.                                         |
 | null_score_diff_threshold | float | `0.0`   | If `(null_score - best_non_null)` is greater than the threshold predict null.                            |
+| special_tokens_list     | list      | []      | The list of special tokens to be added to the model tokenizer                                                                                         |
 
 ```python
 from simpletransformers.question_answering import QuestionAnsweringModel, QuestionAnsweringArgs
