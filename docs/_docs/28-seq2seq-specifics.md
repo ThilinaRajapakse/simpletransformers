@@ -2,13 +2,13 @@
 title: Seq2Seq Specifics
 permalink: /docs/seq2seq-specifics/
 excerpt: "Specific notes for Seq2Seq tasks."
-last_modified_at: 2020/11/09 18:57:28
+last_modified_at: 2020/12/30 23:50:50
 toc: true
 ---
 
 Sequence-to-Sequence models (`Seq2SeqModel`) are models where both the input and targets are text sequences. For example, translation and summarization are sequence-to-sequence tasks.
 
-Currently, three main types of Sequence-to-Sequence models are available.
+Currently, four main types of Sequence-to-Sequence models are available.
 
 - BART *(Summarization)*
 - MBART *(Translation)*
