@@ -40,7 +40,7 @@ model_args = {
     "max_length": 15,
 }
 
-model = Seq2SeqModel("bert-base-cased", "bert-base-cased", args=model_args)
+model = Seq2SeqModel("bert", "bert-base-cased", "bert-base-cased", args=model_args)
 
 
 def count_matches(labels, preds):
