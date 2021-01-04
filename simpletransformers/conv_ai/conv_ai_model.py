@@ -77,8 +77,8 @@ ATTR_TO_SPECIAL_TOKEN = {
     "pad_token": "<pad>",
     "additional_special_tokens": ["<speaker1>", "<speaker2>"],
 }
-MODEL_INPUTS = ["input_ids", "mc_token_ids", "lm_labels", "mc_labels", "token_type_ids"]
-PADDED_INPUTS = ["input_ids", "lm_labels", "token_type_ids"]
+MODEL_INPUTS = ["input_ids", "mc_token_ids", "labels", "mc_labels", "token_type_ids"]
+PADDED_INPUTS = ["input_ids", "labels", "token_type_ids"]
 
 
 class ConvAIModel:
@@ -418,17 +418,19 @@ class ConvAIModel:
             )
             for step, batch in enumerate(batch_iterator):
                 batch = tuple(t.to(device) for t in batch)
-                input_ids, mc_token_ids, lm_labels, mc_labels, token_type_ids = batch
+                input_ids, mc_token_ids, labels, mc_labels, token_type_ids = batch
 
                 if args.fp16:
                     with amp.autocast():
-                        (lm_loss), (mc_loss), *_ = model(
+                        outputs = model(
                             input_ids,
                             token_type_ids=token_type_ids,
                             mc_token_ids=mc_token_ids,
                             mc_labels=mc_labels,
-                            lm_labels=lm_labels,
+                            labels=labels,
                         )
+
+                        lm_loss, mc_loss = outputs[:2]
                         # model outputs are always tuple in pytorch-transformers (see doc)
                         loss = lm_loss * args.lm_coef + mc_loss * args.mc_coef
                 else:
@@ -437,7 +439,7 @@ class ConvAIModel:
                         token_type_ids=token_type_ids,
                         mc_token_ids=mc_token_ids,
                         mc_labels=mc_labels,
-                        lm_labels=lm_labels,
+                        labels=labels,
                     )
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = lm_loss * args.lm_coef + mc_loss * args.mc_coef
@@ -690,27 +692,29 @@ class ConvAIModel:
             batch = tuple(t.to(device) for t in batch)
 
             with torch.no_grad():
-                input_ids, mc_token_ids, lm_labels, mc_labels, token_type_ids = batch
+                input_ids, mc_token_ids, labels, mc_labels, token_type_ids = batch
 
                 if args.fp16:
                     with amp.autocast():
-                        lm_logits, mc_logits, *_ = model(
+                        outputs = model(
                             input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,
                         )
+                        lm_logits, mc_logits = outputs[:2]
                 else:
-                    lm_logits, mc_logits, *_ = model(
+                    outputs = model(
                         input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,
                     )
+                    lm_logits, mc_logits = outputs[:2]
                 # model outputs are always tuple in pytorch-transformers (see doc)
 
                 lm_logits_flat_shifted = lm_logits[..., :-1, :].contiguous().view(-1, lm_logits.size(-1))
-                lm_labels_flat_shifted = lm_labels[..., 1:].contiguous().view(-1)
+                labels_flat_shifted = labels[..., 1:].contiguous().view(-1)
 
             nb_eval_steps += 1
 
             mc_logits = [np.argmax(pred) for pred in mc_logits.cpu().numpy()]
             f1_current = f1_score(mc_labels.cpu().numpy(), mc_logits, average="macro")
-            lm_loss_current = loss_fct(lm_logits_flat_shifted, lm_labels_flat_shifted)
+            lm_loss_current = loss_fct(lm_logits_flat_shifted, labels_flat_shifted)
 
             results["language_model_loss"].append(lm_loss_current.cpu().numpy().item())
             results["f1_score"].append(f1_current)
@@ -767,8 +771,8 @@ class ConvAIModel:
                 for utterance in dialog["utterances"]:
                     history = utterance["history"][-(2 * args.max_history + 1) :]
                     for j, candidate in enumerate(utterance["candidates"][-num_candidates:]):
-                        lm_labels = bool(j == num_candidates - 1)
-                        instance = self.build_input_from_segments(persona, history, candidate, tokenizer, lm_labels)
+                        labels = bool(j == num_candidates - 1)
+                        instance = self.build_input_from_segments(persona, history, candidate, tokenizer, labels)
                         for input_name, input_array in instance.items():
                             datasets[input_name].append(input_array)
                     datasets["mc_labels"].append(num_candidates - 1)
@@ -803,7 +807,7 @@ class ConvAIModel:
         # logger.info(" valid dataset (Batch, Candidates, Seq length): {}".format(valid_dataset.tensors[0].shape))
         return data_loader, data_sampler
 
-    def compute_metrics(self, mc_preds, mc_labels, lm_logits, lm_labels, **kwargs):
+    def compute_metrics(self, mc_preds, mc_labels, lm_logits, labels, **kwargs):
         """
         Computes the evaluation metrics for the model predictions.
 
@@ -811,7 +815,7 @@ class ConvAIModel:
             mc_preds: Model next sentence predictions.
             mc_labels: Ground truth next sentence.
             lm_logits: Language model logits.
-            lm_labels: Language model ground truth.
+            labels: Language model ground truth.
             eval_examples: List of examples on which evaluation was performed
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
@@ -826,7 +830,7 @@ class ConvAIModel:
             extra_metrics[metric] = func(mc_labels, mc_preds)
 
         f1_current = f1_score(mc_labels.cpu().numpy(), mc_preds, average="macro")
-        lm_loss_current = loss_fct(lm_logits, lm_labels)
+        lm_loss_current = loss_fct(lm_logits, labels)
 
         return {**{"f1_score": f1_current, "language_model_loss": lm_loss_current}, **extra_metrics}
 
@@ -964,9 +968,9 @@ class ConvAIModel:
         self.model.to(self.device)
 
     # def _get_inputs_dict(self, batch):
-    #     input_ids, mc_token_ids, lm_labels, mc_labels, token_type_ids = batch
+    #     input_ids, mc_token_ids, labels, mc_labels, token_type_ids = batch
 
-    #     return input_ids, mc_token_ids, lm_labels, mc_labels, token_type_ids
+    #     return input_ids, mc_token_ids, labels, mc_labels, token_type_ids
 
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
@@ -1006,7 +1010,7 @@ class ConvAIModel:
         if num_added_tokens > 0:
             self.model.resize_token_embeddings(new_num_tokens=orig_num_tokens + num_added_tokens)
 
-    def build_input_from_segments(self, persona, history, reply, tokenizer, lm_labels=False, with_eos=True):
+    def build_input_from_segments(self, persona, history, reply, tokenizer, labels=False, with_eos=True):
         """ Build a sequence of input from 3 segments: persona, history and last reply. """
         bos, eos, speaker1, speaker2 = tokenizer.convert_tokens_to_ids(SPECIAL_TOKENS[:-1])
         sequence = [[bos] + list(chain(*persona))] + history + [reply + ([eos] if with_eos else [])]
@@ -1017,9 +1021,9 @@ class ConvAIModel:
         instance["input_ids"] = list(chain(*sequence))
         instance["token_type_ids"] = [speaker2 if i % 2 else speaker1 for i, s in enumerate(sequence) for _ in s]
         instance["mc_token_ids"] = len(instance["input_ids"]) - 1
-        instance["lm_labels"] = [-100] * len(instance["input_ids"])
-        if lm_labels:
-            instance["lm_labels"] = ([-100] * sum(len(s) for s in sequence[:-1])) + [-100] + sequence[-1][1:]
+        instance["labels"] = [-100] * len(instance["input_ids"])
+        if labels:
+            instance["labels"] = ([-100] * sum(len(s) for s in sequence[:-1])) + [-100] + sequence[-1][1:]
         return instance
 
     def pad_dataset(self, dataset, padding=0):
@@ -1027,7 +1031,7 @@ class ConvAIModel:
         but this is simpler. """
         max_l = max(len(x) for x in dataset["input_ids"])
         for name in PADDED_INPUTS:
-            dataset[name] = [x + [padding if name != "lm_labels" else -100] * (max_l - len(x)) for x in dataset[name]]
+            dataset[name] = [x + [padding if name != "labels" else -100] * (max_l - len(x)) for x in dataset[name]]
         return dataset
 
     def top_filtering(self, logits, top_k=0.0, top_p=0.9, threshold=-float("Inf"), filter_value=-float("Inf")):

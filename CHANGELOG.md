@@ -4,8 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.51.9] - 2020-12-29
-## [0.51.8] - 2020-12-29
+## [0.51.10] - 2020-12-29
+
+### Fixed
+
+- Fixed bug in `QuestionAnsweringModel` when using cached features for evaluation
+- Fixed bugs in `ConvAIModel` due to compatibility issues
+
+
+## [0.51.9] / [0.51.8] - 2020-12-29
+
+## [0.51.9] / [0.51.8] - 2020-12-29
+
+## [0.51.9] / [0.51.8] - 2020-12-29
 
 ### Added
 
@@ -1334,7 +1345,12 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.51.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3cfc400...HEAD
+
+[0.51.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3ce3651...HEAD
+
+[0.51.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3cfc400...3ce3651
+
+[0.51.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3cfc400...3ce3651
 
 [0.51.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/58a563e...3cfc400
 
