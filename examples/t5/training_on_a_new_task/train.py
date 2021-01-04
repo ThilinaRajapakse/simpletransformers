@@ -22,6 +22,6 @@ model_args = {
     "wandb_project": "Question Generation with T5",
 }
 
-model = T5Model("t5-large", args=model_args)
+model = T5Model("t5","t5-large",args=model_args)
 
 model.train_model(train_df, eval_data=eval_df)
