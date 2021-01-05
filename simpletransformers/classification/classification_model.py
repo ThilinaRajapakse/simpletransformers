@@ -26,7 +26,8 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
     roc_curve,
-    auc
+    auc,
+    average_precision_score
 )
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -1240,7 +1241,9 @@ class ClassificationModel:
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
-            result: Dictionary containing evaluation results. (Matthews correlation coefficient, tp, tn, fp, fn)
+            result: Dictionary containing evaluation results. 
+            For non-binary classification, the dictionary format is: (Matthews correlation coefficient, tp, tn, fp, fn). 
+            For binary classification, the dictionary format is: (Matthews correlation coefficient, tp, tn, fp, fn, AUROC, AUPRC). 
             wrong: List of InputExample objects corresponding to each incorrect prediction by the model
         """  # noqa: ignore flake8"
 
@@ -1277,11 +1280,12 @@ class ClassificationModel:
         mcc = matthews_corrcoef(labels, preds)
         scores = np.array([softmax(element)[1] for element in model_outputs])
         fpr, tpr, thresholds = roc_curve(labels, scores)
-        auc_eval = auc(fpr, tpr)
+        auroc = auc(fpr, tpr)
+        auprc = average_precision_score(labels, scores)
         if self.model.num_labels == 2:
             tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
             return (
-                {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn, "auc": auc_eval}, **extra_metrics},
+                {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn, "auroc": auroc, "auprc": auprc}, **extra_metrics},
                 wrong,
             )
         else:
