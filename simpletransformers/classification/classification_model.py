@@ -19,11 +19,14 @@ import numpy as np
 import pandas as pd
 import torch
 from scipy.stats import mode, pearsonr
+from scipy.special import softmax
 from sklearn.metrics import (
     confusion_matrix,
     label_ranking_average_precision_score,
     matthews_corrcoef,
     mean_squared_error,
+    roc_curve,
+    auc
 )
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -1071,7 +1074,7 @@ class ClassificationModel:
             if not multi_label:
                 preds = np.argmax(preds, axis=1)
 
-        result, wrong = self.compute_metrics(preds, out_label_ids, eval_examples, **kwargs)
+        result, wrong = self.compute_metrics(preds, model_outputs, out_label_ids, eval_examples, **kwargs)
         result["eval_loss"] = eval_loss
         results.update(result)
 
@@ -1224,12 +1227,13 @@ class ClassificationModel:
         else:
             return dataset
 
-    def compute_metrics(self, preds, labels, eval_examples=None, multi_label=False, **kwargs):
+    def compute_metrics(self, preds, model_outputs, labels, eval_examples=None, multi_label=False, **kwargs):
         """
         Computes the evaluation metrics for the model predictions.
 
         Args:
             preds: Model predictions
+            model_outputs: Model outputs
             labels: Ground truth labels
             eval_examples: List of examples on which evaluation was performed
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
@@ -1271,11 +1275,13 @@ class ClassificationModel:
             return {**extra_metrics}, wrong
 
         mcc = matthews_corrcoef(labels, preds)
-
+        scores = np.array([softmax(element)[1] for element in model_outputs])
+        fpr, tpr, thresholds = roc_curve(labels, scores)
+        auc_eval = auc(fpr, tpr)
         if self.model.num_labels == 2:
             tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
             return (
-                {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn}, **extra_metrics},
+                {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn, "auc": auc_eval}, **extra_metrics},
                 wrong,
             )
         else:
