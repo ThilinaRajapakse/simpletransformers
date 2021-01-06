@@ -1600,6 +1600,8 @@ class ClassificationModel:
                     "mcc": [],
                     "train_loss": [],
                     "eval_loss": [],
+                    "auroc": [],
+                    "auprc": [],
                     **extra_metrics,
                 }
             elif self.model.num_labels == 1:
