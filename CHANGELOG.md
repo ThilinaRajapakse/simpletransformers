@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.11] - 2021-01-09
+
+### Changed
+
+- Removed `do_lower_case` when using `AutoTokenizer`
+
 ## [0.51.10] - 2020-12-29
 
 ### Fixed
@@ -1345,6 +1351,8 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
+
+[0.51.11]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3ce3651...HEAD
 
 [0.51.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3ce3651...HEAD
 

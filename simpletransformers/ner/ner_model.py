@@ -239,6 +239,10 @@ class NERModel:
             self.tokenizer = tokenizer_class.from_pretrained(
                 model_name, do_lower_case=self.args.do_lower_case, normalization=True, **kwargs
             )
+        elif model_type == "auto":
+            self.tokenizer = tokenizer_class.from_pretrained(
+                model_name, **kwargs
+            )
         else:
             self.tokenizer = tokenizer_class.from_pretrained(
                 model_name, do_lower_case=self.args.do_lower_case, **kwargs
