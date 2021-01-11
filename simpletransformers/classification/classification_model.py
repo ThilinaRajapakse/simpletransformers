@@ -1242,9 +1242,9 @@ class ClassificationModel:
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
         Returns:
-            result: Dictionary containing evaluation results. 
-            For non-binary classification, the dictionary format is: (Matthews correlation coefficient, tp, tn, fp, fn). 
-            For binary classification, the dictionary format is: (Matthews correlation coefficient, tp, tn, fp, fn, AUROC, AUPRC). 
+            result: Dictionary containing evaluation results.
+            For non-binary classification, the dictionary format is: (Matthews correlation coefficient, tp, tn, fp, fn).
+            For binary classification, the dictionary format is: (Matthews correlation coefficient, tp, tn, fp, fn, AUROC, AUPRC).
             wrong: List of InputExample objects corresponding to each incorrect prediction by the model
         """  # noqa: ignore flake8"
 
@@ -1279,11 +1279,12 @@ class ClassificationModel:
             return {**extra_metrics}, wrong
 
         mcc = matthews_corrcoef(labels, preds)
-        scores = np.array([softmax(element)[1] for element in model_outputs])
-        fpr, tpr, thresholds = roc_curve(labels, scores)
-        auroc = auc(fpr, tpr)
-        auprc = average_precision_score(labels, scores)
+
         if self.model.num_labels == 2:
+            scores = np.array([softmax(element)[1] for element in model_outputs])
+            fpr, tpr, thresholds = roc_curve(labels, scores)
+            auroc = auc(fpr, tpr)
+            auprc = average_precision_score(labels, scores)
             tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
             return (
                 {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn, "auroc": auroc, "auprc": auprc}, **extra_metrics},
