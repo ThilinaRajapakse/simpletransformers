@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.12] - 2021-01-11
+
+### Changed
+
+- Added Area under the ROC curve (AUROC) and the Area under the Precision-Recall curve (AUPRC) as default metrics for binary classification [@manueltonneau](https://github.com/manueltonneau)
+
+### Fixed
+
+- Fixed issues with models not being set to train modd when evaluating while training [nilboy](https://github.com/nilboy)
+
 ## [0.51.11] - 2021-01-09
 
 ### Changed
