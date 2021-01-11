@@ -615,6 +615,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "nilboy",
+      "name": "xia jiang",
+      "avatar_url": "https://avatars2.githubusercontent.com/u/17962699?v=4",
+      "profile": "https://github.com/nilboy",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
