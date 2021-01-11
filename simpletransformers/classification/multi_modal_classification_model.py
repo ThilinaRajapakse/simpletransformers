@@ -690,6 +690,7 @@ class MultiModalClassificationModel:
                                             if not self.args.evaluate_during_training
                                             else training_progress_scores,
                                         )
+                        model.train()
 
             epoch_number += 1
             output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
