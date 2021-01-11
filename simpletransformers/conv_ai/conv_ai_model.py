@@ -618,6 +618,7 @@ class ConvAIModel:
                         best_eval_metric = results[args.early_stopping_metric]
                         self.save_model(args.best_model_dir, model=model, results=results)
                         early_stopping_counter = 0
+                model.train()
 
         return (
             global_step,

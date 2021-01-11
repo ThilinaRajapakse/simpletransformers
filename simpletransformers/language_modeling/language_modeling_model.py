@@ -807,6 +807,7 @@ class LanguageModelingModel:
                                             if not self.args.evaluate_during_training
                                             else training_progress_scores,
                                         )
+                        model.train()
 
                 if args.max_steps > 0 and global_step > args.max_steps:
                     return (
