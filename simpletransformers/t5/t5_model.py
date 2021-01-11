@@ -17,7 +17,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
-from transformers import T5Config, T5ForConditionalGeneration, T5Tokenizer
+from transformers.models.t5 import T5Config, T5ForConditionalGeneration, T5Tokenizer
 from transformers.optimization import (
     get_constant_schedule,
     get_constant_schedule_with_warmup,
@@ -27,7 +27,7 @@ from transformers.optimization import (
     get_polynomial_decay_schedule_with_warmup,
 )
 from transformers.optimization import AdamW, Adafactor
-from transformers import MT5Config, MT5ForConditionalGeneration
+from transformers.models.mt5 import MT5Config, MT5ForConditionalGeneration
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import T5Args
