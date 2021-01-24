@@ -1279,17 +1279,22 @@ class ClassificationModel:
             return {**extra_metrics}, wrong
 
         mcc = matthews_corrcoef(labels, preds)
-
         if self.model.num_labels == 2:
-            scores = np.array([softmax(element)[1] for element in model_outputs])
-            fpr, tpr, thresholds = roc_curve(labels, scores)
-            auroc = auc(fpr, tpr)
-            auprc = average_precision_score(labels, scores)
             tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
-            return (
-                {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn, "auroc": auroc, "auprc": auprc}, **extra_metrics},
-                wrong,
-            )
+            if self.args.sliding_window:
+                return (
+                    {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn}, **extra_metrics},
+                    wrong,
+                )
+            else:
+                scores = np.array([softmax(element)[1] for element in model_outputs])
+                fpr, tpr, thresholds = roc_curve(labels, scores)
+                auroc = auc(fpr, tpr)
+                auprc = average_precision_score(labels, scores)
+                return (
+                    {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn, "auroc": auroc, "auprc": auprc}, **extra_metrics},
+                    wrong,
+                )
         else:
             return {**{"mcc": mcc}, **extra_metrics}, wrong
 
@@ -1593,19 +1598,32 @@ class ClassificationModel:
             }
         else:
             if self.model.num_labels == 2:
-                training_progress_scores = {
-                    "global_step": [],
-                    "tp": [],
-                    "tn": [],
-                    "fp": [],
-                    "fn": [],
-                    "mcc": [],
-                    "train_loss": [],
-                    "eval_loss": [],
-                    "auroc": [],
-                    "auprc": [],
-                    **extra_metrics,
-                }
+                if self.args.sliding_window:
+                    training_progress_scores = {
+                        "global_step": [],
+                        "tp": [],
+                        "tn": [],
+                        "fp": [],
+                        "fn": [],
+                        "mcc": [],
+                        "train_loss": [],
+                        "eval_loss": [],
+                        **extra_metrics,
+                    }
+                else:
+                    training_progress_scores = {
+                        "global_step": [],
+                        "tp": [],
+                        "tn": [],
+                        "fp": [],
+                        "fn": [],
+                        "mcc": [],
+                        "train_loss": [],
+                        "eval_loss": [],
+                        "auroc": [],
+                        "auprc": [],
+                        **extra_metrics,
+                    }
             elif self.model.num_labels == 1:
                 training_progress_scores = {
                     "global_step": [],
