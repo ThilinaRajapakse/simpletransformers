@@ -351,6 +351,7 @@ class LanguageGenerationArgs(ModelArgs):
     xlm_language: str = ""
     config_name: str = None
     tokenizer_name: str = None
+    special_tokens_list: list = field(default_factory=list)
 
 
 @dataclass
