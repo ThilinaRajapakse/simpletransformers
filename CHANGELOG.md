@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.51.15] - 2021-01-24
+
+## Fixed
+
+- Fixed bug in Language Generation models [mapmeld](https://github.com/mapmeld)
+- Fixed bug in MBart models [nilboy](https://github.com/nilboy)
+
 ## [0.51.14] - 2021-01-24
 
 ### Fixed
@@ -1373,7 +1380,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.51.13]: https://github.com/ThilinaRajapakse/simpletransformers/compare/278fca1...HEAD
+[0.51.15]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2af55e9...HEAD
+
+[0.51.14]: https://github.com/ThilinaRajapakse/simpletransformers/compare/278fca1...2af55e9
 
 [0.51.13]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4a5c295...278fca1
 
