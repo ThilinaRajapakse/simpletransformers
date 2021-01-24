@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
+import transformers
 from tensorboardX import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
@@ -77,6 +78,9 @@ try:
     wandb_available = True
 except ImportError:
     wandb_available = False
+
+if transformers.__version__ < '4.2.0':
+    MBartForConditionalGeneration._keys_to_ignore_on_save = []
 
 logger = logging.getLogger(__name__)
 
