@@ -5,13 +5,14 @@ from transformers.models.layoutlm.modeling_layoutlm import LayoutLMModel
 
 
 class LayoutLMForSequenceClassification(BertPreTrainedModel):
-    def __init__(self, config):
+    def __init__(self, config, weight=None):
         super(LayoutLMForSequenceClassification, self).__init__(config)
         self.num_labels = config.num_labels
 
         self.bert = LayoutLMModel(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, self.config.num_labels)
+        self.weight = weight
 
         self.init_weights()
 

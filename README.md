@@ -47,7 +47,7 @@ Supports
 `conda create -n st python pandas tqdm`
 `conda activate st`
 If using cuda:
-&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch>=1.6 cudatoolkit=10.2 -c pytorch`
+&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch>=1.6 cudatoolkit=11.0 -c pytorch`
 else:
 &nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cpuonly -c pytorch`
 

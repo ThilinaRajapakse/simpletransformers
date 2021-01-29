@@ -2,7 +2,7 @@
 title: Installation
 permalink: /docs/installation/
 excerpt: "Instructions for installing the Simple Transformers library."
-last_modified_at: 2020/08/05 18:19:13
+last_modified_at: 2021/01/29 00:29:07
 toc: true
 ---
 
@@ -22,7 +22,7 @@ Follow the instructions given below to install Simple Transformers using with An
 3. Using a CUDA capable GPU is recommended.
    To install Pytorch with CUDA support:
    ```shell
-   conda install pytorch>=1.6 cudatoolkit=10.2 -c pytorch
+   conda install pytorch>=1.6 cudatoolkit=11.0 -c pytorch
    ```
    CPU only:
    ```shell
