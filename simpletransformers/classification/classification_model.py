@@ -65,6 +65,8 @@ from transformers import (
     MobileBertConfig,
     MobileBertForSequenceClassification,
     MobileBertTokenizer,
+    ReformerConfig,
+    ReformerTokenizer,
     RobertaConfig,
     RobertaTokenizer,
     WEIGHTS_NAME,
@@ -80,6 +82,7 @@ from transformers.convert_graph_to_onnx import convert, quantize
 from simpletransformers.classification.classification_utils import (
     InputExample,
     LazyClassificationDataset,
+    ClassificationDataset,
     convert_examples_to_features,
 )
 from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
@@ -96,6 +99,8 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import ClassificationArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.custom_models.models import ElectraForSequenceClassification
+
+from transformers.models.reformer import ReformerForSequenceClassification
 
 try:
     import wandb
@@ -147,6 +152,7 @@ class ClassificationModel:
             "layoutlm": (LayoutLMConfig, LayoutLMForSequenceClassification, LayoutLMTokenizer),
             "longformer": (LongformerConfig, LongformerForSequenceClassification, LongformerTokenizer),
             "mobilebert": (MobileBertConfig, MobileBertForSequenceClassification, MobileBertTokenizer),
+            "reformer": (ReformerConfig, ReformerForSequenceClassification, ReformerTokenizer),
             "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
             "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
@@ -1137,97 +1143,101 @@ class ClassificationModel:
             os.makedirs(self.args.cache_dir, exist_ok=True)
 
         mode = "dev" if evaluate else "train"
-        cached_features_file = os.path.join(
-            args.cache_dir,
-            "cached_{}_{}_{}_{}_{}".format(
-                mode, args.model_type, args.max_seq_length, self.num_labels, len(examples),
-            ),
-        )
-
-        if os.path.exists(cached_features_file) and (
-            (not args.reprocess_input_data and not no_cache)
-            or (mode == "dev" and args.use_cached_eval_features and not no_cache)
-        ):
-            features = torch.load(cached_features_file)
-            if verbose:
-                logger.info(f" Features loaded from cache at {cached_features_file}")
-        else:
-            if verbose:
-                logger.info(" Converting to features started. Cache is not used.")
-                if args.sliding_window:
-                    logger.info(" Sliding window enabled")
-
-            # If labels_map is defined, then labels need to be replaced with ints
-            if self.args.labels_map and not self.args.regression:
-                for example in examples:
-                    if multi_label:
-                        example.label = [self.args.labels_map[label] for label in example.label]
-                    else:
-                        example.label = self.args.labels_map[example.label]
-
-            features = convert_examples_to_features(
-                examples,
-                args.max_seq_length,
-                tokenizer,
-                output_mode,
-                # XLNet has a CLS token at the end
-                cls_token_at_end=bool(args.model_type in ["xlnet"]),
-                cls_token=tokenizer.cls_token,
-                cls_token_segment_id=2 if args.model_type in ["xlnet"] else 0,
-                sep_token=tokenizer.sep_token,
-                # RoBERTa uses an extra separator b/w pairs of sentences,
-                # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
-                sep_token_extra=bool(args.model_type in ["roberta", "camembert", "xlmroberta", "longformer"]),
-                # PAD on the left for XLNet
-                pad_on_left=bool(args.model_type in ["xlnet"]),
-                pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
-                pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0,
-                process_count=process_count,
-                multi_label=multi_label,
-                silent=args.silent or silent,
-                use_multiprocessing=args.use_multiprocessing,
-                sliding_window=args.sliding_window,
-                flatten=not evaluate,
-                stride=args.stride,
-                add_prefix_space=bool(args.model_type in ["roberta", "camembert", "xlmroberta", "longformer"]),
-                # avoid padding in case of single example/online inferencing to decrease execution time
-                pad_to_max_length=bool(len(examples) > 1),
-                args=args,
+        if args.sliding_window or self.args.model_type == "layoutlm":
+            cached_features_file = os.path.join(
+                args.cache_dir,
+                "cached_{}_{}_{}_{}_{}".format(
+                    mode, args.model_type, args.max_seq_length, self.num_labels, len(examples),
+                ),
             )
-            if verbose and args.sliding_window:
-                logger.info(f" {len(features)} features created from {len(examples)} samples.")
 
-            if not no_cache:
-                torch.save(features, cached_features_file)
+            if os.path.exists(cached_features_file) and (
+                (not args.reprocess_input_data and not no_cache)
+                or (mode == "dev" and args.use_cached_eval_features and not no_cache)
+            ):
+                features = torch.load(cached_features_file)
+                if verbose:
+                    logger.info(f" Features loaded from cache at {cached_features_file}")
+            else:
+                if verbose:
+                    logger.info(" Converting to features started. Cache is not used.")
+                    if args.sliding_window:
+                        logger.info(" Sliding window enabled")
 
-        if args.sliding_window and evaluate:
-            features = [
-                [feature_set] if not isinstance(feature_set, list) else feature_set for feature_set in features
-            ]
-            window_counts = [len(sample) for sample in features]
-            features = [feature for feature_set in features for feature in feature_set]
+                # If labels_map is defined, then labels need to be replaced with ints
+                if self.args.labels_map and not self.args.regression:
+                    for example in examples:
+                        if multi_label:
+                            example.label = [self.args.labels_map[label] for label in example.label]
+                        else:
+                            example.label = self.args.labels_map[example.label]
 
-        all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-        all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-        all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+                features = convert_examples_to_features(
+                    examples,
+                    args.max_seq_length,
+                    tokenizer,
+                    output_mode,
+                    # XLNet has a CLS token at the end
+                    cls_token_at_end=bool(args.model_type in ["xlnet"]),
+                    cls_token=tokenizer.cls_token,
+                    cls_token_segment_id=2 if args.model_type in ["xlnet"] else 0,
+                    sep_token=tokenizer.sep_token,
+                    # RoBERTa uses an extra separator b/w pairs of sentences,
+                    # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
+                    sep_token_extra=bool(args.model_type in ["roberta", "camembert", "xlmroberta", "longformer"]),
+                    # PAD on the left for XLNet
+                    pad_on_left=bool(args.model_type in ["xlnet"]),
+                    pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
+                    pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0,
+                    process_count=process_count,
+                    multi_label=multi_label,
+                    silent=args.silent or silent,
+                    use_multiprocessing=args.use_multiprocessing,
+                    sliding_window=args.sliding_window,
+                    flatten=not evaluate,
+                    stride=args.stride,
+                    add_prefix_space=bool(args.model_type in ["roberta", "camembert", "xlmroberta", "longformer"]),
+                    # avoid padding in case of single example/online inferencing to decrease execution time
+                    pad_to_max_length=bool(len(examples) > 1),
+                    args=args,
+                )
+                if verbose and args.sliding_window:
+                    logger.info(f" {len(features)} features created from {len(examples)} samples.")
 
-        if self.args.model_type == "layoutlm":
-            all_bboxes = torch.tensor([f.bboxes for f in features], dtype=torch.long)
+                if not no_cache:
+                    torch.save(features, cached_features_file)
 
-        if output_mode == "classification":
-            all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
-        elif output_mode == "regression":
-            all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
+            if args.sliding_window and evaluate:
+                features = [
+                    [feature_set] if not isinstance(feature_set, list) else feature_set for feature_set in features
+                ]
+                window_counts = [len(sample) for sample in features]
+                features = [feature for feature_set in features for feature in feature_set]
 
-        if self.args.model_type == "layoutlm":
-            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_bboxes)
+            all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+            all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+            all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+
+            if self.args.model_type == "layoutlm":
+                all_bboxes = torch.tensor([f.bboxes for f in features], dtype=torch.long)
+
+            if output_mode == "classification":
+                all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.long)
+            elif output_mode == "regression":
+                all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
+
+            if self.args.model_type == "layoutlm":
+                dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_bboxes)
+            else:
+                dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+
+            if args.sliding_window and evaluate:
+                return dataset, window_counts
+            else:
+                return dataset
         else:
-            dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
-
-        if args.sliding_window and evaluate:
-            return dataset, window_counts
-        else:
-            return dataset
+            train_dataset = ClassificationDataset(examples, self.tokenizer, self.args, mode=mode, multi_label=multi_label, output_mode=output_mode)
+            return train_dataset
 
     def compute_metrics(self, preds, model_outputs, labels, eval_examples=None, multi_label=False, **kwargs):
         """

@@ -18,6 +18,7 @@ from __future__ import absolute_import, division, print_function
 
 import csv
 import json
+import logging
 import linecache
 import os
 import sys
@@ -43,6 +44,8 @@ except ImportError:
 
 
 csv.field_size_limit(2147483647)
+
+logger = logging.getLogger(__name__)
 
 
 class InputExample(object):
@@ -82,6 +85,88 @@ class InputFeatures(object):
         self.label_id = label_id
         if bboxes:
             self.bboxes = bboxes
+
+
+def preprocess_data(data):
+    example, tokenizer, args = data
+
+    if example.text_b:
+        tokenized_example = tokenizer.encode_plus(
+            text_pair=[example.text_a, example.text_b],
+            max_length=args.max_seq_length,
+            truncation=True,
+            padding="max_length",
+            return_tensors="pt"
+        )
+    else:
+        tokenized_example = tokenizer.encode_plus(
+            text=example.text_a,
+            max_length=args.max_seq_length,
+            truncation=True,
+            padding="max_length",
+            return_tensors="pt"
+        )
+
+    return {**tokenized_example, "label": example.label}
+
+
+class ClassificationDataset(Dataset):
+    def __init__(self, data, tokenizer, args, mode, multi_label, output_mode):
+        self.tokenizer = tokenizer
+        self.output_mode = output_mode
+
+        cached_features_file = os.path.join(
+            args.cache_dir,
+            "cached_{}_{}_{}_{}_{}".format(
+                mode, args.model_type, args.max_seq_length, len(args.labels_list), len(data),
+            ),
+        )
+
+        if os.path.exists(cached_features_file) and (
+            (not args.reprocess_input_data and not args.no_cache)
+            or (mode == "dev" and args.use_cached_eval_features and not args.no_cache)
+        ):
+            self.examples = torch.load(cached_features_file)
+            logger.info(f" Features loaded from cache at {cached_features_file}")
+        else:
+            logger.info(" Converting to features started. Cache is not used.")
+
+            # If labels_map is defined, then labels need to be replaced with ints
+            if args.labels_map and not args.regression:
+                for example in data:
+                    if multi_label:
+                        example.label = [args.labels_map[label] for label in example.label]
+                    else:
+                        example.label = args.labels_map[example.label]
+            data = [(example, tokenizer, args) for example in data]
+
+            if args.use_multiprocessing:
+                with Pool(args.process_count) as p:
+                    self.examples = list(
+                        tqdm(
+                            p.imap(preprocess_data, data, chunksize=args.multiprocessing_chunksize),
+                            total=len(data),
+                            disable=args.silent,
+                        )
+                    )
+            else:
+                self.examples = [preprocess_data(d) for d in tqdm(data, disable=args.silent)]
+
+            if not args.no_cache:
+                logger.info(" Saving features into cached file %s", cached_features_file)
+                torch.save(self.examples, cached_features_file)
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, index):
+        features = self.examples[index]
+        label = features.pop("label")
+        if self.output_mode == "classification":
+            label = torch.tensor(label, dtype=torch.long)
+        elif self.output_mode == "regression":
+            label = torch.tensor(label, dtype=torch.float)
+        return features, label
 
 
 def convert_example_to_feature(

@@ -113,7 +113,7 @@ def test_multiclass_classification(model_type, model_name):
 @pytest.mark.parametrize(
     "model_type, model_name",
     [
-        # ("bert", "bert-base-uncased"),
+        ("bert", "bert-base-uncased"),
         ("xlnet", "xlnet-base-cased"),
         #     ("xlm", "xlm-mlm-17-1280"),
         #     ("roberta", "roberta-base"),
