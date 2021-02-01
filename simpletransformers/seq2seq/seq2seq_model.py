@@ -79,7 +79,7 @@ try:
 except ImportError:
     wandb_available = False
 
-if transformers.__version__ < '4.2.0':
+if transformers.__version__ < "4.2.0":
     MBartForConditionalGeneration._keys_to_ignore_on_save = []
 
 logger = logging.getLogger(__name__)

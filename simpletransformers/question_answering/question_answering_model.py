@@ -195,7 +195,9 @@ class QuestionAnsweringModel:
         if model_type == "auto":
             self.tokenizer = tokenizer_class.from_pretrained(model_name, **kwargs)
         else:
-            self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
+            self.tokenizer = tokenizer_class.from_pretrained(
+                model_name, do_lower_case=self.args.do_lower_case, **kwargs
+            )
 
         if self.args.special_tokens_list:
             self.tokenizer.add_tokens(self.args.special_tokens_list, special_tokens=True)
@@ -248,7 +250,12 @@ class QuestionAnsweringModel:
             if mode == "dev":
                 all_feature_index = torch.arange(all_input_ids.size(0), dtype=torch.long)
                 dataset = TensorDataset(
-                    all_input_ids, all_attention_masks, all_token_type_ids, all_feature_index, all_cls_index, all_p_mask
+                    all_input_ids,
+                    all_attention_masks,
+                    all_token_type_ids,
+                    all_feature_index,
+                    all_cls_index,
+                    all_p_mask,
                 )
             else:
                 all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)

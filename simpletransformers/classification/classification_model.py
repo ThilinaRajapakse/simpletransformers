@@ -27,7 +27,7 @@ from sklearn.metrics import (
     mean_squared_error,
     roc_curve,
     auc,
-    average_precision_score
+    average_precision_score,
 )
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -46,11 +46,17 @@ from transformers.optimization import AdamW, Adafactor
 from transformers import (
     AlbertConfig,
     AlbertTokenizer,
+    AutoConfig,
+    AutoModelForSequenceClassification,
+    AutoTokenizer,
     BertConfig,
     BertTokenizer,
     BertweetTokenizer,
     CamembertConfig,
     CamembertTokenizer,
+    DebertaConfig,
+    DebertaForSequenceClassification,
+    DebertaTokenizer,
     DistilBertConfig,
     DistilBertTokenizer,
     ElectraConfig,
@@ -60,15 +66,17 @@ from transformers import (
     LayoutLMConfig,
     LayoutLMTokenizer,
     LongformerConfig,
-    LongformerForSequenceClassification,
     LongformerTokenizer,
+    MPNetConfig,
+    MPNetForSequenceClassification,
+    MPNetTokenizer,
     MobileBertConfig,
-    MobileBertForSequenceClassification,
     MobileBertTokenizer,
-    ReformerConfig,
-    ReformerTokenizer,
     RobertaConfig,
     RobertaTokenizer,
+    SqueezeBertConfig,
+    SqueezeBertForSequenceClassification,
+    SqueezeBertTokenizer,
     WEIGHTS_NAME,
     XLMConfig,
     XLMRobertaConfig,
@@ -91,6 +99,8 @@ from simpletransformers.classification.transformer_models.camembert_model import
 from simpletransformers.classification.transformer_models.distilbert_model import DistilBertForSequenceClassification
 from simpletransformers.classification.transformer_models.flaubert_model import FlaubertForSequenceClassification
 from simpletransformers.classification.transformer_models.layoutlm_model import LayoutLMForSequenceClassification
+from simpletransformers.classification.transformer_models.longformer_model import LongformerForSequenceClassification
+from simpletransformers.classification.transformer_models.mobilebert_model import MobileBertForSequenceClassification
 from simpletransformers.classification.transformer_models.roberta_model import RobertaForSequenceClassification
 from simpletransformers.classification.transformer_models.xlm_model import XLMForSequenceClassification
 from simpletransformers.classification.transformer_models.xlm_roberta_model import XLMRobertaForSequenceClassification
@@ -100,7 +110,6 @@ from simpletransformers.config.model_args import ClassificationArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.custom_models.models import ElectraForSequenceClassification
 
-from transformers.models.reformer import ReformerForSequenceClassification
 
 try:
     import wandb
@@ -112,11 +121,22 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
+MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT = ["squeezebert", "deberta", "mpnet"]
+
+MODELS_WITH_EXTRA_SEP_TOKEN = ["roberta", "camembert", "xlmroberta", "longformer", "mpnet"]
+
+MODELS_WITH_ADD_PREFIX_SPACE = ["roberta", "camembert", "xlmroberta", "longformer", "mpnet"]
+
+MODELS_WITHOUT_SLIDING_WINDOW_SUPPORT = ["squeezebert"]
+
+
 class ClassificationModel:
     def __init__(
         self,
         model_type,
         model_name,
+        tokenizer_type=None,
+        tokenizer_name=None,
         num_labels=None,
         weight=None,
         args=None,
@@ -132,6 +152,9 @@ class ClassificationModel:
         Args:
             model_type: The type of model (bert, xlnet, xlm, roberta, distilbert)
             model_name: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+            tokenizer_type: The type of tokenizer (auto, bert, xlnet, xlm, roberta, distilbert, etc.) to use. If a string is passed, Simple Transformers will try to initialize a tokenizer class from the available MODEL_CLASSES.
+                                Alternatively, a Tokenizer class (subclassed from PreTrainedTokenizer) can be passed.
+            tokenizer_name: The name/path to the tokenizer. If the tokenizer_type is not specified, the model_type will be used to determine the type of the tokenizer.
             num_labels (optional): The number of labels or classes in the dataset.
             weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
@@ -143,17 +166,20 @@ class ClassificationModel:
 
         MODEL_CLASSES = {
             "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
+            "auto": (AutoConfig, AutoModelForSequenceClassification, AutoTokenizer),
             "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
             "bertweet": (RobertaConfig, RobertaForSequenceClassification, BertweetTokenizer),
             "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
+            "deberta": (DebertaConfig, DebertaForSequenceClassification, DebertaTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
             "flaubert": (FlaubertConfig, FlaubertForSequenceClassification, FlaubertTokenizer),
             "layoutlm": (LayoutLMConfig, LayoutLMForSequenceClassification, LayoutLMTokenizer),
             "longformer": (LongformerConfig, LongformerForSequenceClassification, LongformerTokenizer),
             "mobilebert": (MobileBertConfig, MobileBertForSequenceClassification, MobileBertTokenizer),
-            "reformer": (ReformerConfig, ReformerForSequenceClassification, ReformerTokenizer),
+            "mpnet": (MPNetConfig, MPNetForSequenceClassification, MPNetTokenizer),
             "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
+            "squeezebert": (SqueezeBertConfig, SqueezeBertForSequenceClassification, SqueezeBertTokenizer),
             "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
             "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
@@ -165,6 +191,9 @@ class ClassificationModel:
             self.args.update_from_dict(args)
         elif isinstance(args, ClassificationArgs):
             self.args = args
+
+        if model_type in MODELS_WITHOUT_SLIDING_WINDOW_SUPPORT and self.args.sliding_window:
+            raise ValueError("{} does not currently support sliding window".format(model_type))
 
         if self.args.thread_count:
             torch.set_num_threads(self.args.thread_count)
@@ -200,13 +229,24 @@ class ClassificationModel:
             self.args.labels_list = [i for i in range(len_labels_list)]
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+
+        if tokenizer_type is not None:
+            if isinstance(tokenizer_type, str):
+                _, _, tokenizer_class = MODEL_CLASSES[tokenizer_type]
+            else:
+                tokenizer_class = tokenizer_type
+
         if num_labels:
             self.config = config_class.from_pretrained(model_name, num_labels=num_labels, **self.args.config)
             self.num_labels = num_labels
         else:
             self.config = config_class.from_pretrained(model_name, **self.args.config)
             self.num_labels = self.config.num_labels
-        self.weight = weight
+
+        if model_type in MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT and weight is not None:
+            raise ValueError("{} does not currently support class weights".format(model_type))
+        else:
+            self.weight = weight
 
         if use_cuda:
             if torch.cuda.is_available():
@@ -275,17 +315,20 @@ class ClassificationModel:
             except AttributeError:
                 raise AttributeError("fp16 requires Pytorch >= 1.6. Please update Pytorch or turn off fp16.")
 
-        if model_name in [
+        if tokenizer_name is None:
+            tokenizer_name = model_name
+
+        if tokenizer_name in [
             "vinai/bertweet-base",
             "vinai/bertweet-covid19-base-cased",
             "vinai/bertweet-covid19-base-uncased",
         ]:
             self.tokenizer = tokenizer_class.from_pretrained(
-                model_name, do_lower_case=self.args.do_lower_case, normalization=True, **kwargs
+                tokenizer_name, do_lower_case=self.args.do_lower_case, normalization=True, **kwargs
             )
         else:
             self.tokenizer = tokenizer_class.from_pretrained(
-                model_name, do_lower_case=self.args.do_lower_case, **kwargs
+                tokenizer_name, do_lower_case=self.args.do_lower_case, **kwargs
             )
 
         if self.args.special_tokens_list:
@@ -294,6 +337,8 @@ class ClassificationModel:
 
         self.args.model_name = model_name
         self.args.model_type = model_type
+        self.args.tokenizer_name = tokenizer_name
+        self.args.tokenizer_type = tokenizer_type
 
         if model_type in ["camembert", "xlmroberta"]:
             warnings.warn(
@@ -1184,7 +1229,7 @@ class ClassificationModel:
                     sep_token=tokenizer.sep_token,
                     # RoBERTa uses an extra separator b/w pairs of sentences,
                     # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
-                    sep_token_extra=bool(args.model_type in ["roberta", "camembert", "xlmroberta", "longformer"]),
+                    sep_token_extra=args.model_type in MODELS_WITH_EXTRA_SEP_TOKEN,
                     # PAD on the left for XLNet
                     pad_on_left=bool(args.model_type in ["xlnet"]),
                     pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
@@ -1196,7 +1241,7 @@ class ClassificationModel:
                     sliding_window=args.sliding_window,
                     flatten=not evaluate,
                     stride=args.stride,
-                    add_prefix_space=bool(args.model_type in ["roberta", "camembert", "xlmroberta", "longformer"]),
+                    add_prefix_space=args.model_type in MODELS_WITH_ADD_PREFIX_SPACE,
                     # avoid padding in case of single example/online inferencing to decrease execution time
                     pad_to_max_length=bool(len(examples) > 1),
                     args=args,
@@ -1236,8 +1281,10 @@ class ClassificationModel:
             else:
                 return dataset
         else:
-            train_dataset = ClassificationDataset(examples, self.tokenizer, self.args, mode=mode, multi_label=multi_label, output_mode=output_mode)
-            return train_dataset
+            dataset = ClassificationDataset(
+                examples, self.tokenizer, self.args, mode=mode, multi_label=multi_label, output_mode=output_mode
+            )
+            return dataset
 
     def compute_metrics(self, preds, model_outputs, labels, eval_examples=None, multi_label=False, **kwargs):
         """
@@ -1302,7 +1349,10 @@ class ClassificationModel:
                 auroc = auc(fpr, tpr)
                 auprc = average_precision_score(labels, scores)
                 return (
-                    {**{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn, "auroc": auroc, "auprc": auprc}, **extra_metrics},
+                    {
+                        **{"mcc": mcc, "tp": tp, "tn": tn, "fp": fp, "fn": fn, "auroc": auroc, "auprc": auprc},
+                        **extra_metrics,
+                    },
                     wrong,
                 )
         else:
@@ -1575,7 +1625,7 @@ class ClassificationModel:
 
     def _get_inputs_dict(self, batch):
         if isinstance(batch[0], dict):
-            inputs = {key: value.squeeze().to(self.device) for key, value in batch[0].items()}
+            inputs = {key: value.squeeze(1).to(self.device) for key, value in batch[0].items()}
             inputs["labels"] = batch[1].to(self.device)
         else:
             batch = tuple(t.to(self.device) for t in batch)

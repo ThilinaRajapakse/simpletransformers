@@ -2,7 +2,7 @@
 title: Classification Specifics
 permalink: /docs/classification-specifics/
 excerpt: "Specific notes for text classification tasks."
-last_modified_at: 2020/12/21 22:13:56
+last_modified_at: 2021/02/02 02:03:09
 toc: true
 ---
 
@@ -32,22 +32,25 @@ The process of performing text classification in Simple Transformers does not de
 
 New model types are regularly added to the library. Text classification tasks currently supports the model types given below.
 
-| Model       | Model code for `ClassificationModel` |
-| ----------- | ------------------------------------ |
-| ALBERT      | albert                               |
-| BERT        | bert                                 |
-| BERTweet    | bertweet                             |
-| CamemBERT   | camembert                            |
-| RoBERTa     | roberta                              |
-| DistilBERT  | distilbert                           |
-| ELECTRA     | electra                              |
-| FlauBERT    | flaubert                             |
-| *LayoutLM   | layoutlm                             |
-| Longformer  | longformer                           |
-| *MobileBERT | mobilebert                           |
-| XLM         | xlm                                  |
-| XLM-RoBERTa | xlmroberta                           |
-| XLNet       | xlnet                                |
+| Model        | Model code for `ClassificationModel` |
+| ------------ | ------------------------------------ |
+| ALBERT       | albert                               |
+| BERT         | bert                                 |
+| BERTweet     | bertweet                             |
+| CamemBERT    | camembert                            |
+| *DeBERTa     | deberta                              |
+| DistilBERT   | distilbert                           |
+| ELECTRA      | electra                              |
+| FlauBERT     | flaubert                             |
+| LayoutLM     | layoutlm                             |
+| *Longformer  | longformer                           |
+| *MPNet       | mpnet                                |
+| MobileBERT   | mobilebert                           |
+| RoBERTa      | roberta                              |
+| *SqueezeBert | squeezebert                          |
+| XLM          | xlm                                  |
+| XLM-RoBERTa  | xlmroberta                           |
+| XLNet        | xlnet                                |
 
 \* *Not available with Multi-label classification*
 

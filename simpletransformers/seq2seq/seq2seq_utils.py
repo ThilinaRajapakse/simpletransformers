@@ -16,10 +16,13 @@ from transformers.models.bart.modeling_bart import shift_tokens_right as _shift_
 
 logger = logging.getLogger(__name__)
 
-if transformers.__version__ < '4.2.0':
-    shift_tokens_right = lambda input_ids, pad_token_id, decoder_start_token_id: _shift_tokens_right(input_ids, pad_token_id)
+if transformers.__version__ < "4.2.0":
+    shift_tokens_right = lambda input_ids, pad_token_id, decoder_start_token_id: _shift_tokens_right(
+        input_ids, pad_token_id
+    )
 else:
     shift_tokens_right = _shift_tokens_right
+
 
 def preprocess_data(data):
     input_text, target_text, encoder_tokenizer, decoder_tokenizer, args = data
@@ -112,7 +115,9 @@ def preprocess_data_mbart(data):
     )
 
     decoder_input_ids = tokenized_example["labels"].clone()
-    decoder_input_ids = shift_tokens_right(decoder_input_ids, tokenizer.pad_token_id, tokenizer.lang_code_to_id[args.tgt_lang])
+    decoder_input_ids = shift_tokens_right(
+        decoder_input_ids, tokenizer.pad_token_id, tokenizer.lang_code_to_id[args.tgt_lang]
+    )
 
     labels = tokenized_example["labels"]
     labels[labels == tokenizer.pad_token_id] = -100

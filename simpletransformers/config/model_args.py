@@ -85,6 +85,8 @@ class ModelArgs:
     skip_special_tokens: bool = True
     tensorboard_dir: str = None
     thread_count: int = None
+    tokenizer_type: str = None
+    tokenizer_name: str = None
     train_batch_size: int = 8
     train_custom_parameters_only: bool = False
     use_cached_eval_features: bool = False
@@ -110,7 +112,10 @@ class ModelArgs:
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
         with open(os.path.join(output_dir, "model_args.json"), "w") as f:
-            json.dump(self.get_args_for_saving(), f)
+            args_dict = self.get_args_for_saving()
+            if args_dict["tokenizer_type"] is not None and not isinstance(args_dict["tokenizer_type"], str):
+                args_dict["tokenizer_type"] = type(args_dict["tokenizer_type"]).__name__
+            json.dump(args_dict, f)
 
     def load(self, input_dir):
         if input_dir:

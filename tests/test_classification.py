@@ -12,6 +12,7 @@ from simpletransformers.classification import ClassificationModel, MultiLabelCla
         ("electra", "google/electra-small-discriminator"),
         ("mobilebert", "google/mobilebert-uncased"),
         ("bertweet", "vinai/bertweet-base"),
+        ("deberta", "microsoft/deberta-base"),
         # ("xlnet", "xlnet-base-cased"),
         # ("xlm", "xlm-mlm-17-1280"),
         # ("roberta", "roberta-base"),
@@ -48,6 +49,7 @@ def test_binary_classification(model_type, model_name):
             "reprocess_input_data": True,
             "overwrite_output_dir": True,
             "scheduler": "constant_schedule",
+            "max_seq_length": 20,
         },
     )
 
@@ -56,6 +58,8 @@ def test_binary_classification(model_type, model_name):
 
     # Evaluate the model
     result, model_outputs, wrong_predictions = model.eval_model(eval_df)
+
+    predictions, raw_outputs = model.predict(["Some arbitary sentence"])
 
 
 @pytest.mark.parametrize(
@@ -97,7 +101,7 @@ def test_multiclass_classification(model_type, model_name):
         model_type,
         model_name,
         num_labels=3,
-        args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True},
+        args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True, "max_seq_length": 20},
         use_cuda=False,
     )
 
@@ -142,7 +146,13 @@ def test_multilabel_classification(model_type, model_name):
         model_type,
         model_name,
         num_labels=6,
-        args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True, "num_train_epochs": 1},
+        args={
+            "no_save": True,
+            "reprocess_input_data": True,
+            "overwrite_output_dir": True,
+            "num_train_epochs": 1,
+            "max_seq_length": 20,
+        },
         use_cuda=False,
     )
 
@@ -153,3 +163,42 @@ def test_multilabel_classification(model_type, model_name):
     result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 
     predictions, raw_outputs = model.predict(["This thing is entirely different from the other thing. "])
+
+
+def test_sliding_window():
+    # Train and Evaluation data needs to be in a Pandas Dataframe of two columns.
+    # The first column is the text with type str, and the second column is the
+    # label with type int.
+    train_data = [
+        ["Example sentence belonging to class 1" * 10, 1],
+        ["Example sentence belonging to class 0", 0],
+    ]
+    train_df = pd.DataFrame(train_data)
+
+    eval_data = [
+        ["Example eval sentence belonging to class 1", 1],
+        ["Example eval sentence belonging to class 0" * 10, 0],
+    ]
+    eval_df = pd.DataFrame(eval_data)
+
+    # Create a ClassificationModel
+    model = ClassificationModel(
+        "distilbert",
+        "distilbert-base-uncased",
+        use_cuda=False,
+        args={
+            "no_save": True,
+            "reprocess_input_data": True,
+            "overwrite_output_dir": True,
+            "max_seq_length": 20,
+            "sliding_window": True,
+        },
+    )
+
+    # Train the model
+    model.train_model(train_df)
+
+    # Evaluate the model
+    result, model_outputs, wrong_predictions = model.eval_model(eval_df)
+
+    predictions, raw_outputs = model.predict(["Some arbitary sentence"])

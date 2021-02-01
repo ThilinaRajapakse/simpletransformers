@@ -96,7 +96,7 @@ def preprocess_data(data):
             max_length=args.max_seq_length,
             truncation=True,
             padding="max_length",
-            return_tensors="pt"
+            return_tensors="pt",
         )
     else:
         tokenized_example = tokenizer.encode_plus(
@@ -104,7 +104,7 @@ def preprocess_data(data):
             max_length=args.max_seq_length,
             truncation=True,
             padding="max_length",
-            return_tensors="pt"
+            return_tensors="pt",
         )
 
     return {**tokenized_example, "label": example.label}
@@ -600,7 +600,7 @@ class JsonlDataset(Dataset):
             self.data = [
                 dict(
                     json.load(open(os.path.join(data_path, l + self.data_type_extension))),
-                    **{"images": l + image_type_extension}
+                    **{"images": l + image_type_extension},
                 )
                 for l in files_list
             ]

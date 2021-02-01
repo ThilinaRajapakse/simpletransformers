@@ -697,14 +697,10 @@ class ConvAIModel:
 
                 if args.fp16:
                     with amp.autocast():
-                        outputs = model(
-                            input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,
-                        )
+                        outputs = model(input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,)
                         lm_logits, mc_logits = outputs[:2]
                 else:
-                    outputs = model(
-                        input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,
-                    )
+                    outputs = model(input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,)
                     lm_logits, mc_logits = outputs[:2]
                 # model outputs are always tuple in pytorch-transformers (see doc)
 
