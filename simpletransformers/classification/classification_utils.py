@@ -92,7 +92,8 @@ def preprocess_data(data):
 
     if example.text_b:
         tokenized_example = tokenizer.encode_plus(
-            text_pair=[example.text_a, example.text_b],
+            text=example.text_a,
+            text_pair=example.text_b,
             max_length=args.max_seq_length,
             truncation=True,
             padding="max_length",
