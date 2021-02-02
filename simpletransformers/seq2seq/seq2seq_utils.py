@@ -58,7 +58,9 @@ class Seq2SeqDataset(Dataset):
                 for input_text, target_text in zip(data["input_text"], data["target_text"])
             ]
 
-            if args.use_multiprocessing:
+            if (mode == "train" and args.use_multiprocessing) or (
+                mode == "dev" and args.use_multiprocessing_for_evaluation
+            ):
                 with Pool(args.process_count) as p:
                     self.examples = list(
                         tqdm(
@@ -155,7 +157,9 @@ class SimpleSummarizationDataset(Dataset):
 
             preprocess_fn = preprocess_data_mbart if args.model_type == "mbart" else preprocess_data_bart
 
-            if args.use_multiprocessing:
+            if (mode == "train" and args.use_multiprocessing) or (
+                mode == "dev" and args.use_multiprocessing_for_evaluation
+            ):
                 with Pool(args.process_count) as p:
                     self.examples = list(
                         tqdm(

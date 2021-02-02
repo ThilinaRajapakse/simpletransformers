@@ -1237,7 +1237,7 @@ class ClassificationModel:
                     process_count=process_count,
                     multi_label=multi_label,
                     silent=args.silent or silent,
-                    use_multiprocessing=args.use_multiprocessing,
+                    use_multiprocessing=args.use_multiprocessing_for_evaluation,
                     sliding_window=args.sliding_window,
                     flatten=not evaluate,
                     stride=args.stride,

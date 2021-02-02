@@ -81,7 +81,9 @@ class SimpleDataset(Dataset):
                         if (len(line) > 0 and not line.isspace())
                     ]
 
-                if args.use_multiprocessing:
+                if (mode == "train" and args.use_multiprocessing) or (
+                    mode == "dev" and args.use_multiprocessing_for_evaluation
+                ):
                     with Pool(args.process_count) as p:
                         self.examples = list(
                             tqdm(

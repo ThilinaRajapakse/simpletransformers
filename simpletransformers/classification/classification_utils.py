@@ -108,7 +108,7 @@ def preprocess_data(data):
             return_tensors="pt",
         )
 
-    return {**tokenized_example, "label": example.label}
+    return [tokenized_example, example.label]
 
 
 class ClassificationDataset(Dataset):
@@ -141,7 +141,9 @@ class ClassificationDataset(Dataset):
                         example.label = args.labels_map[example.label]
             data = [(example, tokenizer, args) for example in data]
 
-            if args.use_multiprocessing:
+            if (mode == "train" and args.use_multiprocessing) or (
+                mode == "dev" and args.use_multiprocessing_for_evaluation
+            ):
                 with Pool(args.process_count) as p:
                     self.examples = list(
                         tqdm(
@@ -153,6 +155,12 @@ class ClassificationDataset(Dataset):
             else:
                 self.examples = [preprocess_data(d) for d in tqdm(data, disable=args.silent)]
 
+            for example in self.examples:
+                if self.output_mode == "classification":
+                    example[1] = torch.tensor(example[1], dtype=torch.long)
+                elif self.output_mode == "regression":
+                    example[1] = torch.tensor(example[1], dtype=torch.float)
+
             if not args.no_cache:
                 logger.info(" Saving features into cached file %s", cached_features_file)
                 torch.save(self.examples, cached_features_file)
@@ -161,12 +169,8 @@ class ClassificationDataset(Dataset):
         return len(self.examples)
 
     def __getitem__(self, index):
-        features = self.examples[index].copy()
-        label = features.pop("label")
-        if self.output_mode == "classification":
-            label = torch.tensor(label, dtype=torch.long)
-        elif self.output_mode == "regression":
-            label = torch.tensor(label, dtype=torch.float)
+        features, label = self.examples[index]
+
         return features, label
 
 

@@ -70,7 +70,7 @@ from transformers import (
     WEIGHTS_NAME,
     XLMRobertaConfig,
     XLMRobertaForTokenClassification,
-    XLMRobertaTokenizer
+    XLMRobertaTokenizer,
 )
 from wandb import config
 from transformers.convert_graph_to_onnx import convert, quantize
@@ -1248,6 +1248,8 @@ class NERModel:
                     silent=args.silent,
                     use_multiprocessing=args.use_multiprocessing,
                     chunksize=args.multiprocessing_chunksize,
+                    mode=mode,
+                    use_multiprocessing_for_evaluation=args.use_multiprocessing_for_evaluation,
                 )
 
                 if not no_cache:

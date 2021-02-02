@@ -91,7 +91,9 @@ class T5Dataset(Dataset):
                 for prefix, input_text, target_text in zip(data["prefix"], data["input_text"], data["target_text"])
             ]
 
-            if args.use_multiprocessing:
+            if (mode == "train" and args.use_multiprocessing) or (
+                mode == "dev" and args.use_multiprocessing_for_evaluation
+            ):
                 with Pool(args.process_count) as p:
                     self.examples = list(
                         tqdm(

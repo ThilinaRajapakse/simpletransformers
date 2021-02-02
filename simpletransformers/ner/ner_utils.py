@@ -305,6 +305,8 @@ def convert_examples_to_features(
     chunksize=500,
     silent=False,
     use_multiprocessing=True,
+    mode="dev",
+    use_multiprocessing_for_evaluation=False,
 ):
     """ Loads a data file into a list of `InputBatch`s
         `cls_token_at_end` define the location of the CLS token:
@@ -336,7 +338,7 @@ def convert_examples_to_features(
         for example in examples
     ]
 
-    if use_multiprocessing:
+    if (mode == "train" and use_multiprocessing) or (mode == "dev" and use_multiprocessing_for_evaluation):
         with Pool(process_count) as p:
             features = list(
                 tqdm(

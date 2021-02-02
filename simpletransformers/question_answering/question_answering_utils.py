@@ -433,7 +433,7 @@ def squad_convert_examples_to_features(
     # Defining helper methods
     features = []
     threads = min(threads, cpu_count())
-    if args.use_multiprocessing:
+    if (is_training and args.use_multiprocessing) or (not is_training and args.use_multiprocessing_for_evaluation):
         with Pool(threads, initializer=squad_convert_example_to_features_init, initargs=(tokenizer,)) as p:
             annotate_ = partial(
                 squad_convert_example_to_features,
