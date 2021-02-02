@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - ALBERT
   - MPNet
   - SqueezeBERT
+  - MobileBERT
+
+- Added new QA models:
+  - CamemBERT [@adrienrenaud](https://github.com/adrienrenaud)
+  - MPNet
+  - SqueezeBERT
 
 ## [0.60.0] - 2021-02-02
 

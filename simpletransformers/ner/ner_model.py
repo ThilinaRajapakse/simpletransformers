@@ -30,7 +30,9 @@ from transformers.optimization import (
 )
 from transformers.optimization import AdamW, Adafactor
 from transformers import (
-    WEIGHTS_NAME,
+    AlbertConfig,
+    AlbertForTokenClassification,
+    AlbertTokenizer,
     AutoConfig,
     AutoModelForTokenClassification,
     AutoTokenizer,
@@ -47,30 +49,28 @@ from transformers import (
     ElectraConfig,
     ElectraForTokenClassification,
     ElectraTokenizer,
+    LayoutLMConfig,
+    LayoutLMForTokenClassification,
+    LayoutLMTokenizer,
     LongformerConfig,
     LongformerForTokenClassification,
     LongformerTokenizer,
+    MPNetConfig,
+    MPNetForTokenClassification,
+    MPNetTokenizer,
     MobileBertConfig,
     MobileBertForTokenClassification,
     MobileBertTokenizer,
     RobertaConfig,
     RobertaForTokenClassification,
     RobertaTokenizer,
-    XLMRobertaConfig,
-    XLMRobertaForTokenClassification,
-    XLMRobertaTokenizer,
-    LayoutLMConfig,
-    LayoutLMForTokenClassification,
-    LayoutLMTokenizer,
-    AlbertConfig,
-    AlbertForTokenClassification,
-    AlbertTokenizer,
-    MPNetConfig,
-    MPNetForTokenClassification,
-    MPNetTokenizer,
     SqueezeBertConfig,
     SqueezeBertForTokenClassification,
-    SqueezeBertTokenizer
+    SqueezeBertTokenizer,
+    WEIGHTS_NAME,
+    XLMRobertaConfig,
+    XLMRobertaForTokenClassification,
+    XLMRobertaTokenizer
 )
 from wandb import config
 from transformers.convert_graph_to_onnx import convert, quantize
@@ -126,19 +126,20 @@ class NERModel:
         """  # noqa: ignore flake8"
 
         MODEL_CLASSES = {
-            "auto": (AutoConfig, AutoModelForTokenClassification, AutoTokenizer),
             "albert": (AlbertConfig, AlbertForTokenClassification, AlbertTokenizer),
+            "auto": (AutoConfig, AutoModelForTokenClassification, AutoTokenizer),
             "bert": (BertConfig, BertForTokenClassification, BertTokenizer),
             "bertweet": (RobertaConfig, RobertaForTokenClassification, BertweetTokenizer),
             "camembert": (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForTokenClassification, ElectraTokenizer),
+            "layoutlm": (LayoutLMConfig, LayoutLMForTokenClassification, LayoutLMTokenizer),
             "longformer": (LongformerConfig, LongformerForTokenClassification, LongformerTokenizer),
+            "mobilebert": (MobileBertConfig, MobileBertForTokenClassification, MobileBertTokenizer),
             "mpnet": (MPNetConfig, MPNetForTokenClassification, MPNetTokenizer),
             "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
             "squeezebert": (SqueezeBertConfig, SqueezeBertForTokenClassification, SqueezeBertTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
-            "layoutlm": (LayoutLMConfig, LayoutLMForTokenClassification, LayoutLMTokenizer),
         }
 
         self.args = self._load_model_args(model_name)
