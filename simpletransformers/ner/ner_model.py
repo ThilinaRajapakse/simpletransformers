@@ -62,6 +62,15 @@ from transformers import (
     LayoutLMConfig,
     LayoutLMForTokenClassification,
     LayoutLMTokenizer,
+    AlbertConfig,
+    AlbertForTokenClassification,
+    AlbertTokenizer,
+    MPNetConfig,
+    MPNetForTokenClassification,
+    MPNetTokenizer,
+    SqueezeBertConfig,
+    SqueezeBertForTokenClassification,
+    SqueezeBertTokenizer
 )
 from wandb import config
 from transformers.convert_graph_to_onnx import convert, quantize
@@ -86,6 +95,9 @@ except ImportError:
     wandb_available = False
 
 logger = logging.getLogger(__name__)
+
+
+MODELS_WITH_EXTRA_SEP_TOKEN = ["roberta", "camembert", "xlmroberta", "longformer", "mpnet"]
 
 
 class NERModel:
@@ -114,14 +126,17 @@ class NERModel:
         """  # noqa: ignore flake8"
 
         MODEL_CLASSES = {
-            "auto": (AutoConfig, AutoTokenizer, AutoModelForTokenClassification),
+            "auto": (AutoConfig, AutoModelForTokenClassification, AutoTokenizer),
+            "albert": (AlbertConfig, AlbertForTokenClassification, AlbertTokenizer),
             "bert": (BertConfig, BertForTokenClassification, BertTokenizer),
             "bertweet": (RobertaConfig, RobertaForTokenClassification, BertweetTokenizer),
             "camembert": (CamembertConfig, CamembertForTokenClassification, CamembertTokenizer),
             "distilbert": (DistilBertConfig, DistilBertForTokenClassification, DistilBertTokenizer),
             "electra": (ElectraConfig, ElectraForTokenClassification, ElectraTokenizer),
             "longformer": (LongformerConfig, LongformerForTokenClassification, LongformerTokenizer),
+            "mpnet": (MPNetConfig, MPNetForTokenClassification, MPNetTokenizer),
             "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
+            "squeezebert": (SqueezeBertConfig, SqueezeBertForTokenClassification, SqueezeBertTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
             "layoutlm": (LayoutLMConfig, LayoutLMForTokenClassification, LayoutLMTokenizer),
         }
@@ -239,8 +254,6 @@ class NERModel:
             self.tokenizer = tokenizer_class.from_pretrained(
                 model_name, do_lower_case=self.args.do_lower_case, normalization=True, **kwargs
             )
-        elif model_type == "auto":
-            self.tokenizer = tokenizer_class.from_pretrained(model_name, **kwargs)
         else:
             self.tokenizer = tokenizer_class.from_pretrained(
                 model_name, do_lower_case=self.args.do_lower_case, **kwargs
@@ -1224,7 +1237,7 @@ class NERModel:
                     sep_token=tokenizer.sep_token,
                     # RoBERTa uses an extra separator b/w pairs of sentences,
                     # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
-                    sep_token_extra=bool(args.model_type in ["roberta"]),
+                    sep_token_extra=args.model_type in MODELS_WITH_EXTRA_SEP_TOKEN,
                     # PAD on the left for XLNet
                     pad_on_left=bool(args.model_type in ["xlnet"]),
                     pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
