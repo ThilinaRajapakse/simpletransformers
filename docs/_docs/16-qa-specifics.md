@@ -27,6 +27,7 @@ New model types are regularly added to the library. Question Answering tasks cur
 | ----------- | --------------------------------------- |
 | ALBERT      | albert                                  |
 | BERT        | bert                                    |
+| CamemBERT   | camembert                               |
 | DistilBERT  | distilbert                              |
 | ELECTRA     | electra                                 |
 | Longformer  | longformer                              |
