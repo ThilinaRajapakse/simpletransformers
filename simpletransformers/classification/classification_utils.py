@@ -160,7 +160,7 @@ class ClassificationDataset(Dataset):
         return len(self.examples)
 
     def __getitem__(self, index):
-        features = self.examples[index]
+        features = self.examples[index].copy()
         label = features.pop("label")
         if self.output_mode == "classification":
             label = torch.tensor(label, dtype=torch.long)
