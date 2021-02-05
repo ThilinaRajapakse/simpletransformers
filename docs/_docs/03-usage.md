@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2021/02/02 22:11:27
+last_modified_at: 2021/02/05 11:48:05
 toc: true
 ---
 
@@ -195,7 +195,7 @@ Configuration options in Simple Transformers are defined as either dataclasses o
 | train_batch_size                   | int   | 8                                                         | The training batch size.                                                                                                                                                                                                                                 |
 | use_cached_eval_features           | bool  | False                                                     | Evaluation during training uses cached features. Setting this to False will cause features to be recomputed at every evaluation step.                                                                                                                    |
 | use_early_stopping                 | bool  | False                                                     | Use early stopping to stop training when early_stopping_metric doesn't improve (based on early_stopping_patience, and early_stopping_delta)                                                                                                              |
-| use_multiprocessing                | bool  | True                                                      | If True, multiprocessing will be used when converting data into features. Disabling can reduce memory usage, but may substantially slow down processing.                                                                                                 |
+| use_multiprocessing                | bool  | False                                                     | If True, multiprocessing will be used when converting data into features. Enabling can speed up processing, but may cause instability. Defaults to False.                                                                                                |
 | use_multiprocessing_for_evaluation | bool  | False                                                     | If True, multiprocessing will be used when converting evaluation data into features. Enabling this can sometimes cause issues when evaluating during training. Defaults to False.                                                                        |
 | wandb_kwargs                       | dict  | {}                                                        | Dictionary of keyword arguments to be passed to the W&B project.                                                                                                                                                                                         |
 | wandb_project                      | str   | None                                                      | Name of W&B project. This will log all hyperparameter values, training losses, and evaluation metrics to the given project.                                                                                                                              |

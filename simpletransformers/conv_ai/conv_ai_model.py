@@ -434,13 +434,15 @@ class ConvAIModel:
                         # model outputs are always tuple in pytorch-transformers (see doc)
                         loss = lm_loss * args.lm_coef + mc_loss * args.mc_coef
                 else:
-                    (lm_loss), (mc_loss), *_ = model(
+                    outputs = model(
                         input_ids,
                         token_type_ids=token_type_ids,
                         mc_token_ids=mc_token_ids,
                         mc_labels=mc_labels,
                         labels=labels,
                     )
+
+                    lm_loss, mc_loss = outputs[:2]
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = lm_loss * args.lm_coef + mc_loss * args.mc_coef
 

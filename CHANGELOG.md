@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.60.6] - 2021-02-05
+
+# Changed
+
+- Multiprocessing during tokenization is now turned off by default. You can enable this by setting `use_multiprocessing=True`. However, the latest Pytorch versions seems to be unstable when using multiprocessing.
+
+
 ## [0.60.3] - 2021-02-02
 
 # Changed
