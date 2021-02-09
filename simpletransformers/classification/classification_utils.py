@@ -42,6 +42,7 @@ try:
 except ImportError:
     torchvision_available = False
 
+from copy import deepcopy
 
 csv.field_size_limit(2147483647)
 
@@ -87,91 +88,137 @@ class InputFeatures(object):
             self.bboxes = bboxes
 
 
-def preprocess_data(data):
-    example, tokenizer, args = data
-
-    if example.text_b:
-        tokenized_example = tokenizer.encode_plus(
-            text=example.text_a,
-            text_pair=example.text_b,
-            max_length=args.max_seq_length,
-            truncation=True,
-            padding="max_length",
-            return_tensors="pt",
-        )
+def preprocess_data_multiprocessing(data):
+    examples, tokenizer, max_seq_length = data
+    text = []
+    labels = []
+    if examples[0].text_b is not None:
+        for example in examples:
+            text.append((example.text_a, example.text_b))
+            labels.append(example.label)
     else:
-        tokenized_example = tokenizer.encode_plus(
-            text=example.text_a,
-            max_length=args.max_seq_length,
-            truncation=True,
-            padding="max_length",
-            return_tensors="pt",
-        )
+        for example in examples:
+            text.append(example.text_a)
+            labels.append(example.label)
 
-    return [tokenized_example, example.label]
+    examples = tokenizer.batch_encode_plus(
+        batch_text_or_text_pairs=text,
+        max_length=max_seq_length,
+        truncation=True,
+        padding="max_length",
+        return_tensors="pt",
+    )
+
+    return [examples, labels]
+
+
+def preprocess_data(examples, tokenizer, max_seq_length):
+    text = []
+    labels = []
+    if examples[0].text_b is not None:
+        for example in examples:
+            text.append((example.text_a, example.text_b))
+            labels.append(example.label)
+    else:
+        for example in examples:
+            text.append(example.text_a)
+            labels.append(example.label)
+
+    examples = tokenizer.batch_encode_plus(
+        batch_text_or_text_pairs=text,
+        max_length=max_seq_length,
+        truncation=True,
+        padding="max_length",
+        return_tensors="pt",
+    )
+
+    return [examples, labels]
+
+    # if examples[0].text_b:
+    #     tokenized_example = tokenizer.batch_encode_plus(
+    #         text=example.text_a,
+    #         text_pair=example.text_b,
+    #         max_length=max_seq_length,
+    #         truncation=True,
+    #         padding="max_length",
+    #         return_tensors="pt",
+    #     )
+    # else:
+    #     tokenized_example = tokenizer.batch_encode_plus(
+    #         text=example.text_a,
+    #         max_length=max_seq_length,
+    #         truncation=True,
+    #         padding="max_length",
+    #         return_tensors="pt",
+    #     )
+
+    # return [tokenized_example, [example.label for example in data]]
+
+
+def build_classification_dataset(data, tokenizer, args, mode, multi_label, output_mode):
+    cached_features_file = os.path.join(
+        args.cache_dir,
+        "cached_{}_{}_{}_{}_{}".format(
+            mode, args.model_type, args.max_seq_length, len(args.labels_list), len(data),
+        ),
+    )
+
+    if os.path.exists(cached_features_file) and (
+        (not args.reprocess_input_data and not args.no_cache)
+        or (mode == "dev" and args.use_cached_eval_features and not args.no_cache)
+    ):
+        data = torch.load(cached_features_file)
+        logger.info(f" Features loaded from cache at {cached_features_file}")
+    else:
+        logger.info(" Converting to features started. Cache is not used.")
+
+        # If labels_map is defined, then labels need to be replaced with ints
+        if args.labels_map and not args.regression:
+            for example in data:
+                if multi_label:
+                    example.label = [args.labels_map[label] for label in example.label]
+                else:
+                    example.label = args.labels_map[example.label]
+
+        if (mode == "train" and args.use_multiprocessing) or (
+            mode == "dev" and args.use_multiprocessing_for_evaluation
+        ):
+            data = [(data[i: i + args.multiprocessing_chunksize], tokenizer, args.max_seq_length) for i in range(0, len(data), args.multiprocessing_chunksize)]
+            with Pool(args.process_count) as p:
+                examples, labels = zip(*tqdm(
+                        p.imap(preprocess_data_multiprocessing, data, chunksize=10),
+                        total=len(data),
+                        disable=args.silent,
+                    )
+                )
+            examples = {key: torch.cat([example[key] for example in examples]) for key in examples[0]}
+            labels = [label for label_sublist in labels for label in label_sublist]
+        else:
+            examples, labels = preprocess_data(data, tokenizer, args.max_seq_length)
+
+        if output_mode == "classification":
+            labels = torch.tensor(labels, dtype=torch.long)
+        elif output_mode == "regression":
+            labels = torch.tensor(labels, dtype=torch.float)
+
+        data = (examples, labels)
+
+        if not args.no_cache:
+            logger.info(" Saving features into cached file %s", cached_features_file)
+            torch.save(data, cached_features_file)
+
+        return (examples, labels)
 
 
 class ClassificationDataset(Dataset):
     def __init__(self, data, tokenizer, args, mode, multi_label, output_mode):
-        self.tokenizer = tokenizer
-        self.output_mode = output_mode
-
-        cached_features_file = os.path.join(
-            args.cache_dir,
-            "cached_{}_{}_{}_{}_{}".format(
-                mode, args.model_type, args.max_seq_length, len(args.labels_list), len(data),
-            ),
-        )
-
-        if os.path.exists(cached_features_file) and (
-            (not args.reprocess_input_data and not args.no_cache)
-            or (mode == "dev" and args.use_cached_eval_features and not args.no_cache)
-        ):
-            self.examples = torch.load(cached_features_file)
-            logger.info(f" Features loaded from cache at {cached_features_file}")
-        else:
-            logger.info(" Converting to features started. Cache is not used.")
-
-            # If labels_map is defined, then labels need to be replaced with ints
-            if args.labels_map and not args.regression:
-                for example in data:
-                    if multi_label:
-                        example.label = [args.labels_map[label] for label in example.label]
-                    else:
-                        example.label = args.labels_map[example.label]
-            data = [(example, tokenizer, args) for example in data]
-
-            if (mode == "train" and args.use_multiprocessing) or (
-                mode == "dev" and args.use_multiprocessing_for_evaluation
-            ):
-                with Pool(args.process_count) as p:
-                    self.examples = list(
-                        tqdm(
-                            p.imap(preprocess_data, data, chunksize=args.multiprocessing_chunksize),
-                            total=len(data),
-                            disable=args.silent,
-                        )
-                    )
-            else:
-                self.examples = [preprocess_data(d) for d in tqdm(data, disable=args.silent)]
-
-            for example in self.examples:
-                if self.output_mode == "classification":
-                    example[1] = torch.tensor(example[1], dtype=torch.long)
-                elif self.output_mode == "regression":
-                    example[1] = torch.tensor(example[1], dtype=torch.float)
-
-            if not args.no_cache:
-                logger.info(" Saving features into cached file %s", cached_features_file)
-                torch.save(self.examples, cached_features_file)
+        self.examples, self.labels = build_classification_dataset(data, tokenizer, args, mode, multi_label, output_mode)
 
     def __len__(self):
         return len(self.examples)
 
     def __getitem__(self, index):
-        features, label = self.examples[index]
-
-        return features, label
+        return {key: self.examples[key][index] for key in self.examples}, self.labels[index]
 
 
 def convert_example_to_feature(
