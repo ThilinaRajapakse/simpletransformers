@@ -125,7 +125,7 @@ docs:
         url: /docs/text-rep-examples/
       - title: "Text Representation Model"
         url: /docs/text-rep-model/
-  - title: Langauge Generation
+  - title: Language Generation
     children:
       - title: "Language Generation Specifics"
         url: /docs/language-generation-specifics/
