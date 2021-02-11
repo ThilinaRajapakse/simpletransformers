@@ -84,10 +84,15 @@ class SimpleDataset(Dataset):
                 if (mode == "train" and args.use_multiprocessing) or (
                     mode == "dev" and args.use_multiprocessing_for_evaluation
                 ):
+                    if args.multiprocessing_chunksize == -1:
+                        chunksize = max(len(lines) // (args.process_count * 2), 500)
+                    else:
+                        chunksize = args.multiprocessing_chunksize
+
                     with Pool(args.process_count) as p:
                         self.examples = list(
                             tqdm(
-                                p.imap(encode_sliding_window, lines, chunksize=args.multiprocessing_chunksize),
+                                p.imap(encode_sliding_window, lines, chunksize=chunksize),
                                 total=len(lines),
                                 # disable=silent,
                             )
@@ -103,10 +108,15 @@ class SimpleDataset(Dataset):
                     ]
 
                 if args.use_multiprocessing:
+                    if args.multiprocessing_chunksize == -1:
+                        chunksize = max(len(lines) // (args.process_count * 2), 500)
+                    else:
+                        chunksize = args.multiprocessing_chunksize
+
                     with Pool(args.process_count) as p:
                         self.examples = list(
                             tqdm(
-                                p.imap(encode, lines, chunksize=args.multiprocessing_chunksize),
+                                p.imap(encode, lines, chunksize=chunksize),
                                 total=len(lines),
                                 # disable=silent,
                             )

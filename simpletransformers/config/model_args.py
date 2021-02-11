@@ -61,7 +61,7 @@ class ModelArgs:
     max_seq_length: int = 128
     model_name: str = None
     model_type: str = None
-    multiprocessing_chunksize: int = 500
+    multiprocessing_chunksize: int = -1
     n_gpu: int = 1
     no_cache: bool = False
     no_save: bool = False
@@ -91,7 +91,7 @@ class ModelArgs:
     train_custom_parameters_only: bool = False
     use_cached_eval_features: bool = False
     use_early_stopping: bool = False
-    use_multiprocessing: bool = False
+    use_multiprocessing: bool = True
     use_multiprocessing_for_evaluation: bool = False
     wandb_kwargs: dict = field(default_factory=dict)
     wandb_project: str = None

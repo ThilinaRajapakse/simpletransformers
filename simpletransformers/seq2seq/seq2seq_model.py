@@ -996,11 +996,16 @@ class Seq2SeqModel:
             all_outputs.extend(outputs.cpu().numpy())
 
         if self.args.use_multiprocessed_decoding:
+            if self.args.multiprocessing_chunksize == -1:
+                chunksize = max(len(all_outputs) // (self.args.process_count * 2), 500)
+            else:
+                chunksize = self.args.multiprocessing_chunksize
+
             self.model.to("cpu")
             with Pool(self.args.process_count) as p:
                 outputs = list(
                     tqdm(
-                        p.imap(self._decode, all_outputs, chunksize=self.args.multiprocessing_chunksize),
+                        p.imap(self._decode, all_outputs, chunksize=chunksize),
                         total=len(all_outputs),
                         desc="Decoding outputs",
                         disable=self.args.silent,

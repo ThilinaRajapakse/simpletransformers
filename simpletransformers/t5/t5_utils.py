@@ -94,13 +94,14 @@ class T5Dataset(Dataset):
             if (mode == "train" and args.use_multiprocessing) or (
                 mode == "dev" and args.use_multiprocessing_for_evaluation
             ):
+                if args.multiprocessing_chunksize == -1:
+                    chunksize = max(len(data) // (args.process_count * 2), 500)
+                else:
+                    chunksize = args.multiprocessing_chunksize
+
                 with Pool(args.process_count) as p:
                     self.examples = list(
-                        tqdm(
-                            p.imap(preprocess_data, data, chunksize=args.multiprocessing_chunksize),
-                            total=len(data),
-                            disable=args.silent,
-                        )
+                        tqdm(p.imap(preprocess_data, data, chunksize=chunksize), total=len(data), disable=args.silent,)
                     )
             else:
                 self.examples = [preprocess_data(d) for d in tqdm(data, disable=args.silent)]

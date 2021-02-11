@@ -158,9 +158,9 @@ def get_examples_from_df(data, bbox=False):
         ]
 
 
-def convert_example_to_feature(example_row):
+def convert_examples_with_multiprocessing(examples):
     (
-        example,
+        example_group,
         label_map,
         max_seq_length,
         tokenizer,
@@ -175,8 +175,47 @@ def convert_example_to_feature(example_row):
         pad_token_label_id,
         sequence_a_segment_id,
         mask_padding_with_zero,
-    ) = example_row
+    ) = examples
 
+    return [
+        convert_example_to_feature(
+            example,
+            label_map,
+            max_seq_length,
+            tokenizer,
+            cls_token_at_end,
+            cls_token,
+            cls_token_segment_id,
+            sep_token,
+            sep_token_extra,
+            pad_on_left,
+            pad_token,
+            pad_token_segment_id,
+            pad_token_label_id,
+            sequence_a_segment_id,
+            mask_padding_with_zero,
+        )
+        for example in example_group
+    ]
+
+
+def convert_example_to_feature(
+    example,
+    label_map,
+    max_seq_length,
+    tokenizer,
+    cls_token_at_end,
+    cls_token,
+    cls_token_segment_id,
+    sep_token,
+    sep_token_extra,
+    pad_on_left,
+    pad_token,
+    pad_token_segment_id,
+    pad_token_label_id,
+    sequence_a_segment_id,
+    mask_padding_with_zero,
+):
     tokens = []
     label_ids = []
     bboxes = []
@@ -317,40 +356,61 @@ def convert_examples_to_features(
 
     label_map = {label: i for i, label in enumerate(label_list)}
 
-    examples = [
-        (
-            example,
-            label_map,
-            max_seq_length,
-            tokenizer,
-            cls_token_at_end,
-            cls_token,
-            cls_token_segment_id,
-            sep_token,
-            sep_token_extra,
-            pad_on_left,
-            pad_token,
-            pad_token_segment_id,
-            pad_token_label_id,
-            sequence_a_segment_id,
-            mask_padding_with_zero,
-        )
-        for example in examples
-    ]
-
     if (mode == "train" and use_multiprocessing) or (mode == "dev" and use_multiprocessing_for_evaluation):
+        if chunksize == -1:
+            chunksize = max(len(examples) // (process_count * 2), 500)
+        examples = [
+            (
+                examples[i : i + chunksize],
+                label_map,
+                max_seq_length,
+                tokenizer,
+                cls_token_at_end,
+                cls_token,
+                cls_token_segment_id,
+                sep_token,
+                sep_token_extra,
+                pad_on_left,
+                pad_token,
+                pad_token_segment_id,
+                pad_token_label_id,
+                sequence_a_segment_id,
+                mask_padding_with_zero,
+            )
+            for i in range(0, len(examples), chunksize)
+        ]
+
         with Pool(process_count) as p:
             features = list(
                 tqdm(
-                    p.imap(convert_example_to_feature, examples, chunksize=chunksize),
+                    p.imap(convert_examples_with_multiprocessing, examples, chunksize=chunksize),
                     total=len(examples),
                     disable=silent,
                 )
             )
+
+            features = [feature for feature_group in features for feature in feature_group]
     else:
-        features = []
-        for example in tqdm(examples, disable=silent):
-            features.append(convert_example_to_feature(example))
+        features = [
+            convert_example_to_feature(
+                example,
+                label_map,
+                max_seq_length,
+                tokenizer,
+                cls_token_at_end,
+                cls_token,
+                cls_token_segment_id,
+                sep_token,
+                sep_token_extra,
+                pad_on_left,
+                pad_token,
+                pad_token_segment_id,
+                pad_token_label_id,
+                sequence_a_segment_id,
+                mask_padding_with_zero,
+            )
+            for example in tqdm(examples, disable=silent)
+        ]
     return features
 
 

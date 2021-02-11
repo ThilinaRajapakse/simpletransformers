@@ -80,10 +80,14 @@ def get_dataset(
                 return dict((n, tokenize(o)) for n, o in obj.items())
 
             data = [(d, tokenizer) for d in obj]
+
+            if args.multiprocessing_chunksize == -1:
+                chunksize = max(len(data) // (args.process_count * 2), 500)
+            else:
+                chunksize = args.multiprocessing_chunksize
+
             with Pool(process_count) as p:
-                tokenized_data = list(
-                    tqdm(p.imap(tokenize_multi, data, chunksize=args.multiprocessing_chunksize), total=len(data))
-                )
+                tokenized_data = list(tqdm(p.imap(tokenize_multi, data, chunksize=chunksize), total=len(data)))
             return tokenized_data
 
         if not interact and dataset_path == PERSONACHAT_URL:

@@ -158,9 +158,7 @@ def preprocess_data(examples, tokenizer, max_seq_length):
 def build_classification_dataset(data, tokenizer, args, mode, multi_label, output_mode):
     cached_features_file = os.path.join(
         args.cache_dir,
-        "cached_{}_{}_{}_{}_{}".format(
-            mode, args.model_type, args.max_seq_length, len(args.labels_list), len(data),
-        ),
+        "cached_{}_{}_{}_{}_{}".format(mode, args.model_type, args.max_seq_length, len(args.labels_list), len(data),),
     )
 
     if os.path.exists(cached_features_file) and (
@@ -183,13 +181,14 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
         if (mode == "train" and args.use_multiprocessing) or (
             mode == "dev" and args.use_multiprocessing_for_evaluation
         ):
-            data = [(data[i: i + args.multiprocessing_chunksize], tokenizer, args.max_seq_length) for i in range(0, len(data), args.multiprocessing_chunksize)]
+            if args.multiprocessing_chunksize == -1:
+                chunksize = max(len(data) // (args.process_count * 2), 500)
+            else:
+                chunksize = args.multiprocessing_chunksize
+            data = [(data[i : i + chunksize], tokenizer, args.max_seq_length) for i in range(0, len(data), chunksize)]
             with Pool(args.process_count) as p:
-                examples, labels = zip(*tqdm(
-                        p.imap(preprocess_data_multiprocessing, data, chunksize=10),
-                        total=len(data),
-                        disable=args.silent,
-                    )
+                examples, labels = zip(
+                    *tqdm(p.imap(preprocess_data_multiprocessing, data), total=len(data), disable=args.silent,)
                 )
             examples = {key: torch.cat([example[key] for example in examples]) for key in examples[0]}
             labels = [label for label_sublist in labels for label in label_sublist]
@@ -212,10 +211,12 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
 
 class ClassificationDataset(Dataset):
     def __init__(self, data, tokenizer, args, mode, multi_label, output_mode):
-        self.examples, self.labels = build_classification_dataset(data, tokenizer, args, mode, multi_label, output_mode)
+        self.examples, self.labels = build_classification_dataset(
+            data, tokenizer, args, mode, multi_label, output_mode
+        )
 
     def __len__(self):
-        return len(self.examples)
+        return len(self.examples["input_ids"])
 
     def __getitem__(self, index):
         return {key: self.examples[key][index] for key in self.examples}, self.labels[index]
@@ -545,15 +546,15 @@ def convert_examples_to_features(
     ]
 
     if use_multiprocessing:
+        if args.multiprocessing_chunksize == -1:
+            chunksize = max(len(examples) // (args.process_count * 2), 500)
+        else:
+            chunksize = args.multiprocessing_chunksize
         if sliding_window:
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
-                        p.imap(
-                            convert_example_to_feature_sliding_window,
-                            examples,
-                            chunksize=args.multiprocessing_chunksize,
-                        ),
+                        p.imap(convert_example_to_feature_sliding_window, examples, chunksize=chunksize,),
                         total=len(examples),
                         disable=silent,
                     )
@@ -564,7 +565,7 @@ def convert_examples_to_features(
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
-                        p.imap(convert_example_to_feature, examples, chunksize=args.multiprocessing_chunksize),
+                        p.imap(convert_example_to_feature, examples, chunksize=chunksize),
                         total=len(examples),
                         disable=silent,
                     )
