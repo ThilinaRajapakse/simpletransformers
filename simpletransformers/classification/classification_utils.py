@@ -167,6 +167,7 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
     ):
         data = torch.load(cached_features_file)
         logger.info(f" Features loaded from cache at {cached_features_file}")
+        examples, labels = data
     else:
         logger.info(" Converting to features started. Cache is not used.")
 
@@ -206,7 +207,7 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
             logger.info(" Saving features into cached file %s", cached_features_file)
             torch.save(data, cached_features_file)
 
-        return (examples, labels)
+    return (examples, labels)
 
 
 class ClassificationDataset(Dataset):
