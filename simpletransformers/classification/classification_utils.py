@@ -30,7 +30,9 @@ import torch
 import torch.nn as nn
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
-from torch.utils.data import Dataset
+# from torch.utils.data import Dataset
+from datasets import Dataset
+from torch.utils.data import dataset
 from tqdm.auto import tqdm
 
 try:
@@ -207,20 +209,18 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
             logger.info(" Saving features into cached file %s", cached_features_file)
             torch.save(data, cached_features_file)
 
-    return (examples, labels)
+    return {**examples, "labels": labels}
 
 
-class ClassificationDataset(Dataset):
-    def __init__(self, data, tokenizer, args, mode, multi_label, output_mode):
-        self.examples, self.labels = build_classification_dataset(
-            data, tokenizer, args, mode, multi_label, output_mode
-        )
+def ClassificationDataset(data, tokenizer, args, mode, multi_label, output_mode):
+    data_dict = build_classification_dataset(
+        data, tokenizer, args, mode, multi_label, output_mode
+    )
 
-    def __len__(self):
-        return len(self.examples["input_ids"])
+    dataset = Dataset.from_dict(data_dict)
+    dataset.set_format(type="pt")
 
-    def __getitem__(self, index):
-        return {key: self.examples[key][index] for key in self.examples}, self.labels[index]
+    return dataset
 
 
 def convert_example_to_feature(
