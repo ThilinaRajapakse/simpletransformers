@@ -144,6 +144,7 @@ class ClassificationArgs(ModelArgs):
     lazy_text_a_column: bool = None
     lazy_text_b_column: bool = None
     lazy_text_column: int = 0
+    use_hf_datasets: bool = False
     onnx: bool = False
     regression: bool = False
     sliding_window: bool = False

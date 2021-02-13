@@ -50,7 +50,7 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     BertConfig,
-    BertTokenizer,
+    BertTokenizerFast,
     BertweetTokenizer,
     CamembertConfig,
     CamembertTokenizer,
@@ -92,6 +92,7 @@ from simpletransformers.classification.classification_utils import (
     LazyClassificationDataset,
     ClassificationDataset,
     convert_examples_to_features,
+    load_hf_dataset,
 )
 from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
 from simpletransformers.classification.transformer_models.bert_model import BertForSequenceClassification
@@ -167,7 +168,7 @@ class ClassificationModel:
         MODEL_CLASSES = {
             "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
             "auto": (AutoConfig, AutoModelForSequenceClassification, AutoTokenizer),
-            "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
+            "bert": (BertConfig, BertForSequenceClassification, BertTokenizerFast),
             "bertweet": (RobertaConfig, RobertaForSequenceClassification, BertweetTokenizer),
             "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
             "deberta": (DebertaConfig, DebertaForSequenceClassification, DebertaTokenizer),
@@ -408,6 +409,12 @@ class ClassificationModel:
             if self.args.model_type == "layoutlm":
                 raise NotImplementedError("Lazy loading is not implemented for LayoutLM models")
             train_dataset = LazyClassificationDataset(train_df, self.tokenizer, self.args)
+        elif isinstance(train_df, str) and self.args.use_hf_datasets:
+            if self.args.sliding_window:
+                raise ValueError("HuggingFace Datasets cannot be used with sliding window.")
+            if self.args.model_type == "layoutlm":
+                raise NotImplementedError("HuggingFace Datasets support is not implemented for LayoutLM models")
+            train_dataset = load_hf_dataset(train_df, self.tokenizer, self.args, multi_label=multi_label)
         else:
             if self.args.lazy_loading:
                 raise ValueError("Input must be given as a path to a file when using lazy loading")
@@ -986,6 +993,13 @@ class ClassificationModel:
             if self.args.model_type == "layoutlm":
                 raise NotImplementedError("Lazy loading is not implemented for LayoutLM models")
             eval_dataset = LazyClassificationDataset(eval_df, self.tokenizer, self.args)
+            eval_examples = None
+        elif isinstance(eval_df, str) and self.args.use_hf_datasets:
+            if self.args.sliding_window:
+                raise ValueError("HuggingFace Datasets cannot be used with sliding window.")
+            if self.args.model_type == "layoutlm":
+                raise NotImplementedError("HuggingFace Datasets support is not implemented for LayoutLM models")
+            eval_dataset = load_hf_dataset(eval_df, self.tokenizer, self.args, multi_label=multi_label)
             eval_examples = None
         else:
             if self.args.lazy_loading:

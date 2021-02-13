@@ -30,9 +30,9 @@ import torch
 import torch.nn as nn
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
+
 # from torch.utils.data import Dataset
-from datasets import Dataset
-from torch.utils.data import dataset
+from datasets import Dataset, load_dataset
 from tqdm.auto import tqdm
 
 try:
@@ -92,19 +92,23 @@ class InputFeatures(object):
 
 def preprocess_data_multiprocessing(data):
     examples, tokenizer, max_seq_length = data
-    text = []
+    text_a = []
+    text_b = []
     labels = []
     if examples[0].text_b is not None:
         for example in examples:
-            text.append((example.text_a, example.text_b))
+            text_a.append((example.text_a, example.text_b))
+            text_b.append((example.text_b, example.text_b))
             labels.append(example.label)
     else:
         for example in examples:
-            text.append(example.text_a)
+            text_a.append(example.text_a)
             labels.append(example.label)
+        text_b = None
 
-    examples = tokenizer.batch_encode_plus(
-        batch_text_or_text_pairs=text,
+    examples = tokenizer(
+        text=text_a,
+        text_pair=text_b,
         max_length=max_seq_length,
         truncation=True,
         padding="max_length",
@@ -112,6 +116,16 @@ def preprocess_data_multiprocessing(data):
     )
 
     return [examples, labels]
+
+
+def preprocess_row_for_hf_dataset(dataset, tokenizer, max_seq_length):
+    return tokenizer(
+        text=dataset["text_a"],
+        text_pair=dataset["text_b"],
+        truncation=True,
+        padding="max_length",
+        max_length=max_seq_length,
+    )
 
 
 def preprocess_data(examples, tokenizer, max_seq_length):
@@ -209,18 +223,54 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
             logger.info(" Saving features into cached file %s", cached_features_file)
             torch.save(data, cached_features_file)
 
-    return {**examples, "labels": labels}
+    return (examples, labels)
 
 
-def ClassificationDataset(data, tokenizer, args, mode, multi_label, output_mode):
-    data_dict = build_classification_dataset(
-        data, tokenizer, args, mode, multi_label, output_mode
+class ClassificationDataset(Dataset):
+    def __init__(self, data, tokenizer, args, mode, multi_label, output_mode):
+        self.examples, self.labels = build_classification_dataset(
+            data, tokenizer, args, mode, multi_label, output_mode
+        )
+
+    def __len__(self):
+        return len(self.examples["input_ids"])
+
+    def __getitem__(self, index):
+        return {key: self.examples[key][index] for key in self.examples}, self.labels[index]
+
+
+def map_labels_to_int(example, multi_label, args):
+    if multi_label:
+        example["labels"] = [args.labels_map[label] for label in example["labels"]]
+    else:
+        example["labels"] = args.labels_map[example["labels"]]
+
+    return example
+
+
+def load_hf_dataset(data, tokenizer, args, multi_label):
+    dataset = load_dataset("csv", data_files=data, delimiter="\t")
+
+    if args.labels_map and not args.regression:
+        dataset = dataset.map(lambda x: map_labels_to_int(x, multi_label, args))
+
+    dataset = dataset.map(
+        lambda x: preprocess_row_for_hf_dataset(x, tokenizer=tokenizer, max_seq_length=args.max_seq_length),
+        batched=True,
     )
 
-    dataset = Dataset.from_dict(data_dict)
-    dataset.set_format(type="pt")
+    dataset.set_format(type="pt", columns=["input_ids", "token_type_ids", "attention_mask", "labels"])
 
-    return dataset
+    return dataset["train"]
+
+    # data_dict = build_classification_dataset(
+    #     data, tokenizer, args, mode, multi_label, output_mode
+    # )
+
+    # dataset = Dataset.from_dict(data_dict)
+    # dataset.set_format(type="pt")
+
+    # return dataset
 
 
 def convert_example_to_feature(
