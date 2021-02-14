@@ -403,18 +403,18 @@ class ClassificationModel:
             )
         self._move_model_to_device()
 
-        if isinstance(train_df, str) and self.args.lazy_loading:
-            if self.args.sliding_window:
-                raise ValueError("Lazy loading cannot be used with sliding window.")
-            if self.args.model_type == "layoutlm":
-                raise NotImplementedError("Lazy loading is not implemented for LayoutLM models")
-            train_dataset = LazyClassificationDataset(train_df, self.tokenizer, self.args)
-        elif isinstance(train_df, str) and self.args.use_hf_datasets:
+        if self.args.use_hf_datasets:
             if self.args.sliding_window:
                 raise ValueError("HuggingFace Datasets cannot be used with sliding window.")
             if self.args.model_type == "layoutlm":
                 raise NotImplementedError("HuggingFace Datasets support is not implemented for LayoutLM models")
             train_dataset = load_hf_dataset(train_df, self.tokenizer, self.args, multi_label=multi_label)
+        elif isinstance(train_df, str) and self.args.lazy_loading:
+            if self.args.sliding_window:
+                raise ValueError("Lazy loading cannot be used with sliding window.")
+            if self.args.model_type == "layoutlm":
+                raise NotImplementedError("Lazy loading is not implemented for LayoutLM models")
+            train_dataset = LazyClassificationDataset(train_df, self.tokenizer, self.args)
         else:
             if self.args.lazy_loading:
                 raise ValueError("Input must be given as a path to a file when using lazy loading")
@@ -434,28 +434,17 @@ class ClassificationModel:
                         )
                     ]
                 else:
-                    train_examples = [
-                        InputExample(i, text, None, label)
-                        for i, (text, label) in enumerate(zip(train_df["text"].astype(str), train_df["labels"]))
-                    ]
+                    train_examples = (train_df["text"].astype(str).tolist(), train_df["labels"].tolist())
             elif "text_a" in train_df.columns and "text_b" in train_df.columns:
                 if self.args.model_type == "layoutlm":
                     raise ValueError("LayoutLM cannot be used with sentence-pair tasks")
                 else:
-                    train_examples = [
-                        InputExample(i, text_a, text_b, label)
-                        for i, (text_a, text_b, label) in enumerate(
-                            zip(train_df["text_a"].astype(str), train_df["text_b"].astype(str), train_df["labels"])
-                        )
-                    ]
+                    train_examples = (train_df["text_a"].astype(str).tolist(), train_df["text_b"].astype(str).tolist(), train_df["labels"].tolist())
             else:
                 warnings.warn(
                     "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
                 )
-                train_examples = [
-                    InputExample(i, text, None, label)
-                    for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))
-                ]
+                train_examples = (train_df.iloc[:, 0].astype(str).tolist(), train_df.iloc[:, 1].tolist())
             train_dataset = self.load_and_cache_examples(train_examples, verbose=verbose)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
@@ -989,17 +978,17 @@ class ClassificationModel:
         eval_output_dir = output_dir
 
         results = {}
-        if isinstance(eval_df, str) and self.args.lazy_loading:
-            if self.args.model_type == "layoutlm":
-                raise NotImplementedError("Lazy loading is not implemented for LayoutLM models")
-            eval_dataset = LazyClassificationDataset(eval_df, self.tokenizer, self.args)
-            eval_examples = None
-        elif isinstance(eval_df, str) and self.args.use_hf_datasets:
+        if self.args.use_hf_datasets:
             if self.args.sliding_window:
                 raise ValueError("HuggingFace Datasets cannot be used with sliding window.")
             if self.args.model_type == "layoutlm":
                 raise NotImplementedError("HuggingFace Datasets support is not implemented for LayoutLM models")
             eval_dataset = load_hf_dataset(eval_df, self.tokenizer, self.args, multi_label=multi_label)
+            eval_examples = None
+        elif isinstance(eval_df, str) and self.args.lazy_loading:
+            if self.args.model_type == "layoutlm":
+                raise NotImplementedError("Lazy loading is not implemented for LayoutLM models")
+            eval_dataset = LazyClassificationDataset(eval_df, self.tokenizer, self.args)
             eval_examples = None
         else:
             if self.args.lazy_loading:
@@ -1021,28 +1010,17 @@ class ClassificationModel:
                         )
                     ]
                 else:
-                    eval_examples = [
-                        InputExample(i, text, None, label)
-                        for i, (text, label) in enumerate(zip(eval_df["text"].astype(str), eval_df["labels"]))
-                    ]
+                    eval_examples = (eval_df["text"].astype(str).tolist(), eval_df["labels"].tolist())
             elif "text_a" in eval_df.columns and "text_b" in eval_df.columns:
                 if self.args.model_type == "layoutlm":
                     raise ValueError("LayoutLM cannot be used with sentence-pair tasks")
                 else:
-                    eval_examples = [
-                        InputExample(i, text_a, text_b, label)
-                        for i, (text_a, text_b, label) in enumerate(
-                            zip(eval_df["text_a"].astype(str), eval_df["text_b"].astype(str), eval_df["labels"])
-                        )
-                    ]
+                    eval_examples = (eval_df["text_a"].astype(str).tolist(), eval_df["text_b"].astype(str).tolist(), eval_df["labels"].tolist())
             else:
                 warnings.warn(
                     "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
                 )
-                eval_examples = [
-                    InputExample(i, text, None, label)
-                    for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))
-                ]
+                eval_examples = (eval_df.iloc[:, 0].astype(str).tolist(), eval_df.iloc[:, 1].astype(str).tolist())
 
             if args.sliding_window:
                 eval_dataset, window_counts = self.load_and_cache_examples(

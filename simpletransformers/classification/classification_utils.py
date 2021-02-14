@@ -91,20 +91,7 @@ class InputFeatures(object):
 
 
 def preprocess_data_multiprocessing(data):
-    examples, tokenizer, max_seq_length = data
-    text_a = []
-    text_b = []
-    labels = []
-    if examples[0].text_b is not None:
-        for example in examples:
-            text_a.append((example.text_a, example.text_b))
-            text_b.append((example.text_b, example.text_b))
-            labels.append(example.label)
-    else:
-        for example in examples:
-            text_a.append(example.text_a)
-            labels.append(example.label)
-        text_b = None
+    text_a, text_b, tokenizer, max_seq_length = data
 
     examples = tokenizer(
         text=text_a,
@@ -115,7 +102,7 @@ def preprocess_data_multiprocessing(data):
         return_tensors="pt",
     )
 
-    return [examples, labels]
+    return examples
 
 
 def preprocess_row_for_hf_dataset(dataset, tokenizer, max_seq_length):
@@ -128,27 +115,15 @@ def preprocess_row_for_hf_dataset(dataset, tokenizer, max_seq_length):
     )
 
 
-def preprocess_data(examples, tokenizer, max_seq_length):
-    text = []
-    labels = []
-    if examples[0].text_b is not None:
-        for example in examples:
-            text.append((example.text_a, example.text_b))
-            labels.append(example.label)
-    else:
-        for example in examples:
-            text.append(example.text_a)
-            labels.append(example.label)
-
-    examples = tokenizer.batch_encode_plus(
-        batch_text_or_text_pairs=text,
-        max_length=max_seq_length,
+def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
+    return tokenizer(
+        text=text_a,
+        text_pair=text_b,
         truncation=True,
         padding="max_length",
+        max_length=max_seq_length,
         return_tensors="pt",
     )
-
-    return [examples, labels]
 
     # if examples[0].text_b:
     #     tokenized_example = tokenizer.batch_encode_plus(
@@ -187,13 +162,21 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
     else:
         logger.info(" Converting to features started. Cache is not used.")
 
+        if len(data) == 3:
+            # Sentence pair task
+            text_a, text_b, labels = data
+        else:
+            text_a, labels = data
+            text_b = None
+
         # If labels_map is defined, then labels need to be replaced with ints
         if args.labels_map and not args.regression:
-            for example in data:
-                if multi_label:
-                    example.label = [args.labels_map[label] for label in example.label]
-                else:
-                    example.label = args.labels_map[example.label]
+            if multi_label:
+                labels = [[args.labels_map[l] for l in label] for label in labels]
+            else:
+                labels = [args.labels_map[label] for label in labels]
+        else:
+            labels =
 
         if (mode == "train" and args.use_multiprocessing) or (
             mode == "dev" and args.use_multiprocessing_for_evaluation
@@ -202,15 +185,19 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
                 chunksize = max(len(data) // (args.process_count * 2), 500)
             else:
                 chunksize = args.multiprocessing_chunksize
-            data = [(data[i : i + chunksize], tokenizer, args.max_seq_length) for i in range(0, len(data), chunksize)]
+
+            if text_b is not None:
+                data = [(text_a[i : i + chunksize], text_b[i : i + chunksize], tokenizer, args.max_seq_length) for i in range(0, len(text_a), chunksize)]
+            else:
+                data = [(text_a[i : i + chunksize], None, tokenizer, args.max_seq_length) for i in range(0, len(text_a), chunksize)]
+
             with Pool(args.process_count) as p:
-                examples, labels = zip(
-                    *tqdm(p.imap(preprocess_data_multiprocessing, data), total=len(data), disable=args.silent,)
-                )
+                examples = list(tqdm(p.imap(preprocess_data_multiprocessing, data), total=len(text_a), disable=args.silent))
+
             examples = {key: torch.cat([example[key] for example in examples]) for key in examples[0]}
-            labels = [label for label_sublist in labels for label in label_sublist]
         else:
-            examples, labels = preprocess_data(data, tokenizer, args.max_seq_length)
+            examples = preprocess_data(text_a, text_b, labels, tokenizer, args.max_seq_length)
+
 
         if output_mode == "classification":
             labels = torch.tensor(labels, dtype=torch.long)
@@ -239,7 +226,7 @@ class ClassificationDataset(Dataset):
         return {key: self.examples[key][index] for key in self.examples}, self.labels[index]
 
 
-def map_labels_to_int(example, multi_label, args):
+def map_labels_to_numeric(example, multi_label, args):
     if multi_label:
         example["labels"] = [args.labels_map[label] for label in example["labels"]]
     else:
@@ -249,10 +236,13 @@ def map_labels_to_int(example, multi_label, args):
 
 
 def load_hf_dataset(data, tokenizer, args, multi_label):
-    dataset = load_dataset("csv", data_files=data, delimiter="\t")
+    if isinstance(data, str):
+        dataset = load_dataset("csv", data_files=data, delimiter="\t")
+    else:
+        dataset = Dataset.from_pandas(data)
 
     if args.labels_map and not args.regression:
-        dataset = dataset.map(lambda x: map_labels_to_int(x, multi_label, args))
+        dataset = dataset.map(lambda x: map_labels_to_numeric(x, multi_label, args))
 
     dataset = dataset.map(
         lambda x: preprocess_row_for_hf_dataset(x, tokenizer=tokenizer, max_seq_length=args.max_seq_length),
@@ -261,8 +251,11 @@ def load_hf_dataset(data, tokenizer, args, multi_label):
 
     dataset.set_format(type="pt", columns=["input_ids", "token_type_ids", "attention_mask", "labels"])
 
-    return dataset["train"]
-
+    if isinstance(data, str):
+        # This is not necessarily a train dataset. The datasets library insists on calling it train.
+        return dataset["train"]
+    else:
+        return dataset
     # data_dict = build_classification_dataset(
     #     data, tokenizer, args, mode, multi_label, output_mode
     # )
