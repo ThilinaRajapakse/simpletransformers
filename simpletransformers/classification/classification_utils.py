@@ -175,8 +175,6 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
                 labels = [[args.labels_map[l] for l in label] for label in labels]
             else:
                 labels = [args.labels_map[label] for label in labels]
-        else:
-            labels =
 
         if (mode == "train" and args.use_multiprocessing) or (
             mode == "dev" and args.use_multiprocessing_for_evaluation
@@ -187,17 +185,24 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
                 chunksize = args.multiprocessing_chunksize
 
             if text_b is not None:
-                data = [(text_a[i : i + chunksize], text_b[i : i + chunksize], tokenizer, args.max_seq_length) for i in range(0, len(text_a), chunksize)]
+                data = [
+                    (text_a[i : i + chunksize], text_b[i : i + chunksize], tokenizer, args.max_seq_length)
+                    for i in range(0, len(text_a), chunksize)
+                ]
             else:
-                data = [(text_a[i : i + chunksize], None, tokenizer, args.max_seq_length) for i in range(0, len(text_a), chunksize)]
+                data = [
+                    (text_a[i : i + chunksize], None, tokenizer, args.max_seq_length)
+                    for i in range(0, len(text_a), chunksize)
+                ]
 
             with Pool(args.process_count) as p:
-                examples = list(tqdm(p.imap(preprocess_data_multiprocessing, data), total=len(text_a), disable=args.silent))
+                examples = list(
+                    tqdm(p.imap(preprocess_data_multiprocessing, data), total=len(text_a), disable=args.silent)
+                )
 
             examples = {key: torch.cat([example[key] for example in examples]) for key in examples[0]}
         else:
             examples = preprocess_data(text_a, text_b, labels, tokenizer, args.max_seq_length)
-
 
         if output_mode == "classification":
             labels = torch.tensor(labels, dtype=torch.long)

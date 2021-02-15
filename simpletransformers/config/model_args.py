@@ -144,13 +144,13 @@ class ClassificationArgs(ModelArgs):
     lazy_text_a_column: bool = None
     lazy_text_b_column: bool = None
     lazy_text_column: int = 0
-    use_hf_datasets: bool = False
     onnx: bool = False
     regression: bool = False
     sliding_window: bool = False
     special_tokens_list: list = field(default_factory=list)
     stride: float = 0.8
     tie_value: int = 1
+    use_hf_datasets: bool = False
 
 
 @dataclass
@@ -168,6 +168,7 @@ class MultiLabelClassificationArgs(ModelArgs):
     labels_map: dict = field(default_factory=dict)
     lazy_loading: bool = False
     special_tokens_list: list = field(default_factory=list)
+    use_hf_datasets: bool = False
 
 
 @dataclass
