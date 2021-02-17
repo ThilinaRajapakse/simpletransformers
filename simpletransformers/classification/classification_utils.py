@@ -105,7 +105,7 @@ def preprocess_data_multiprocessing(data):
     return examples
 
 
-def preprocess_row_for_hf_dataset(dataset, tokenizer, max_seq_length):
+def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
     return tokenizer(
         text=dataset["text_a"],
         text_pair=dataset["text_b"],
@@ -250,7 +250,7 @@ def load_hf_dataset(data, tokenizer, args, multi_label):
         dataset = dataset.map(lambda x: map_labels_to_numeric(x, multi_label, args))
 
     dataset = dataset.map(
-        lambda x: preprocess_row_for_hf_dataset(x, tokenizer=tokenizer, max_seq_length=args.max_seq_length),
+        lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, max_seq_length=args.max_seq_length),
         batched=True,
     )
 
@@ -261,14 +261,6 @@ def load_hf_dataset(data, tokenizer, args, multi_label):
         return dataset["train"]
     else:
         return dataset
-    # data_dict = build_classification_dataset(
-    #     data, tokenizer, args, mode, multi_label, output_mode
-    # )
-
-    # dataset = Dataset.from_dict(data_dict)
-    # dataset.set_format(type="pt")
-
-    # return dataset
 
 
 def convert_example_to_feature(

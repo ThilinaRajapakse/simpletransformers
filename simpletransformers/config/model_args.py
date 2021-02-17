@@ -92,7 +92,7 @@ class ModelArgs:
     use_cached_eval_features: bool = False
     use_early_stopping: bool = False
     use_multiprocessing: bool = True
-    use_multiprocessing_for_evaluation: bool = False
+    use_multiprocessing_for_evaluation: bool = True
     wandb_kwargs: dict = field(default_factory=dict)
     wandb_project: str = None
     warmup_ratio: float = 0.06
@@ -184,6 +184,7 @@ class NERArgs(ModelArgs):
     lazy_loading_start_line: int = 0
     onnx: bool = False
     special_tokens_list: list = field(default_factory=list)
+    use_hf_datasets: bool = False
 
 
 @dataclass

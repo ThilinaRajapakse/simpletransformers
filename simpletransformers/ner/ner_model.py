@@ -63,7 +63,7 @@ from transformers import (
     MobileBertTokenizer,
     RobertaConfig,
     RobertaForTokenClassification,
-    RobertaTokenizer,
+    RobertaTokenizerFast,
     SqueezeBertConfig,
     SqueezeBertForTokenClassification,
     SqueezeBertTokenizer,
@@ -84,6 +84,7 @@ from simpletransformers.ner.ner_utils import (
     convert_examples_to_features,
     get_examples_from_df,
     get_labels,
+    load_hf_dataset,
     read_examples_from_file,
 )
 
@@ -137,7 +138,7 @@ class NERModel:
             "longformer": (LongformerConfig, LongformerForTokenClassification, LongformerTokenizer),
             "mobilebert": (MobileBertConfig, MobileBertForTokenClassification, MobileBertTokenizer),
             "mpnet": (MPNetConfig, MPNetForTokenClassification, MPNetTokenizer),
-            "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
+            "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizerFast),
             "squeezebert": (SqueezeBertConfig, SqueezeBertForTokenClassification, SqueezeBertTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
         }
@@ -550,7 +551,6 @@ class NERModel:
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
-                batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
 
@@ -866,8 +866,6 @@ class NERModel:
             from torch.cuda import amp
 
         for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
-            batch = tuple(t.to(device) for t in batch)
-
             with torch.no_grad():
                 inputs = self._get_inputs_dict(batch)
 
@@ -1193,83 +1191,109 @@ class NERModel:
             no_cache = args.no_cache
 
         mode = "dev" if evaluate else "train"
-        if not to_predict and isinstance(data, str) and self.args.lazy_loading:
-            dataset = LazyNERDataset(data, tokenizer, self.args)
-        else:
-            if to_predict:
-                examples = to_predict
-                no_cache = True
-            else:
-                if isinstance(data, str):
-                    examples = read_examples_from_file(
-                        data, mode, bbox=True if self.args.model_type == "layoutlm" else False
-                    )
-                else:
-                    if self.args.lazy_loading:
-                        raise ValueError("Input must be given as a path to a file when using lazy loading")
-                    examples = get_examples_from_df(data, bbox=True if self.args.model_type == "layoutlm" else False)
-
-            cached_features_file = os.path.join(
-                args.cache_dir,
-                "cached_{}_{}_{}_{}_{}".format(
-                    mode, args.model_type, args.max_seq_length, self.num_labels, len(examples),
-                ),
+        if self.args.use_hf_datasets and data is not None:
+            if self.args.model_type == "layoutlm":
+                raise NotImplementedError("HuggingFace Datasets support is not implemented for LayoutLM models")
+            dataset = load_hf_dataset(
+                data,
+                self.args.labels_list,
+                self.args.max_seq_length,
+                self.tokenizer,
+                # XLNet has a CLS token at the end
+                cls_token_at_end=bool(args.model_type in ["xlnet"]),
+                cls_token=tokenizer.cls_token_id,
+                cls_token_segment_id=2 if args.model_type in ["xlnet"] else 0,
+                sep_token=tokenizer.sep_token_id,
+                # RoBERTa uses an extra separator b/w pairs of sentences,
+                # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
+                sep_token_extra=args.model_type in MODELS_WITH_EXTRA_SEP_TOKEN,
+                # PAD on the left for XLNet
+                pad_on_left=bool(args.model_type in ["xlnet"]),
+                pad_token=tokenizer.pad_token_id,
+                pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0,
+                pad_token_label_id=self.pad_token_label_id,
+                silent=args.silent,
             )
-            if not no_cache:
-                os.makedirs(self.args.cache_dir, exist_ok=True)
-
-            if os.path.exists(cached_features_file) and (
-                (not args.reprocess_input_data and not no_cache)
-                or (mode == "dev" and args.use_cached_eval_features and not no_cache)
-            ):
-                features = torch.load(cached_features_file)
-                logger.info(f" Features loaded from cache at {cached_features_file}")
+        else:
+            if not to_predict and isinstance(data, str) and self.args.lazy_loading:
+                dataset = LazyNERDataset(data, tokenizer, self.args)
             else:
-                logger.info(" Converting to features started.")
-                features = convert_examples_to_features(
-                    examples,
-                    self.args.labels_list,
-                    self.args.max_seq_length,
-                    self.tokenizer,
-                    # XLNet has a CLS token at the end
-                    cls_token_at_end=bool(args.model_type in ["xlnet"]),
-                    cls_token=tokenizer.cls_token,
-                    cls_token_segment_id=2 if args.model_type in ["xlnet"] else 0,
-                    sep_token=tokenizer.sep_token,
-                    # RoBERTa uses an extra separator b/w pairs of sentences,
-                    # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
-                    sep_token_extra=args.model_type in MODELS_WITH_EXTRA_SEP_TOKEN,
-                    # PAD on the left for XLNet
-                    pad_on_left=bool(args.model_type in ["xlnet"]),
-                    pad_token=tokenizer.convert_tokens_to_ids([tokenizer.pad_token])[0],
-                    pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0,
-                    pad_token_label_id=self.pad_token_label_id,
-                    process_count=process_count,
-                    silent=args.silent,
-                    use_multiprocessing=args.use_multiprocessing,
-                    chunksize=args.multiprocessing_chunksize,
-                    mode=mode,
-                    use_multiprocessing_for_evaluation=args.use_multiprocessing_for_evaluation,
+                if to_predict:
+                    examples = to_predict
+                    no_cache = True
+                else:
+                    if isinstance(data, str):
+                        examples = read_examples_from_file(
+                            data, mode, bbox=True if self.args.model_type == "layoutlm" else False
+                        )
+                    else:
+                        if self.args.lazy_loading:
+                            raise ValueError("Input must be given as a path to a file when using lazy loading")
+                        examples = get_examples_from_df(
+                            data, bbox=True if self.args.model_type == "layoutlm" else False
+                        )
+
+                cached_features_file = os.path.join(
+                    args.cache_dir,
+                    "cached_{}_{}_{}_{}_{}".format(
+                        mode, args.model_type, args.max_seq_length, self.num_labels, len(examples),
+                    ),
                 )
-
                 if not no_cache:
-                    torch.save(features, cached_features_file)
+                    os.makedirs(self.args.cache_dir, exist_ok=True)
 
-            all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
-            all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
-            all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
-            all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
+                if os.path.exists(cached_features_file) and (
+                    (not args.reprocess_input_data and not no_cache)
+                    or (mode == "dev" and args.use_cached_eval_features and not no_cache)
+                ):
+                    features = torch.load(cached_features_file)
+                    logger.info(f" Features loaded from cache at {cached_features_file}")
+                else:
+                    logger.info(" Converting to features started.")
+                    features = convert_examples_to_features(
+                        examples,
+                        self.args.labels_list,
+                        self.args.max_seq_length,
+                        self.tokenizer,
+                        # XLNet has a CLS token at the end
+                        cls_token_at_end=bool(args.model_type in ["xlnet"]),
+                        cls_token=tokenizer.cls_token,
+                        cls_token_segment_id=2 if args.model_type in ["xlnet"] else 0,
+                        sep_token=tokenizer.sep_token,
+                        # RoBERTa uses an extra separator b/w pairs of sentences,
+                        # cf. github.com/pytorch/fairseq/commit/1684e166e3da03f5b600dbb7855cb98ddfcd0805
+                        sep_token_extra=args.model_type in MODELS_WITH_EXTRA_SEP_TOKEN,
+                        # PAD on the left for XLNet
+                        pad_on_left=bool(args.model_type in ["xlnet"]),
+                        pad_token=tokenizer.pad_token_id,
+                        pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0,
+                        pad_token_label_id=self.pad_token_label_id,
+                        process_count=process_count,
+                        silent=args.silent,
+                        use_multiprocessing=args.use_multiprocessing,
+                        chunksize=args.multiprocessing_chunksize,
+                        mode=mode,
+                        use_multiprocessing_for_evaluation=args.use_multiprocessing_for_evaluation,
+                    )
 
-            if self.args.model_type == "layoutlm":
-                all_bboxes = torch.tensor([f.bboxes for f in features], dtype=torch.long)
+                    if not no_cache:
+                        torch.save(features, cached_features_file)
 
-            if self.args.onnx:
-                return all_label_ids
+                all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
+                all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
+                all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
+                all_label_ids = torch.tensor([f.label_ids for f in features], dtype=torch.long)
 
-            if self.args.model_type == "layoutlm":
-                dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_bboxes)
-            else:
-                dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
+                if self.args.model_type == "layoutlm":
+                    all_bboxes = torch.tensor([f.bboxes for f in features], dtype=torch.long)
+
+                if self.args.onnx:
+                    return all_label_ids
+
+                if self.args.model_type == "layoutlm":
+                    dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_bboxes)
+                else:
+                    dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids)
 
         return dataset
 
@@ -1316,19 +1340,23 @@ class NERModel:
         return {metric: values[-1] for metric, values in metric_values.items()}
 
     def _get_inputs_dict(self, batch):
-        inputs = {
-            "input_ids": batch[0],
-            "attention_mask": batch[1],
-            "labels": batch[3],
-        }
-        # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
-        if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
-            inputs["token_type_ids"] = batch[2]
+        if isinstance(batch, dict):
+            return {key: value.to(self.device) for key, value in batch.items()}
+        else:
+            batch = tuple(t.to(self.device) for t in batch)
+            inputs = {
+                "input_ids": batch[0],
+                "attention_mask": batch[1],
+                "labels": batch[3],
+            }
+            # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
+            if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+                inputs["token_type_ids"] = batch[2]
 
-        if self.args.model_type == "layoutlm":
-            inputs["bbox"] = batch[4]
+            if self.args.model_type == "layoutlm":
+                inputs["bbox"] = batch[4]
 
-        return inputs
+            return inputs
 
     def _create_training_progress_scores(self, **kwargs):
         extra_metrics = {key: [] for key in kwargs}
