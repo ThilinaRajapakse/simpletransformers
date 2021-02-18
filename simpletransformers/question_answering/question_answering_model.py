@@ -508,7 +508,7 @@ class QuestionAnsweringModel:
                 num_warmup_steps=args.warmup_steps,
                 num_training_steps=t_total,
                 lr_end=args.polynomial_decay_schedule_lr_end,
-                power=args.polynomial_decay_schedule_lr_end,
+                power=args.polynomial_decay_schedule_power,
             )
 
         else:
