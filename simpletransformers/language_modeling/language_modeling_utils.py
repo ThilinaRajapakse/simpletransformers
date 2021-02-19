@@ -5,8 +5,8 @@ from multiprocessing import Pool
 from typing import Tuple
 
 import torch
-from tokenizers.processors import BertProcessing
 from torch.utils.data import Dataset
+from datasets import load_dataset
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
 
@@ -51,6 +51,27 @@ def encode_sliding_window(data):
             features.append(input_ids)
 
     return features
+
+
+def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
+    return tokenizer(text=dataset["text"], truncation=True, padding="max_length", max_length=max_seq_length,)
+
+
+def load_hf_dataset(data, tokenizer, args):
+    dataset = load_dataset("text", data_files=data)
+
+    dataset = dataset.map(
+        lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, max_seq_length=args.max_seq_length),
+        batched=True,
+    )
+
+    dataset.set_format(type="pt", columns=["input_ids"])
+
+    if isinstance(data, str):
+        # This is not necessarily a train dataset. The datasets library insists on calling it train.
+        return dataset["train"]
+    else:
+        return dataset
 
 
 class SimpleDataset(Dataset):

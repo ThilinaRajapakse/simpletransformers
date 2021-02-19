@@ -264,6 +264,7 @@ class LanguageModelingArgs(ModelArgs):
     special_tokens_list: list = field(default_factory=list)
     strip_accents: bool = True
     local_rank: int = -1
+    use_hf_datasets: bool = False
 
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)

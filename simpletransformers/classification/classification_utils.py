@@ -31,8 +31,9 @@ import torch.nn as nn
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
 
-# from torch.utils.data import Dataset
-from datasets import Dataset, load_dataset
+from torch.utils.data import Dataset
+from datasets import load_dataset
+from datasets import Dataset as HFDataset
 from tqdm.auto import tqdm
 
 try:
@@ -244,7 +245,7 @@ def load_hf_dataset(data, tokenizer, args, multi_label):
     if isinstance(data, str):
         dataset = load_dataset("csv", data_files=data, delimiter="\t")
     else:
-        dataset = Dataset.from_pandas(data)
+        dataset = HFDataset.from_pandas(data)
 
     if args.labels_map and not args.regression:
         dataset = dataset.map(lambda x: map_labels_to_numeric(x, multi_label, args))

@@ -30,7 +30,8 @@ from torch.functional import split
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
-from datasets import Dataset, load_dataset
+from datasets import load_dataset
+from datasets import Dataset as HFDataset
 
 
 class InputExample(object):
@@ -568,7 +569,7 @@ def load_hf_dataset(
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "ner_dataset_loading_script"), data_files=data
         )
     else:
-        dataset = Dataset.from_pandas(data)
+        dataset = HFDataset.from_pandas(data)
 
     dataset = dataset.map(
         lambda x: preprocess_batch_for_hf_dataset(
