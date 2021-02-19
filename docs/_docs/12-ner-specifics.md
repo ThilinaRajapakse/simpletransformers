@@ -2,7 +2,7 @@
 title: Named Entity Recognition Specifics
 permalink: /docs/ner-specifics/
 excerpt: "Specific notes for Named Entity Recognition tasks."
-last_modified_at: 2021/02/02 11:19:04
+last_modified_at: 2021/02/19 15:34:38
 toc: true
 ---
 
@@ -38,6 +38,7 @@ New model types are regularly added to the library. Named Entity Recognition tas
 | RoBERTa     | roberta                   |
 | SqueezeBert | squeezebert               |
 | XLM-RoBERTa | xlmroberta                |
+| XLNet       | xlnet                     |
 
 **Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
 {: .notice--success}

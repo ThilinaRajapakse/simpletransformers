@@ -71,6 +71,9 @@ from transformers import (
     XLMRobertaConfig,
     XLMRobertaForTokenClassification,
     XLMRobertaTokenizer,
+    XLNetConfig,
+    XLNetForTokenClassification,
+    XLNetTokenizerFast,
 )
 from wandb import config
 from transformers.convert_graph_to_onnx import convert, quantize
@@ -140,6 +143,7 @@ class NERModel:
             "roberta": (RobertaConfig, RobertaForTokenClassification, RobertaTokenizer),
             "squeezebert": (SqueezeBertConfig, SqueezeBertForTokenClassification, SqueezeBertTokenizer),
             "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification, XLMRobertaTokenizer),
+            "xlnet": (XLNetConfig, XLNetForTokenClassification, XLNetTokenizerFast),
         }
 
         self.args = self._load_model_args(model_name)
