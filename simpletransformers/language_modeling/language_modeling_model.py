@@ -281,7 +281,9 @@ class LanguageModelingModel:
                         discriminator_config=self.discriminator_config,
                         **kwargs,
                     )
-                    self.model.load_state_dict(torch.load(os.path.join(self.args.model_name, "pytorch_model.bin")))
+                    self.model.load_state_dict(torch.load(os.path.join(self.args.model_name, "pytorch_model.bin"),
+                                                          map_location=self.device)
+                    )
             else:
                 self.model = model_class.from_pretrained(
                     model_name, config=self.config, cache_dir=self.args.cache_dir, **kwargs,
