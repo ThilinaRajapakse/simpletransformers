@@ -1340,7 +1340,7 @@ class NERModel:
         return {metric: values[-1] for metric, values in metric_values.items()}
 
     def _get_inputs_dict(self, batch):
-        if isinstance(batch, dict):
+        if self.args.use_hf_datasets:
             return {key: value.to(self.device) for key, value in batch.items()}
         else:
             batch = tuple(t.to(self.device) for t in batch)

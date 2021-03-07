@@ -1625,7 +1625,7 @@ class ClassificationModel:
         self.model.to(self.device)
 
     def _get_inputs_dict(self, batch):
-        if isinstance(batch, dict):
+        if self.args.use_hf_datasets:
             return {key: value.to(self.device) for key, value in batch.items()}
         if isinstance(batch[0], dict):
             inputs = {key: value.squeeze(1).to(self.device) for key, value in batch[0].items()}
