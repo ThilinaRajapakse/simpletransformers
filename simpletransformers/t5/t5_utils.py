@@ -12,8 +12,52 @@ from tokenizers.processors import BertProcessing
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
+from datasets import load_dataset
+from datasets import Dataset as HFDataset
+
 
 logger = logging.getLogger(__name__)
+
+
+def preprocess_batch_for_hf_dataset(dataset, tokenizer, args):
+    if args.preprocess_inputs:
+        return tokenizer.prepare_seq2seq_batch(
+            src_texts=[prefix + ": " + input_text for prefix, input_text in zip(dataset["prefix"], dataset["input_text"])],
+            tgt_texts=dataset["target_text"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+    else:
+        return tokenizer.prepare_seq2seq_batch(
+            src_texts=[prefix + input_text for prefix, input_text in zip(dataset["prefix"], dataset["input_text"])],
+            tgt_texts=dataset["target_text"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+
+
+def load_hf_dataset(data, tokenizer, args):
+    if isinstance(data, str):
+        dataset = load_dataset("csv", data_files=data, delimiter="\t")
+    else:
+        dataset = HFDataset.from_pandas(data)
+
+    dataset = dataset.map(
+        lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, args=args),
+        batched=True,
+    )
+
+    dataset.set_format(type="pt", columns=["input_ids", "attention_mask"])
+
+    if isinstance(data, str):
+        # This is not necessarily a train dataset. The datasets library insists on calling it train.
+        return dataset["train"]
+    else:
+        return dataset
 
 
 def preprocess_data(data):
