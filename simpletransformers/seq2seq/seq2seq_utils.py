@@ -27,14 +27,26 @@ else:
 def preprocess_data(data):
     input_text, target_text, encoder_tokenizer, decoder_tokenizer, args = data
 
-    input_text = encoder_tokenizer.encode(
-        input_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
-    )
+    if args.model_type == "rag":
+        source_inputs = encoder_tokenizer(input_text, return_tensors="pt")
+        target_inputs = encoder_tokenizer.generator(target_text, return_tensors="pt")
+        source_ids = source_inputs["input_ids"].squeeze()
+        target_ids = target_inputs["input_ids"].squeeze()
+        src_mask = source_inputs["attention_mask"].squeeze()
+        return {
+            "input_ids": source_ids,
+            "attention_mask": src_mask,
+            "decoder_input_ids": target_ids,
+        }
+    else:
+        input_text = encoder_tokenizer.encode(
+            input_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+        )
 
-    target_text = decoder_tokenizer.encode(
-        target_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
-    )
-    return (torch.flatten(input_text), torch.flatten(target_text))
+        target_text = decoder_tokenizer.encode(
+            target_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
+        )
+        return (torch.flatten(input_text), torch.flatten(target_text))
 
 
 class Seq2SeqDataset(Dataset):

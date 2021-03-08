@@ -37,7 +37,6 @@ from transformers import (
     MBartForConditionalGeneration,
     MBartTokenizer,
     BertConfig,
-    BertForMaskedLM,
     BertModel,
     BertTokenizer,
     CamembertConfig,
@@ -62,6 +61,10 @@ from transformers import (
     MobileBertTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
+    RagTokenizer,
+    RagRetriever,
+    RagTokenForGeneration,
+    RagConfig,
     RobertaConfig,
     RobertaModel,
     RobertaTokenizer,
@@ -95,6 +98,7 @@ MODEL_CLASSES = {
     "longformer": (LongformerConfig, LongformerModel, LongformerTokenizer),
     "mobilebert": (MobileBertConfig, MobileBertModel, MobileBertTokenizer),
     "marian": (MarianConfig, MarianMTModel, MarianTokenizer),
+    "rag": (RagConfig, RagTokenForGeneration, RagTokenizer, RagRetriever),
     "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
 }
 
@@ -191,39 +195,52 @@ class Seq2SeqModel:
         if not use_cuda:
             self.args.fp16 = False
 
-        # config = EncoderDecoderConfig.from_encoder_decoder_configs(config, config)
-        if encoder_decoder_type:
-            config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_decoder_type]
-        else:
-            config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
-
-        if encoder_decoder_type in ["bart", "mbart", "marian"]:
-            self.model = model_class.from_pretrained(encoder_decoder_name)
-            if encoder_decoder_type in ["bart", "mbart"]:
-                self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
-            elif encoder_decoder_type == "marian":
-                if self.args.base_marian_model_name:
-                    self.encoder_tokenizer = tokenizer_class.from_pretrained(self.args.base_marian_model_name)
-                else:
-                    self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
+        if encoder_decoder_type == "rag":
+            config_class, model_class, tokenizer_class, retriever_class = MODEL_CLASSES[encoder_decoder_type]
+            self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
             self.decoder_tokenizer = self.encoder_tokenizer
+            self.retriever = retriever_class.from_pretrained(
+                encoder_decoder_name, index_name="exact", use_dummy_dataset=True
+            )
+            self.model = model_class.from_pretrained(encoder_decoder_name, retriever=self.retriever)
             self.config = self.model.config
         else:
-            if encoder_decoder_name:
-                # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
-                self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
-                    os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
-                )
-                self.encoder_tokenizer = tokenizer_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
-                self.decoder_tokenizer = AutoTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
+            if encoder_decoder_type:
+                config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_decoder_type]
             else:
-                self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
-                    encoder_name, decoder_name, config=config
-                )
-                self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_name)
-                self.decoder_tokenizer = AutoTokenizer.from_pretrained(decoder_name)
-            self.encoder_config = self.model.config.encoder
-            self.decoder_config = self.model.config.decoder
+                config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
+
+            if encoder_decoder_type in ["bart", "mbart", "marian"]:
+                self.model = model_class.from_pretrained(encoder_decoder_name)
+                if encoder_decoder_type in ["bart", "mbart"]:
+                    self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
+                elif encoder_decoder_type == "marian":
+                    if self.args.base_marian_model_name:
+                        self.encoder_tokenizer = tokenizer_class.from_pretrained(self.args.base_marian_model_name)
+                    else:
+                        self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
+                self.decoder_tokenizer = self.encoder_tokenizer
+                self.config = self.model.config
+            else:
+                if encoder_decoder_name:
+                    # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
+                    self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
+                        os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
+                    )
+                    self.encoder_tokenizer = tokenizer_class.from_pretrained(
+                        os.path.join(encoder_decoder_name, "encoder")
+                    )
+                    self.decoder_tokenizer = AutoTokenizer.from_pretrained(
+                        os.path.join(encoder_decoder_name, "decoder")
+                    )
+                else:
+                    self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
+                        encoder_name, decoder_name, config=config
+                    )
+                    self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_name)
+                    self.decoder_tokenizer = AutoTokenizer.from_pretrained(decoder_name)
+                self.encoder_config = self.model.config.encoder
+                self.decoder_config = self.model.config.decoder
 
         if additional_special_tokens_encoder is not None:
             self.encoder_tokenizer.add_special_tokens(additional_special_tokens_encoder)
@@ -939,6 +956,27 @@ class Seq2SeqModel:
                     truncation=True,
                     src_lang=self.args.src_lang,
                 )["input_ids"]
+            elif self.args.model_type == "rag":
+                input_ids = self.encoder_tokenizer(batch, return_tensors="pt")["input_ids"].to(self.device)
+
+                question_hidden_states = self.model.question_encoder(input_ids)[0]
+
+                docs_dict = self.retriever(
+                    input_ids.cpu().numpy(), question_hidden_states.detach().cpu().numpy(), return_tensors="pt"
+                )
+                doc_scores = torch.bmm(
+                    question_hidden_states.unsqueeze(1),
+                    docs_dict["retrieved_doc_embeds"].float().transpose(1, 2).to(self.device),
+                ).squeeze(1)
+
+                generated = self.model.generate(
+                    context_input_ids=docs_dict["context_input_ids"].to(self.device),
+                    context_attention_mask=docs_dict["context_attention_mask"].to(self.device),
+                    doc_scores=doc_scores,
+                )
+                generated = self.encoder_tokenizer.batch_decode(generated, skip_special_tokens=True)
+
+                return generated
             else:
                 input_ids = self.encoder_tokenizer.batch_encode_plus(
                     batch,
@@ -1109,7 +1147,7 @@ class Seq2SeqModel:
             model_to_save = model.module if hasattr(model, "module") else model
             self.save_model_args(output_dir)
 
-            if self.args.model_type in ["bart", "mbart", "marian"]:
+            if self.args.model_type in ["bart", "mbart", "marian", "rag"]:
                 os.makedirs(os.path.join(output_dir), exist_ok=True)
                 model_to_save.save_pretrained(output_dir)
                 self.config.save_pretrained(output_dir)
@@ -1170,6 +1208,14 @@ class Seq2SeqModel:
                 "attention_mask": batch["attention_mask"].to(device),
                 "decoder_input_ids": batch["decoder_input_ids"].to(device),
                 "labels": batch["labels"].to(device),
+            }
+        elif self.args.model_type == "rag":
+            inputs = {
+                "input_ids": batch["input_ids"].to(device),
+                "attention_mask": batch["attention_mask"].to(device),
+                "decoder_input_ids": batch["decoder_input_ids"].to(device),
+                "labels": batch["decoder_input_ids"].to(device),
+                "reduce_loss": True,
             }
         else:
             labels = batch[1]
