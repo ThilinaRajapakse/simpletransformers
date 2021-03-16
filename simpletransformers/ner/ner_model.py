@@ -1028,7 +1028,7 @@ class NERModel:
             for (input_ids, attention_mask, token_type_ids) in tqdm(zip(model_inputs["input_ids"],
                                                                         model_inputs["attention_mask"],
                                                                         model_inputs["token_type_ids"])):
-                if self.args.model_type not in ["roberta", "gpt2"]:
+                if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
                     input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
                     attention_mask = attention_mask.unsqueeze(0).detach().cpu().numpy()
                     token_type_ids = token_type_ids.unsqueeze(0).detach().cpu().numpy()
