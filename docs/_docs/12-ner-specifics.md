@@ -64,7 +64,7 @@ model = NERModel(
 
 ## Prediction Caveats
 
-By default, `NERModel` will split input sequences to the `predict()` method on spaces and assign a NER tag to each "word" of the split sequence. This might not be desirable in some languages (e.g. Chinese). To avoid this, you can specify `split_on_spaces=False` when calling the `NERModel.predict()` method. In this case, you must provide a list of lists as the `to_predict` input to the `predict()` method. The inner list will be the list of split "words" belonging to a single sequence and the outer list is the list of all sequences.
+By default, `NERModel` will split input sequences to the `predict()` method on spaces and assign a NER tag to each "word" of the split sequence. This might not be desirable in some languages (e.g. Chinese). To avoid this, you can specify `split_on_space=False` when calling the `NERModel.predict()` method. In this case, you must provide a list of lists as the `to_predict` input to the `predict()` method. The inner list will be the list of split "words" belonging to a single sequence and the outer list is the list of all sequences.
 
 ## Lazy Loading Data
 
