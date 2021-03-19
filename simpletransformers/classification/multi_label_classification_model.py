@@ -242,8 +242,8 @@ class MultiLabelClassificationModel(ClassificationModel):
             examples, evaluate=evaluate, no_cache=no_cache, multi_label=multi_label, verbose=verbose, silent=silent
         )
 
-    def compute_metrics(self, preds, labels, eval_examples, multi_label=True, **kwargs):
-        return super().compute_metrics(preds, labels, eval_examples, multi_label=multi_label, **kwargs)
+    def compute_metrics(self, preds, model_outputs, labels, eval_examples, multi_label=True, **kwargs):
+        return super().compute_metrics(preds, model_outputs, labels, eval_examples, multi_label=multi_label, **kwargs)
 
     def predict(self, to_predict, multi_label=True):
         return super().predict(to_predict, multi_label=multi_label)

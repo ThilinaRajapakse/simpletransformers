@@ -16,6 +16,7 @@
 """ Named entity recognition fine-tuning: utilities to work with CoNLL-2003 task. """
 
 from __future__ import absolute_import, division, print_function
+import enum
 
 import linecache
 import logging
@@ -29,26 +30,30 @@ from torch.functional import split
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
+from datasets import load_dataset
+from datasets import Dataset as HFDataset
 
 
 class InputExample(object):
     """A single training/test example for token classification."""
 
-    def __init__(self, guid, words, labels, x0=None, y0=None, x1=None, y1=None):
+    def __init__(self, guid, words, labels, x0=None, y0=None, x1=None, y1=None, tokenized_word_ids=None):
         """Constructs a InputExample.
         Args:
             guid: Unique id for the example.
             words: list. The words of the sequence.
-            labels: (Optional) list. The labels for each word of the sequence. This should be
+            labels: list. The labels for each word of the sequence. This should be
             specified for train and dev examples, but not for test examples.
             x0: (Optional) list. The list of x0 coordinates for each word.
             y0: (Optional) list. The list of y0 coordinates for each word.
             x1: (Optional) list. The list of x1 coordinates for each word.
             y1: (Optional) list. The list of y1 coordinates for each word.
+            tokenized_word_ids: (Optional) list. Tokenized words converted to input_ids
         """
         self.guid = guid
         self.words = words
         self.labels = labels
+        self.tokenized_word_ids = tokenized_word_ids
         if x0 is None:
             self.bboxes = None
         else:
@@ -215,13 +220,17 @@ def convert_example_to_feature(
     pad_token_label_id,
     sequence_a_segment_id,
     mask_padding_with_zero,
+    return_input_feature=True,
 ):
     tokens = []
     label_ids = []
     bboxes = []
     if example.bboxes:
-        for word, label, bbox in zip(example.words, example.labels, example.bboxes):
-            word_tokens = tokenizer.tokenize(word)
+        for i, (word, label, bbox) in enumerate(zip(example.words, example.labels, example.bboxes)):
+            if example.tokenized_word_ids is None:
+                word_tokens = tokenizer.tokenize(word)
+            else:
+                word_tokens = example.tokenized_word_ids[i]
             tokens.extend(word_tokens)
             # Use the real label id for the first token of the word, and padding ids for the remaining tokens
             label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
@@ -232,8 +241,11 @@ def convert_example_to_feature(
         pad_token_box = [0, 0, 0, 0]
 
     else:
-        for word, label in zip(example.words, example.labels):
-            word_tokens = tokenizer.tokenize(word)
+        for i, (word, label) in enumerate(zip(example.words, example.labels)):
+            if example.tokenized_word_ids is None:
+                word_tokens = tokenizer.tokenize(word)
+            else:
+                word_tokens = example.tokenized_word_ids[i]
             tokens.extend(word_tokens)
             # Use the real label id for the first token of the word, and padding ids for the remaining tokens
             if word_tokens:  # avoid non printable character like '\u200e' which are tokenized as a void token ''
@@ -288,7 +300,10 @@ def convert_example_to_feature(
         if bboxes:
             bboxes = [cls_token_box] + bboxes
 
-    input_ids = tokenizer.convert_tokens_to_ids(tokens)
+    if example.tokenized_word_ids is None:
+        input_ids = tokenizer.convert_tokens_to_ids(tokens)
+    else:
+        input_ids = tokens
 
     # The mask has 1 for real tokens and 0 for padding tokens. Only real
     # tokens are attended to.
@@ -316,12 +331,31 @@ def convert_example_to_feature(
     if bboxes:
         assert len(bboxes) == max_seq_length
 
-    if bboxes:
-        return InputFeatures(
-            input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids, bboxes=bboxes
-        )
+    if return_input_feature:
+        if bboxes:
+            return InputFeatures(
+                input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids, bboxes=bboxes
+            )
+        else:
+            return InputFeatures(
+                input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids,
+            )
     else:
-        return InputFeatures(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids,)
+        if bboxes:
+            return (
+                input_ids,
+                input_mask,
+                segment_ids,
+                label_ids,
+                bboxes,
+            )
+        else:
+            return (
+                input_ids,
+                input_mask,
+                segment_ids,
+                label_ids,
+            )
 
 
 def convert_examples_to_features(
@@ -433,6 +467,141 @@ def get_labels(path):
             "B-LOC",
             "I-LOC",
         ]
+
+
+def preprocess_batch_for_hf_dataset(
+    data,
+    label_list,
+    max_seq_length,
+    tokenizer,
+    cls_token_at_end=False,
+    cls_token="[CLS]",
+    cls_token_segment_id=1,
+    sep_token="[SEP]",
+    sep_token_extra=False,
+    pad_on_left=False,
+    pad_token=0,
+    pad_token_segment_id=0,
+    pad_token_label_id=-1,
+    sequence_a_segment_id=0,
+    mask_padding_with_zero=True,
+    silent=False,
+):
+    sequence_lengths = []
+    all_words = []
+    for seq in data["words"]:
+        sequence_lengths.append(len(seq))
+        all_words.extend(seq)  # Need to check whether adding the prefix space helps
+
+    tokenized_word_ids_all = tokenizer(text=all_words, add_special_tokens=False)["input_ids"]
+
+    tokenized_word_ids_batch = []
+    tokenized_word_ids_batch = [
+        tokenized_word_ids_all[len(tokenized_word_ids_batch) : len(tokenized_word_ids_batch) + seq_len]
+        for seq_len in sequence_lengths
+    ]
+
+    examples = [
+        InputExample(guid, words, labels, tokenized_word_ids=tokenized_ids)
+        for guid, words, labels, tokenized_ids in zip(
+            data["sentence_id"], data["words"], data["labels"], tokenized_word_ids_batch
+        )
+    ]
+    label_map = {label: i for i, label in enumerate(label_list)}
+
+    features = [
+        convert_example_to_feature(
+            example,
+            label_map=label_map,
+            max_seq_length=max_seq_length,
+            tokenizer=tokenizer,
+            cls_token_at_end=cls_token_at_end,
+            cls_token=cls_token,
+            cls_token_segment_id=cls_token_segment_id,
+            sep_token=sep_token,
+            sep_token_extra=sep_token_extra,
+            pad_on_left=pad_on_left,
+            pad_token=pad_token,
+            pad_token_segment_id=pad_token_segment_id,
+            pad_token_label_id=pad_token_label_id,
+            sequence_a_segment_id=sequence_a_segment_id,
+            mask_padding_with_zero=mask_padding_with_zero,
+            return_input_feature=False,
+        )
+        for example in tqdm(examples, disable=silent)
+    ]
+
+    feature_dict = {}
+    feature_names = [
+        "input_ids",
+        "attention_mask",
+        "token_type_ids",
+        "labels",
+    ]
+
+    for i, feature in enumerate(zip(*features)):
+        feature_dict[feature_names[i]] = list(feature)
+
+    return feature_dict
+
+
+def load_hf_dataset(
+    data,
+    tokenizer,
+    label_list,
+    max_seq_length,
+    cls_token_at_end=False,
+    cls_token="[CLS]",
+    cls_token_segment_id=1,
+    sep_token="[SEP]",
+    sep_token_extra=False,
+    pad_on_left=False,
+    pad_token=0,
+    pad_token_segment_id=0,
+    pad_token_label_id=-1,
+    sequence_a_segment_id=0,
+    mask_padding_with_zero=True,
+    silent=False,
+):
+    if isinstance(data, str):
+        # dataset = load_dataset("conll2003", data_files=data)
+        dataset = load_dataset(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "ner_dataset_loading_script"), data_files=data
+        )
+    else:
+        raise TypeError(
+            "{} is not a path to a data file (e.g. tsv). The input must be a data file for NERModel.".format(data)
+        )
+
+    dataset = dataset.map(
+        lambda x: preprocess_batch_for_hf_dataset(
+            x,
+            tokenizer,
+            label_list,
+            max_seq_length,
+            cls_token_at_end=cls_token_at_end,
+            cls_token=cls_token,
+            cls_token_segment_id=cls_token_segment_id,
+            sep_token=sep_token,
+            sep_token_extra=sep_token_extra,
+            pad_on_left=pad_on_left,
+            pad_token=pad_token,
+            pad_token_segment_id=pad_token_segment_id,
+            pad_token_label_id=pad_token_label_id,
+            sequence_a_segment_id=sequence_a_segment_id,
+            mask_padding_with_zero=mask_padding_with_zero,
+            silent=silent,
+        ),
+        batched=True,
+    )
+
+    dataset.set_format(type="pt", columns=["input_ids", "token_type_ids", "attention_mask", "labels"])
+
+    if isinstance(data, str):
+        # This is not necessarily a train dataset. The datasets library insists on calling it train.
+        return dataset["train"]
+    else:
+        return dataset
 
 
 class LazyNERDataset(Dataset):

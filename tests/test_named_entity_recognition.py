@@ -8,7 +8,7 @@ from simpletransformers.ner import NERModel
     "model_type, model_name",
     [
         ("bert", "bert-base-uncased"),
-        ("longformer", "allenai/longformer-base-4096")
+        # ("longformer", "allenai/longformer-base-4096"),
         # ("xlnet", "xlnet-base-cased"),
         # ("xlm", "xlm-mlm-17-1280"),
         # ("roberta", "roberta-base"),

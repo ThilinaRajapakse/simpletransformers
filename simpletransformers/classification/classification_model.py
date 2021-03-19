@@ -50,40 +50,40 @@ from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
     BertConfig,
-    BertTokenizer,
+    BertTokenizerFast,
     BertweetTokenizer,
     CamembertConfig,
-    CamembertTokenizer,
+    CamembertTokenizerFast,
     DebertaConfig,
     DebertaForSequenceClassification,
     DebertaTokenizer,
     DistilBertConfig,
-    DistilBertTokenizer,
+    DistilBertTokenizerFast,
     ElectraConfig,
-    ElectraTokenizer,
+    ElectraTokenizerFast,
     FlaubertConfig,
     FlaubertTokenizer,
     LayoutLMConfig,
-    LayoutLMTokenizer,
+    LayoutLMTokenizerFast,
     LongformerConfig,
-    LongformerTokenizer,
+    LongformerTokenizerFast,
     MPNetConfig,
     MPNetForSequenceClassification,
-    MPNetTokenizer,
+    MPNetTokenizerFast,
     MobileBertConfig,
-    MobileBertTokenizer,
+    MobileBertTokenizerFast,
     RobertaConfig,
-    RobertaTokenizer,
+    RobertaTokenizerFast,
     SqueezeBertConfig,
     SqueezeBertForSequenceClassification,
-    SqueezeBertTokenizer,
+    SqueezeBertTokenizerFast,
     WEIGHTS_NAME,
     XLMConfig,
     XLMRobertaConfig,
-    XLMRobertaTokenizer,
+    XLMRobertaTokenizerFast,
     XLMTokenizer,
     XLNetConfig,
-    XLNetTokenizer,
+    XLNetTokenizerFast,
 )
 from transformers.convert_graph_to_onnx import convert, quantize
 
@@ -92,6 +92,7 @@ from simpletransformers.classification.classification_utils import (
     LazyClassificationDataset,
     ClassificationDataset,
     convert_examples_to_features,
+    load_hf_dataset,
 )
 from simpletransformers.classification.transformer_models.albert_model import AlbertForSequenceClassification
 from simpletransformers.classification.transformer_models.bert_model import BertForSequenceClassification
@@ -167,22 +168,22 @@ class ClassificationModel:
         MODEL_CLASSES = {
             "albert": (AlbertConfig, AlbertForSequenceClassification, AlbertTokenizer),
             "auto": (AutoConfig, AutoModelForSequenceClassification, AutoTokenizer),
-            "bert": (BertConfig, BertForSequenceClassification, BertTokenizer),
+            "bert": (BertConfig, BertForSequenceClassification, BertTokenizerFast),
             "bertweet": (RobertaConfig, RobertaForSequenceClassification, BertweetTokenizer),
-            "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizer),
+            "camembert": (CamembertConfig, CamembertForSequenceClassification, CamembertTokenizerFast),
             "deberta": (DebertaConfig, DebertaForSequenceClassification, DebertaTokenizer),
-            "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizer),
-            "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizer),
+            "distilbert": (DistilBertConfig, DistilBertForSequenceClassification, DistilBertTokenizerFast),
+            "electra": (ElectraConfig, ElectraForSequenceClassification, ElectraTokenizerFast),
             "flaubert": (FlaubertConfig, FlaubertForSequenceClassification, FlaubertTokenizer),
-            "layoutlm": (LayoutLMConfig, LayoutLMForSequenceClassification, LayoutLMTokenizer),
-            "longformer": (LongformerConfig, LongformerForSequenceClassification, LongformerTokenizer),
-            "mobilebert": (MobileBertConfig, MobileBertForSequenceClassification, MobileBertTokenizer),
-            "mpnet": (MPNetConfig, MPNetForSequenceClassification, MPNetTokenizer),
-            "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer),
-            "squeezebert": (SqueezeBertConfig, SqueezeBertForSequenceClassification, SqueezeBertTokenizer),
+            "layoutlm": (LayoutLMConfig, LayoutLMForSequenceClassification, LayoutLMTokenizerFast),
+            "longformer": (LongformerConfig, LongformerForSequenceClassification, LongformerTokenizerFast),
+            "mobilebert": (MobileBertConfig, MobileBertForSequenceClassification, MobileBertTokenizerFast),
+            "mpnet": (MPNetConfig, MPNetForSequenceClassification, MPNetTokenizerFast),
+            "roberta": (RobertaConfig, RobertaForSequenceClassification, RobertaTokenizerFast),
+            "squeezebert": (SqueezeBertConfig, SqueezeBertForSequenceClassification, SqueezeBertTokenizerFast),
             "xlm": (XLMConfig, XLMForSequenceClassification, XLMTokenizer),
-            "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizer),
-            "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizer),
+            "xlmroberta": (XLMRobertaConfig, XLMRobertaForSequenceClassification, XLMRobertaTokenizerFast),
+            "xlnet": (XLNetConfig, XLNetForSequenceClassification, XLNetTokenizerFast),
         }
 
         self.args = self._load_model_args(model_name)
@@ -402,7 +403,13 @@ class ClassificationModel:
             )
         self._move_model_to_device()
 
-        if isinstance(train_df, str) and self.args.lazy_loading:
+        if self.args.use_hf_datasets:
+            if self.args.sliding_window:
+                raise ValueError("HuggingFace Datasets cannot be used with sliding window.")
+            if self.args.model_type == "layoutlm":
+                raise NotImplementedError("HuggingFace Datasets support is not implemented for LayoutLM models")
+            train_dataset = load_hf_dataset(train_df, self.tokenizer, self.args, multi_label=multi_label)
+        elif isinstance(train_df, str) and self.args.lazy_loading:
             if self.args.sliding_window:
                 raise ValueError("Lazy loading cannot be used with sliding window.")
             if self.args.model_type == "layoutlm":
@@ -427,28 +434,21 @@ class ClassificationModel:
                         )
                     ]
                 else:
-                    train_examples = [
-                        InputExample(i, text, None, label)
-                        for i, (text, label) in enumerate(zip(train_df["text"].astype(str), train_df["labels"]))
-                    ]
+                    train_examples = (train_df["text"].astype(str).tolist(), train_df["labels"].tolist())
             elif "text_a" in train_df.columns and "text_b" in train_df.columns:
                 if self.args.model_type == "layoutlm":
                     raise ValueError("LayoutLM cannot be used with sentence-pair tasks")
                 else:
-                    train_examples = [
-                        InputExample(i, text_a, text_b, label)
-                        for i, (text_a, text_b, label) in enumerate(
-                            zip(train_df["text_a"].astype(str), train_df["text_b"].astype(str), train_df["labels"])
-                        )
-                    ]
+                    train_examples = (
+                        train_df["text_a"].astype(str).tolist(),
+                        train_df["text_b"].astype(str).tolist(),
+                        train_df["labels"].tolist(),
+                    )
             else:
                 warnings.warn(
                     "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
                 )
-                train_examples = [
-                    InputExample(i, text, None, label)
-                    for i, (text, label) in enumerate(zip(train_df.iloc[:, 0], train_df.iloc[:, 1]))
-                ]
+                train_examples = (train_df.iloc[:, 0].astype(str).tolist(), train_df.iloc[:, 1].tolist())
             train_dataset = self.load_and_cache_examples(train_examples, verbose=verbose)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
@@ -982,7 +982,14 @@ class ClassificationModel:
         eval_output_dir = output_dir
 
         results = {}
-        if isinstance(eval_df, str) and self.args.lazy_loading:
+        if self.args.use_hf_datasets:
+            if self.args.sliding_window:
+                raise ValueError("HuggingFace Datasets cannot be used with sliding window.")
+            if self.args.model_type == "layoutlm":
+                raise NotImplementedError("HuggingFace Datasets support is not implemented for LayoutLM models")
+            eval_dataset = load_hf_dataset(eval_df, self.tokenizer, self.args, multi_label=multi_label)
+            eval_examples = None
+        elif isinstance(eval_df, str) and self.args.lazy_loading:
             if self.args.model_type == "layoutlm":
                 raise NotImplementedError("Lazy loading is not implemented for LayoutLM models")
             eval_dataset = LazyClassificationDataset(eval_df, self.tokenizer, self.args)
@@ -1007,28 +1014,21 @@ class ClassificationModel:
                         )
                     ]
                 else:
-                    eval_examples = [
-                        InputExample(i, text, None, label)
-                        for i, (text, label) in enumerate(zip(eval_df["text"].astype(str), eval_df["labels"]))
-                    ]
+                    eval_examples = (eval_df["text"].astype(str).tolist(), eval_df["labels"].tolist())
             elif "text_a" in eval_df.columns and "text_b" in eval_df.columns:
                 if self.args.model_type == "layoutlm":
                     raise ValueError("LayoutLM cannot be used with sentence-pair tasks")
                 else:
-                    eval_examples = [
-                        InputExample(i, text_a, text_b, label)
-                        for i, (text_a, text_b, label) in enumerate(
-                            zip(eval_df["text_a"].astype(str), eval_df["text_b"].astype(str), eval_df["labels"])
-                        )
-                    ]
+                    eval_examples = (
+                        eval_df["text_a"].astype(str).tolist(),
+                        eval_df["text_b"].astype(str).tolist(),
+                        eval_df["labels"].tolist(),
+                    )
             else:
                 warnings.warn(
                     "Dataframe headers not specified. Falling back to using column 0 as text and column 1 as labels."
                 )
-                eval_examples = [
-                    InputExample(i, text, None, label)
-                    for i, (text, label) in enumerate(zip(eval_df.iloc[:, 0], eval_df.iloc[:, 1]))
-                ]
+                eval_examples = (eval_df.iloc[:, 0].astype(str).tolist(), eval_df.iloc[:, 1].tolist())
 
             if args.sliding_window:
                 eval_dataset, window_counts = self.load_and_cache_examples(
@@ -1209,6 +1209,17 @@ class ClassificationModel:
                     if args.sliding_window:
                         logger.info(" Sliding window enabled")
 
+                if self.args.model_type != "layoutlm":
+                    if len(examples) == 3:
+                        examples = [
+                            InputExample(i, text_a, text_b, label)
+                            for i, (text_a, text_b, label) in enumerate(zip(*examples))
+                        ]
+                    else:
+                        examples = [
+                            InputExample(i, text_a, None, label) for i, (text_a, label) in enumerate(zip(*examples))
+                        ]
+
                 # If labels_map is defined, then labels need to be replaced with ints
                 if self.args.labels_map and not self.args.regression:
                     for example in examples:
@@ -1282,7 +1293,13 @@ class ClassificationModel:
                 return dataset
         else:
             dataset = ClassificationDataset(
-                examples, self.tokenizer, self.args, mode=mode, multi_label=multi_label, output_mode=output_mode
+                examples,
+                self.tokenizer,
+                self.args,
+                mode=mode,
+                multi_label=multi_label,
+                output_mode=output_mode,
+                no_cache=no_cache,
             )
             return dataset
 
@@ -1409,27 +1426,17 @@ class ClassificationModel:
             self._move_model_to_device()
             dummy_label = 0 if not self.args.labels_map else next(iter(self.args.labels_map.keys()))
 
+            if multi_label:
+                dummy_label = [dummy_label for i in range(self.num_labels)]
+
             if args.n_gpu > 1:
                 model = torch.nn.DataParallel(model)
 
-            if multi_label:
-                if isinstance(to_predict[0], list):
-                    eval_examples = [
-                        InputExample(i, text[0], text[1], [dummy_label for i in range(self.num_labels)])
-                        for i, text in enumerate(to_predict)
-                    ]
-                else:
-                    eval_examples = [
-                        InputExample(i, text, None, [dummy_label for i in range(self.num_labels)])
-                        for i, text in enumerate(to_predict)
-                    ]
+            if isinstance(to_predict[0], list):
+                eval_examples = (*zip(*to_predict), [dummy_label for i in range(len(to_predict))])
             else:
-                if isinstance(to_predict[0], list):
-                    eval_examples = [
-                        InputExample(i, text[0], text[1], dummy_label) for i, text in enumerate(to_predict)
-                    ]
-                else:
-                    eval_examples = [InputExample(i, text, None, dummy_label) for i, text in enumerate(to_predict)]
+                eval_examples = (to_predict, [dummy_label for i in range(len(to_predict))])
+
             if args.sliding_window:
                 eval_dataset, window_counts = self.load_and_cache_examples(eval_examples, evaluate=True, no_cache=True)
                 preds = np.empty((len(eval_dataset), self.num_labels))
@@ -1453,9 +1460,9 @@ class ClassificationModel:
                 preds = None
                 out_label_ids = None
                 for i, batch in enumerate(tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction")):
-                    # batch = tuple(t.to(device) for t in batch)
+                    # batch = tuple(t.to(self.device) for t in batch)
                     with torch.no_grad():
-                        inputs = self._get_inputs_dict(batch)
+                        inputs = self._get_inputs_dict(batch, no_hf=True)
 
                         if self.args.fp16:
                             with amp.autocast():
@@ -1500,7 +1507,7 @@ class ClassificationModel:
                     # batch = tuple(t.to(device) for t in batch)
 
                     with torch.no_grad():
-                        inputs = self._get_inputs_dict(batch)
+                        inputs = self._get_inputs_dict(batch, no_hf=True)
 
                         if self.args.fp16:
                             with amp.autocast():
@@ -1623,7 +1630,9 @@ class ClassificationModel:
     def _move_model_to_device(self):
         self.model.to(self.device)
 
-    def _get_inputs_dict(self, batch):
+    def _get_inputs_dict(self, batch, no_hf=False):
+        if self.args.use_hf_datasets and not no_hf:
+            return {key: value.to(self.device) for key, value in batch.items()}
         if isinstance(batch[0], dict):
             inputs = {key: value.squeeze(1).to(self.device) for key, value in batch[0].items()}
             inputs["labels"] = batch[1].to(self.device)

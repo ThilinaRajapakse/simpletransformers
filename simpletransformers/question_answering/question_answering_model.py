@@ -92,6 +92,7 @@ from simpletransformers.question_answering.question_answering_utils import (
     get_best_predictions,
     get_best_predictions_extended,
     get_examples,
+    load_hf_dataset,
     squad_convert_examples_to_features,
     to_list,
     write_predictions,
@@ -347,7 +348,9 @@ class QuestionAnsweringModel:
 
         self._move_model_to_device()
 
-        if self.args.lazy_loading:
+        if self.args.use_hf_datasets:
+            train_dataset = load_hf_dataset(train_data, self.tokenizer, self.args, is_training=True)
+        elif self.args.lazy_loading:
             if isinstance(train_data, str):
                 train_dataset = LazyQuestionAnsweringDataset(train_data, self.tokenizer, self.args)
             else:
@@ -380,7 +383,6 @@ class QuestionAnsweringModel:
         Utility function to be used by the train_model() method. Not intended to be used directly.
         """
 
-        device = self.device
         model = self.model
         args = self.args
 
@@ -577,7 +579,6 @@ class QuestionAnsweringModel:
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
-                batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
                 if args.fp16:
@@ -859,7 +860,6 @@ class QuestionAnsweringModel:
         Utility function to be used by the eval_model() method. Not intended to be used directly.
         """
         tokenizer = self.tokenizer
-        device = self.device
         model = self.model
         args = self.args
 
@@ -888,7 +888,7 @@ class QuestionAnsweringModel:
 
         all_results = []
         for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Evaluation"):
-            batch = tuple(t.to(device) for t in batch)
+            batch = tuple(t.to(self.device) for t in batch)
 
             with torch.no_grad():
                 inputs = {
@@ -1038,7 +1038,7 @@ class QuestionAnsweringModel:
 
         all_results = []
         for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
-            batch = tuple(t.to(device) for t in batch)
+            batch = tuple(t.to(self.device) for t in batch)
 
             with torch.no_grad():
                 inputs = {
@@ -1175,21 +1175,33 @@ class QuestionAnsweringModel:
         return {metric: values[-1] for metric, values in metric_values.items()}
 
     def _get_inputs_dict(self, batch):
-        inputs = {
-            "input_ids": batch[0],
-            "attention_mask": batch[1],
-            "token_type_ids": batch[2],
-            "start_positions": batch[3],
-            "end_positions": batch[4],
-        }
+        if self.args.use_hf_datasets:
+            inputs = {key: value.to(self.device) for key, value in batch.items()}
 
-        if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta", "bart"]:
-            del inputs["token_type_ids"]
+            if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta", "bart"]:
+                del inputs["token_type_ids"]
+            if self.args.model_type not in ["xlnet", "xlm"]:
+                del inputs["cls_index"]
+                del inputs["p_mask"]
 
-        if self.args.model_type in ["xlnet", "xlm"]:
-            inputs.update({"cls_index": batch[5], "p_mask": batch[6]})
+            return inputs
+        else:
+            batch = tuple(t.to(self.device) for t in batch)
+            inputs = {
+                "input_ids": batch[0],
+                "attention_mask": batch[1],
+                "token_type_ids": batch[2],
+                "start_positions": batch[3],
+                "end_positions": batch[4],
+            }
 
-        return inputs
+            if self.args.model_type in ["xlm", "roberta", "distilbert", "camembert", "electra", "xlmroberta", "bart"]:
+                del inputs["token_type_ids"]
+
+            if self.args.model_type in ["xlnet", "xlm"]:
+                inputs.update({"cls_index": batch[5], "p_mask": batch[6]})
+
+            return inputs
 
     def _create_training_progress_scores(self, **kwargs):
         extra_metrics = {key: [] for key in kwargs}

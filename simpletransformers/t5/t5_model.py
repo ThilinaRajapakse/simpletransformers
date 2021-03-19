@@ -32,7 +32,7 @@ from transformers.models.mt5 import MT5Config, MT5ForConditionalGeneration
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import T5Args
 from simpletransformers.config.utils import sweep_config_to_sweep_values
-from simpletransformers.t5.t5_utils import T5Dataset
+from simpletransformers.t5.t5_utils import T5Dataset, load_hf_dataset
 
 try:
     import wandb
@@ -434,7 +434,6 @@ class T5Model:
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
-                batch = tuple(t.to(device) for t in batch)
 
                 inputs = self._get_inputs_dict(batch)
                 if args.fp16:
@@ -757,8 +756,6 @@ class T5Model:
             from torch.cuda import amp
 
         for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
-            batch = tuple(t.to(device) for t in batch)
-
             inputs = self._get_inputs_dict(batch)
             with torch.no_grad():
                 if self.args.fp16:
@@ -898,14 +895,21 @@ class T5Model:
         self.model.to(self.device)
 
     def _get_inputs_dict(self, batch):
-        input_ids = batch[0]
-        attention_mask = batch[1]
-        labels = batch[2]
-        labels[labels == self.tokenizer.pad_token_id] = -100
+        if self.args.use_hf_datasets:
+            inputs = {**batch, "labels": batch["input_ids"]}
 
-        inputs = {"input_ids": input_ids, "attention_mask": attention_mask, "labels": labels}
+            return {key: value.to(self.device) for key, value in inputs.items()}
+        else:
+            batch = tuple(t.to(self.device) for t in batch)
 
-        return inputs
+            input_ids = batch[0]
+            attention_mask = batch[1]
+            labels = batch[2]
+            labels[labels == self.tokenizer.pad_token_id] = -100
+
+            inputs = {"input_ids": input_ids, "attention_mask": attention_mask, "labels": labels}
+
+            return inputs
 
     def load_and_cache_examples(self, data, evaluate=False, no_cache=False, verbose=True, silent=False):
         """
@@ -925,13 +929,14 @@ class T5Model:
 
         mode = "dev" if evaluate else "train"
 
-        if args.dataset_class:
+        if self.args.use_hf_datasets:
+            dataset = load_hf_dataset(data, tokenizer, self.args)
+            return dataset
+        elif args.dataset_class:
             CustomDataset = args.dataset_class
             return CustomDataset(tokenizer, args, data, mode)
         else:
             return T5Dataset(tokenizer, self.args, data, mode,)
-
-        return T5Dataset
 
     def _create_training_progress_scores(self, **kwargs):
         extra_metrics = {key: [] for key in kwargs}

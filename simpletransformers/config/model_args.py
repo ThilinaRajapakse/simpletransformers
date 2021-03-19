@@ -22,6 +22,13 @@ def get_special_tokens():
 
 @dataclass
 class ModelArgs:
+    adafactor_beta1: float = None
+    adafactor_clip_threshold: float = 1.0
+    adafactor_decay_rate: float = -0.8
+    adafactor_eps: tuple = field(default_factory=lambda: (1e-30, 1e-3))
+    adafactor_relative_step: bool = True
+    adafactor_scale_parameter: bool = True
+    adafactor_warmup_init: bool = True
     adam_epsilon: float = 1e-8
     best_model_dir: str = "outputs/best_model"
     cache_dir: str = "cache_dir/"
@@ -38,13 +45,6 @@ class ModelArgs:
     early_stopping_metric_minimize: bool = True
     early_stopping_patience: int = 3
     encoding: str = None
-    adafactor_eps: tuple = field(default_factory=lambda: (1e-30, 1e-3))
-    adafactor_clip_threshold: float = 1.0
-    adafactor_decay_rate: float = -0.8
-    adafactor_beta1: float = None
-    adafactor_scale_parameter: bool = True
-    adafactor_relative_step: bool = True
-    adafactor_warmup_init: bool = True
     eval_batch_size: int = 8
     evaluate_during_training: bool = False
     evaluate_during_training_silent: bool = True
@@ -70,9 +70,9 @@ class ModelArgs:
     optimizer: str = "AdamW"
     output_dir: str = "outputs/"
     overwrite_output_dir: bool = False
-    process_count: int = field(default_factory=get_default_process_count)
     polynomial_decay_schedule_lr_end: float = 1e-7
     polynomial_decay_schedule_power: float = 1.0
+    process_count: int = field(default_factory=get_default_process_count)
     quantized_model: bool = False
     reprocess_input_data: bool = True
     save_best_model: bool = True
@@ -85,14 +85,15 @@ class ModelArgs:
     skip_special_tokens: bool = True
     tensorboard_dir: str = None
     thread_count: int = None
-    tokenizer_type: str = None
     tokenizer_name: str = None
+    tokenizer_type: str = None
     train_batch_size: int = 8
     train_custom_parameters_only: bool = False
     use_cached_eval_features: bool = False
     use_early_stopping: bool = False
+    use_hf_datasets: bool = False
     use_multiprocessing: bool = True
-    use_multiprocessing_for_evaluation: bool = False
+    use_multiprocessing_for_evaluation: bool = True
     wandb_kwargs: dict = field(default_factory=dict)
     wandb_project: str = None
     warmup_ratio: float = 0.06
@@ -297,15 +298,20 @@ class Seq2SeqArgs(ModelArgs):
     do_sample: bool = False
     early_stopping: bool = True
     evaluate_generated_text: bool = False
+    faiss_d: int = 768
+    faiss_m: int = 128
     length_penalty: float = 2.0
     max_length: int = 20
     max_steps: int = -1
     num_beams: int = 1
     num_return_sequences: int = 1
+    rag_embed_batch_size: int = 16
     repetition_penalty: float = 1.0
     top_k: float = None
     top_p: float = None
     use_multiprocessed_decoding: bool = False
+    save_knowledge_dataset: bool = True
+    save_knowledge_dataset_with_checkpoints: bool = False
     src_lang: str = "en_XX"
     tgt_lang: str = "ro_RO"
 

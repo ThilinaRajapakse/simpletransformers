@@ -32,45 +32,56 @@ from transformers import (
     AutoTokenizer,
     BartConfig,
     BartForConditionalGeneration,
-    BartTokenizer,
+    BartTokenizerFast,
     MBartConfig,
     MBartForConditionalGeneration,
     MBartTokenizer,
     BertConfig,
-    BertForMaskedLM,
     BertModel,
-    BertTokenizer,
+    BertTokenizerFast,
     CamembertConfig,
     CamembertModel,
-    CamembertTokenizer,
+    CamembertTokenizerFast,
     DistilBertConfig,
     DistilBertModel,
-    DistilBertTokenizer,
+    DistilBertTokenizerFast,
     ElectraConfig,
     ElectraModel,
-    ElectraTokenizer,
+    ElectraTokenizerFast,
     EncoderDecoderConfig,
     EncoderDecoderModel,
     LongformerConfig,
     LongformerModel,
-    LongformerTokenizer,
+    LongformerTokenizerFast,
     MarianConfig,
     MarianMTModel,
     MarianTokenizer,
     MobileBertConfig,
     MobileBertModel,
-    MobileBertTokenizer,
+    MobileBertTokenizerFast,
     PreTrainedModel,
-    PreTrainedTokenizer,
+    PreTrainedTokenizerFast,
+    RagTokenizer,
+    RagRetriever,
+    RagTokenForGeneration,
+    RagSequenceForGeneration,
+    RagConfig,
     RobertaConfig,
     RobertaModel,
-    RobertaTokenizer,
+    RobertaTokenizerFast,
 )
+from datasets import load_from_disk
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import Seq2SeqArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
-from simpletransformers.seq2seq.seq2seq_utils import Seq2SeqDataset, SimpleSummarizationDataset
+from simpletransformers.seq2seq.seq2seq_utils import (
+    Seq2SeqDataset,
+    SimpleSummarizationDataset,
+    add_faiss_index_to_dataset,
+    generate_faiss_index_dataset,
+    load_hf_dataset,
+)
 
 try:
     import wandb
@@ -86,16 +97,18 @@ logger = logging.getLogger(__name__)
 
 MODEL_CLASSES = {
     "auto": (AutoConfig, AutoModel, AutoTokenizer),
-    "bart": (BartConfig, BartForConditionalGeneration, BartTokenizer),
+    "bart": (BartConfig, BartForConditionalGeneration, BartTokenizerFast),
     "mbart": (MBartConfig, MBartForConditionalGeneration, MBartTokenizer),
-    "bert": (BertConfig, BertModel, BertTokenizer),
-    "camembert": (CamembertConfig, CamembertModel, CamembertTokenizer),
-    "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizer),
-    "electra": (ElectraConfig, ElectraModel, ElectraTokenizer),
-    "longformer": (LongformerConfig, LongformerModel, LongformerTokenizer),
-    "mobilebert": (MobileBertConfig, MobileBertModel, MobileBertTokenizer),
+    "bert": (BertConfig, BertModel, BertTokenizerFast),
+    "camembert": (CamembertConfig, CamembertModel, CamembertTokenizerFast),
+    "distilbert": (DistilBertConfig, DistilBertModel, DistilBertTokenizerFast),
+    "electra": (ElectraConfig, ElectraModel, ElectraTokenizerFast),
+    "longformer": (LongformerConfig, LongformerModel, LongformerTokenizerFast),
+    "mobilebert": (MobileBertConfig, MobileBertModel, MobileBertTokenizerFast),
     "marian": (MarianConfig, MarianMTModel, MarianTokenizer),
-    "roberta": (RobertaConfig, RobertaModel, RobertaTokenizer),
+    "rag-token": (RagConfig, RagTokenForGeneration, RagTokenizer, RagRetriever),
+    "rag-sequence": (RagConfig, RagSequenceForGeneration, RagTokenizer, RagRetriever),
+    "roberta": (RobertaConfig, RobertaModel, RobertaTokenizerFast),
 }
 
 
@@ -109,6 +122,10 @@ class Seq2SeqModel:
         encoder_decoder_name=None,
         additional_special_tokens_encoder=None,
         additional_special_tokens_decoder=None,
+        index_name=None,
+        knowledge_dataset=None,
+        index_path=None,
+        dpr_ctx_encoder_model_name=None,
         config=None,
         args=None,
         use_cuda=True,
@@ -128,6 +145,12 @@ class Seq2SeqModel:
             encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART or MarianMT model.
             additional_special_tokens_encoder (optional): dict of special tokens to add to encoder tokenizer
             additional_special_tokens_decoder (optional): dict of special tokens to add to decoder tokenizer
+            index_name (optional): Name of the index to use: 'hf' for a canonical dataset from the datasets library, 'custom' for a local index, or 'legacy' for the orignal one
+            knowledge_dataset (optional): Path to a TSV file (two columns - title, text) containing a knowledge dataset for RAG or the path to a directory containing a saved Huggingface dataset for RAG.
+                                        If this is not given for a RAG model, a dummy dataset will be used.
+            index_path (optional): Path to the faiss index of the custom knowledge dataset. If this is not given and knowledge_dataset is given, it will be computed.
+            dpr_ctx_encoder_model_name (optional): The DPR context encoder model to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+                                                This is required when using a custom knowledge_dataset.
             config (optional): A configuration file to build an EncoderDecoderModel.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
@@ -191,39 +214,94 @@ class Seq2SeqModel:
         if not use_cuda:
             self.args.fp16 = False
 
-        # config = EncoderDecoderConfig.from_encoder_decoder_configs(config, config)
-        if encoder_decoder_type:
-            config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_decoder_type]
-        else:
-            config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
+        if encoder_decoder_type in ["rag-token", "rag-sequence"]:
+            config_class, model_class, tokenizer_class, retriever_class = MODEL_CLASSES[encoder_decoder_type]
 
-        if encoder_decoder_type in ["bart", "mbart", "marian"]:
-            self.model = model_class.from_pretrained(encoder_decoder_name)
-            if encoder_decoder_type in ["bart", "mbart"]:
-                self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
-            elif encoder_decoder_type == "marian":
-                if self.args.base_marian_model_name:
-                    self.encoder_tokenizer = tokenizer_class.from_pretrained(self.args.base_marian_model_name)
-                else:
-                    self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
+            if self.args.config is not None:
+                config = config_class.from_pretrained(encoder_decoder_name, **self.args.config)
+            elif config is not None:
+                config = config_class.from_pretrained(encoder_decoder_name, **config)
+
+            self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name, config=config)
             self.decoder_tokenizer = self.encoder_tokenizer
+            if knowledge_dataset is None:
+                if index_name is None:
+                    self.retriever = retriever_class.from_pretrained(
+                        encoder_decoder_name, index_name="exact", use_dummy_dataset=True, config=config
+                    )
+                elif index_name == "legacy":
+                    self.retriever = retriever_class.from_pretrained(
+                        encoder_decoder_name, index_name="legacy", use_dummy_dataset=False, config=config
+                    )
+            else:
+                if os.path.isdir(knowledge_dataset):
+                    self.dataset = load_from_disk(knowledge_dataset)
+                    if index_path:
+                        self.dataset.load_faiss_index("embeddings", index_path)
+                    elif os.path.isfile(os.path.join(knowledge_dataset, "hf_dataset_index.faiss")):
+                        self.dataset.load_faiss_index(
+                            "embeddings", os.path.join(knowledge_dataset, "hf_dataset_index.faiss")
+                        )
+                    else:
+                        self.dataset = add_faiss_index_to_dataset(self.dataset)
+                        if self.args.save_knowledge_dataset:
+                            self.dataset.get_index("embeddings").save(
+                                os.path.join(knowledge_dataset, "hf_dataset_index.faiss")
+                            )
+                else:
+                    self.dataset = generate_faiss_index_dataset(
+                        knowledge_dataset,
+                        ctx_encoder_name=dpr_ctx_encoder_model_name,
+                        args=self.args,
+                        device=self.device,
+                    )
+                    if self.args.save_knowledge_dataset:
+                        self.dataset.get_index("embeddings").save(
+                            os.path.join(self.args.output_dir, "knowledge_dataset", "hf_dataset_index.faiss")
+                        )
+                self.retriever = RagRetriever.from_pretrained(
+                    encoder_decoder_name, index_name="custom", indexed_dataset=self.dataset, config=config
+                )
+
+            self.model = model_class.from_pretrained(encoder_decoder_name, retriever=self.retriever, config=config)
             self.config = self.model.config
         else:
-            if encoder_decoder_name:
-                # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
-                self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
-                    os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
-                )
-                self.encoder_tokenizer = tokenizer_class.from_pretrained(os.path.join(encoder_decoder_name, "encoder"))
-                self.decoder_tokenizer = AutoTokenizer.from_pretrained(os.path.join(encoder_decoder_name, "decoder"))
+            if encoder_decoder_type:
+                config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_decoder_type]
             else:
-                self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
-                    encoder_name, decoder_name, config=config
-                )
-                self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_name)
-                self.decoder_tokenizer = AutoTokenizer.from_pretrained(decoder_name)
-            self.encoder_config = self.model.config.encoder
-            self.decoder_config = self.model.config.decoder
+                config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
+
+            if encoder_decoder_type in ["bart", "mbart", "marian"]:
+                self.model = model_class.from_pretrained(encoder_decoder_name)
+                if encoder_decoder_type in ["bart", "mbart"]:
+                    self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
+                elif encoder_decoder_type == "marian":
+                    if self.args.base_marian_model_name:
+                        self.encoder_tokenizer = tokenizer_class.from_pretrained(self.args.base_marian_model_name)
+                    else:
+                        self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
+                self.decoder_tokenizer = self.encoder_tokenizer
+                self.config = self.model.config
+            else:
+                if encoder_decoder_name:
+                    # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
+                    self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
+                        os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
+                    )
+                    self.encoder_tokenizer = tokenizer_class.from_pretrained(
+                        os.path.join(encoder_decoder_name, "encoder")
+                    )
+                    self.decoder_tokenizer = AutoTokenizer.from_pretrained(
+                        os.path.join(encoder_decoder_name, "decoder")
+                    )
+                else:
+                    self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
+                        encoder_name, decoder_name, config=config
+                    )
+                    self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_name)
+                    self.decoder_tokenizer = AutoTokenizer.from_pretrained(decoder_name)
+                self.encoder_config = self.model.config.encoder
+                self.decoder_config = self.model.config.decoder
 
         if additional_special_tokens_encoder is not None:
             self.encoder_tokenizer.add_special_tokens(additional_special_tokens_encoder)
@@ -831,7 +909,10 @@ class Seq2SeqModel:
 
         if self.args.evaluate_generated_text:
             to_predict = eval_data["input_text"].tolist()
-            preds = self.predict(to_predict)
+            if self.args.model_type in ["rag-token", "rag-sequence"]:
+                preds, _ = self.predict(to_predict)
+            else:
+                preds = self.predict(to_predict)
 
             result = self.compute_metrics(eval_data["target_text"].tolist(), preds, **kwargs)
             self.results.update(result)
@@ -912,6 +993,7 @@ class Seq2SeqModel:
         self._move_model_to_device()
 
         all_outputs = []
+        all_retrieved = []
         # Batching
         for batch in tqdm(
             [
@@ -939,6 +1021,20 @@ class Seq2SeqModel:
                     truncation=True,
                     src_lang=self.args.src_lang,
                 )["input_ids"]
+            elif self.args.model_type in ["rag-token", "rag-sequence"]:
+                input_ids = self.encoder_tokenizer(batch, truncation=True, padding="longest", return_tensors="pt")[
+                    "input_ids"
+                ].to(self.device)
+
+                question_hidden_states = self.model.question_encoder(input_ids)[0]
+
+                docs_dict = self.retriever(
+                    input_ids.cpu().numpy(), question_hidden_states.detach().cpu().numpy(), return_tensors="pt"
+                )
+                doc_scores = torch.bmm(
+                    question_hidden_states.unsqueeze(1),
+                    docs_dict["retrieved_doc_embeds"].float().transpose(1, 2).to(self.device),
+                ).squeeze(1)
             else:
                 input_ids = self.encoder_tokenizer.batch_encode_plus(
                     batch,
@@ -978,6 +1074,22 @@ class Seq2SeqModel:
                     top_p=self.args.top_p,
                     num_return_sequences=self.args.num_return_sequences,
                 )
+            elif self.args.model_type in ["rag-token", "rag-sequence"]:
+                outputs = self.model.generate(
+                    context_input_ids=docs_dict["context_input_ids"].to(self.device),
+                    context_attention_mask=docs_dict["context_attention_mask"].to(self.device),
+                    doc_scores=doc_scores,
+                    num_beams=self.args.num_beams,
+                    max_length=self.args.max_length,
+                    length_penalty=self.args.length_penalty,
+                    early_stopping=self.args.early_stopping,
+                    repetition_penalty=self.args.repetition_penalty,
+                    do_sample=self.args.do_sample,
+                    top_k=self.args.top_k,
+                    top_p=self.args.top_p,
+                    num_return_sequences=self.args.num_return_sequences,
+                )
+                retrieved_docs = [doc["text"] for doc in self.retriever.index.get_doc_dicts(docs_dict["doc_ids"])]
             else:
                 outputs = self.model.generate(
                     input_ids=input_ids,
@@ -994,8 +1106,14 @@ class Seq2SeqModel:
                 )
 
             all_outputs.extend(outputs.cpu().numpy())
+            if self.args.model_type in ["rag-token", "rag-sequence"]:
+                all_retrieved.extend(retrieved_docs)
 
-        if self.args.use_multiprocessed_decoding:
+        if self.args.model_type in ["rag-token", "rag-sequence"]:
+            outputs = self.encoder_tokenizer.batch_decode(
+                all_outputs, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True
+            )
+        elif self.args.use_multiprocessed_decoding:
             if self.args.multiprocessing_chunksize == -1:
                 chunksize = max(len(all_outputs) // (self.args.process_count * 2), 500)
             else:
@@ -1021,12 +1139,27 @@ class Seq2SeqModel:
             ]
 
         if self.args.num_return_sequences > 1:
-            return [
-                outputs[i : i + self.args.num_return_sequences]
-                for i in range(0, len(outputs), self.args.num_return_sequences)
-            ]
+            if self.args.model_type in ["rag-token", "rag-sequence"]:
+                return (
+                    [
+                        outputs[i : i + self.args.num_return_sequences]
+                        for i in range(0, len(outputs), self.args.num_return_sequences)
+                    ],
+                    [
+                        all_retrieved[i : i + self.args.num_return_sequences]
+                        for i in range(0, len(outputs), self.args.num_return_sequences)
+                    ],
+                )
+            else:
+                return [
+                    outputs[i : i + self.args.num_return_sequences]
+                    for i in range(0, len(outputs), self.args.num_return_sequences)
+                ]
         else:
-            return outputs
+            if self.args.model_type in ["rag-token", "rag-sequence"]:
+                return outputs, all_retrieved
+            else:
+                return outputs
 
     def _decode(self, output_id):
         return self.decoder_tokenizer.decode(
@@ -1074,14 +1207,18 @@ class Seq2SeqModel:
 
         mode = "dev" if evaluate else "train"
 
-        if args.dataset_class:
-            CustomDataset = args.dataset_class
-            return CustomDataset(encoder_tokenizer, decoder_tokenizer, args, data, mode)
+        if self.args.use_hf_datasets:
+            dataset = load_hf_dataset(data, encoder_tokenizer, decoder_tokenizer, self.args)
+            return dataset
         else:
-            if args.model_type in ["bart", "mbart", "marian"]:
-                return SimpleSummarizationDataset(encoder_tokenizer, self.args, data, mode)
+            if args.dataset_class:
+                CustomDataset = args.dataset_class
+                return CustomDataset(encoder_tokenizer, decoder_tokenizer, args, data, mode)
             else:
-                return Seq2SeqDataset(encoder_tokenizer, decoder_tokenizer, self.args, data, mode,)
+                if args.model_type in ["bart", "mbart", "marian"]:
+                    return SimpleSummarizationDataset(encoder_tokenizer, self.args, data, mode)
+                else:
+                    return Seq2SeqDataset(encoder_tokenizer, decoder_tokenizer, self.args, data, mode,)
 
     def _create_training_progress_scores(self, **kwargs):
         extra_metrics = {key: [] for key in kwargs}
@@ -1097,7 +1234,7 @@ class Seq2SeqModel:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None):
+    def save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None, dataset=None):
         if not output_dir:
             output_dir = self.args.output_dir
         os.makedirs(output_dir, exist_ok=True)
@@ -1109,12 +1246,21 @@ class Seq2SeqModel:
             model_to_save = model.module if hasattr(model, "module") else model
             self.save_model_args(output_dir)
 
-            if self.args.model_type in ["bart", "mbart", "marian"]:
+            if self.args.model_type in ["bart", "mbart", "marian", "rag-token", "rag-sequence"]:
                 os.makedirs(os.path.join(output_dir), exist_ok=True)
                 model_to_save.save_pretrained(output_dir)
                 self.config.save_pretrained(output_dir)
-                if self.args.model_type in ["bart", "mbart"]:
+
+                if self.args.model_type in ["bart", "mbart", "rag-token", "rag-sequence"]:
                     self.encoder_tokenizer.save_pretrained(output_dir)
+
+                if (
+                    self.args.model_type in ["rag-token", "rag-sequence"]
+                    and self.args.save_knowledge_dataset_with_checkpoints
+                ):
+                    output_dataset_directory = os.path.join(output_dir, "knowledge_dataset")
+                    os.makedirs(output_dataset_directory, exist_ok=True)
+                    self.retriever.save_pretrained(output_dataset_directory)
             else:
                 os.makedirs(os.path.join(output_dir, "encoder"), exist_ok=True)
                 os.makedirs(os.path.join(output_dir, "decoder"), exist_ok=True)
@@ -1170,6 +1316,25 @@ class Seq2SeqModel:
                 "attention_mask": batch["attention_mask"].to(device),
                 "decoder_input_ids": batch["decoder_input_ids"].to(device),
                 "labels": batch["labels"].to(device),
+            }
+        elif self.args.model_type in ["rag-token", "rag-sequence"]:
+            inputs = {
+                "input_ids": batch["input_ids"].to(device),
+                "attention_mask": batch["attention_mask"].to(device),
+                "decoder_input_ids": batch["decoder_input_ids"].to(device),
+                "labels": batch["decoder_input_ids"].to(device),
+                "reduce_loss": True,
+            }
+        elif self.args.use_hf_datasets:
+            labels = batch["decoder_input_ids"]
+            labels_masked = labels.clone()
+            labels_masked[labels_masked == self.decoder_tokenizer.pad_token_id] = -100
+
+            inputs = {
+                "input_ids": batch["input_ids"].to(device),
+                "attention_mask": batch["attention_mask"].to(device),
+                "decoder_input_ids": batch["decoder_input_ids"].to(device),
+                "labels": labels_masked.to(device),
             }
         else:
             labels = batch[1]

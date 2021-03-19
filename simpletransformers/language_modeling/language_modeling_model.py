@@ -78,7 +78,7 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import LanguageModelingArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
-from simpletransformers.language_modeling.language_modeling_utils import SimpleDataset, mask_tokens
+from simpletransformers.language_modeling.language_modeling_utils import SimpleDataset, load_hf_dataset, mask_tokens
 
 try:
     import wandb
@@ -417,9 +417,13 @@ class LanguageModelingModel:
         if self.is_world_master():
             tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
-        train_dataloader = DataLoader(
-            train_dataset, batch_size=args.train_batch_size, sampler=train_sampler, collate_fn=collate,
-        )
+        if self.args.use_hf_datasets:
+            # Inputs are already padded so default collation is fine
+            train_dataloader = DataLoader(train_dataset, batch_size=args.train_batch_size, sampler=train_sampler)
+        else:
+            train_dataloader = DataLoader(
+                train_dataset, batch_size=args.train_batch_size, sampler=train_sampler, collate_fn=collate,
+            )
 
         if args.max_steps > 0:
             t_total = args.max_steps
@@ -628,6 +632,9 @@ class LanguageModelingModel:
                 if steps_trained_in_current_epoch > 0:
                     steps_trained_in_current_epoch -= 1
                     continue
+
+                if self.args.use_hf_datasets:
+                    batch = batch["input_ids"]
 
                 inputs, labels = mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
                 inputs = inputs.to(self.device)
@@ -949,9 +956,13 @@ class LanguageModelingModel:
             return pad_sequence(examples, batch_first=True, padding_value=tokenizer.pad_token_id)
 
         eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(
-            eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size, collate_fn=collate
-        )
+        if self.args.use_hf_datasets:
+            # Inputs are already padded so default collation is fine
+            eval_dataloader = DataLoader(eval_dataset, batch_size=args.train_batch_size, sampler=eval_sampler)
+        else:
+            eval_dataloader = DataLoader(
+                eval_dataset, batch_size=args.train_batch_size, sampler=eval_sampler, collate_fn=collate,
+            )
 
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
@@ -961,6 +972,9 @@ class LanguageModelingModel:
         model.eval()
 
         for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
+            if self.args.use_hf_datasets:
+                batch = batch["input_ids"]
+
             inputs, labels = mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
@@ -1008,7 +1022,10 @@ class LanguageModelingModel:
 
         mode = "dev" if evaluate else "train"
 
-        if args.dataset_class:
+        if self.args.use_hf_datasets:
+            dataset = load_hf_dataset(file_path, tokenizer, self.args)
+            return dataset
+        elif args.dataset_class:
             CustomDataset = args.dataset_class
             return CustomDataset(tokenizer, args, file_path, mode, args.block_size)
         else:

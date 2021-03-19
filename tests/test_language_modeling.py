@@ -14,10 +14,10 @@ from simpletransformers.language_modeling import LanguageModelingModel
         ("bert", None),
         ("electra", None),
         ("longformer", None),
-        ("reformer", "google/reformer-crime-and-punishment")
+        ("reformer", "google/reformer-crime-and-punishment"),
         # ("xlnet", "xlnet-base-cased"),
         # ("xlm", "xlm-mlm-17-1280"),
-        # ("roberta", "roberta-base"),
+        ("roberta", "roberta-base"),
         # ("distilbert", "distilbert-base-uncased"),
         # ("albert", "albert-base-v1"),
         # ("camembert", "camembert-base"),
