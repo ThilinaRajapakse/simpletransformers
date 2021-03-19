@@ -7,10 +7,15 @@ from simpletransformers.seq2seq import Seq2SeqArgs, Seq2SeqModel
 
 
 @pytest.mark.parametrize(
-    "encoder_decoder_type, encoder_decoder_name, encoder_type",
-    [("bart", "facebook/bart-large", "bart"), ("roberta-base", "bert-base-cased", "roberta"),],
+    "encoder_decoder_type, encoder_decoder_name, encoder_type, use_hf_datasets",
+    [
+        ("bart", "facebook/bart-large", "bart", True),
+        ("bart", "facebook/bart-large", "bart", False),
+        ("roberta-base", "bert-base-cased", "roberta", True),
+        ("roberta-base", "bert-base-cased", "roberta", False),
+    ],
 )
-def test_seq2seq(encoder_decoder_type, encoder_decoder_name, encoder_type):
+def test_seq2seq(encoder_decoder_type, encoder_decoder_name, encoder_type, use_hf_datasets):
     train_data = [
         ["one", "1"],
         ["two", "2"],
@@ -36,6 +41,7 @@ def test_seq2seq(encoder_decoder_type, encoder_decoder_name, encoder_type):
         "manual_seed": 4,
         "do_sample": False,
         "num_return_sequences": 1,
+        "use_hf_datasets": use_hf_datasets,
     }
 
     if encoder_type == "bart":

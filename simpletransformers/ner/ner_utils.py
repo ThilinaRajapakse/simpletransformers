@@ -569,7 +569,9 @@ def load_hf_dataset(
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "ner_dataset_loading_script"), data_files=data
         )
     else:
-        dataset = HFDataset.from_pandas(data)
+        raise TypeError(
+            "{} is not a path to a data file (e.g. tsv). The input must be a data file for NERModel.".format(data)
+        )
 
     dataset = dataset.map(
         lambda x: preprocess_batch_for_hf_dataset(

@@ -107,13 +107,16 @@ def preprocess_data_multiprocessing(data):
 
 
 def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
-    return tokenizer(
-        text=dataset["text_a"],
-        text_pair=dataset["text_b"],
-        truncation=True,
-        padding="max_length",
-        max_length=max_seq_length,
-    )
+    if "text_b" in dataset:
+        return tokenizer(
+            text=dataset["text_a"],
+            text_pair=dataset["text_b"],
+            truncation=True,
+            padding="max_length",
+            max_length=max_seq_length,
+        )
+    else:
+        return tokenizer(text=dataset["text"], truncation=True, padding="max_length", max_length=max_seq_length,)
 
 
 def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
@@ -147,7 +150,7 @@ def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
     # return [tokenized_example, [example.label for example in data]]
 
 
-def build_classification_dataset(data, tokenizer, args, mode, multi_label, output_mode):
+def build_classification_dataset(data, tokenizer, args, mode, multi_label, output_mode, no_cache):
     cached_features_file = os.path.join(
         args.cache_dir,
         "cached_{}_{}_{}_{}_{}".format(mode, args.model_type, args.max_seq_length, len(args.labels_list), len(data),),
@@ -212,7 +215,7 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
 
         data = (examples, labels)
 
-        if not args.no_cache:
+        if not args.no_cache and not no_cache:
             logger.info(" Saving features into cached file %s", cached_features_file)
             torch.save(data, cached_features_file)
 
@@ -220,9 +223,9 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
 
 
 class ClassificationDataset(Dataset):
-    def __init__(self, data, tokenizer, args, mode, multi_label, output_mode):
+    def __init__(self, data, tokenizer, args, mode, multi_label, output_mode, no_cache):
         self.examples, self.labels = build_classification_dataset(
-            data, tokenizer, args, mode, multi_label, output_mode
+            data, tokenizer, args, mode, multi_label, output_mode, no_cache
         )
 
     def __len__(self):
@@ -255,7 +258,10 @@ def load_hf_dataset(data, tokenizer, args, multi_label):
         batched=True,
     )
 
-    dataset.set_format(type="pt", columns=["input_ids", "token_type_ids", "attention_mask", "labels"])
+    if args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+        dataset.set_format(type="pt", columns=["input_ids", "token_type_ids", "attention_mask", "labels"])
+    else:
+        dataset.set_format(type="pt", columns=["input_ids", "attention_mask", "labels"])
 
     if isinstance(data, str):
         # This is not necessarily a train dataset. The datasets library insists on calling it train.

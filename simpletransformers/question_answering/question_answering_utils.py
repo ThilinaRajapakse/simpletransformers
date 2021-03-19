@@ -24,6 +24,8 @@ from transformers.data.processors.squad import (
     squad_convert_example_to_features_init,
 )
 from transformers.models.bert.tokenization_bert import BasicTokenizer, whitespace_tokenize
+from datasets import load_dataset
+from datasets import Dataset as HFDataset
 
 logger = logging.getLogger(__name__)
 
@@ -1897,14 +1899,6 @@ class LazyQuestionAnsweringDataset(Dataset):
 
         return counter
 
-    # @staticmethod
-    # def _get_n_lines(data_file):
-    #     with open(data_file, encoding="utf-8") as f:
-    #         for line_idx, _ in enumerate(f, 1):
-    #             pass
-
-    #     return line_idx
-
     def __getitem__(self, idx):
         if idx == 0:
             idx = 1
@@ -1928,3 +1922,118 @@ class LazyQuestionAnsweringDataset(Dataset):
 
     def __len__(self):
         return self.num_entries
+
+
+def preprocess_batch_for_hf_dataset(examples, max_seq_length, doc_stride, max_query_length, is_training):
+    qas_id_batch = examples["qas_id"]
+    question_text_batch = examples["question_text"]
+    context_text_batch = examples["context_text"]
+    answer_text_batch = examples["answer_text"]
+    start_position_character_batch = examples["start_position_character"]
+    is_impossible_batch = examples["is_impossible"]
+    answers_batch = examples["answers"]
+
+    input_ids_list = []
+    attention_mask_list = []
+    token_type_ids_list = []
+    cls_index_list = []
+    start_position_list = []
+    end_position_list = []
+    p_mask_list = []
+
+    for (qas_id, question_text, context_text, answer_text, start_position_character, is_impossible, answers,) in zip(
+        qas_id_batch,
+        question_text_batch,
+        context_text_batch,
+        answer_text_batch,
+        start_position_character_batch,
+        is_impossible_batch,
+        answers_batch,
+    ):
+        example = SquadExample(
+            qas_id=qas_id,
+            question_text=question_text,
+            context_text=context_text,
+            answer_text=answer_text if answer_text else None,
+            start_position_character=start_position_character if start_position_character != -1 else None,
+            title=None,
+            is_impossible=is_impossible,
+            answers=answers,
+        )
+
+        f = squad_convert_example_to_features(
+            example,
+            max_seq_length,
+            doc_stride,
+            max_query_length,
+            padding_strategy="max_length",
+            is_training=is_training,
+        )
+
+        if f:
+            f = f[0]
+        else:
+            raise ValueError(
+                "Make sure the data file does not contain errors. Could not find answer <{}> in <{}>".format(
+                    answer_text, context_text
+                )
+            )
+
+        input_ids_list.append(f.input_ids)
+        attention_mask_list.append(f.attention_mask)
+        token_type_ids_list.append(f.token_type_ids)
+        cls_index_list.append(f.cls_index)
+        start_position_list.append(f.start_position)
+        end_position_list.append(f.end_position)
+        p_mask_list.append(f.p_mask)
+
+    features = {
+        "input_ids": input_ids_list,
+        "attention_mask": attention_mask_list,
+        "token_type_ids": token_type_ids_list,
+        "cls_index": cls_index_list,
+        "start_positions": start_position_list,
+        "end_positions": end_position_list,
+        "p_mask": p_mask_list,
+    }
+
+    return features
+
+
+def load_hf_dataset(data, tokenizer, args, is_training):
+    if isinstance(data, str):
+        dataset = load_dataset(
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "qa_dataset_loading_script"),
+            data_files=data,
+            is_training=is_training,
+        )
+    else:
+        raise TypeError("{} is not a path to a json file. The input must be a json file for QAModel.".format(data))
+
+    squad_convert_example_to_features_init(tokenizer)
+
+    dataset = dataset.map(
+        lambda x: preprocess_batch_for_hf_dataset(
+            x, args.max_seq_length, args.doc_stride, args.max_query_length, is_training=is_training
+        ),
+        batched=True,
+    )
+
+    dataset.set_format(
+        type="pt",
+        columns=[
+            "input_ids",
+            "attention_mask",
+            "token_type_ids",
+            "cls_index",
+            "start_positions",
+            "end_positions",
+            "p_mask",
+        ],
+    )
+
+    if isinstance(data, str):
+        # This is not necessarily a train dataset. The datasets library insists on calling it train.
+        return dataset["train"]
+    else:
+        return dataset

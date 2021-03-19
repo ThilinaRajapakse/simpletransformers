@@ -8,11 +8,11 @@ from simpletransformers.classification import ClassificationModel, MultiLabelCla
     "model_type, model_name",
     [
         ("bert", "bert-base-uncased"),
-        ("longformer", "allenai/longformer-base-4096"),
-        ("electra", "google/electra-small-discriminator"),
-        ("mobilebert", "google/mobilebert-uncased"),
-        ("bertweet", "vinai/bertweet-base"),
-        ("deberta", "microsoft/deberta-base"),
+        # ("longformer", "allenai/longformer-base-4096"),
+        # ("electra", "google/electra-small-discriminator"),
+        # ("mobilebert", "google/mobilebert-uncased"),
+        # ("bertweet", "vinai/bertweet-base"),
+        # ("deberta", "microsoft/deberta-base"),
         # ("xlnet", "xlnet-base-cased"),
         # ("xlm", "xlm-mlm-17-1280"),
         # ("roberta", "roberta-base"),
@@ -31,13 +31,13 @@ def test_binary_classification(model_type, model_name):
         ["Example sentence belonging to class 1", 1],
         ["Example sentence belonging to class 0", 0],
     ]
-    train_df = pd.DataFrame(train_data)
+    train_df = pd.DataFrame(train_data, columns=["text", "labels"])
 
     eval_data = [
         ["Example eval sentence belonging to class 1", 1],
         ["Example eval sentence belonging to class 0", 0],
     ]
-    eval_df = pd.DataFrame(eval_data)
+    eval_df = pd.DataFrame(eval_data, columns=["text", "labels"])
 
     # Create a ClassificationModel
     model = ClassificationModel(
@@ -87,14 +87,14 @@ def test_multiclass_classification(model_type, model_name):
         ["Example sentence belonging to class 0", 0],
         ["Example eval senntence belonging to class 2", 2],
     ]
-    train_df = pd.DataFrame(train_data)
+    train_df = pd.DataFrame(train_data, columns=["text", "labels"])
 
     eval_data = [
         ["Example eval sentence belonging to class 1", 1],
         ["Example eval sentence belonging to class 0", 0],
         ["Example eval senntence belonging to class 2", 2],
     ]
-    eval_df = pd.DataFrame(eval_data)
+    eval_df = pd.DataFrame(eval_data, columns=["text", "labels"])
 
     # Create a ClassificationModel
     model = ClassificationModel(
@@ -118,7 +118,7 @@ def test_multiclass_classification(model_type, model_name):
     "model_type, model_name",
     [
         ("bert", "bert-base-uncased"),
-        ("xlnet", "xlnet-base-cased"),
+        # ("xlnet", "xlnet-base-cased"),
         #     ("xlm", "xlm-mlm-17-1280"),
         #     ("roberta", "roberta-base"),
         #     ("distilbert", "distilbert-base-uncased"),
@@ -139,7 +139,7 @@ def test_multilabel_classification(model_type, model_name):
         ["Example eval sentence for multilabel classification.", [1, 1, 1, 1, 0, 1]],
         ["Example eval senntence belonging to class 2", [0, 1, 1, 0, 0, 0]],
     ]
-    eval_df = pd.DataFrame(eval_data)
+    eval_df = pd.DataFrame(eval_data, columns=["text", "labels"])
 
     # Create a MultiLabelClassificationModel
     model = MultiLabelClassificationModel(

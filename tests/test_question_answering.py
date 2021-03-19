@@ -12,7 +12,7 @@ from simpletransformers.question_answering import QuestionAnsweringModel
     [
         ("bert", "bert-base-uncased"),
         ("longformer", "allenai/longformer-base-4096"),
-        # ("reformer", "google/reformer-crime-and-punishment")
+        # ("reformer", "google/reformer-crime-and-punishment"),
         # ("xlnet", "xlnet-base-cased"),
         # ("xlm", "xlm-mlm-17-1280"),
         # ("roberta", "roberta-base"),
@@ -38,11 +38,8 @@ def test_question_answering(model_type, model_name):
             ],
         },
         {
-            "context": "Other legislation followed, including the Migratory Bird"
-            " Conservation Act of 1929, a 1937 treaty prohibiting the hunting of"
-            " right and gray whales, and the Bald Eagle Protection Act of 1940."
-            " These later laws had a low cost to society—the species were"
-            " relatively rare—and little opposition was raised",
+            "context": "Other legislation followed, including the Migratory Bird Conservation Act of 1929, a 1937 treaty prohibiting the hunting of right and gray whales,\
+                and the Bald Eagle Protection Act of 1940. These later laws had a low cost to society—the species were relatively rare—and little opposition was raised",
             "qas": [
                 {
                     "id": "00002",
@@ -56,9 +53,13 @@ def test_question_answering(model_type, model_name):
                     "question": "What was the name of the 1937 treaty?",
                     "answers": [{"text": "Bald Eagle Protection Act", "answer_start": 167}],
                 },
+                {"id": "00004", "is_impossible": True, "question": "How did Alexandar Hamilton die?", "answers": [],},
             ],
         },
-    ]
+    ]  # noqa
+
+    for i in range(4):
+        train_data.extend(train_data)
 
     # Save as a JSON file
     os.makedirs("data", exist_ok=True)

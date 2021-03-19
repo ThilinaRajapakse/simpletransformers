@@ -4,40 +4,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.61.0] - 2021-03-19
+
+### Added
+
+- Added support for RAG models (in `Seq2Seq`) - docs will be updated soon
+- Added support for Huggingface Datasets library for memory efficient training. Currently supports:
+  - Classification (all)
+  - NER
+  - Language Modeling
+  - Seq2Seq
+  - T5
+  - QA (Note that HF Datasets might not always work with QAModel)
+
+### Changed
+- Switched to using FastTokenizers where possible
+
 ## [0.60.8] - 2021-02-12
 
-# Fixed
+### Fixed
 
 - Fixed bug in loading cached features with classification models
 
 ## [0.60.7] - 2021-02-11
 
-# Changed
+### Changed
 
 - Multiprocessing during tokenization is now turned on by default. If you experience any instability, this can be turned off by setting `use_multiprocessing=False`
 
 ## [0.60.6] - 2021-02-05
 
-# Changed
+### Changed
 
 - Multiprocessing during tokenization is now turned off by default. You can enable this by setting `use_multiprocessing=True`. However, the latest Pytorch versions seems to be unstable when using multiprocessing.
 
 
 ## [0.60.3] - 2021-02-02
 
-# Changed
+### Changed
 
 - Multiprocessing is now turned off by default for evaluation. This is to avoid potential errors when doing evaluation during training. You can enable this by setting `use_multiprocessing_for_evaluation` to `True`.
 
 ## [0.60.2] - 2021-02-02
 
-# Fixed
+### Fixed
 
 - Fixed bug in ClassificationDataset [mapmeld](https://github.com/mapmeld)
 
 ## [0.60.1] - 2021-02-02
 
-# Added
+### Added
 
 - Added new NER models:
   - ALBERT
@@ -52,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.60.0] - 2021-02-02
 
-# Added
+### Added
 
 - Added class weights support for Longformer classification
 - Added new classification models:
@@ -60,19 +76,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - DeBERTa
   - MPNet
 
-# Changed
+### Changed
 
 - Updated ClassificationModel logic to make it easier to add new models
 
 ## [0.51.16] - 2021-01-29
 
-## Fixed
+### Fixed
 
 - Fixed bug in LayoutLM classification
 
 ## [0.51.15] - 2021-01-24
 
-## Fixed
+### Fixed
 
 - Fixed bug in Language Generation models [mapmeld](https://github.com/mapmeld)
 - Fixed bug in MBart models [nilboy](https://github.com/nilboy)
@@ -1446,7 +1462,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.60.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/de989b5...HEAD
+[0.61.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/76f1df5...HEAD
+
+[0.60.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/de989b5...76f1df5
 
 [0.60.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6f189e0...de989b5
 

@@ -1293,7 +1293,13 @@ class ClassificationModel:
                 return dataset
         else:
             dataset = ClassificationDataset(
-                examples, self.tokenizer, self.args, mode=mode, multi_label=multi_label, output_mode=output_mode
+                examples,
+                self.tokenizer,
+                self.args,
+                mode=mode,
+                multi_label=multi_label,
+                output_mode=output_mode,
+                no_cache=no_cache,
             )
             return dataset
 
@@ -1454,9 +1460,9 @@ class ClassificationModel:
                 preds = None
                 out_label_ids = None
                 for i, batch in enumerate(tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction")):
-                    # batch = tuple(t.to(device) for t in batch)
+                    # batch = tuple(t.to(self.device) for t in batch)
                     with torch.no_grad():
-                        inputs = self._get_inputs_dict(batch)
+                        inputs = self._get_inputs_dict(batch, no_hf=True)
 
                         if self.args.fp16:
                             with amp.autocast():
@@ -1501,7 +1507,7 @@ class ClassificationModel:
                     # batch = tuple(t.to(device) for t in batch)
 
                     with torch.no_grad():
-                        inputs = self._get_inputs_dict(batch)
+                        inputs = self._get_inputs_dict(batch, no_hf=True)
 
                         if self.args.fp16:
                             with amp.autocast():
@@ -1624,8 +1630,8 @@ class ClassificationModel:
     def _move_model_to_device(self):
         self.model.to(self.device)
 
-    def _get_inputs_dict(self, batch):
-        if self.args.use_hf_datasets:
+    def _get_inputs_dict(self, batch, no_hf=False):
+        if self.args.use_hf_datasets and not no_hf:
             return {key: value.to(self.device) for key, value in batch.items()}
         if isinstance(batch[0], dict):
             inputs = {key: value.squeeze(1).to(self.device) for key, value in batch[0].items()}

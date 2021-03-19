@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 def preprocess_batch_for_hf_dataset(dataset, tokenizer, args):
     if args.preprocess_inputs:
         return tokenizer.prepare_seq2seq_batch(
-            src_texts=[prefix + ": " + input_text for prefix, input_text in zip(dataset["prefix"], dataset["input_text"])],
+            src_texts=[
+                prefix + ": " + input_text for prefix, input_text in zip(dataset["prefix"], dataset["input_text"])
+            ],
             tgt_texts=dataset["target_text"],
             max_length=args.max_seq_length,
             padding="max_length",
@@ -46,10 +48,7 @@ def load_hf_dataset(data, tokenizer, args):
     else:
         dataset = HFDataset.from_pandas(data)
 
-    dataset = dataset.map(
-        lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, args=args),
-        batched=True,
-    )
+    dataset = dataset.map(lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, args=args), batched=True,)
 
     dataset.set_format(type="pt", columns=["input_ids", "attention_mask"])
 
