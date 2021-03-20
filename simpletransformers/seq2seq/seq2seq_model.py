@@ -994,6 +994,7 @@ class Seq2SeqModel:
 
         all_outputs = []
         all_retrieved = []
+        all_doc_scores = []
         # Batching
         for batch in tqdm(
             [
@@ -1108,6 +1109,7 @@ class Seq2SeqModel:
             all_outputs.extend(outputs.cpu().numpy())
             if self.args.model_type in ["rag-token", "rag-sequence"]:
                 all_retrieved.extend(retrieved_docs)
+                all_doc_scores.extend(doc_scores.detach().cpu())
 
         if self.args.model_type in ["rag-token", "rag-sequence"]:
             outputs = self.encoder_tokenizer.batch_decode(
@@ -1149,6 +1151,10 @@ class Seq2SeqModel:
                         all_retrieved[i : i + self.args.num_return_sequences]
                         for i in range(0, len(outputs), self.args.num_return_sequences)
                     ],
+                    [
+                        all_doc_scores[i : i + self.args.num_return_sequences]
+                        for i in range(0, len(outputs), self.args.num_return_sequences)
+                    ],
                 )
             else:
                 return [
@@ -1157,7 +1163,7 @@ class Seq2SeqModel:
                 ]
         else:
             if self.args.model_type in ["rag-token", "rag-sequence"]:
-                return outputs, all_retrieved
+                return outputs, all_retrieved, all_doc_scores
             else:
                 return outputs
 
