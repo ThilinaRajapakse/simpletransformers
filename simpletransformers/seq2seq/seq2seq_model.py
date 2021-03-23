@@ -1090,7 +1090,7 @@ class Seq2SeqModel:
                     top_p=self.args.top_p,
                     num_return_sequences=self.args.num_return_sequences,
                 )
-                retrieved_docs = [doc["text"] for doc in self.retriever.index.get_doc_dicts(docs_dict["doc_ids"])]
+                retrieved_docs = [doc for doc in self.retriever.index.get_doc_dicts(docs_dict["doc_ids"])]
             else:
                 outputs = self.model.generate(
                     input_ids=input_ids,

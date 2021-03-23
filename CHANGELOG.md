@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.61.3] - 2021-03-19
+
+### Changed
+
+- Return full retrieved docs with RAG
+
+### Added
+
+- Added extra args for RAG:
+  - `split_text_character`
+  - `split_text_n`
+
 ## [0.61.0] - 2021-03-19
 
 ### Added

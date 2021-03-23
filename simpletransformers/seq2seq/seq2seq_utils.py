@@ -350,12 +350,12 @@ def split_text(text, n=100, character=" "):
     return [character.join(text[i : i + n]).strip() for i in range(0, len(text), n)]
 
 
-def split_documents(documents):
+def split_documents(documents, split_text_n=100, split_text_character=" "):
     """Split documents into passages"""
     titles, texts = [], []
     for title, text in zip(documents["title"], documents["text"]):
         if text is not None:
-            for passage in split_text(text):
+            for passage in split_text(text, n=split_text_n, character=split_text_character):
                 titles.append(title if title is not None else "")
                 texts.append(passage)
     return {"title": titles, "text": texts}
@@ -381,7 +381,11 @@ def generate_faiss_index_dataset(data, ctx_encoder_name, args, device):
     else:
         dataset = HFDataset.from_pandas(data)
 
-    dataset = dataset.map(split_documents, batched=True, num_proc=args.process_count)
+    dataset = dataset.map(
+        partial(split_documents, split_text_n=args.split_text_n, split_text_character=args.split_text_character),
+        batched=True,
+        num_proc=args.process_count,
+    )
 
     ctx_encoder = DPRContextEncoder.from_pretrained(ctx_encoder_name).to(device=device)
     ctx_tokenizer = DPRContextEncoderTokenizerFast.from_pretrained(ctx_encoder_name)

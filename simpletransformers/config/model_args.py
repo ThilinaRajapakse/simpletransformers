@@ -312,6 +312,8 @@ class Seq2SeqArgs(ModelArgs):
     use_multiprocessed_decoding: bool = False
     save_knowledge_dataset: bool = True
     save_knowledge_dataset_with_checkpoints: bool = False
+    split_text_character: str = " "
+    split_text_n: int = 100
     src_lang: str = "en_XX"
     tgt_lang: str = "ro_RO"
 
