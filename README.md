@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-67-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-68-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -249,6 +249,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://www.sartiano.info"><img src="https://avatars0.githubusercontent.com/u/1573433?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Daniele Sartiano</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=daniele-sartiano" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/tuner007"><img src="https://avatars1.githubusercontent.com/u/46425391?v=4?s=100" width="100px;" alt=""/><br /><sub><b>tuner007</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=tuner007" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/nilboy"><img src="https://avatars2.githubusercontent.com/u/17962699?v=4?s=100" width="100px;" alt=""/><br /><sub><b>xia jiang</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=nilboy" title="Code">💻</a></td>
+    <td align="center"><a href="http://purl.org/net/hbuschme"><img src="https://avatars.githubusercontent.com/u/122398?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Hendrik Buschmeier</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=hbuschme" title="Documentation">📖</a></td>
   </tr>
 </table>
 

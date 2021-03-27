@@ -624,6 +624,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "hbuschme",
+      "name": "Hendrik Buschmeier",
+      "avatar_url": "https://avatars.githubusercontent.com/u/122398?v=4",
+      "profile": "http://purl.org/net/hbuschme",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
