@@ -15,6 +15,7 @@ from multiprocessing import cpu_count
 import tempfile
 from pathlib import Path
 
+from collections import Counter
 import numpy as np
 import pandas as pd
 import torch
@@ -1112,11 +1113,11 @@ class ClassificationModel:
             preds = [np.argmax(pred, axis=1) for pred in preds]
             final_preds = []
             for pred_row in preds:
-                mode_pred, counts = mode(pred_row)
-                if len(counts) > 1 and counts[0] == counts[1]:
+                val_freqs_desc = Counter(pred_row).most_common()
+                if len(val_freqs_desc) > 1 and val_freqs_desc[0][1] == val_freqs_desc[1][1]:
                     final_preds.append(args.tie_value)
                 else:
-                    final_preds.append(mode_pred[0])
+                    final_preds.append(val_freqs_desc[0])
             preds = np.array(final_preds)
         elif not multi_label and args.regression is True:
             preds = np.squeeze(preds)
