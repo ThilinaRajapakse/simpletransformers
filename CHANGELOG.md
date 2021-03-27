@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bug fixed in LanguageModelingModel which could occur when loading a GPU trained model on CPU. [alvaroabascar](https://github.com/alvaroabascar)
 - Bug fixed in NER ONNX for models with token type ids. [whr778](https://github.com/whr778)
 - Bug fixed in NER lazy loading. [mhdhdri](https://github.com/mhdhdri)
+- Bug fixed in sliding window tie breaking [calebchiam](https://github.com/calebchiam)
+
+### Changed
+
+- Thread count no longer fixed when using ONNX [rayline](https://github.com/rayline)
 
 ## [0.61.3] - 2021-03-19
 
