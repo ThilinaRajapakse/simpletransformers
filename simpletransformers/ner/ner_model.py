@@ -1018,20 +1018,24 @@ class NERModel:
                     for i, sentence in enumerate(to_predict)
                 ]
 
-        eval_dataset = self.load_and_cache_examples(None, to_predict=predict_examples)
-
-        eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
-
         if self.args.onnx:
             model_inputs = self.tokenizer.batch_encode_plus(
                 to_predict, return_tensors="pt", padding=True, truncation=True
             )
 
-            for input_ids, attention_mask in zip(model_inputs["input_ids"], model_inputs["attention_mask"]):
-                input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
-                attention_mask = attention_mask.unsqueeze(0).detach().cpu().numpy()
-                inputs_onnx = {"input_ids": input_ids, "attention_mask": attention_mask}
+            for (input_ids, attention_mask, token_type_ids) in tqdm(zip(model_inputs["input_ids"],
+                                                                        model_inputs["attention_mask"],
+                                                                        model_inputs["token_type_ids"])):
+                if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+                    input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
+                    attention_mask = attention_mask.unsqueeze(0).detach().cpu().numpy()
+                    token_type_ids = token_type_ids.unsqueeze(0).detach().cpu().numpy()
+                    inputs_onnx = {"input_ids": input_ids, "attention_mask": attention_mask,
+                                   "token_type_ids": token_type_ids}
+                else:
+                    input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
+                    attention_mask = attention_mask.unsqueeze(0).detach().cpu().numpy()
+                    inputs_onnx = {"input_ids": input_ids, "attention_mask": attention_mask}
 
                 # Run the model (None = get all the outputs)
                 output = self.model.run(None, inputs_onnx)
@@ -1043,12 +1047,17 @@ class NERModel:
                 else:
                     preds = np.append(preds, output[0], axis=0)
                     out_input_ids = np.append(out_input_ids, inputs_onnx["input_ids"], axis=0)
-                    out_attention_mask = np.append(out_attention_mask, inputs_onnx["attention_mask"], axis=0,)
+                    out_attention_mask = np.append(out_attention_mask, inputs_onnx["attention_mask"], axis=0)
             out_label_ids = np.zeros_like(out_input_ids)
             for index in range(len(out_label_ids)):
                 out_label_ids[index][0] = -100
                 out_label_ids[index][-1] = -100
         else:
+
+            eval_dataset = self.load_and_cache_examples(None, to_predict=predict_examples)
+            eval_sampler = SequentialSampler(eval_dataset)
+            eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
+
             self._move_model_to_device()
 
             eval_loss = 0.0
