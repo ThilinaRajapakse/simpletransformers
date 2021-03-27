@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-72-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-73-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -256,6 +256,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   <tr>
     <td align="center"><a href="https://github.com/mhdhdri"><img src="https://avatars.githubusercontent.com/u/13150376?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Mehdi Heidari</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=mhdhdri" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/whr778"><img src="https://avatars.githubusercontent.com/u/5939523?v=4?s=100" width="100px;" alt=""/><br /><sub><b>William Roe</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=whr778" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/alvaroabascar"><img src="https://avatars.githubusercontent.com/u/7307772?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Álvaro Abella Bascarán</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=alvaroabascar" title="Code">💻</a></td>
   </tr>
 </table>
 
