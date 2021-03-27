@@ -662,7 +662,7 @@ class LazyNERDataset(Dataset):
             True,
         )
 
-        features = convert_example_to_feature(example_row)
+        features = convert_example_to_feature(*example_row)
         all_input_ids = torch.tensor(features.input_ids, dtype=torch.long)
         all_input_mask = torch.tensor(features.input_mask, dtype=torch.long)
         all_segment_ids = torch.tensor(features.segment_ids, dtype=torch.long)
