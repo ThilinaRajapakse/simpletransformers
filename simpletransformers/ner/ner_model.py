@@ -222,7 +222,6 @@ class NERModel:
                 onnx_execution_provider = "CUDAExecutionProvider" if use_cuda else "CPUExecutionProvider"
 
             options = SessionOptions()
-            options.intra_op_num_threads = 1
 
             if self.args.dynamic_quantize:
                 model_path = quantize(Path(os.path.join(model_name, "onnx_model.onnx")))
