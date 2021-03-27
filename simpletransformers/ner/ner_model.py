@@ -1042,7 +1042,6 @@ class NERModel:
                     input_ids, attention_mask = (model_inputs["input_ids"], model_inputs["attention_mask"])
                     input_ids = input_ids.detach().cpu().numpy()
                     attention_mask = attention_mask.detach().cpu().numpy()
-                    print(input_ids.shape)
                     inputs_onnx = {"input_ids": input_ids, "attention_mask": attention_mask}
 
                 # Run the model (None = get all the outputs)
