@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Bug fixed in LanguageModelingModel which could occur when loading a GPU trained model on CPU. [alvaroabascar](https://github.com/alvaroabascar)
+- Bug fixed in NER ONNX for models with token type ids. [whr778](https://github.com/whr778)
+- Bug fixed in NER lazy loading. [mhdhdri](https://github.com/mhdhdri)
 
 ## [0.61.3] - 2021-03-19
 
