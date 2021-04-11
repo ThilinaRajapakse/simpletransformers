@@ -14,7 +14,7 @@ Currently, four main types of Sequence-to-Sequence models are available.
 - MBART *(Translation)*
 - MarianMT *(Translation)*
 - Encoder-Decoder *(Generic)*
-- RAG *(Retrieval Augmented Generation - E,g, Question Answering)
+- RAG *(Retrieval Augmented Generation - E,g, Question Answering)*
 
 *Note that these models are not restricted to the specifed task. The task is merely given as an example.*
 
