@@ -17,6 +17,7 @@ Currently, four main types of Sequence-to-Sequence models are available.
 - MBART *(Translation)*
 - MarianMT *(Translation)*
 - BART *(Summarization)*
+- RAG *(Retrieval Augmented Generation - E,g, Question Answering)
 
 
 ### Generic Encoder-Decoder Models
@@ -118,12 +119,36 @@ model = Seq2SeqModel(
     {: .notice--info}
 
 
+### RAG Models
+
+**Note:** You must have Faiss (GPU or CPU) installed to use RAG Models.
+Faiss installation instructions can be found [here](https://github.com/facebookresearch/faiss/blob/master/INSTALL.md).
+{: .notice--warning}
+
+- `encoder_decoder_type`: Either `"rag-token"` or `"rag-sequence"`.
+- `encoder_decoder_name`: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
+
+    **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
+    {: .notice--info}
+
+    **Note:** For a list of community models, see [here](https://huggingface.co/models).
+    {: .notice--info}
+
+- `index_name` (optional): Name of the index to use - `hf` for a canonical dataset from the datasets library, `custom` for a local index, or `legacy` for the original index. This will default to `custom` (not necessary to specify the parameter) when a local knowledge dataset is used.
+- knowledge_dataset (optional): Path to a TSV file (two columns - `title`, `text`) containing a knowledge dataset for RAG or the path to a directory containing a saved Huggingface dataset for RAG. If this is not given for a RAG model, a dummy dataset will be used.
+- `index_path` (optional): Path to the faiss index of the custom knowledge dataset. If this is not given and `knowledge_dataset` is given, it will be computed.
+- `dpr_ctx_encoder_model_name` (optional): The DPR context encoder model to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files. This is required when using a custom `knowledge_dataset`.
+
+
+
+
 ### Configuring a `Seq2SeqModel`
 
 `Seq2SeqModel` has the following task-specific configuration options.
 
 | Argument                    | Type    | Default | Description                                                                                                                                   |
 | --------------------------- | ------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| base_marian_model_name                    | str     | None   | Name of the base Marian model used to load the tokenizer.                                                                             |
 | dataset_class               | Dataset | None    | A custom dataset class to use. (Subclass of Pytorch Dataset)                                                                                  |
 | do_sample                   | bool    | False   | If set to False greedy decoding is used. Otherwise sampling is used. Defaults to False as defined in configuration_utils.PretrainedConfig.    |
 | early_stopping              | bool    | True    | if set to True beam search is stopped when at least num_beams sentences finished per batch.                                                   |
@@ -133,10 +158,15 @@ model = Seq2SeqModel(
 | max_steps                   | int     | -1      | Maximum number of training steps. Will override the effect of num_train_epochs.                                                               |
 | num_beams                   | int     | 1       | Number of beams for beam search. Must be between 1 and infinity. 1 means no beam search. Default to 1.                                        |
 | num_return_sequences        | int     | 1       | The number of samples to generate.                                                                                                            |
+| rag_embed_batch_size        | int     | 1       | The batch size used when generating embeddings for RAG models.                                                                                                            |
 | repetition_penalty          | float   | 1.0     | The parameter for repetition penalty. Between 1.0 and infinity. 1.0 means no penalty. Default to 1.0.                                         |
 | top_k                       | float   | None    | Filter top-k tokens before sampling (<=0: no filtering)                                                                                       |
 | top_p                       | float   | None    | Nucleus filtering (top-p) before sampling (<=0.0: no filtering)                                                                               |
 | use_multiprocessed_decoding | bool    | False   | Use multiprocessing when decoding outputs. Significantly speeds up decoding (CPU intensive). Turn off if multiprocessing causes insatibility. |
+| save_knowledge_dataset | bool    | True   | Save the Knowledge Dataset when saving a RAG model |
+| save_knowledge_dataset_with_checkpoints | bool    | False   | Save the knowledge dataset when saving a RAG model training checkpoint |
+| split_text_character | str    | " "   | The character used to split text on when splitting text in a RAG model knowledge dataset |
+| split_text_n | int    | 100   | Split text into a new *doc* every `split_text_n` occurences of `split_text_character` when splitting text in a RAG model knowledge dataset |
 | src_lang                    | str     | en_XX   | Code for the source language. Only relevant to MBART model.                                                                                   |
 | tgt_lang                    | str     | ro_RO   | Code for the target language. Only relevant to MBART model.                                                                                   |
 

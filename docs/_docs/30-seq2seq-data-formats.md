@@ -80,3 +80,15 @@ to_predict = [
     "Clarisse is the daughter of Ares and longtime head of the Ares cabin at Camp Half-Blood."
 ]
 ```
+
+
+## RAG Knowledge Dataset
+
+A TSV file containing two columns - `title` and `text`
+
+```
+title   text
+Piper McLean    Piper McLean is a Greek demigod, daughter of Aphrodite and Tristan McLean. Piper is currently the head counselor of the Aphrodite's Cabin, after challenging and defeating Drew Tanaka who became the head counselor of the Aphrodite cabin after the former counselor died in the Second Titan War. 
+Hazel Levesque  Hazel Levesque is one of the seven heroes of the Prophecy of Seven. She is a fourteen-year-old Roman demigod, the daughter of Pluto and Marie Levesque, and the half-sister of Nico di Angelo. She is the current Praetor of Camp Jupiter and the former Centurion of the Fifth Cohort.
+Rachel Elizabeth Dare   Rachel Elizabeth Dare is the seventeen-year-old daughter of Mr. and Mrs. Dare. She is the current Oracle of Delphi. 
+```

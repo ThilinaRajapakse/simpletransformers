@@ -14,6 +14,7 @@ Currently, four main types of Sequence-to-Sequence models are available.
 - MBART *(Translation)*
 - MarianMT *(Translation)*
 - Encoder-Decoder *(Generic)*
+- RAG *(Retrieval Augmented Generation - E,g, Question Answering)
 
 *Note that these models are not restricted to the specifed task. The task is merely given as an example.*
 
@@ -27,6 +28,10 @@ Using a sequence-to-sequence model in Simple Transformers follows the [standard 
 3. Evaluate the model with `eval_model()`
 4. Make predictions on (unlabelled) data with `predict()`
 
+
+**Note:** You must have Faiss (GPU or CPU) installed to use RAG Models.
+Faiss installation instructions can be found [here](https://github.com/facebookresearch/faiss/blob/master/INSTALL.md).
+{: .notice--warning}
 
 ### Initializing a `Seq2SeqModel`
 

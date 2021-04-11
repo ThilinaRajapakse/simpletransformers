@@ -145,7 +145,7 @@ class Seq2SeqModel:
             encoder_decoder_name (optional): The path to a directory containing the saved encoder and decoder of a Seq2SeqModel. (E.g. "outputs/") OR a valid BART or MarianMT model.
             additional_special_tokens_encoder (optional): dict of special tokens to add to encoder tokenizer
             additional_special_tokens_decoder (optional): dict of special tokens to add to decoder tokenizer
-            index_name (optional): Name of the index to use: 'hf' for a canonical dataset from the datasets library, 'custom' for a local index, or 'legacy' for the orignal one
+            index_name (optional): Name of the index to use: 'hf' for a canonical dataset from the datasets library, 'custom' for a local index, or 'legacy' for the original one
             knowledge_dataset (optional): Path to a TSV file (two columns - title, text) containing a knowledge dataset for RAG or the path to a directory containing a saved Huggingface dataset for RAG.
                                         If this is not given for a RAG model, a dummy dataset will be used.
             index_path (optional): Path to the faiss index of the custom knowledge dataset. If this is not given and knowledge_dataset is given, it will be computed.
