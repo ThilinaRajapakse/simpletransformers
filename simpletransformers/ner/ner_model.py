@@ -114,6 +114,7 @@ class NERModel:
         use_cuda=True,
         cuda_device=-1,
         onnx_execution_provider=None,
+        remove_classifier: bool = False,
         **kwargs,
     ):
         """
@@ -192,6 +193,11 @@ class NERModel:
                 "I-LOC",
             ]
         self.num_labels = len(self.args.labels_list)
+
+        # Remove classifier if using finetuned models
+        if remove_classifier:
+            model_name = self._remove_classifier(model_name)
+            logger.info("Classifier removed successfully")
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if self.num_labels:
@@ -1424,3 +1430,41 @@ class NERModel:
 
     def get_named_parameters(self):
         return [n for n, p in self.model.named_parameters()]
+
+    @staticmethod
+    def _remove_classifier(model_name: str) -> str:
+        """
+        This method will allow to use finetuned models (that normally yield size mismatch error) by removing
+        the classification object from the model. If the model already had it's classification head removed,
+        the method returns the path of the modified model.
+        """
+        # Check wether modified model has already been created
+        exist = True
+        full_path = "{}/data/input/models/{}".format(os.getcwd(), model_name)
+        if os.path.exists(full_path):
+            # Check if empty
+            if not os.listdir(full_path):
+                exist = False
+        else:
+            exist = False
+
+        # Remove classifier if not already done
+        if not exist:
+            # Load model
+            model = AutoModelForTokenClassification.from_pretrained(model_name)
+
+            # Delete classifier
+            if hasattr(model, "cls"):
+                delattr(model, "cls")
+            elif hasattr(model, "classifier"):
+                delattr(model, "classifier")
+            else:
+                raise AttributeError("Model has no attribute 'cls' or 'classifier")
+
+            model.save_pretrained(full_path)
+
+            # Save tokenizer
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            tokenizer.save_pretrained(full_path)
+
+        return full_path
