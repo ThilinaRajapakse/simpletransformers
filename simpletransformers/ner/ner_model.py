@@ -1,34 +1,32 @@
 from __future__ import absolute_import, division, print_function
 
-import json
 import logging
 import math
 import os
 import random
+import tempfile
 import warnings
 from dataclasses import asdict
-from multiprocessing import cpu_count
-import tempfile
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
-from scipy.stats import pearsonr
 from seqeval.metrics import classification_report, f1_score, precision_score, recall_score
+from simpletransformers.config.model_args import NERArgs
+from simpletransformers.config.utils import sweep_config_to_sweep_values
+from simpletransformers.ner.ner_utils import (
+    InputExample,
+    LazyNERDataset,
+    convert_examples_to_features,
+    get_examples_from_df,
+    load_hf_dataset,
+    read_examples_from_file,
+)
 from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from tqdm.auto import tqdm, trange
-from transformers.optimization import (
-    get_constant_schedule,
-    get_constant_schedule_with_warmup,
-    get_linear_schedule_with_warmup,
-    get_cosine_schedule_with_warmup,
-    get_cosine_with_hard_restarts_schedule_with_warmup,
-    get_polynomial_decay_schedule_with_warmup,
-)
-from transformers.optimization import AdamW, Adafactor
 from transformers import (
     AlbertConfig,
     AlbertForTokenClassification,
@@ -67,7 +65,6 @@ from transformers import (
     SqueezeBertConfig,
     SqueezeBertForTokenClassification,
     SqueezeBertTokenizer,
-    WEIGHTS_NAME,
     XLMRobertaConfig,
     XLMRobertaForTokenClassification,
     XLMRobertaTokenizer,
@@ -75,20 +72,15 @@ from transformers import (
     XLNetForTokenClassification,
     XLNetTokenizerFast,
 )
-from wandb import config
 from transformers.convert_graph_to_onnx import convert, quantize
-
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import NERArgs
-from simpletransformers.config.utils import sweep_config_to_sweep_values
-from simpletransformers.ner.ner_utils import (
-    InputExample,
-    LazyNERDataset,
-    convert_examples_to_features,
-    get_examples_from_df,
-    get_labels,
-    load_hf_dataset,
-    read_examples_from_file,
+from transformers.optimization import AdamW, Adafactor
+from transformers.optimization import (
+    get_constant_schedule,
+    get_constant_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
+    get_cosine_schedule_with_warmup,
+    get_cosine_with_hard_restarts_schedule_with_warmup,
+    get_polynomial_decay_schedule_with_warmup,
 )
 
 try:
@@ -100,21 +92,20 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-
 MODELS_WITH_EXTRA_SEP_TOKEN = ["roberta", "camembert", "xlmroberta", "longformer", "mpnet"]
 
 
 class NERModel:
     def __init__(
-        self,
-        model_type,
-        model_name,
-        labels=None,
-        args=None,
-        use_cuda=True,
-        cuda_device=-1,
-        onnx_execution_provider=None,
-        **kwargs,
+            self,
+            model_type,
+            model_name,
+            labels=None,
+            args=None,
+            use_cuda=True,
+            cuda_device=-1,
+            onnx_execution_provider=None,
+            **kwargs,
     ):
         """
         Initializes a NERModel
@@ -285,7 +276,7 @@ class NERModel:
             self.args.wandb_project = None
 
     def train_model(
-        self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs
+            self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs
     ):
         """
         Trains the model using 'train_data'
@@ -517,7 +508,7 @@ class NERModel:
                 global_step = int(checkpoint_suffix)
                 epochs_trained = global_step // (len(train_dataloader) // args.gradient_accumulation_steps)
                 steps_trained_in_current_epoch = global_step % (
-                    len(train_dataloader) // args.gradient_accumulation_steps
+                        len(train_dataloader) // args.gradient_accumulation_steps
                 )
 
                 logger.info("   Continuing training from checkpoint, will skip to saved global_step")
@@ -624,8 +615,8 @@ class NERModel:
                         self.save_model(output_dir_current, optimizer, scheduler, model=model)
 
                     if args.evaluate_during_training and (
-                        args.evaluate_during_training_steps > 0
-                        and global_step % args.evaluate_during_training_steps == 0
+                            args.evaluate_during_training_steps > 0
+                            and global_step % args.evaluate_during_training_steps == 0
                     ):
 
                         output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
@@ -1030,7 +1021,7 @@ class NERModel:
                 for (input_ids, attention_mask, token_type_ids) in tqdm(
                         zip(model_inputs["input_ids"], model_inputs["attention_mask"],
                             model_inputs["token_type_ids"])):
-                    encoded_model_inputs.append( (input_ids, attention_mask, token_type_ids) )
+                    encoded_model_inputs.append((input_ids, attention_mask, token_type_ids))
             else:
                 for (input_ids, attention_mask) in tqdm(
                         zip(model_inputs["input_ids"], model_inputs["attention_mask"])):
@@ -1271,8 +1262,8 @@ class NERModel:
                     os.makedirs(self.args.cache_dir, exist_ok=True)
 
                 if os.path.exists(cached_features_file) and (
-                    (not args.reprocess_input_data and not no_cache)
-                    or (mode == "dev" and args.use_cached_eval_features and not no_cache)
+                        (not args.reprocess_input_data and not no_cache)
+                        or (mode == "dev" and args.use_cached_eval_features and not no_cache)
                 ):
                     features = torch.load(cached_features_file)
                     logger.info(f" Features loaded from cache at {cached_features_file}")
