@@ -1018,30 +1018,39 @@ class NERModel:
                 ]
 
         if self.args.onnx:
+
+            # Encode
             model_inputs = self.tokenizer.batch_encode_plus(
                 to_predict, return_tensors="pt", padding=True, truncation=True
             )
 
-            for inputs in tqdm(model_inputs):
+            # Change shape for batching
+            encoded_model_inputs = []
+            if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+                for (input_ids, attention_mask, token_type_ids) in tqdm(
+                        zip(model_inputs["input_ids"], model_inputs["attention_mask"],
+                            model_inputs["token_type_ids"])):
+                    encoded_model_inputs.append( (input_ids, attention_mask, token_type_ids) )
+            else:
+                for (input_ids, attention_mask) in tqdm(
+                        zip(model_inputs["input_ids"], model_inputs["attention_mask"])):
+                    encoded_model_inputs.append((input_ids, attention_mask))
+
+            # Setup batches
+            eval_sampler = SequentialSampler(encoded_model_inputs)
+            eval_dataloader = DataLoader(encoded_model_inputs, sampler=eval_sampler, batch_size=args.eval_batch_size)
+            for batch in tqdm(eval_dataloader, disable=args.silent, desc="Running Prediction"):
                 if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
-                    input_ids, attention_mask, token_type_ids = (
-                        model_inputs["input_ids"],
-                        model_inputs["attention_mask"],
-                        model_inputs["token_type_ids"],
-                    )
-                    input_ids = input_ids.detach().cpu().numpy()
-                    attention_mask = attention_mask.detach().cpu().numpy()
-                    token_type_ids = token_type_ids.detach().cpu().numpy()
                     inputs_onnx = {
-                        "input_ids": input_ids,
-                        "attention_mask": attention_mask,
-                        "token_type_ids": token_type_ids,
+                        "input_ids": batch[0].detach().cpu().numpy(),
+                        "attention_mask": batch[1].detach().cpu().numpy(),
+                        "token_type_ids": batch[2].detach().cpu().numpy(),
                     }
                 else:
-                    input_ids, attention_mask = (model_inputs["input_ids"], model_inputs["attention_mask"])
-                    input_ids = input_ids.detach().cpu().numpy()
-                    attention_mask = attention_mask.detach().cpu().numpy()
-                    inputs_onnx = {"input_ids": input_ids, "attention_mask": attention_mask}
+                    inputs_onnx = {
+                        "input_ids": batch[0].detach().cpu().numpy(),
+                        "attention_mask": batch[1].detach().cpu().numpy(),
+                    }
 
                 # Run the model (None = get all the outputs)
                 output = self.model.run(None, inputs_onnx)
