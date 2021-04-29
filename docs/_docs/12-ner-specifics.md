@@ -28,15 +28,20 @@ New model types are regularly added to the library. Named Entity Recognition tas
 | ALBERT      | albert                    |
 | BERT        | bert                      |
 | BERTweet    | bertweet                  |
+| BigBird     | bigbird                   |
 | CamemBERT   | camembert                 |
+| DeBERTa     | deberta                   |
+| DeBERTa     | deberta                   |
+| DeBERTaV2   | deberta-v2                |
 | DistilBERT  | distilbert                |
 | ELECTRA     | electra                   |
 | LayoutLM    | layoutlm                  |
 | Longformer  | longformer                |
-| MPNet       | mpnet                     |
 | MobileBERT  | mobilebert                |
+| MPNet       | mpnet                     |
 | RoBERTa     | roberta                   |
 | SqueezeBert | squeezebert               |
+| XLM         | xlm                       |
 | XLM-RoBERTa | xlmroberta                |
 | XLNet       | xlnet                     |
 
