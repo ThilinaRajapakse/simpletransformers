@@ -208,11 +208,6 @@ class NERModel:
         else:
             self.weight = weight
 
-        if self.weight:
-            self.loss_fct = CrossEntropyLoss(weight=self.weight)
-        else:
-            self.loss_fct = None
-
         if use_cuda:
             if torch.cuda.is_available():
                 if cuda_device == -1:
@@ -226,6 +221,11 @@ class NERModel:
                 )
         else:
             self.device = "cpu"
+
+        if self.weight:
+            self.loss_fct = CrossEntropyLoss(weight=torch.Tensor(self.weight).to(self.device))
+        else:
+            self.loss_fct = None
 
         if self.args.onnx:
             from onnxruntime import InferenceSession, SessionOptions
