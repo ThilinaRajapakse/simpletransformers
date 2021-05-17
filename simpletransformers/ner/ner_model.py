@@ -358,7 +358,6 @@ class NERModel:
         Utility function to be used by the train_model() method. Not intended to be used directly.
         """
 
-        device = self.device
         model = self.model
         args = self.args
 
@@ -605,7 +604,9 @@ class NERModel:
                         # Log metrics
                         tb_writer.add_scalar("lr", scheduler.get_last_lr()[0], global_step)
                         tb_writer.add_scalar(
-                            "loss", (tr_loss - logging_loss) / args.logging_steps, global_step,
+                            "loss",
+                            (tr_loss - logging_loss) / args.logging_steps,
+                            global_step,
                         )
                         logging_loss = tr_loss
                         if args.wandb_project or self.is_sweeping:
@@ -652,7 +653,8 @@ class NERModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"),
+                            index=False,
                         )
 
                         if args.wandb_project or self.is_sweeping:
@@ -845,7 +847,6 @@ class NERModel:
         Utility function to be used by the eval_model() method. Not intended to be used directly.
         """
 
-        device = self.device
         model = self.model
         args = self.args
         pad_token_label_id = self.pad_token_label_id
@@ -896,7 +897,9 @@ class NERModel:
                 out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
                 out_input_ids = np.append(out_input_ids, inputs["input_ids"].detach().cpu().numpy(), axis=0)
                 out_attention_mask = np.append(
-                    out_attention_mask, inputs["attention_mask"].detach().cpu().numpy(), axis=0,
+                    out_attention_mask,
+                    inputs["attention_mask"].detach().cpu().numpy(),
+                    axis=0,
                 )
 
         eval_loss = eval_loss / nb_eval_steps
@@ -917,7 +920,10 @@ class NERModel:
         word_tokens = []
         for i in range(len(preds_list)):
             w_log = self._convert_tokens_to_word_logits(
-                out_input_ids[i], out_label_ids[i], out_attention_mask[i], token_logits[i],
+                out_input_ids[i],
+                out_label_ids[i],
+                out_attention_mask[i],
+                token_logits[i],
             )
             word_tokens.append(w_log)
 
@@ -963,7 +969,9 @@ class NERModel:
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
-                truth, preds, labels=labels_list,
+                truth,
+                preds,
+                labels=labels_list,
             )
 
         return results, model_outputs, preds_list
@@ -1108,7 +1116,9 @@ class NERModel:
                     out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
                     out_input_ids = np.append(out_input_ids, inputs["input_ids"].detach().cpu().numpy(), axis=0)
                     out_attention_mask = np.append(
-                        out_attention_mask, inputs["attention_mask"].detach().cpu().numpy(), axis=0,
+                        out_attention_mask,
+                        inputs["attention_mask"].detach().cpu().numpy(),
+                        axis=0,
                     )
 
             eval_loss = eval_loss / nb_eval_steps
@@ -1140,7 +1150,10 @@ class NERModel:
         word_tokens = []
         for n, sentence in enumerate(to_predict):
             w_log = self._convert_tokens_to_word_logits(
-                out_input_ids[n], out_label_ids[n], out_attention_mask[n], token_logits[n],
+                out_input_ids[n],
+                out_label_ids[n],
+                out_attention_mask[n],
+                token_logits[n],
             )
             word_tokens.append(w_log)
 
@@ -1232,6 +1245,7 @@ class NERModel:
                 pad_token_segment_id=4 if args.model_type in ["xlnet"] else 0,
                 pad_token_label_id=self.pad_token_label_id,
                 silent=args.silent,
+                args=self.args,
             )
         else:
             if not to_predict and isinstance(data, str) and self.args.lazy_loading:
@@ -1255,7 +1269,11 @@ class NERModel:
                 cached_features_file = os.path.join(
                     args.cache_dir,
                     "cached_{}_{}_{}_{}_{}".format(
-                        mode, args.model_type, args.max_seq_length, self.num_labels, len(examples),
+                        mode,
+                        args.model_type,
+                        args.max_seq_length,
+                        self.num_labels,
+                        len(examples),
                     ),
                 )
                 if not no_cache:

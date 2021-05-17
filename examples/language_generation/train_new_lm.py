@@ -46,10 +46,16 @@ train_args["local_rank"] = args.local_rank
 train_file = f"data/train.txt"
 test_file = f"data/test.txt"
 
-model = LanguageModelingModel("gpt2", None, args=train_args, train_files=train_file,)
+model = LanguageModelingModel(
+    "gpt2",
+    None,
+    args=train_args,
+    train_files=train_file,
+)
 
 model.train_model(
-    train_file, eval_file=test_file,
+    train_file,
+    eval_file=test_file,
 )
 
 model.eval_model(test_file)

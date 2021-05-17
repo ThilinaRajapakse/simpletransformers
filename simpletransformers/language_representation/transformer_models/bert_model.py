@@ -4,7 +4,7 @@ from transformers.models.bert.modeling_bert import BertModel, BertPreTrainedMode
 # supports both BERT & ROBERTA BASED MODELS
 class BertForTextRepresentation(BertPreTrainedModel):
     r"""
-   Outputs: `List` of token vectors, 1 list of max_seq token vectors per sentence given
+    Outputs: `List` of token vectors, 1 list of max_seq token vectors per sentence given
     """  # noqa: ignore flake8"
 
     def __init__(self, config, weight=None):

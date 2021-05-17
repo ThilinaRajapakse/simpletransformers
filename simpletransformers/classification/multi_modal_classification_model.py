@@ -176,7 +176,10 @@ class MultiModalClassificationModel:
                     "Model name '{}' was not found in model name list ({}). "
                     "We assumed '{}' was a path or url to model weight files named one of {} but "
                     "couldn't find any such file at this path or url.".format(
-                        model_name, ", ".join(BERT_PRETRAINED_MODEL_ARCHIVE_LIST), model_name, "pytorch_model.bin",
+                        model_name,
+                        ", ".join(BERT_PRETRAINED_MODEL_ARCHIVE_LIST),
+                        model_name,
+                        "pytorch_model.bin",
                     )
                 )
                 raise EnvironmentError(msg)
@@ -633,7 +636,8 @@ class MultiModalClassificationModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"),
+                            index=False,
                         )
 
                         if args.wandb_project or self.is_sweeping:
@@ -724,7 +728,8 @@ class MultiModalClassificationModel:
                     training_progress_scores[key].append(results[key])
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(
-                    os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
+                    os.path.join(args.output_dir, "training_progress_scores.csv"),
+                    index=False,
                 )
 
                 if not best_eval_metric:
@@ -879,7 +884,13 @@ class MultiModalClassificationModel:
         return result, model_outputs
 
     def evaluate(
-        self, eval_dataset, output_dir, prefix="", verbose=True, silent=False, **kwargs,
+        self,
+        eval_dataset,
+        output_dir,
+        prefix="",
+        verbose=True,
+        silent=False,
+        **kwargs,
     ):
         """
         Evaluates the model on eval_df.
@@ -1100,7 +1111,11 @@ class MultiModalClassificationModel:
         to_predict = pd.DataFrame.from_dict(to_predict)
 
         eval_dataset = self.load_and_cache_examples(
-            to_predict, image_path=image_path, evaluate=True, image_type_extension=image_type_extension, no_cache=True,
+            to_predict,
+            image_path=image_path,
+            evaluate=True,
+            image_type_extension=image_type_extension,
+            no_cache=True,
         )
 
         eval_sampler = SequentialSampler(eval_dataset)

@@ -10,7 +10,12 @@ from sklearn.metrics import accuracy_score, f1_score
 from simpletransformers.classification import ClassificationArgs, ClassificationModel
 from utils import load_rte_data_file
 
-prettyprinter.install_extras(include=["dataclasses",], warn_on_error=True)
+prettyprinter.install_extras(
+    include=[
+        "dataclasses",
+    ],
+    warn_on_error=True,
+)
 
 
 logging.basicConfig(level=logging.INFO)

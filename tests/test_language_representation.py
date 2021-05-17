@@ -4,7 +4,8 @@ from simpletransformers.language_representation import RepresentationModel
 
 
 @pytest.mark.parametrize(
-    "model_type, model_name", [("bert", "bert-base-uncased"), ("roberta", "roberta-base"), ("gpt2", "distilgpt2")],
+    "model_type, model_name",
+    [("bert", "bert-base-uncased"), ("roberta", "roberta-base"), ("gpt2", "distilgpt2")],
 )
 @pytest.mark.parametrize("combine_strategy", ["mean", "concat", None])
 def test_shapes(model_type, model_name, combine_strategy):

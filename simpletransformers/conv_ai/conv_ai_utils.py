@@ -23,7 +23,7 @@ logger = logging.getLogger(__file__)
 
 
 def download_pretrained_model():
-    """ Download and extract finetuned model from S3 """
+    """Download and extract finetuned model from S3"""
     resolved_archive_file = cached_path(HF_FINETUNED_MODEL)
     tempdir = tempfile.mkdtemp()
     logger.info("extracting archive file {} to temp dir {}".format(resolved_archive_file, tempdir))
@@ -52,7 +52,7 @@ def get_dataset(
     no_cache=False,
     args=None,
 ):
-    """ Get tokenized PERSONACHAT dataset from S3 or cache."""
+    """Get tokenized PERSONACHAT dataset from S3 or cache."""
     dataset_path = dataset_path or PERSONACHAT_URL
 
     mode = "eval" if evaluate else "train"

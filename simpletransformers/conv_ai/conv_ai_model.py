@@ -83,7 +83,13 @@ PADDED_INPUTS = ["input_ids", "labels", "token_type_ids"]
 
 class ConvAIModel:
     def __init__(
-        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self,
+        model_type,
+        model_name,
+        args=None,
+        use_cuda=True,
+        cuda_device=-1,
+        **kwargs,
     ):
 
         """
@@ -223,7 +229,9 @@ class ConvAIModel:
         self._move_model_to_device()
 
         train_dataloader, train_sampler = self.load_and_cache_examples(
-            dataset_path=train_file, verbose=verbose, no_cache=self.args.no_cache or self.args.reprocess_input_data,
+            dataset_path=train_file,
+            verbose=verbose,
+            no_cache=self.args.no_cache or self.args.reprocess_input_data,
         )
 
         if self.args.evaluate_during_training:
@@ -248,7 +256,13 @@ class ConvAIModel:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_type, output_dir))
 
     def train(
-        self, train_dataloader, output_dir, show_running_loss=True, eval_dataloader=None, verbose=True, **kwargs,
+        self,
+        train_dataloader,
+        output_dir,
+        show_running_loss=True,
+        eval_dataloader=None,
+        verbose=True,
+        **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -523,7 +537,8 @@ class ConvAIModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"),
+                            index=False,
                         )
 
                         if args.wandb_project or self.is_sweeping:
@@ -592,7 +607,10 @@ class ConvAIModel:
 
             if args.evaluate_during_training and args.evaluate_each_epoch:
                 results, _, _ = self.eval_model(
-                    eval_dataloader, verbose=verbose and args.evaluate_during_training_verbose, silent=True, **kwargs,
+                    eval_dataloader,
+                    verbose=verbose and args.evaluate_during_training_verbose,
+                    silent=True,
+                    **kwargs,
                 )
 
                 self.save_model(output_dir_current, results=results)
@@ -699,10 +717,18 @@ class ConvAIModel:
 
                 if args.fp16:
                     with amp.autocast():
-                        outputs = model(input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,)
+                        outputs = model(
+                            input_ids,
+                            token_type_ids=token_type_ids,
+                            mc_token_ids=mc_token_ids,
+                        )
                         lm_logits, mc_logits = outputs[:2]
                 else:
-                    outputs = model(input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,)
+                    outputs = model(
+                        input_ids,
+                        token_type_ids=token_type_ids,
+                        mc_token_ids=mc_token_ids,
+                    )
                     lm_logits, mc_logits = outputs[:2]
                 # model outputs are always tuple in pytorch-transformers (see doc)
 
@@ -1003,14 +1029,14 @@ class ConvAIModel:
                     writer.write("{} = {}\n".format(key, str(results[key])))
 
     def add_special_tokens_(self, model, tokenizer):
-        """ Add special tokens to the tokenizer and the model if they have not already been added. """
+        """Add special tokens to the tokenizer and the model if they have not already been added."""
         orig_num_tokens = len(tokenizer.encoder)
         num_added_tokens = tokenizer.add_special_tokens(ATTR_TO_SPECIAL_TOKEN)  # doesn't add if they are already there
         if num_added_tokens > 0:
             self.model.resize_token_embeddings(new_num_tokens=orig_num_tokens + num_added_tokens)
 
     def build_input_from_segments(self, persona, history, reply, tokenizer, labels=False, with_eos=True):
-        """ Build a sequence of input from 3 segments: persona, history and last reply. """
+        """Build a sequence of input from 3 segments: persona, history and last reply."""
         bos, eos, speaker1, speaker2 = tokenizer.convert_tokens_to_ids(SPECIAL_TOKENS[:-1])
         sequence = [[bos] + list(chain(*persona))] + history + [reply + ([eos] if with_eos else [])]
         sequence = [sequence[0]] + [
@@ -1026,23 +1052,23 @@ class ConvAIModel:
         return instance
 
     def pad_dataset(self, dataset, padding=0):
-        """ Pad the dataset. This could be optimized by defining a Dataset class and padding at the batch level,
-        but this is simpler. """
+        """Pad the dataset. This could be optimized by defining a Dataset class and padding at the batch level,
+        but this is simpler."""
         max_l = max(len(x) for x in dataset["input_ids"])
         for name in PADDED_INPUTS:
             dataset[name] = [x + [padding if name != "labels" else -100] * (max_l - len(x)) for x in dataset[name]]
         return dataset
 
     def top_filtering(self, logits, top_k=0.0, top_p=0.9, threshold=-float("Inf"), filter_value=-float("Inf")):
-        """ Filter a distribution of logits using top-k, top-p (nucleus) and/or threshold filtering
-            Args:
-                logits: logits distribution shape (vocabulary size)
-                top_k: <=0: no filtering, >0: keep only top k tokens with highest probability.
-                top_p: <=0.0: no filtering, >0.0: keep only a subset S of candidates, where S is the smallest subset
-                    whose total probability mass is greater than or equal to the threshold top_p.
-                    In practice, we select the highest probability tokens whose cumulative probability mass exceeds
-                    the threshold top_p.
-                threshold: a minimal threshold to keep logits
+        """Filter a distribution of logits using top-k, top-p (nucleus) and/or threshold filtering
+        Args:
+            logits: logits distribution shape (vocabulary size)
+            top_k: <=0: no filtering, >0: keep only top k tokens with highest probability.
+            top_p: <=0.0: no filtering, >0.0: keep only a subset S of candidates, where S is the smallest subset
+                whose total probability mass is greater than or equal to the threshold top_p.
+                In practice, we select the highest probability tokens whose cumulative probability mass exceeds
+                the threshold top_p.
+            threshold: a minimal threshold to keep logits
         """
         assert (
             logits.dim() == 1

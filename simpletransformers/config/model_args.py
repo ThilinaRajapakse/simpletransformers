@@ -300,6 +300,7 @@ class Seq2SeqArgs(ModelArgs):
     evaluate_generated_text: bool = False
     faiss_d: int = 768
     faiss_m: int = 128
+    include_title_in_knowledge_dataset: bool = True
     length_penalty: float = 2.0
     max_length: int = 20
     max_steps: int = -1
@@ -307,15 +308,15 @@ class Seq2SeqArgs(ModelArgs):
     num_return_sequences: int = 1
     rag_embed_batch_size: int = 16
     repetition_penalty: float = 1.0
-    top_k: float = None
-    top_p: float = None
-    use_multiprocessed_decoding: bool = False
     save_knowledge_dataset: bool = True
     save_knowledge_dataset_with_checkpoints: bool = False
     split_text_character: str = " "
     split_text_n: int = 100
     src_lang: str = "en_XX"
     tgt_lang: str = "ro_RO"
+    top_k: float = None
+    top_p: float = None
+    use_multiprocessed_decoding: bool = False
 
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)

@@ -158,7 +158,11 @@ def get_examples_from_df(data, bbox=False):
         ]
     else:
         return [
-            InputExample(guid=sentence_id, words=sentence_df["words"].tolist(), labels=sentence_df["labels"].tolist(),)
+            InputExample(
+                guid=sentence_id,
+                words=sentence_df["words"].tolist(),
+                labels=sentence_df["labels"].tolist(),
+            )
             for sentence_id, sentence_df in data.groupby(["sentence_id"])
         ]
 
@@ -338,7 +342,10 @@ def convert_example_to_feature(
             )
         else:
             return InputFeatures(
-                input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids,
+                input_ids=input_ids,
+                input_mask=input_mask,
+                segment_ids=segment_ids,
+                label_ids=label_ids,
             )
     else:
         if bboxes:
@@ -381,11 +388,11 @@ def convert_examples_to_features(
     mode="dev",
     use_multiprocessing_for_evaluation=False,
 ):
-    """ Loads a data file into a list of `InputBatch`s
-        `cls_token_at_end` define the location of the CLS token:
-            - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
-            - True (XLNet/GPT pattern): A + [SEP] + B + [SEP] + [CLS]
-        `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
+    """Loads a data file into a list of `InputBatch`s
+    `cls_token_at_end` define the location of the CLS token:
+        - False (Default, BERT/XLM pattern): [CLS] + A + [SEP] + B + [SEP]
+        - True (XLNet/GPT pattern): A + [SEP] + B + [SEP] + [CLS]
+    `cls_token_segment_id` define the segment id associated to the CLS token (0 for BERT, 2 for XLNet)
     """
 
     label_map = {label: i for i, label in enumerate(label_list)}
@@ -562,11 +569,14 @@ def load_hf_dataset(
     sequence_a_segment_id=0,
     mask_padding_with_zero=True,
     silent=False,
+    args=None,
 ):
     if isinstance(data, str):
         # dataset = load_dataset("conll2003", data_files=data)
         dataset = load_dataset(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "ner_dataset_loading_script"), data_files=data
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "ner_dataset_loading_script"),
+            data_files=data,
+            download_mode="force_redownload" if args.reprocess_input_data else "reuse_dataset_if_exists",
         )
     else:
         raise TypeError(

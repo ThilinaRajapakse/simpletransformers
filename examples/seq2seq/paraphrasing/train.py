@@ -30,8 +30,18 @@ train_df["prefix"] = "paraphrase"
 eval_df["prefix"] = "paraphrase"
 
 # MSRP Data
-train_df = pd.concat([train_df, load_data("data/msr_paraphrase_train.txt", "#1 String", "#2 String", "Quality"),])
-eval_df = pd.concat([eval_df, load_data("data/msr_paraphrase_test.txt", "#1 String", "#2 String", "Quality"),])
+train_df = pd.concat(
+    [
+        train_df,
+        load_data("data/msr_paraphrase_train.txt", "#1 String", "#2 String", "Quality"),
+    ]
+)
+eval_df = pd.concat(
+    [
+        eval_df,
+        load_data("data/msr_paraphrase_test.txt", "#1 String", "#2 String", "Quality"),
+    ]
+)
 
 # Quora Data
 
@@ -91,7 +101,11 @@ model_args.top_p = 0.95
 model_args.wandb_project = "Paraphrasing with BART"
 
 
-model = Seq2SeqModel(encoder_decoder_type="bart", encoder_decoder_name="facebook/bart-large", args=model_args,)
+model = Seq2SeqModel(
+    encoder_decoder_type="bart",
+    encoder_decoder_name="facebook/bart-large",
+    args=model_args,
+)
 
 model.train_model(train_df, eval_data=eval_df)
 

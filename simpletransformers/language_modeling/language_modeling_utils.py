@@ -54,11 +54,20 @@ def encode_sliding_window(data):
 
 
 def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
-    return tokenizer(text=dataset["text"], truncation=True, padding="max_length", max_length=max_seq_length,)
+    return tokenizer(
+        text=dataset["text"],
+        truncation=True,
+        padding="max_length",
+        max_length=max_seq_length,
+    )
 
 
 def load_hf_dataset(data, tokenizer, args):
-    dataset = load_dataset("text", data_files=data)
+    dataset = load_dataset(
+        "text",
+        data_files=data,
+        download_mode="force_redownload" if args.reprocess_input_data else "reuse_dataset_if_exists",
+    )
 
     dataset = dataset.map(
         lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, max_seq_length=args.max_seq_length),
@@ -166,7 +175,7 @@ class SimpleDataset(Dataset):
 
 
 def mask_tokens(inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, args) -> Tuple[torch.Tensor, torch.Tensor]:
-    """ Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original. """
+    """Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original."""
 
     if tokenizer.mask_token is None:
         raise ValueError(

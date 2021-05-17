@@ -44,11 +44,19 @@ def preprocess_batch_for_hf_dataset(dataset, tokenizer, args):
 
 def load_hf_dataset(data, tokenizer, args):
     if isinstance(data, str):
-        dataset = load_dataset("csv", data_files=data, delimiter="\t")
+        dataset = load_dataset(
+            "csv",
+            data_files=data,
+            delimiter="\t",
+            download_mode="force_redownload" if args.reprocess_input_data else "reuse_dataset_if_exists",
+        )
     else:
         dataset = HFDataset.from_pandas(data)
 
-    dataset = dataset.map(lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, args=args), batched=True,)
+    dataset = dataset.map(
+        lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, args=args),
+        batched=True,
+    )
 
     dataset.set_format(type="pt", columns=["input_ids", "attention_mask"])
 
@@ -116,7 +124,8 @@ def preprocess_data(data):
 class T5Dataset(Dataset):
     def __init__(self, tokenizer, args, data, mode):
         cached_features_file = os.path.join(
-            args.cache_dir, args.model_name.replace("/", "_") + "_cached_" + str(args.max_seq_length) + str(len(data)),
+            args.cache_dir,
+            args.model_name.replace("/", "_") + "_cached_" + str(args.max_seq_length) + str(len(data)),
         )
 
         if os.path.exists(cached_features_file) and (
@@ -144,7 +153,11 @@ class T5Dataset(Dataset):
 
                 with Pool(args.process_count) as p:
                     self.examples = list(
-                        tqdm(p.imap(preprocess_data, data, chunksize=chunksize), total=len(data), disable=args.silent,)
+                        tqdm(
+                            p.imap(preprocess_data, data, chunksize=chunksize),
+                            total=len(data),
+                            disable=args.silent,
+                        )
                     )
             else:
                 self.examples = [preprocess_data(d) for d in tqdm(data, disable=args.silent)]

@@ -89,13 +89,28 @@ def preprocess_batch_for_hf_dataset(dataset, encoder_tokenizer, decoder_tokenize
             return_tensors="np",
             truncation=True,
         )
-        target_inputs = encoder_tokenizer.generator(
-            dataset["target_text"],
-            max_length=args.max_seq_length,
-            padding="max_length",
-            return_tensors="np",
-            truncation=True,
-        )
+        try:
+            target_inputs = encoder_tokenizer.generator(
+                dataset["target_text"],
+                max_length=args.max_seq_length,
+                padding="max_length",
+                return_tensors="np",
+                truncation=True,
+            )
+        except TypeError:
+            logger.warn(
+                """Error encountered while converting target_text.
+            All target_text values have been manually cast to String as a workaround.
+            This may have been caused by NaN values present in the data."""
+            )
+            dataset["target_text"] = [str(d) for d in dataset["target_text"]]
+            target_inputs = encoder_tokenizer.generator(
+                dataset["target_text"],
+                max_length=args.max_seq_length,
+                padding="max_length",
+                return_tensors="np",
+                truncation=True,
+            )
         source_ids = source_inputs["input_ids"].squeeze()
         target_ids = target_inputs["input_ids"].squeeze()
         src_mask = source_inputs["attention_mask"].squeeze()
@@ -132,7 +147,12 @@ def preprocess_batch_for_hf_dataset(dataset, encoder_tokenizer, decoder_tokenize
 
 def load_hf_dataset(data, encoder_tokenizer, decoder_tokenizer, args):
     if isinstance(data, str):
-        dataset = load_dataset("csv", data_files=data, delimiter="\t")
+        dataset = load_dataset(
+            "csv",
+            data_files=data,
+            delimiter="\t",
+            download_mode="force_redownload" if args.reprocess_input_data else "reuse_dataset_if_exists",
+        )
     else:
         dataset = HFDataset.from_pandas(data)
 
@@ -232,7 +252,11 @@ class Seq2SeqDataset(Dataset):
 
                 with Pool(args.process_count) as p:
                     self.examples = list(
-                        tqdm(p.imap(preprocess_data, data, chunksize=chunksize), total=len(data), disable=args.silent,)
+                        tqdm(
+                            p.imap(preprocess_data, data, chunksize=chunksize),
+                            total=len(data),
+                            disable=args.silent,
+                        )
                     )
             else:
                 self.examples = [preprocess_data(d) for d in tqdm(data, disable=args.silent)]
@@ -332,7 +356,11 @@ class SimpleSummarizationDataset(Dataset):
 
                 with Pool(args.process_count) as p:
                     self.examples = list(
-                        tqdm(p.imap(preprocess_fn, data, chunksize=chunksize), total=len(data), disable=args.silent,)
+                        tqdm(
+                            p.imap(preprocess_fn, data, chunksize=chunksize),
+                            total=len(data),
+                            disable=args.silent,
+                        )
                     )
             else:
                 self.examples = [preprocess_fn(d) for d in tqdm(data, disable=args.silent)]
@@ -350,14 +378,21 @@ def split_text(text, n=100, character=" "):
     return [character.join(text[i : i + n]).strip() for i in range(0, len(text), n)]
 
 
-def split_documents(documents, split_text_n=100, split_text_character=" "):
+def split_documents(documents, split_text_n=100, split_text_character=" ", include_title=True):
     """Split documents into passages"""
     titles, texts = [], []
-    for title, text in zip(documents["title"], documents["text"]):
-        if text is not None:
-            for passage in split_text(text, n=split_text_n, character=split_text_character):
-                titles.append(title if title is not None else "")
-                texts.append(passage)
+    if include_title:
+        for title, text in zip(documents["title"], documents["text"]):
+            if text is not None:
+                for passage in split_text(text, n=split_text_n, character=split_text_character):
+                    titles.append(title if title is not None else "")
+                    texts.append(passage)
+    else:
+        for text in documents["text"]:
+            if text is not None:
+                for passage in split_text(text, n=split_text_n, character=split_text_character):
+                    titles.append("")
+                    texts.append(passage)
     return {"title": titles, "text": texts}
 
 
@@ -377,12 +412,20 @@ def generate_faiss_index_dataset(data, ctx_encoder_name, args, device):
     import faiss
 
     if isinstance(data, str):
-        dataset = load_dataset("csv", data_files=data, delimiter="\t", column_names=["title", "text"])
+        if args.include_title_in_knowledge_dataset:
+            dataset = load_dataset("csv", data_files=data, delimiter="\t", column_names=["title", "text"])
+        else:
+            dataset = load_dataset("csv", data_files=data, delimiter="\t", column_names=["text"])
     else:
         dataset = HFDataset.from_pandas(data)
 
     dataset = dataset.map(
-        partial(split_documents, split_text_n=args.split_text_n, split_text_character=args.split_text_character),
+        partial(
+            split_documents,
+            split_text_n=args.split_text_n,
+            split_text_character=args.split_text_character,
+            include_title=args.include_title_in_knowledge_dataset,
+        ),
         batched=True,
         num_proc=args.process_count,
     )

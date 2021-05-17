@@ -40,7 +40,13 @@ def test_language_modeling(model_type, model_name):
         "discriminator_config": {"embedding_size": 512, "hidden_size": 256, "num_hidden_layers": 2},
     }
 
-    model = LanguageModelingModel("electra", None, args=model_args, train_files="train.txt", use_cuda=False,)
+    model = LanguageModelingModel(
+        "electra",
+        None,
+        args=model_args,
+        train_files="train.txt",
+        use_cuda=False,
+    )
 
     # Train the model
     model.train_model("train.txt")

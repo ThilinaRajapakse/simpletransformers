@@ -39,7 +39,12 @@ train_data = [
                 "question": "What was the name of the 1937 treaty?",
                 "answers": [{"text": "Bald Eagle Protection Act", "answer_start": 167}],
             },
-            {"id": "00004", "is_impossible": True, "question": "How did Alexandar Hamilton die?", "answers": [],},
+            {
+                "id": "00004",
+                "is_impossible": True,
+                "question": "How did Alexandar Hamilton die?",
+                "answers": [],
+            },
         ],
     },
 ]  # noqa: ignore flake8"

@@ -4,7 +4,7 @@ from transformers.models.gpt2.modeling_gpt2 import GPT2Model, GPT2PreTrainedMode
 # supports both BERT & ROBERTA BASED MODELS
 class GPT2ForTextRepresentation(GPT2PreTrainedModel):
     r"""
-   Outputs: `List` of token vectors, 1 list of max_seq token vectors per sentence given
+    Outputs: `List` of token vectors, 1 list of max_seq token vectors per sentence given
     """  # noqa: ignore flake8"
 
     def __init__(self, config, weight=None):
