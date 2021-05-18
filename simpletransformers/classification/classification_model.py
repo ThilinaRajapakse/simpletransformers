@@ -4,7 +4,6 @@
 
 from __future__ import absolute_import, division, print_function
 
-import json
 import logging
 import math
 import os
@@ -282,10 +281,7 @@ class ClassificationModel:
             if not self.args.quantized_model:
                 if self.weight:
                     self.model = model_class.from_pretrained(
-                        model_name,
-                        config=self.config,
-                        weight=torch.Tensor(self.weight).to(self.device),
-                        **kwargs,
+                        model_name, config=self.config, weight=torch.Tensor(self.weight).to(self.device), **kwargs,
                     )
                 else:
                     self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
@@ -668,7 +664,11 @@ class ClassificationModel:
         if args.wandb_project:
             if not wandb.setup().settings.sweep_id:
                 logger.info(" Initializing WandB run for training.")
-                wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+                wandb.init(
+                    project=args.wandb_project,
+                    config={**asdict(args), "repo": "simpletransformers"},
+                    **args.wandb_kwargs,
+                )
             wandb.watch(self.model)
 
         if self.args.fp16:
@@ -784,8 +784,7 @@ class ClassificationModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args.output_dir, "training_progress_scores.csv"),
-                            index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                         )
 
                         if args.wandb_project or self.is_sweeping:
@@ -1143,7 +1142,11 @@ class ClassificationModel:
         if self.args.wandb_project and wandb_log and not multi_label and not self.args.regression:
             if not wandb.setup().settings.sweep_id:
                 logger.info(" Initializing WandB run for evaluation.")
-                wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+                wandb.init(
+                    project=args.wandb_project,
+                    config={**asdict(args), "repo": "simpletransformers"},
+                    **args.wandb_kwargs,
+                )
             if not args.labels_map:
                 self.args.labels_map = {i: i for i in range(self.num_labels)}
 
@@ -1154,9 +1157,7 @@ class ClassificationModel:
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
-                truth,
-                [inverse_labels_map[pred] for pred in preds],
-                labels=labels_list,
+                truth, [inverse_labels_map[pred] for pred in preds], labels=labels_list,
             )
 
             if not self.args.sliding_window:
@@ -1198,11 +1199,7 @@ class ClassificationModel:
             cached_features_file = os.path.join(
                 args.cache_dir,
                 "cached_{}_{}_{}_{}_{}".format(
-                    mode,
-                    args.model_type,
-                    args.max_seq_length,
-                    self.num_labels,
-                    len(examples),
+                    mode, args.model_type, args.max_seq_length, self.num_labels, len(examples),
                 ),
             )
 

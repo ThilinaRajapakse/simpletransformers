@@ -158,11 +158,7 @@ def get_examples_from_df(data, bbox=False):
         ]
     else:
         return [
-            InputExample(
-                guid=sentence_id,
-                words=sentence_df["words"].tolist(),
-                labels=sentence_df["labels"].tolist(),
-            )
+            InputExample(guid=sentence_id, words=sentence_df["words"].tolist(), labels=sentence_df["labels"].tolist(),)
             for sentence_id, sentence_df in data.groupby(["sentence_id"])
         ]
 
@@ -342,10 +338,7 @@ def convert_example_to_feature(
             )
         else:
             return InputFeatures(
-                input_ids=input_ids,
-                input_mask=input_mask,
-                segment_ids=segment_ids,
-                label_ids=label_ids,
+                input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids,
             )
     else:
         if bboxes:

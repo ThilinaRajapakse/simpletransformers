@@ -58,14 +58,7 @@ MODEL_CLASSES = {
 
 class T5Model:
     def __init__(
-        self,
-        model_type,
-        model_name,
-        args=None,
-        tokenizer=None,
-        use_cuda=True,
-        cuda_device=-1,
-        **kwargs,
+        self, model_type, model_name, args=None, tokenizer=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
 
         """
@@ -154,14 +147,7 @@ class T5Model:
             self.args.wandb_project = None
 
     def train_model(
-        self,
-        train_data,
-        output_dir=None,
-        show_running_loss=True,
-        args=None,
-        eval_data=None,
-        verbose=True,
-        **kwargs,
+        self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs,
     ):
         """
         Trains the model using 'train_data'
@@ -228,13 +214,7 @@ class T5Model:
         return global_step, training_details
 
     def train(
-        self,
-        train_dataset,
-        output_dir,
-        show_running_loss=True,
-        eval_data=None,
-        verbose=True,
-        **kwargs,
+        self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True, **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -430,7 +410,9 @@ class T5Model:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
         if args.wandb_project:
-            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+            wandb.init(
+                project=args.wandb_project, config={**asdict(args), "repo": "simpletransformers"}, **args.wandb_kwargs
+            )
             wandb.watch(self.model)
 
         if args.fp16:
@@ -545,8 +527,7 @@ class T5Model:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args.output_dir, "training_progress_scores.csv"),
-                            index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                         )
 
                         if args.wandb_project or self.is_sweeping:
@@ -957,12 +938,7 @@ class T5Model:
             CustomDataset = args.dataset_class
             return CustomDataset(tokenizer, args, data, mode)
         else:
-            return T5Dataset(
-                tokenizer,
-                self.args,
-                data,
-                mode,
-            )
+            return T5Dataset(tokenizer, self.args, data, mode,)
 
     def _create_training_progress_scores(self, **kwargs):
         extra_metrics = {key: [] for key in kwargs}

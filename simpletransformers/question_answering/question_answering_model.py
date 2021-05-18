@@ -243,8 +243,7 @@ class QuestionAnsweringModel:
 
         mode = "dev" if evaluate else "train"
         cached_features_file = os.path.join(
-            args.cache_dir,
-            "cached_{}_{}_{}_{}".format(mode, args.model_type, args.max_seq_length, len(examples)),
+            args.cache_dir, "cached_{}_{}_{}_{}".format(mode, args.model_type, args.max_seq_length, len(examples)),
         )
 
         if os.path.exists(cached_features_file) and (
@@ -556,7 +555,9 @@ class QuestionAnsweringModel:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
         if args.wandb_project:
-            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+            wandb.init(
+                project=args.wandb_project, config={**asdict(args), "repo": "simpletransformers"}, **args.wandb_kwargs
+            )
             wandb.watch(self.model)
 
         if args.fp16:
@@ -630,9 +631,7 @@ class QuestionAnsweringModel:
                         # Log metrics
                         tb_writer.add_scalar("lr", scheduler.get_last_lr()[0], global_step)
                         tb_writer.add_scalar(
-                            "loss",
-                            (tr_loss - logging_loss) / args.logging_steps,
-                            global_step,
+                            "loss", (tr_loss - logging_loss) / args.logging_steps, global_step,
                         )
                         logging_loss = tr_loss
                         if args.wandb_project or self.is_sweeping:
@@ -670,8 +669,7 @@ class QuestionAnsweringModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args.output_dir, "training_progress_scores.csv"),
-                            index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                         )
 
                         if args.wandb_project or self.is_sweeping:
@@ -1109,15 +1107,7 @@ class QuestionAnsweringModel:
             )
         else:
             answers = get_best_predictions(
-                examples,
-                features,
-                all_results,
-                n_best_size,
-                args.max_answer_length,
-                False,
-                False,
-                True,
-                False,
+                examples, features, all_results, n_best_size, args.max_answer_length, False, False, True, False,
             )
 
         answer_list = [{"id": answer["id"], "answer": answer["answer"][:-1]} for answer in answers]

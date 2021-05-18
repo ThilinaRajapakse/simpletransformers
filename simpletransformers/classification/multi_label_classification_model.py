@@ -90,54 +90,18 @@ class MultiLabelClassificationModel(ClassificationModel):
         """  # noqa: ignore flake8"
 
         MODEL_CLASSES = {
-            "albert": (
-                AlbertConfig,
-                AlbertForMultiLabelSequenceClassification,
-                AlbertTokenizer,
-            ),
-            "bert": (
-                BertConfig,
-                BertForMultiLabelSequenceClassification,
-                BertTokenizer,
-            ),
+            "albert": (AlbertConfig, AlbertForMultiLabelSequenceClassification, AlbertTokenizer,),
+            "bert": (BertConfig, BertForMultiLabelSequenceClassification, BertTokenizer,),
             "bertweet": (RobertaConfig, BertweetForMultiLabelSequenceClassification, BertweetTokenizer),
-            "camembert": (
-                CamembertConfig,
-                CamembertForMultiLabelSequenceClassification,
-                CamembertTokenizer,
-            ),
-            "distilbert": (
-                DistilBertConfig,
-                DistilBertForMultiLabelSequenceClassification,
-                DistilBertTokenizer,
-            ),
+            "camembert": (CamembertConfig, CamembertForMultiLabelSequenceClassification, CamembertTokenizer,),
+            "distilbert": (DistilBertConfig, DistilBertForMultiLabelSequenceClassification, DistilBertTokenizer,),
             "electra": (ElectraConfig, ElectraForMultiLabelSequenceClassification, ElectraTokenizer),
-            "flaubert": (
-                FlaubertConfig,
-                FlaubertForMultiLabelSequenceClassification,
-                FlaubertTokenizer,
-            ),
-            "longformer": (
-                LongformerConfig,
-                LongformerForMultiLabelSequenceClassification,
-                LongformerTokenizer,
-            ),
-            "roberta": (
-                RobertaConfig,
-                RobertaForMultiLabelSequenceClassification,
-                RobertaTokenizer,
-            ),
+            "flaubert": (FlaubertConfig, FlaubertForMultiLabelSequenceClassification, FlaubertTokenizer,),
+            "longformer": (LongformerConfig, LongformerForMultiLabelSequenceClassification, LongformerTokenizer,),
+            "roberta": (RobertaConfig, RobertaForMultiLabelSequenceClassification, RobertaTokenizer,),
             "xlm": (XLMConfig, XLMForMultiLabelSequenceClassification, XLMTokenizer),
-            "xlmroberta": (
-                XLMRobertaConfig,
-                XLMRobertaForMultiLabelSequenceClassification,
-                XLMRobertaTokenizer,
-            ),
-            "xlnet": (
-                XLNetConfig,
-                XLNetForMultiLabelSequenceClassification,
-                XLNetTokenizer,
-            ),
+            "xlmroberta": (XLMRobertaConfig, XLMRobertaForMultiLabelSequenceClassification, XLMRobertaTokenizer,),
+            "xlnet": (XLNetConfig, XLNetForMultiLabelSequenceClassification, XLNetTokenizer,),
         }
 
         self.args = self._load_model_args(model_name)

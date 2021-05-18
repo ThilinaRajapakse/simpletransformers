@@ -208,11 +208,7 @@ def convert_example_to_feature(example_row):
         else:
             tok_end_position = len(all_doc_tokens) - 1
         (tok_start_position, tok_end_position) = _improve_answer_span(
-            all_doc_tokens,
-            tok_start_position,
-            tok_end_position,
-            tokenizer,
-            example.orig_answer_text,
+            all_doc_tokens, tok_start_position, tok_end_position, tokenizer, example.orig_answer_text,
         )
 
     # The -3 accounts for [CLS], [SEP] and [SEP]
@@ -618,11 +614,7 @@ def convert_examples_to_features(
                 else:
                     tok_end_position = len(all_doc_tokens) - 1
                 (tok_start_position, tok_end_position) = _improve_answer_span(
-                    all_doc_tokens,
-                    tok_start_position,
-                    tok_end_position,
-                    tokenizer,
-                    example.orig_answer_text,
+                    all_doc_tokens, tok_start_position, tok_end_position, tokenizer, example.orig_answer_text,
                 )
 
             # The -3 accounts for [CLS], [SEP] and [SEP]
@@ -881,8 +873,7 @@ def write_predictions(
         unique_id_to_result[result.unique_id] = result
 
     _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
-        "PrelimPrediction",
-        ["feature_index", "start_index", "end_index", "start_logit", "end_logit"],
+        "PrelimPrediction", ["feature_index", "start_index", "end_index", "start_logit", "end_logit"],
     )
 
     all_predictions = collections.OrderedDict()
@@ -949,11 +940,7 @@ def write_predictions(
                     end_logit=null_end_logit,
                 )
             )
-        prelim_predictions = sorted(
-            prelim_predictions,
-            key=lambda x: (x.start_logit + x.end_logit),
-            reverse=True,
-        )
+        prelim_predictions = sorted(prelim_predictions, key=lambda x: (x.start_logit + x.end_logit), reverse=True,)
 
         _NbestPrediction = collections.namedtuple(  # pylint: disable=invalid-name
             "NbestPrediction", ["text", "start_logit", "end_logit"]
@@ -990,13 +977,7 @@ def write_predictions(
                 final_text = ""
                 seen_predictions[final_text] = True
 
-            nbest.append(
-                _NbestPrediction(
-                    text=final_text,
-                    start_logit=pred.start_logit,
-                    end_logit=pred.end_logit,
-                )
-            )
+            nbest.append(_NbestPrediction(text=final_text, start_logit=pred.start_logit, end_logit=pred.end_logit,))
         # if we didn't include the empty option in the n-best, include it
         if version_2_with_negative:
             if "" not in seen_predictions:
@@ -1088,8 +1069,7 @@ def write_predictions_extended(
     Requires utils_squad_evaluate.py
     """
     _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
-        "PrelimPrediction",
-        ["feature_index", "start_index", "end_index", "start_log_prob", "end_log_prob"],
+        "PrelimPrediction", ["feature_index", "start_index", "end_index", "start_log_prob", "end_log_prob"],
     )
 
     _NbestPrediction = collections.namedtuple(  # pylint: disable=invalid-name
@@ -1163,9 +1143,7 @@ def write_predictions_extended(
                     )
 
         prelim_predictions = sorted(
-            prelim_predictions,
-            key=lambda x: (x.start_log_prob + x.end_log_prob),
-            reverse=True,
+            prelim_predictions, key=lambda x: (x.start_log_prob + x.end_log_prob), reverse=True,
         )
 
         seen_predictions = {}
@@ -1205,11 +1183,7 @@ def write_predictions_extended(
             seen_predictions[final_text] = True
 
             nbest.append(
-                _NbestPrediction(
-                    text=final_text,
-                    start_log_prob=pred.start_log_prob,
-                    end_log_prob=pred.end_log_prob,
-                )
+                _NbestPrediction(text=final_text, start_log_prob=pred.start_log_prob, end_log_prob=pred.end_log_prob,)
             )
 
         # In very rare edge cases we could have no valid predictions. So we
@@ -1292,8 +1266,7 @@ def get_best_predictions(
         unique_id_to_result[result.unique_id] = result
 
     _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
-        "PrelimPrediction",
-        ["feature_index", "start_index", "end_index", "start_logit", "end_logit"],
+        "PrelimPrediction", ["feature_index", "start_index", "end_index", "start_logit", "end_logit"],
     )
 
     all_predictions = collections.OrderedDict()
@@ -1360,11 +1333,7 @@ def get_best_predictions(
                     end_logit=null_end_logit,
                 )
             )
-        prelim_predictions = sorted(
-            prelim_predictions,
-            key=lambda x: (x.start_logit + x.end_logit),
-            reverse=True,
-        )
+        prelim_predictions = sorted(prelim_predictions, key=lambda x: (x.start_logit + x.end_logit), reverse=True,)
 
         _NbestPrediction = collections.namedtuple(  # pylint: disable=invalid-name
             "NbestPrediction", ["text", "start_logit", "end_logit"]
@@ -1401,13 +1370,7 @@ def get_best_predictions(
                 final_text = ""
                 seen_predictions[final_text] = True
 
-            nbest.append(
-                _NbestPrediction(
-                    text=final_text,
-                    start_logit=pred.start_logit,
-                    end_logit=pred.end_logit,
-                )
-            )
+            nbest.append(_NbestPrediction(text=final_text, start_logit=pred.start_logit, end_logit=pred.end_logit,))
         # if we didn't include the empty option in the n-best, include it
         if version_2_with_negative:
             if "" not in seen_predictions:
@@ -1486,8 +1449,7 @@ def get_best_predictions_extended(
     Requires utils_squad_evaluate.py
     """
     _PrelimPrediction = collections.namedtuple(  # pylint: disable=invalid-name
-        "PrelimPrediction",
-        ["feature_index", "start_index", "end_index", "start_log_prob", "end_log_prob"],
+        "PrelimPrediction", ["feature_index", "start_index", "end_index", "start_log_prob", "end_log_prob"],
     )
 
     _NbestPrediction = collections.namedtuple(  # pylint: disable=invalid-name
@@ -1558,9 +1520,7 @@ def get_best_predictions_extended(
                     )
 
         prelim_predictions = sorted(
-            prelim_predictions,
-            key=lambda x: (x.start_log_prob + x.end_log_prob),
-            reverse=True,
+            prelim_predictions, key=lambda x: (x.start_log_prob + x.end_log_prob), reverse=True,
         )
 
         seen_predictions = {}
@@ -1603,11 +1563,7 @@ def get_best_predictions_extended(
             seen_predictions[final_text] = True
 
             nbest.append(
-                _NbestPrediction(
-                    text=final_text,
-                    start_log_prob=pred.start_log_prob,
-                    end_log_prob=pred.end_log_prob,
-                )
+                _NbestPrediction(text=final_text, start_log_prob=pred.start_log_prob, end_log_prob=pred.end_log_prob,)
             )
 
         # In very rare edge cases we could have no valid predictions. So we
@@ -1838,9 +1794,7 @@ def get_final_text(pred_text, orig_text, do_lower_case, verbose_logging=False):
     if len(orig_ns_text) != len(tok_ns_text):
         if verbose_logging:
             logger.info(
-                "Length not equal after stripping spaces: '%s' vs '%s'",
-                orig_ns_text,
-                tok_ns_text,
+                "Length not equal after stripping spaces: '%s' vs '%s'", orig_ns_text, tok_ns_text,
             )
         return orig_text
 

@@ -11,10 +11,7 @@ from simpletransformers.classification import ClassificationArgs, Classification
 from utils import load_rte_data_file
 
 prettyprinter.install_extras(
-    include=[
-        "dataclasses",
-    ],
-    warn_on_error=True,
+    include=["dataclasses",], warn_on_error=True,
 )
 
 

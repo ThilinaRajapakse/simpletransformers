@@ -54,13 +54,7 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
         self.init_weights()
 
     def forward(
-        self,
-        input_ids,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        head_mask=None,
-        labels=None,
+        self, input_ids, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None, labels=None,
     ):
         outputs = self.bert(
             input_ids,
@@ -307,12 +301,7 @@ class DistilBertForMultiLabelSequenceClassification(DistilBertPreTrainedModel):
         self.init_weights()
 
     def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        head_mask=None,
-        inputs_embeds=None,
-        labels=None,
+        self, input_ids=None, attention_mask=None, head_mask=None, inputs_embeds=None, labels=None,
     ):
         distilbert_output = self.distilbert(input_ids=input_ids, attention_mask=attention_mask, head_mask=head_mask)
         hidden_state = distilbert_output[0]  # (bs, seq_len, dim)
@@ -719,10 +708,7 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
 
-        outputs = (
-            start_logits,
-            end_logits,
-        ) + outputs[2:]
+        outputs = (start_logits, end_logits,) + outputs[2:]
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
             if len(start_positions.size()) > 1:

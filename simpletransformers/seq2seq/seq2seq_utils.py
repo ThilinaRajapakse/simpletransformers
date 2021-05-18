@@ -252,11 +252,7 @@ class Seq2SeqDataset(Dataset):
 
                 with Pool(args.process_count) as p:
                     self.examples = list(
-                        tqdm(
-                            p.imap(preprocess_data, data, chunksize=chunksize),
-                            total=len(data),
-                            disable=args.silent,
-                        )
+                        tqdm(p.imap(preprocess_data, data, chunksize=chunksize), total=len(data), disable=args.silent,)
                     )
             else:
                 self.examples = [preprocess_data(d) for d in tqdm(data, disable=args.silent)]
@@ -356,11 +352,7 @@ class SimpleSummarizationDataset(Dataset):
 
                 with Pool(args.process_count) as p:
                     self.examples = list(
-                        tqdm(
-                            p.imap(preprocess_fn, data, chunksize=chunksize),
-                            total=len(data),
-                            disable=args.silent,
-                        )
+                        tqdm(p.imap(preprocess_fn, data, chunksize=chunksize), total=len(data), disable=args.silent,)
                     )
             else:
                 self.examples = [preprocess_fn(d) for d in tqdm(data, disable=args.silent)]

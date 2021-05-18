@@ -39,13 +39,7 @@ MAX_LENGTH = int(10000)  # Hardcoded max length to avoid infinite loop
 
 class LanguageGenerationModel:
     def __init__(
-        self,
-        model_type,
-        model_name,
-        args=None,
-        use_cuda=True,
-        cuda_device=-1,
-        **kwargs,
+        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
 
         """
@@ -126,10 +120,7 @@ class LanguageGenerationModel:
             self.config = config_class.from_pretrained(model_name, cache_dir=self.args.cache_dir, **kwargs)
 
         self.model = model_class.from_pretrained(
-            model_name,
-            config=self.config,
-            cache_dir=self.args.cache_dir,
-            **kwargs,
+            model_name, config=self.config, cache_dir=self.args.cache_dir, **kwargs,
         )
 
         self.model.to(self.device)

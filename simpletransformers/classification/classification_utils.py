@@ -116,12 +116,7 @@ def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
             max_length=max_seq_length,
         )
     else:
-        return tokenizer(
-            text=dataset["text"],
-            truncation=True,
-            padding="max_length",
-            max_length=max_seq_length,
-        )
+        return tokenizer(text=dataset["text"], truncation=True, padding="max_length", max_length=max_seq_length,)
 
 
 def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
@@ -158,13 +153,7 @@ def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
 def build_classification_dataset(data, tokenizer, args, mode, multi_label, output_mode, no_cache):
     cached_features_file = os.path.join(
         args.cache_dir,
-        "cached_{}_{}_{}_{}_{}".format(
-            mode,
-            args.model_type,
-            args.max_seq_length,
-            len(args.labels_list),
-            len(data),
-        ),
+        "cached_{}_{}_{}_{}_{}".format(mode, args.model_type, args.max_seq_length, len(args.labels_list), len(data),),
     )
 
     if os.path.exists(cached_features_file) and (
@@ -435,10 +424,7 @@ def convert_example_to_feature(
         )
     else:
         return InputFeatures(
-            input_ids=input_ids,
-            input_mask=input_mask,
-            segment_ids=segment_ids,
-            label_id=example.label,
+            input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=example.label,
         )
 
 
@@ -550,12 +536,7 @@ def convert_example_to_feature_sliding_window(
         #     raise KeyError(output_mode)
 
         input_features.append(
-            InputFeatures(
-                input_ids=input_ids,
-                input_mask=input_mask,
-                segment_ids=segment_ids,
-                label_id=example.label,
-            )
+            InputFeatures(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=example.label,)
         )
 
     return input_features
@@ -626,11 +607,7 @@ def convert_examples_to_features(
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
-                        p.imap(
-                            convert_example_to_feature_sliding_window,
-                            examples,
-                            chunksize=chunksize,
-                        ),
+                        p.imap(convert_example_to_feature_sliding_window, examples, chunksize=chunksize,),
                         total=len(examples),
                         disable=silent,
                     )
@@ -802,10 +779,7 @@ def get_image_transforms():
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.46777044, 0.44531429, 0.40661017],
-                std=[0.12221994, 0.12145835, 0.14380469],
-            ),
+            transforms.Normalize(mean=[0.46777044, 0.44531429, 0.40661017], std=[0.12221994, 0.12145835, 0.14380469],),
         ]
     )
 

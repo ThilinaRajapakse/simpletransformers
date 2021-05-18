@@ -76,9 +76,7 @@ def classification_viewer(model, model_class):
         try:
             session_state, model = get_states(model)
         except AttributeError:
-            session_state = get(
-                max_seq_length=model.args.max_seq_length,
-            )
+            session_state = get(max_seq_length=model.args.max_seq_length,)
             session_state, model = get_states(model, session_state)
 
         model.args.max_seq_length = st.sidebar.slider(

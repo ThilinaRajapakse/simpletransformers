@@ -37,10 +37,7 @@ class QA(datasets.GeneratorBasedBuilder):
                     "start_position_character": datasets.Value("int32"),
                     "is_impossible": datasets.Value("bool"),
                     "answers": datasets.features.Sequence(
-                        {
-                            "text": datasets.Value("string"),
-                            "answer_start": datasets.Value("int32"),
-                        }
+                        {"text": datasets.Value("string"), "answer_start": datasets.Value("int32"),}
                     ),
                 }
             ),

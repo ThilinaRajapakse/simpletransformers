@@ -68,10 +68,7 @@ for lang in languages:
 
     # Evaluating the tasks separately
     output_dict = {
-        "binary classification": {
-            "truth": [],
-            "preds": [],
-        },
+        "binary classification": {"truth": [], "preds": [],},
     }
 
     results_dict = {}

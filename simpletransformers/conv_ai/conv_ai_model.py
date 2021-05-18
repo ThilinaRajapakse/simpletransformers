@@ -83,13 +83,7 @@ PADDED_INPUTS = ["input_ids", "labels", "token_type_ids"]
 
 class ConvAIModel:
     def __init__(
-        self,
-        model_type,
-        model_name,
-        args=None,
-        use_cuda=True,
-        cuda_device=-1,
-        **kwargs,
+        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
     ):
 
         """
@@ -229,9 +223,7 @@ class ConvAIModel:
         self._move_model_to_device()
 
         train_dataloader, train_sampler = self.load_and_cache_examples(
-            dataset_path=train_file,
-            verbose=verbose,
-            no_cache=self.args.no_cache or self.args.reprocess_input_data,
+            dataset_path=train_file, verbose=verbose, no_cache=self.args.no_cache or self.args.reprocess_input_data,
         )
 
         if self.args.evaluate_during_training:
@@ -256,13 +248,7 @@ class ConvAIModel:
             logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_type, output_dir))
 
     def train(
-        self,
-        train_dataloader,
-        output_dir,
-        show_running_loss=True,
-        eval_dataloader=None,
-        verbose=True,
-        **kwargs,
+        self, train_dataloader, output_dir, show_running_loss=True, eval_dataloader=None, verbose=True, **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -413,7 +399,9 @@ class ConvAIModel:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
         if args.wandb_project:
-            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+            wandb.init(
+                project=args.wandb_project, config={**asdict(args), "repo": "simpletransformers"}, **args.wandb_kwargs
+            )
             wandb.watch(self.model)
 
         if args.fp16:
@@ -537,8 +525,7 @@ class ConvAIModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args.output_dir, "training_progress_scores.csv"),
-                            index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                         )
 
                         if args.wandb_project or self.is_sweeping:
@@ -607,10 +594,7 @@ class ConvAIModel:
 
             if args.evaluate_during_training and args.evaluate_each_epoch:
                 results, _, _ = self.eval_model(
-                    eval_dataloader,
-                    verbose=verbose and args.evaluate_during_training_verbose,
-                    silent=True,
-                    **kwargs,
+                    eval_dataloader, verbose=verbose and args.evaluate_during_training_verbose, silent=True, **kwargs,
                 )
 
                 self.save_model(output_dir_current, results=results)
@@ -717,18 +701,10 @@ class ConvAIModel:
 
                 if args.fp16:
                     with amp.autocast():
-                        outputs = model(
-                            input_ids,
-                            token_type_ids=token_type_ids,
-                            mc_token_ids=mc_token_ids,
-                        )
+                        outputs = model(input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,)
                         lm_logits, mc_logits = outputs[:2]
                 else:
-                    outputs = model(
-                        input_ids,
-                        token_type_ids=token_type_ids,
-                        mc_token_ids=mc_token_ids,
-                    )
+                    outputs = model(input_ids, token_type_ids=token_type_ids, mc_token_ids=mc_token_ids,)
                     lm_logits, mc_logits = outputs[:2]
                 # model outputs are always tuple in pytorch-transformers (see doc)
 

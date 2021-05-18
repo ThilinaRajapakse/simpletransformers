@@ -221,8 +221,7 @@ class LanguageModelingModel:
                 self.generator_config = ElectraConfig.from_pretrained(generator_name)
             elif self.args.model_name:
                 self.generator_config = ElectraConfig.from_pretrained(
-                    os.path.join(self.args.model_name, "generator_config"),
-                    **kwargs,
+                    os.path.join(self.args.model_name, "generator_config"), **kwargs,
                 )
             else:
                 self.generator_config = ElectraConfig(**self.args.generator_config, **kwargs)
@@ -233,8 +232,7 @@ class LanguageModelingModel:
                 self.discriminator_config = ElectraConfig.from_pretrained(discriminator_name)
             elif self.args.model_name:
                 self.discriminator_config = ElectraConfig.from_pretrained(
-                    os.path.join(self.args.model_name, "discriminator_config"),
-                    **kwargs,
+                    os.path.join(self.args.model_name, "discriminator_config"), **kwargs,
                 )
             else:
                 self.discriminator_config = ElectraConfig(**self.args.discriminator_config, **kwargs)
@@ -288,10 +286,7 @@ class LanguageModelingModel:
                     )
             else:
                 self.model = model_class.from_pretrained(
-                    model_name,
-                    config=self.config,
-                    cache_dir=self.args.cache_dir,
-                    **kwargs,
+                    model_name, config=self.config, cache_dir=self.args.cache_dir, **kwargs,
                 )
         else:
             logger.info(" Training language model from scratch")
@@ -336,14 +331,7 @@ class LanguageModelingModel:
             self.args.wandb_project = None
 
     def train_model(
-        self,
-        train_file,
-        output_dir=None,
-        show_running_loss=True,
-        args=None,
-        eval_file=None,
-        verbose=True,
-        **kwargs,
+        self, train_file, output_dir=None, show_running_loss=True, args=None, eval_file=None, verbose=True, **kwargs,
     ):
         """
         Trains the model using 'train_file'
@@ -411,13 +399,7 @@ class LanguageModelingModel:
         return global_step, training_details
 
     def train(
-        self,
-        train_dataset,
-        output_dir,
-        show_running_loss=True,
-        eval_file=None,
-        verbose=True,
-        **kwargs,
+        self, train_dataset, output_dir, show_running_loss=True, eval_file=None, verbose=True, **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -442,10 +424,7 @@ class LanguageModelingModel:
             train_dataloader = DataLoader(train_dataset, batch_size=args.train_batch_size, sampler=train_sampler)
         else:
             train_dataloader = DataLoader(
-                train_dataset,
-                batch_size=args.train_batch_size,
-                sampler=train_sampler,
-                collate_fn=collate,
+                train_dataset, batch_size=args.train_batch_size, sampler=train_sampler, collate_fn=collate,
             )
 
         if args.max_steps > 0:
@@ -588,10 +567,7 @@ class LanguageModelingModel:
         # Distributed training
         if args.local_rank != -1:
             model = torch.nn.parallel.DistributedDataParallel(
-                model,
-                device_ids=[args.local_rank],
-                output_device=args.local_rank,
-                find_unused_parameters=True,
+                model, device_ids=[args.local_rank], output_device=args.local_rank, find_unused_parameters=True,
             )
 
         logger.info(" Training started")
@@ -632,7 +608,9 @@ class LanguageModelingModel:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
         if args.wandb_project:
-            wandb.init(project=args.wandb_project, config={**asdict(args)}, **args.wandb_kwargs)
+            wandb.init(
+                project=args.wandb_project, config={**asdict(args), "repo": "simpletransformers"}, **args.wandb_kwargs
+            )
             wandb.watch(self.model)
 
         if args.fp16:
@@ -779,8 +757,7 @@ class LanguageModelingModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args.output_dir, "training_progress_scores.csv"),
-                            index=False,
+                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
                         )
 
                         if args.wandb_project or self.is_sweeping:
@@ -988,10 +965,7 @@ class LanguageModelingModel:
             eval_dataloader = DataLoader(eval_dataset, batch_size=args.train_batch_size, sampler=eval_sampler)
         else:
             eval_dataloader = DataLoader(
-                eval_dataset,
-                batch_size=args.train_batch_size,
-                sampler=eval_sampler,
-                collate_fn=collate,
+                eval_dataset, batch_size=args.train_batch_size, sampler=eval_sampler, collate_fn=collate,
             )
 
         if args.n_gpu > 1:

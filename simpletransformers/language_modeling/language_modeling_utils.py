@@ -54,12 +54,7 @@ def encode_sliding_window(data):
 
 
 def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
-    return tokenizer(
-        text=dataset["text"],
-        truncation=True,
-        padding="max_length",
-        max_length=max_seq_length,
-    )
+    return tokenizer(text=dataset["text"], truncation=True, padding="max_length", max_length=max_seq_length,)
 
 
 def load_hf_dataset(data, tokenizer, args):

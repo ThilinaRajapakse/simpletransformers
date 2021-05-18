@@ -51,13 +51,7 @@ def train():
     wandb.init()
 
     # Create a TransformerModel
-    model = ClassificationModel(
-        "roberta",
-        "roberta-base",
-        use_cuda=True,
-        args=model_args,
-        sweep_config=wandb.config,
-    )
+    model = ClassificationModel("roberta", "roberta-base", use_cuda=True, args=model_args, sweep_config=wandb.config,)
 
     # Train the model
     model.train_model(train_df, eval_df=eval_df)

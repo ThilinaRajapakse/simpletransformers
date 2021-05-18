@@ -57,12 +57,7 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
     ):
 
         discriminator_hidden_states = self.electra(
-            input_ids,
-            attention_mask,
-            token_type_ids,
-            position_ids,
-            head_mask,
-            inputs_embeds,
+            input_ids, attention_mask, token_type_ids, position_ids, head_mask, inputs_embeds,
         )
 
         sequence_output = discriminator_hidden_states[0]

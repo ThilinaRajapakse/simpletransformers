@@ -77,18 +77,9 @@ df["predicted"] = preds
 
 # Evaluating the tasks separately
 output_dict = {
-    "binary classification": {
-        "truth": [],
-        "preds": [],
-    },
-    "multilabel classification": {
-        "truth": [],
-        "preds": [],
-    },
-    "similarity": {
-        "truth": [],
-        "preds": [],
-    },
+    "binary classification": {"truth": [], "preds": [],},
+    "multilabel classification": {"truth": [], "preds": [],},
+    "similarity": {"truth": [], "preds": [],},
 }
 
 results_dict = {}
