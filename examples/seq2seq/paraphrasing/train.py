@@ -20,8 +20,12 @@ eval_df = pd.read_csv("data/dev.tsv", sep="\t").astype(str)
 train_df = train_df.loc[train_df["label"] == "1"]
 eval_df = eval_df.loc[eval_df["label"] == "1"]
 
-train_df = train_df.rename(columns={"sentence1": "input_text", "sentence2": "target_text"})
-eval_df = eval_df.rename(columns={"sentence1": "input_text", "sentence2": "target_text"})
+train_df = train_df.rename(
+    columns={"sentence1": "input_text", "sentence2": "target_text"}
+)
+eval_df = eval_df.rename(
+    columns={"sentence1": "input_text", "sentence2": "target_text"}
+)
 
 train_df = train_df[["input_text", "target_text"]]
 eval_df = eval_df[["input_text", "target_text"]]
@@ -30,13 +34,25 @@ train_df["prefix"] = "paraphrase"
 eval_df["prefix"] = "paraphrase"
 
 # MSRP Data
-train_df = pd.concat([train_df, load_data("data/msr_paraphrase_train.txt", "#1 String", "#2 String", "Quality"),])
-eval_df = pd.concat([eval_df, load_data("data/msr_paraphrase_test.txt", "#1 String", "#2 String", "Quality"),])
+train_df = pd.concat(
+    [
+        train_df,
+        load_data("data/msr_paraphrase_train.txt", "#1 String", "#2 String", "Quality"),
+    ]
+)
+eval_df = pd.concat(
+    [
+        eval_df,
+        load_data("data/msr_paraphrase_test.txt", "#1 String", "#2 String", "Quality"),
+    ]
+)
 
 # Quora Data
 
 # The Quora Dataset is not separated into train/test, so we do it manually the first time.
-df = load_data("data/quora_duplicate_questions.tsv", "question1", "question2", "is_duplicate")
+df = load_data(
+    "data/quora_duplicate_questions.tsv", "question1", "question2", "is_duplicate"
+)
 q_train, q_test = train_test_split(df)
 
 q_train.to_csv("data/quora_train.tsv", sep="\t")
@@ -91,13 +107,19 @@ model_args.top_p = 0.95
 model_args.wandb_project = "Paraphrasing with BART"
 
 
-model = Seq2SeqModel(encoder_decoder_type="bart", encoder_decoder_name="facebook/bart-large", args=model_args,)
+model = Seq2SeqModel(
+    encoder_decoder_type="bart",
+    encoder_decoder_name="facebook/bart-large",
+    args=model_args,
+)
 
 model.train_model(train_df, eval_data=eval_df)
 
 to_predict = [
     prefix + ": " + str(input_text)
-    for prefix, input_text in zip(eval_df["prefix"].tolist(), eval_df["input_text"].tolist())
+    for prefix, input_text in zip(
+        eval_df["prefix"].tolist(), eval_df["input_text"].tolist()
+    )
 ]
 truth = eval_df["target_text"].tolist()
 
@@ -116,4 +138,6 @@ with open(f"predictions/predictions_{datetime.now()}.txt", "w") as f:
         f.write("Prediction:\n")
         for pred in preds[i]:
             f.write(str(pred) + "\n")
-        f.write("________________________________________________________________________________\n")
+        f.write(
+            "________________________________________________________________________________\n"
+        )

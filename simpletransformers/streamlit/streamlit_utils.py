@@ -136,7 +136,8 @@ def get(**kwargs):
 
     if this_session is None:
         raise RuntimeError(
-            "Oh noes. Couldn't get your Streamlit Session object" "Are you doing something fancy with threads?"
+            "Oh noes. Couldn't get your Streamlit Session object"
+            "Are you doing something fancy with threads?"
         )
 
     # Got the session object! Now let's attach some state into it.

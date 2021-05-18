@@ -37,7 +37,10 @@ train_args = {
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--local_rank", type=int, default=-1, help="Local rank. Necessary for using the torch.distributed.launch utility."
+    "--local_rank",
+    type=int,
+    default=-1,
+    help="Local rank. Necessary for using the torch.distributed.launch utility.",
 )
 args = parser.parse_args()
 

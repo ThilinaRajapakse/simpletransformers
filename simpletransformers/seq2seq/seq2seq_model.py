@@ -216,38 +216,55 @@ class Seq2SeqModel:
             self.args.fp16 = False
 
         if encoder_decoder_type in ["rag-token", "rag-sequence"]:
-            config_class, model_class, tokenizer_class, retriever_class = MODEL_CLASSES[encoder_decoder_type]
+            config_class, model_class, tokenizer_class, retriever_class = MODEL_CLASSES[
+                encoder_decoder_type
+            ]
 
             if self.args.config is not None:
-                config = config_class.from_pretrained(encoder_decoder_name, **self.args.config)
+                config = config_class.from_pretrained(
+                    encoder_decoder_name, **self.args.config
+                )
             elif config is not None:
                 config = config_class.from_pretrained(encoder_decoder_name, **config)
 
-            self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name, config=config)
+            self.encoder_tokenizer = tokenizer_class.from_pretrained(
+                encoder_decoder_name, config=config
+            )
             self.decoder_tokenizer = self.encoder_tokenizer
             if knowledge_dataset is None:
                 if index_name is None:
                     self.retriever = retriever_class.from_pretrained(
-                        encoder_decoder_name, index_name="exact", use_dummy_dataset=True, config=config
+                        encoder_decoder_name,
+                        index_name="exact",
+                        use_dummy_dataset=True,
+                        config=config,
                     )
                 elif index_name == "legacy":
                     self.retriever = retriever_class.from_pretrained(
-                        encoder_decoder_name, index_name="legacy", use_dummy_dataset=False, config=config
+                        encoder_decoder_name,
+                        index_name="legacy",
+                        use_dummy_dataset=False,
+                        config=config,
                     )
             else:
                 if os.path.isdir(knowledge_dataset):
                     self.dataset = load_from_disk(knowledge_dataset)
                     if index_path:
                         self.dataset.load_faiss_index("embeddings", index_path)
-                    elif os.path.isfile(os.path.join(knowledge_dataset, "hf_dataset_index.faiss")):
+                    elif os.path.isfile(
+                        os.path.join(knowledge_dataset, "hf_dataset_index.faiss")
+                    ):
                         self.dataset.load_faiss_index(
-                            "embeddings", os.path.join(knowledge_dataset, "hf_dataset_index.faiss")
+                            "embeddings",
+                            os.path.join(knowledge_dataset, "hf_dataset_index.faiss"),
                         )
                     else:
                         self.dataset = add_faiss_index_to_dataset(self.dataset)
                         if self.args.save_knowledge_dataset:
                             self.dataset.get_index("embeddings").save(
-                                os.path.join(knowledge_dataset, "hf_dataset_index.faiss")
+                                os.path.join(
+                                    knowledge_dataset, "hf_dataset_index.faiss"
+                                )
                             )
                 else:
                     self.dataset = generate_faiss_index_dataset(
@@ -258,36 +275,54 @@ class Seq2SeqModel:
                     )
                     if self.args.save_knowledge_dataset:
                         self.dataset.get_index("embeddings").save(
-                            os.path.join(self.args.output_dir, "knowledge_dataset", "hf_dataset_index.faiss")
+                            os.path.join(
+                                self.args.output_dir,
+                                "knowledge_dataset",
+                                "hf_dataset_index.faiss",
+                            )
                         )
                 self.retriever = RagRetriever.from_pretrained(
-                    encoder_decoder_name, index_name="custom", indexed_dataset=self.dataset, config=config
+                    encoder_decoder_name,
+                    index_name="custom",
+                    indexed_dataset=self.dataset,
+                    config=config,
                 )
 
-            self.model = model_class.from_pretrained(encoder_decoder_name, retriever=self.retriever, config=config)
+            self.model = model_class.from_pretrained(
+                encoder_decoder_name, retriever=self.retriever, config=config
+            )
             self.config = self.model.config
         else:
             if encoder_decoder_type:
-                config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_decoder_type]
+                config_class, model_class, tokenizer_class = MODEL_CLASSES[
+                    encoder_decoder_type
+                ]
             else:
                 config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
 
             if encoder_decoder_type in ["bart", "mbart", "marian"]:
                 self.model = model_class.from_pretrained(encoder_decoder_name)
                 if encoder_decoder_type in ["bart", "mbart"]:
-                    self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
+                    self.encoder_tokenizer = tokenizer_class.from_pretrained(
+                        encoder_decoder_name
+                    )
                 elif encoder_decoder_type == "marian":
                     if self.args.base_marian_model_name:
-                        self.encoder_tokenizer = tokenizer_class.from_pretrained(self.args.base_marian_model_name)
+                        self.encoder_tokenizer = tokenizer_class.from_pretrained(
+                            self.args.base_marian_model_name
+                        )
                     else:
-                        self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_decoder_name)
+                        self.encoder_tokenizer = tokenizer_class.from_pretrained(
+                            encoder_decoder_name
+                        )
                 self.decoder_tokenizer = self.encoder_tokenizer
                 self.config = self.model.config
             else:
                 if encoder_decoder_name:
                     # self.model = EncoderDecoderModel.from_pretrained(encoder_decoder_name)
                     self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
-                        os.path.join(encoder_decoder_name, "encoder"), os.path.join(encoder_decoder_name, "decoder")
+                        os.path.join(encoder_decoder_name, "encoder"),
+                        os.path.join(encoder_decoder_name, "decoder"),
                     )
                     self.encoder_tokenizer = tokenizer_class.from_pretrained(
                         os.path.join(encoder_decoder_name, "encoder")
@@ -299,7 +334,9 @@ class Seq2SeqModel:
                     self.model = EncoderDecoderModel.from_encoder_decoder_pretrained(
                         encoder_name, decoder_name, config=config
                     )
-                    self.encoder_tokenizer = tokenizer_class.from_pretrained(encoder_name)
+                    self.encoder_tokenizer = tokenizer_class.from_pretrained(
+                        encoder_name
+                    )
                     self.decoder_tokenizer = AutoTokenizer.from_pretrained(decoder_name)
                 self.encoder_config = self.model.config.encoder
                 self.decoder_config = self.model.config.decoder
@@ -311,7 +348,9 @@ class Seq2SeqModel:
             self.decoder_tokenizer.add_special_tokens(additional_special_tokens_decoder)
 
         if self.args.wandb_project and not wandb_available:
-            warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
+            warnings.warn(
+                "wandb_project specified but wandb is not available. Wandb disabled."
+            )
             self.args.wandb_project = None
 
         # `model_name` could be provided in args
@@ -337,7 +376,14 @@ class Seq2SeqModel:
                 self.args.model_type = "encoder-decoder"
 
     def train_model(
-        self, train_data, output_dir=None, show_running_loss=True, args=None, eval_data=None, verbose=True, **kwargs,
+        self,
+        train_data,
+        output_dir=None,
+        show_running_loss=True,
+        args=None,
+        eval_data=None,
+        verbose=True,
+        **kwargs,
     ):
         """
         Trains the model using 'train_data'
@@ -374,7 +420,11 @@ class Seq2SeqModel:
         if not output_dir:
             output_dir = self.args.output_dir
 
-        if os.path.exists(output_dir) and os.listdir(output_dir) and not self.args.overwrite_output_dir:
+        if (
+            os.path.exists(output_dir)
+            and os.listdir(output_dir)
+            and not self.args.overwrite_output_dir
+        ):
             raise ValueError(
                 "Output directory ({}) already exists and is not empty."
                 " Set args.overwrite_output_dir = True to overcome.".format(output_dir)
@@ -404,12 +454,22 @@ class Seq2SeqModel:
         # torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
 
         if verbose:
-            logger.info(" Training of {} model complete. Saved to {}.".format(self.args.model_name, output_dir))
+            logger.info(
+                " Training of {} model complete. Saved to {}.".format(
+                    self.args.model_name, output_dir
+                )
+            )
 
         return global_step, training_details
 
     def train(
-        self, train_dataset, output_dir, show_running_loss=True, eval_data=None, verbose=True, **kwargs,
+        self,
+        train_dataset,
+        output_dir,
+        show_running_loss=True,
+        eval_data=None,
+        verbose=True,
+        **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -431,9 +491,17 @@ class Seq2SeqModel:
 
         if args.max_steps > 0:
             t_total = args.max_steps
-            args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
+            args.num_train_epochs = (
+                args.max_steps
+                // (len(train_dataloader) // args.gradient_accumulation_steps)
+                + 1
+            )
         else:
-            t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
+            t_total = (
+                len(train_dataloader)
+                // args.gradient_accumulation_steps
+                * args.num_train_epochs
+            )
 
         no_decay = ["bias", "LayerNorm.weight"]
 
@@ -443,7 +511,9 @@ class Seq2SeqModel:
             params = group.pop("params")
             custom_parameter_names.update(params)
             param_group = {**group}
-            param_group["params"] = [p for n, p in model.named_parameters() if n in params]
+            param_group["params"] = [
+                p for n, p in model.named_parameters() if n in params
+            ]
             optimizer_grouped_parameters.append(param_group)
 
         for group in self.args.custom_layer_parameters:
@@ -474,7 +544,8 @@ class Seq2SeqModel:
                         "params": [
                             p
                             for n, p in model.named_parameters()
-                            if n not in custom_parameter_names and not any(nd in n for nd in no_decay)
+                            if n not in custom_parameter_names
+                            and not any(nd in n for nd in no_decay)
                         ],
                         "weight_decay": args.weight_decay,
                     },
@@ -482,7 +553,8 @@ class Seq2SeqModel:
                         "params": [
                             p
                             for n, p in model.named_parameters()
-                            if n not in custom_parameter_names and any(nd in n for nd in no_decay)
+                            if n not in custom_parameter_names
+                            and any(nd in n for nd in no_decay)
                         ],
                         "weight_decay": 0.0,
                     },
@@ -490,11 +562,17 @@ class Seq2SeqModel:
             )
 
         warmup_steps = math.ceil(t_total * args.warmup_ratio)
-        args.warmup_steps = warmup_steps if args.warmup_steps == 0 else args.warmup_steps
+        args.warmup_steps = (
+            warmup_steps if args.warmup_steps == 0 else args.warmup_steps
+        )
 
         # TODO: Use custom optimizer like with BertSum?
         if args.optimizer == "AdamW":
-            optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
+            optimizer = AdamW(
+                optimizer_grouped_parameters,
+                lr=args.learning_rate,
+                eps=args.adam_epsilon,
+            )
         elif args.optimizer == "Adafactor":
             optimizer = Adafactor(
                 optimizer_grouped_parameters,
@@ -520,11 +598,15 @@ class Seq2SeqModel:
             scheduler = get_constant_schedule(optimizer)
 
         elif args.scheduler == "constant_schedule_with_warmup":
-            scheduler = get_constant_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps)
+            scheduler = get_constant_schedule_with_warmup(
+                optimizer, num_warmup_steps=args.warmup_steps
+            )
 
         elif args.scheduler == "linear_schedule_with_warmup":
             scheduler = get_linear_schedule_with_warmup(
-                optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+                optimizer,
+                num_warmup_steps=args.warmup_steps,
+                num_training_steps=t_total,
             )
 
         elif args.scheduler == "cosine_schedule_with_warmup":
@@ -561,8 +643,12 @@ class Seq2SeqModel:
             and os.path.isfile(os.path.join(args.model_name, "scheduler.pt"))
         ):
             # Load in optimizer and scheduler states
-            optimizer.load_state_dict(torch.load(os.path.join(args.model_name, "optimizer.pt")))
-            scheduler.load_state_dict(torch.load(os.path.join(args.model_name, "scheduler.pt")))
+            optimizer.load_state_dict(
+                torch.load(os.path.join(args.model_name, "optimizer.pt"))
+            )
+            scheduler.load_state_dict(
+                torch.load(os.path.join(args.model_name, "scheduler.pt"))
+            )
 
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
@@ -573,7 +659,9 @@ class Seq2SeqModel:
         training_progress_scores = None
         tr_loss, logging_loss = 0.0, 0.0
         model.zero_grad()
-        train_iterator = trange(int(args.num_train_epochs), desc="Epoch", disable=args.silent, mininterval=0)
+        train_iterator = trange(
+            int(args.num_train_epochs), desc="Epoch", disable=args.silent, mininterval=0
+        )
         epoch_number = 0
         best_eval_metric = None
         early_stopping_counter = 0
@@ -589,15 +677,22 @@ class Seq2SeqModel:
                 else:
                     checkpoint_suffix = checkpoint_suffix[-1]
                 global_step = int(checkpoint_suffix)
-                epochs_trained = global_step // (len(train_dataloader) // args.gradient_accumulation_steps)
+                epochs_trained = global_step // (
+                    len(train_dataloader) // args.gradient_accumulation_steps
+                )
                 steps_trained_in_current_epoch = global_step % (
                     len(train_dataloader) // args.gradient_accumulation_steps
                 )
 
-                logger.info("   Continuing training from checkpoint, will skip to saved global_step")
+                logger.info(
+                    "   Continuing training from checkpoint, will skip to saved global_step"
+                )
                 logger.info("   Continuing training from epoch %d", epochs_trained)
                 logger.info("   Continuing training from global step %d", global_step)
-                logger.info("   Will skip the first %d steps in the current epoch", steps_trained_in_current_epoch)
+                logger.info(
+                    "   Will skip the first %d steps in the current epoch",
+                    steps_trained_in_current_epoch,
+                )
             except ValueError:
                 logger.info("   Starting fine-tuning.")
 
@@ -606,7 +701,9 @@ class Seq2SeqModel:
 
         if args.wandb_project:
             wandb.init(
-                project=args.wandb_project, config={**asdict(args), "repo": "simpletransformers"}, **args.wandb_kwargs
+                project=args.wandb_project,
+                config={**asdict(args), "repo": "simpletransformers"},
+                **args.wandb_kwargs,
             )
             wandb.watch(self.model)
 
@@ -620,7 +717,9 @@ class Seq2SeqModel:
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue
-            train_iterator.set_description(f"Epoch {epoch_number + 1} of {args.num_train_epochs}")
+            train_iterator.set_description(
+                f"Epoch {epoch_number + 1} of {args.num_train_epochs}"
+            )
             batch_iterator = tqdm(
                 train_dataloader,
                 desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}",
@@ -645,7 +744,9 @@ class Seq2SeqModel:
                     loss = outputs[0]
 
                 if args.n_gpu > 1:
-                    loss = loss.mean()  # mean() to average on multi-gpu parallel training
+                    loss = (
+                        loss.mean()
+                    )  # mean() to average on multi-gpu parallel training
 
                 current_loss = loss.item()
 
@@ -667,7 +768,9 @@ class Seq2SeqModel:
                     if args.fp16:
                         scaler.unscale_(optimizer)
                     if args.optimizer == "AdamW":
-                        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                        torch.nn.utils.clip_grad_norm_(
+                            model.parameters(), args.max_grad_norm
+                        )
 
                     if args.fp16:
                         scaler.step(optimizer)
@@ -680,8 +783,14 @@ class Seq2SeqModel:
 
                     if args.logging_steps > 0 and global_step % args.logging_steps == 0:
                         # Log metrics
-                        tb_writer.add_scalar("lr", scheduler.get_last_lr()[0], global_step)
-                        tb_writer.add_scalar("loss", (tr_loss - logging_loss) / args.logging_steps, global_step)
+                        tb_writer.add_scalar(
+                            "lr", scheduler.get_last_lr()[0], global_step
+                        )
+                        tb_writer.add_scalar(
+                            "loss",
+                            (tr_loss - logging_loss) / args.logging_steps,
+                            global_step,
+                        )
                         logging_loss = tr_loss
                         if args.wandb_project or self.is_sweeping:
                             wandb.log(
@@ -694,9 +803,13 @@ class Seq2SeqModel:
 
                     if args.save_steps > 0 and global_step % args.save_steps == 0:
                         # Save model checkpoint
-                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
+                        output_dir_current = os.path.join(
+                            output_dir, "checkpoint-{}".format(global_step)
+                        )
 
-                        self.save_model(output_dir_current, optimizer, scheduler, model=model)
+                        self.save_model(
+                            output_dir_current, optimizer, scheduler, model=model
+                        )
 
                     if args.evaluate_during_training and (
                         args.evaluate_during_training_steps > 0
@@ -710,12 +823,22 @@ class Seq2SeqModel:
                             **kwargs,
                         )
                         for key, value in results.items():
-                            tb_writer.add_scalar("eval_{}".format(key), value, global_step)
+                            tb_writer.add_scalar(
+                                "eval_{}".format(key), value, global_step
+                            )
 
-                        output_dir_current = os.path.join(output_dir, "checkpoint-{}".format(global_step))
+                        output_dir_current = os.path.join(
+                            output_dir, "checkpoint-{}".format(global_step)
+                        )
 
                         if args.save_eval_checkpoints:
-                            self.save_model(output_dir_current, optimizer, scheduler, model=model, results=results)
+                            self.save_model(
+                                output_dir_current,
+                                optimizer,
+                                scheduler,
+                                model=model,
+                                results=results,
+                            )
 
                         training_progress_scores["global_step"].append(global_step)
                         training_progress_scores["train_loss"].append(current_loss)
@@ -723,7 +846,10 @@ class Seq2SeqModel:
                             training_progress_scores[key].append(results[key])
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
-                            os.path.join(args.output_dir, "training_progress_scores.csv"), index=False,
+                            os.path.join(
+                                args.output_dir, "training_progress_scores.csv"
+                            ),
+                            index=False,
                         )
 
                         if args.wandb_project or self.is_sweeping:
@@ -733,27 +859,49 @@ class Seq2SeqModel:
                             best_eval_metric = results[args.early_stopping_metric]
                             if args.save_best_model:
                                 self.save_model(
-                                    args.best_model_dir, optimizer, scheduler, model=model, results=results
+                                    args.best_model_dir,
+                                    optimizer,
+                                    scheduler,
+                                    model=model,
+                                    results=results,
                                 )
                         if best_eval_metric and args.early_stopping_metric_minimize:
-                            if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                            if (
+                                results[args.early_stopping_metric] - best_eval_metric
+                                < args.early_stopping_delta
+                            ):
                                 best_eval_metric = results[args.early_stopping_metric]
                                 if args.save_best_model:
                                     self.save_model(
-                                        args.best_model_dir, optimizer, scheduler, model=model, results=results
+                                        args.best_model_dir,
+                                        optimizer,
+                                        scheduler,
+                                        model=model,
+                                        results=results,
                                     )
                                 early_stopping_counter = 0
                             else:
                                 if args.use_early_stopping:
-                                    if early_stopping_counter < args.early_stopping_patience:
+                                    if (
+                                        early_stopping_counter
+                                        < args.early_stopping_patience
+                                    ):
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args.early_stopping_metric}")
-                                            logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
+                                            logger.info(
+                                                f" No improvement in {args.early_stopping_metric}"
+                                            )
+                                            logger.info(
+                                                f" Current step: {early_stopping_counter}"
+                                            )
+                                            logger.info(
+                                                f" Early stopping patience: {args.early_stopping_patience}"
+                                            )
                                     else:
                                         if verbose:
-                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
+                                            logger.info(
+                                                f" Patience of {args.early_stopping_patience} steps reached"
+                                            )
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return (
@@ -763,24 +911,42 @@ class Seq2SeqModel:
                                             else training_progress_scores,
                                         )
                         else:
-                            if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                            if (
+                                results[args.early_stopping_metric] - best_eval_metric
+                                > args.early_stopping_delta
+                            ):
                                 best_eval_metric = results[args.early_stopping_metric]
                                 if args.save_best_model:
                                     self.save_model(
-                                        args.best_model_dir, optimizer, scheduler, model=model, results=results
+                                        args.best_model_dir,
+                                        optimizer,
+                                        scheduler,
+                                        model=model,
+                                        results=results,
                                     )
                                 early_stopping_counter = 0
                             else:
                                 if args.use_early_stopping:
-                                    if early_stopping_counter < args.early_stopping_patience:
+                                    if (
+                                        early_stopping_counter
+                                        < args.early_stopping_patience
+                                    ):
                                         early_stopping_counter += 1
                                         if verbose:
-                                            logger.info(f" No improvement in {args.early_stopping_metric}")
-                                            logger.info(f" Current step: {early_stopping_counter}")
-                                            logger.info(f" Early stopping patience: {args.early_stopping_patience}")
+                                            logger.info(
+                                                f" No improvement in {args.early_stopping_metric}"
+                                            )
+                                            logger.info(
+                                                f" Current step: {early_stopping_counter}"
+                                            )
+                                            logger.info(
+                                                f" Early stopping patience: {args.early_stopping_patience}"
+                                            )
                                     else:
                                         if verbose:
-                                            logger.info(f" Patience of {args.early_stopping_patience} steps reached")
+                                            logger.info(
+                                                f" Patience of {args.early_stopping_patience} steps reached"
+                                            )
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return (
@@ -792,7 +958,9 @@ class Seq2SeqModel:
                         model.train()
 
             epoch_number += 1
-            output_dir_current = os.path.join(output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number))
+            output_dir_current = os.path.join(
+                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
+            )
 
             if args.save_model_every_epoch or args.evaluate_during_training:
                 os.makedirs(output_dir_current, exist_ok=True)
@@ -809,14 +977,19 @@ class Seq2SeqModel:
                 )
 
                 if args.save_eval_checkpoints:
-                    self.save_model(output_dir_current, optimizer, scheduler, results=results)
+                    self.save_model(
+                        output_dir_current, optimizer, scheduler, results=results
+                    )
 
                 training_progress_scores["global_step"].append(global_step)
                 training_progress_scores["train_loss"].append(current_loss)
                 for key in results:
                     training_progress_scores[key].append(results[key])
                 report = pd.DataFrame(training_progress_scores)
-                report.to_csv(os.path.join(args.output_dir, "training_progress_scores.csv"), index=False)
+                report.to_csv(
+                    os.path.join(args.output_dir, "training_progress_scores.csv"),
+                    index=False,
+                )
 
                 if args.wandb_project or self.is_sweeping:
                     wandb.log(self._get_last_metrics(training_progress_scores))
@@ -824,24 +997,50 @@ class Seq2SeqModel:
                 if not best_eval_metric:
                     best_eval_metric = results[args.early_stopping_metric]
                     if args.save_best_model:
-                        self.save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                        self.save_model(
+                            args.best_model_dir,
+                            optimizer,
+                            scheduler,
+                            model=model,
+                            results=results,
+                        )
                 if best_eval_metric and args.early_stopping_metric_minimize:
-                    if results[args.early_stopping_metric] - best_eval_metric < args.early_stopping_delta:
+                    if (
+                        results[args.early_stopping_metric] - best_eval_metric
+                        < args.early_stopping_delta
+                    ):
                         best_eval_metric = results[args.early_stopping_metric]
                         if args.save_best_model:
-                            self.save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                            self.save_model(
+                                args.best_model_dir,
+                                optimizer,
+                                scheduler,
+                                model=model,
+                                results=results,
+                            )
                         early_stopping_counter = 0
                     else:
-                        if args.use_early_stopping and args.early_stopping_consider_epochs:
+                        if (
+                            args.use_early_stopping
+                            and args.early_stopping_consider_epochs
+                        ):
                             if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
-                                    logger.info(f" No improvement in {args.early_stopping_metric}")
-                                    logger.info(f" Current step: {early_stopping_counter}")
-                                    logger.info(f" Early stopping patience: {args.early_stopping_patience}")
+                                    logger.info(
+                                        f" No improvement in {args.early_stopping_metric}"
+                                    )
+                                    logger.info(
+                                        f" Current step: {early_stopping_counter}"
+                                    )
+                                    logger.info(
+                                        f" Early stopping patience: {args.early_stopping_patience}"
+                                    )
                             else:
                                 if verbose:
-                                    logger.info(f" Patience of {args.early_stopping_patience} steps reached")
+                                    logger.info(
+                                        f" Patience of {args.early_stopping_patience} steps reached"
+                                    )
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return (
@@ -851,22 +1050,42 @@ class Seq2SeqModel:
                                     else training_progress_scores,
                                 )
                 else:
-                    if results[args.early_stopping_metric] - best_eval_metric > args.early_stopping_delta:
+                    if (
+                        results[args.early_stopping_metric] - best_eval_metric
+                        > args.early_stopping_delta
+                    ):
                         best_eval_metric = results[args.early_stopping_metric]
                         if args.save_best_model:
-                            self.save_model(args.best_model_dir, optimizer, scheduler, model=model, results=results)
+                            self.save_model(
+                                args.best_model_dir,
+                                optimizer,
+                                scheduler,
+                                model=model,
+                                results=results,
+                            )
                         early_stopping_counter = 0
                     else:
-                        if args.use_early_stopping and args.early_stopping_consider_epochs:
+                        if (
+                            args.use_early_stopping
+                            and args.early_stopping_consider_epochs
+                        ):
                             if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
                                 if verbose:
-                                    logger.info(f" No improvement in {args.early_stopping_metric}")
-                                    logger.info(f" Current step: {early_stopping_counter}")
-                                    logger.info(f" Early stopping patience: {args.early_stopping_patience}")
+                                    logger.info(
+                                        f" No improvement in {args.early_stopping_metric}"
+                                    )
+                                    logger.info(
+                                        f" Current step: {early_stopping_counter}"
+                                    )
+                                    logger.info(
+                                        f" Early stopping patience: {args.early_stopping_patience}"
+                                    )
                             else:
                                 if verbose:
-                                    logger.info(f" Patience of {args.early_stopping_patience} steps reached")
+                                    logger.info(
+                                        f" Patience of {args.early_stopping_patience} steps reached"
+                                    )
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return (
@@ -878,10 +1097,14 @@ class Seq2SeqModel:
 
         return (
             global_step,
-            tr_loss / global_step if not self.args.evaluate_during_training else training_progress_scores,
+            tr_loss / global_step
+            if not self.args.evaluate_during_training
+            else training_progress_scores,
         )
 
-    def eval_model(self, eval_data, output_dir=None, verbose=True, silent=False, **kwargs):
+    def eval_model(
+        self, eval_data, output_dir=None, verbose=True, silent=False, **kwargs
+    ):
         """
         Evaluates the model on eval_data. Saves results to output_dir.
 
@@ -904,10 +1127,14 @@ class Seq2SeqModel:
 
         self._move_model_to_device()
 
-        eval_dataset = self.load_and_cache_examples(eval_data, evaluate=True, verbose=verbose, silent=silent)
+        eval_dataset = self.load_and_cache_examples(
+            eval_data, evaluate=True, verbose=verbose, silent=silent
+        )
         os.makedirs(output_dir, exist_ok=True)
 
-        result = self.evaluate(eval_dataset, output_dir, verbose=verbose, silent=silent, **kwargs)
+        result = self.evaluate(
+            eval_dataset, output_dir, verbose=verbose, silent=silent, **kwargs
+        )
         self.results.update(result)
 
         if self.args.evaluate_generated_text:
@@ -917,7 +1144,9 @@ class Seq2SeqModel:
             else:
                 preds = self.predict(to_predict)
 
-            result = self.compute_metrics(eval_data["target_text"].tolist(), preds, **kwargs)
+            result = self.compute_metrics(
+                eval_data["target_text"].tolist(), preds, **kwargs
+            )
             self.results.update(result)
 
         if verbose:
@@ -939,7 +1168,9 @@ class Seq2SeqModel:
         results = {}
 
         eval_sampler = SequentialSampler(eval_dataset)
-        eval_dataloader = DataLoader(eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
+        eval_dataloader = DataLoader(
+            eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
+        )
 
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
@@ -954,7 +1185,9 @@ class Seq2SeqModel:
         if self.args.fp16:
             from torch.cuda import amp
 
-        for batch in tqdm(eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"):
+        for batch in tqdm(
+            eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"
+        ):
             # batch = tuple(t.to(device) for t in batch)
 
             inputs = self._get_inputs_dict(batch)
@@ -1026,18 +1259,23 @@ class Seq2SeqModel:
                     src_lang=self.args.src_lang,
                 )["input_ids"]
             elif self.args.model_type in ["rag-token", "rag-sequence"]:
-                input_ids = self.encoder_tokenizer(batch, truncation=True, padding="longest", return_tensors="pt")[
-                    "input_ids"
-                ].to(self.device)
+                input_ids = self.encoder_tokenizer(
+                    batch, truncation=True, padding="longest", return_tensors="pt"
+                )["input_ids"].to(self.device)
 
                 question_hidden_states = self.model.question_encoder(input_ids)[0]
 
                 docs_dict = self.retriever(
-                    input_ids.cpu().numpy(), question_hidden_states.detach().cpu().numpy(), return_tensors="pt"
+                    input_ids.cpu().numpy(),
+                    question_hidden_states.detach().cpu().numpy(),
+                    return_tensors="pt",
                 )
                 doc_scores = torch.bmm(
                     question_hidden_states.unsqueeze(1),
-                    docs_dict["retrieved_doc_embeds"].float().transpose(1, 2).to(self.device),
+                    docs_dict["retrieved_doc_embeds"]
+                    .float()
+                    .transpose(1, 2)
+                    .to(self.device),
                 ).squeeze(1)
             else:
                 input_ids = self.encoder_tokenizer.batch_encode_plus(
@@ -1063,7 +1301,9 @@ class Seq2SeqModel:
                     num_return_sequences=self.args.num_return_sequences,
                 )
             elif self.args.model_type in ["mbart"]:
-                tgt_lang_token = self.decoder_tokenizer._convert_token_to_id(self.args.tgt_lang)
+                tgt_lang_token = self.decoder_tokenizer._convert_token_to_id(
+                    self.args.tgt_lang
+                )
 
                 outputs = self.model.generate(
                     input_ids=input_ids,
@@ -1081,7 +1321,9 @@ class Seq2SeqModel:
             elif self.args.model_type in ["rag-token", "rag-sequence"]:
                 outputs = self.model.generate(
                     context_input_ids=docs_dict["context_input_ids"].to(self.device),
-                    context_attention_mask=docs_dict["context_attention_mask"].to(self.device),
+                    context_attention_mask=docs_dict["context_attention_mask"].to(
+                        self.device
+                    ),
                     doc_scores=doc_scores,
                     num_beams=self.args.num_beams,
                     max_length=self.args.max_length,
@@ -1093,7 +1335,10 @@ class Seq2SeqModel:
                     top_p=self.args.top_p,
                     num_return_sequences=self.args.num_return_sequences,
                 )
-                retrieved_docs = [doc for doc in self.retriever.index.get_doc_dicts(docs_dict["doc_ids"])]
+                retrieved_docs = [
+                    doc
+                    for doc in self.retriever.index.get_doc_dicts(docs_dict["doc_ids"])
+                ]
             else:
                 outputs = self.model.generate(
                     input_ids=input_ids,
@@ -1116,7 +1361,9 @@ class Seq2SeqModel:
 
         if self.args.model_type in ["rag-token", "rag-sequence"]:
             outputs = self.encoder_tokenizer.batch_decode(
-                all_outputs, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True
+                all_outputs,
+                skip_special_tokens=self.args.skip_special_tokens,
+                clean_up_tokenization_spaces=True,
             )
         elif self.args.use_multiprocessed_decoding:
             if self.args.multiprocessing_chunksize == -1:
@@ -1138,7 +1385,9 @@ class Seq2SeqModel:
         else:
             outputs = [
                 self.decoder_tokenizer.decode(
-                    output_id, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True
+                    output_id,
+                    skip_special_tokens=self.args.skip_special_tokens,
+                    clean_up_tokenization_spaces=True,
                 )
                 for output_id in all_outputs
             ]
@@ -1172,7 +1421,9 @@ class Seq2SeqModel:
 
     def _decode(self, output_id):
         return self.decoder_tokenizer.decode(
-            output_id, skip_special_tokens=self.args.skip_special_tokens, clean_up_tokenization_spaces=True
+            output_id,
+            skip_special_tokens=self.args.skip_special_tokens,
+            clean_up_tokenization_spaces=True,
         )
 
     def compute_metrics(self, labels, preds, **kwargs):
@@ -1197,7 +1448,9 @@ class Seq2SeqModel:
 
         return results
 
-    def load_and_cache_examples(self, data, evaluate=False, no_cache=False, verbose=True, silent=False):
+    def load_and_cache_examples(
+        self, data, evaluate=False, no_cache=False, verbose=True, silent=False
+    ):
         """
         Creates a T5Dataset from data.
 
@@ -1217,17 +1470,25 @@ class Seq2SeqModel:
         mode = "dev" if evaluate else "train"
 
         if self.args.use_hf_datasets:
-            dataset = load_hf_dataset(data, encoder_tokenizer, decoder_tokenizer, self.args)
+            dataset = load_hf_dataset(
+                data, encoder_tokenizer, decoder_tokenizer, self.args
+            )
             return dataset
         else:
             if args.dataset_class:
                 CustomDataset = args.dataset_class
-                return CustomDataset(encoder_tokenizer, decoder_tokenizer, args, data, mode)
+                return CustomDataset(
+                    encoder_tokenizer, decoder_tokenizer, args, data, mode
+                )
             else:
                 if args.model_type in ["bart", "mbart", "marian"]:
-                    return SimpleSummarizationDataset(encoder_tokenizer, self.args, data, mode)
+                    return SimpleSummarizationDataset(
+                        encoder_tokenizer, self.args, data, mode
+                    )
                 else:
-                    return Seq2SeqDataset(encoder_tokenizer, decoder_tokenizer, self.args, data, mode,)
+                    return Seq2SeqDataset(
+                        encoder_tokenizer, decoder_tokenizer, self.args, data, mode,
+                    )
 
     def _create_training_progress_scores(self, **kwargs):
         extra_metrics = {key: [] for key in kwargs}
@@ -1243,7 +1504,15 @@ class Seq2SeqModel:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def save_model(self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None, dataset=None):
+    def save_model(
+        self,
+        output_dir=None,
+        optimizer=None,
+        scheduler=None,
+        model=None,
+        results=None,
+        dataset=None,
+    ):
         if not output_dir:
             output_dir = self.args.output_dir
         os.makedirs(output_dir, exist_ok=True)
@@ -1255,19 +1524,32 @@ class Seq2SeqModel:
             model_to_save = model.module if hasattr(model, "module") else model
             self.save_model_args(output_dir)
 
-            if self.args.model_type in ["bart", "mbart", "marian", "rag-token", "rag-sequence"]:
+            if self.args.model_type in [
+                "bart",
+                "mbart",
+                "marian",
+                "rag-token",
+                "rag-sequence",
+            ]:
                 os.makedirs(os.path.join(output_dir), exist_ok=True)
                 model_to_save.save_pretrained(output_dir)
                 self.config.save_pretrained(output_dir)
 
-                if self.args.model_type in ["bart", "mbart", "rag-token", "rag-sequence"]:
+                if self.args.model_type in [
+                    "bart",
+                    "mbart",
+                    "rag-token",
+                    "rag-sequence",
+                ]:
                     self.encoder_tokenizer.save_pretrained(output_dir)
 
                 if (
                     self.args.model_type in ["rag-token", "rag-sequence"]
                     and self.args.save_knowledge_dataset_with_checkpoints
                 ):
-                    output_dataset_directory = os.path.join(output_dir, "knowledge_dataset")
+                    output_dataset_directory = os.path.join(
+                        output_dir, "knowledge_dataset"
+                    )
                     os.makedirs(output_dataset_directory, exist_ok=True)
                     self.retriever.save_pretrained(output_dataset_directory)
             else:
@@ -1277,23 +1559,35 @@ class Seq2SeqModel:
                 self.decoder_config.save_pretrained(os.path.join(output_dir, "decoder"))
 
                 model_to_save = (
-                    self.model.encoder.module if hasattr(self.model.encoder, "module") else self.model.encoder
+                    self.model.encoder.module
+                    if hasattr(self.model.encoder, "module")
+                    else self.model.encoder
                 )
                 model_to_save.save_pretrained(os.path.join(output_dir, "encoder"))
 
                 model_to_save = (
-                    self.model.decoder.module if hasattr(self.model.decoder, "module") else self.model.decoder
+                    self.model.decoder.module
+                    if hasattr(self.model.decoder, "module")
+                    else self.model.decoder
                 )
 
                 model_to_save.save_pretrained(os.path.join(output_dir, "decoder"))
 
-                self.encoder_tokenizer.save_pretrained(os.path.join(output_dir, "encoder"))
-                self.decoder_tokenizer.save_pretrained(os.path.join(output_dir, "decoder"))
+                self.encoder_tokenizer.save_pretrained(
+                    os.path.join(output_dir, "encoder")
+                )
+                self.decoder_tokenizer.save_pretrained(
+                    os.path.join(output_dir, "decoder")
+                )
 
             torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
             if optimizer and scheduler and self.args.save_optimizer_and_scheduler:
-                torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-                torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+                torch.save(
+                    optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
+                )
+                torch.save(
+                    scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
+                )
 
         if results:
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
@@ -1308,7 +1602,11 @@ class Seq2SeqModel:
         device = self.device
         if self.args.model_type in ["bart", "marian"]:
             pad_token_id = self.encoder_tokenizer.pad_token_id
-            source_ids, source_mask, y = batch["source_ids"], batch["source_mask"], batch["target_ids"]
+            source_ids, source_mask, y = (
+                batch["source_ids"],
+                batch["source_mask"],
+                batch["target_ids"],
+            )
             y_ids = y[:, :-1].contiguous()
             labels = y[:, 1:].clone()
             labels[y[:, 1:] == pad_token_id] = -100

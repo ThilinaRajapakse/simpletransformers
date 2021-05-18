@@ -12,12 +12,23 @@ from functools import partial
 import numpy as np
 import torch
 from tqdm.auto import tqdm
-from transformers import BertConfig, BertTokenizer, GPT2Config, GPT2Tokenizer, RobertaConfig, RobertaTokenizer
+from transformers import (
+    BertConfig,
+    BertTokenizer,
+    GPT2Config,
+    GPT2Tokenizer,
+    RobertaConfig,
+    RobertaTokenizer,
+)
 
 from simpletransformers.config.model_args import ModelArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
-from simpletransformers.language_representation.transformer_models.bert_model import BertForTextRepresentation
-from simpletransformers.language_representation.transformer_models.gpt2_model import GPT2ForTextRepresentation
+from simpletransformers.language_representation.transformer_models.bert_model import (
+    BertForTextRepresentation,
+)
+from simpletransformers.language_representation.transformer_models.gpt2_model import (
+    GPT2ForTextRepresentation,
+)
 
 try:
     import wandb
@@ -54,7 +65,13 @@ def batch_iterable(iterable, batch_size=1):
 
 class RepresentationModel:
     def __init__(
-        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs,
+        self,
+        model_type,
+        model_name,
+        args=None,
+        use_cuda=True,
+        cuda_device=-1,
+        **kwargs,
     ):
 
         """
@@ -113,20 +130,26 @@ class RepresentationModel:
         else:
             self.device = "cpu"
 
-        self.model = model_class.from_pretrained(model_name, config=self.config, **kwargs)
+        self.model = model_class.from_pretrained(
+            model_name, config=self.config, **kwargs
+        )
 
         self.results = {}
 
         if not use_cuda:
             self.args.fp16 = False
 
-        self.tokenizer = tokenizer_class.from_pretrained(model_name, do_lower_case=self.args.do_lower_case, **kwargs)
+        self.tokenizer = tokenizer_class.from_pretrained(
+            model_name, do_lower_case=self.args.do_lower_case, **kwargs
+        )
 
         self.args.model_name = model_name
         self.args.model_type = model_type
 
         if self.args.wandb_project and not wandb_available:
-            warnings.warn("wandb_project specified but wandb is not available. Wandb disabled.")
+            warnings.warn(
+                "wandb_project specified but wandb is not available. Wandb disabled."
+            )
             self.args.wandb_project = None
         if self.args.model_type == "gpt2":
             # should we add a custom tokenizer for this model?
@@ -160,12 +183,16 @@ class RepresentationModel:
             if type(combine_strategy) == int:
                 embedding_func = partial(select_a_token, token_index=combine_strategy)
             else:
-                embedding_func_mapping = {"mean": mean_across_all_tokens, "concat": concat_all_tokens}
+                embedding_func_mapping = {
+                    "mean": mean_across_all_tokens,
+                    "concat": concat_all_tokens,
+                }
                 try:
                     embedding_func = embedding_func_mapping[combine_strategy]
                 except KeyError:
                     raise ValueError(
-                        "Provided combine_strategy is not valid." "supported values are: 'concat', 'mean' and None."
+                        "Provided combine_strategy is not valid."
+                        "supported values are: 'concat', 'mean' and None."
                     )
         else:
             embedding_func = get_all_tokens

@@ -19,7 +19,10 @@ eval_df = pd.DataFrame(eval_data)
 
 # Create a ClassificationModel
 model = ClassificationModel(
-    "bert", "bert-base-cased", num_labels=3, args={"reprocess_input_data": True, "overwrite_output_dir": True}
+    "bert",
+    "bert-base-cased",
+    num_labels=3,
+    args={"reprocess_input_data": True, "overwrite_output_dir": True},
 )
 
 # Train the model

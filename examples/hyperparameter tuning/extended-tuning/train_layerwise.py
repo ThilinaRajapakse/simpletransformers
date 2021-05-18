@@ -72,7 +72,9 @@ for key, value in best_params.items():
             {
                 "params": [params_key],
                 "lr": value[0],
-                "weight_decay": model_args.weight_decay if "bias" not in params_key else 0.0,
+                "weight_decay": model_args.weight_decay
+                if "bias" not in params_key
+                else 0.0,
             }
         )
     elif key == "num_train_epochs":
@@ -91,7 +93,9 @@ model = ClassificationModel("roberta", "roberta-large", use_cuda=True, args=mode
 model.train_model(
     train_df,
     eval_df=eval_df,
-    accuracy=lambda truth, predictions: accuracy_score(truth, [round(p) for p in predictions]),
+    accuracy=lambda truth, predictions: accuracy_score(
+        truth, [round(p) for p in predictions]
+    ),
 )
 
 model.eval_model(test_df, verbose=True)

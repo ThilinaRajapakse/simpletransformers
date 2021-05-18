@@ -59,7 +59,11 @@ def test_named_entity_recognition(model_type, model_name):
     model = NERModel(
         model_type,
         model_name,
-        args={"no_save": True, "overwrite_output_dir": True, "reprocess_input_data": False},
+        args={
+            "no_save": True,
+            "overwrite_output_dir": True,
+            "reprocess_input_data": False,
+        },
         use_cuda=False,
     )
 

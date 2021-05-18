@@ -16,7 +16,14 @@ class GPT2ForTextRepresentation(GPT2PreTrainedModel):
     def resize_token_embeddings(self, new_len):
         return self.gpt2.resize_token_embeddings(new_len)
 
-    def forward(self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None):
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+    ):
         outputs = self.gpt2(
             input_ids,
             attention_mask=attention_mask,

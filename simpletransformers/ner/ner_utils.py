@@ -37,7 +37,17 @@ from datasets import Dataset as HFDataset
 class InputExample(object):
     """A single training/test example for token classification."""
 
-    def __init__(self, guid, words, labels, x0=None, y0=None, x1=None, y1=None, tokenized_word_ids=None):
+    def __init__(
+        self,
+        guid,
+        words,
+        labels,
+        x0=None,
+        y0=None,
+        x1=None,
+        y1=None,
+        tokenized_word_ids=None,
+    ):
         """Constructs a InputExample.
         Args:
             guid: Unique id for the example.
@@ -117,7 +127,11 @@ def read_examples_from_file(data_file, mode, bbox=False):
                 if line.startswith("-DOCSTART-") or line == "" or line == "\n":
                     if words:
                         examples.append(
-                            InputExample(guid="{}-{}".format(mode, guid_index), words=words, labels=labels)
+                            InputExample(
+                                guid="{}-{}".format(mode, guid_index),
+                                words=words,
+                                labels=labels,
+                            )
                         )
                         guid_index += 1
                         words = []
@@ -134,11 +148,23 @@ def read_examples_from_file(data_file, mode, bbox=False):
             if bbox:
                 examples.append(
                     InputExample(
-                        guid="%s-%d".format(mode, guid_index), words=words, labels=labels, x0=x0, y0=y0, x1=x1, y1=y1
+                        guid="%s-%d".format(mode, guid_index),
+                        words=words,
+                        labels=labels,
+                        x0=x0,
+                        y0=y0,
+                        x1=x1,
+                        y1=y1,
                     )
                 )
             else:
-                examples.append(InputExample(guid="%s-%d".format(mode, guid_index), words=words, labels=labels))
+                examples.append(
+                    InputExample(
+                        guid="%s-%d".format(mode, guid_index),
+                        words=words,
+                        labels=labels,
+                    )
+                )
     return examples
 
 
@@ -158,7 +184,11 @@ def get_examples_from_df(data, bbox=False):
         ]
     else:
         return [
-            InputExample(guid=sentence_id, words=sentence_df["words"].tolist(), labels=sentence_df["labels"].tolist(),)
+            InputExample(
+                guid=sentence_id,
+                words=sentence_df["words"].tolist(),
+                labels=sentence_df["labels"].tolist(),
+            )
             for sentence_id, sentence_df in data.groupby(["sentence_id"])
         ]
 
@@ -226,14 +256,18 @@ def convert_example_to_feature(
     label_ids = []
     bboxes = []
     if example.bboxes:
-        for i, (word, label, bbox) in enumerate(zip(example.words, example.labels, example.bboxes)):
+        for i, (word, label, bbox) in enumerate(
+            zip(example.words, example.labels, example.bboxes)
+        ):
             if example.tokenized_word_ids is None:
                 word_tokens = tokenizer.tokenize(word)
             else:
                 word_tokens = example.tokenized_word_ids[i]
             tokens.extend(word_tokens)
             # Use the real label id for the first token of the word, and padding ids for the remaining tokens
-            label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
+            label_ids.extend(
+                [label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1)
+            )
             bboxes.extend([bbox] * len(word_tokens))
 
         cls_token_box = [0, 0, 0, 0]
@@ -248,8 +282,12 @@ def convert_example_to_feature(
                 word_tokens = example.tokenized_word_ids[i]
             tokens.extend(word_tokens)
             # Use the real label id for the first token of the word, and padding ids for the remaining tokens
-            if word_tokens:  # avoid non printable character like '\u200e' which are tokenized as a void token ''
-                label_ids.extend([label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1))
+            if (
+                word_tokens
+            ):  # avoid non printable character like '\u200e' which are tokenized as a void token ''
+                label_ids.extend(
+                    [label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1)
+                )
 
     # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
     special_tokens_count = 3 if sep_token_extra else 2
@@ -313,7 +351,9 @@ def convert_example_to_feature(
     padding_length = max_seq_length - len(input_ids)
     if pad_on_left:
         input_ids = ([pad_token] * padding_length) + input_ids
-        input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
+        input_mask = (
+            [0 if mask_padding_with_zero else 1] * padding_length
+        ) + input_mask
         segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
         label_ids = ([pad_token_label_id] * padding_length) + label_ids
     else:
@@ -334,11 +374,18 @@ def convert_example_to_feature(
     if return_input_feature:
         if bboxes:
             return InputFeatures(
-                input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids, bboxes=bboxes
+                input_ids=input_ids,
+                input_mask=input_mask,
+                segment_ids=segment_ids,
+                label_ids=label_ids,
+                bboxes=bboxes,
             )
         else:
             return InputFeatures(
-                input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_ids=label_ids,
+                input_ids=input_ids,
+                input_mask=input_mask,
+                segment_ids=segment_ids,
+                label_ids=label_ids,
             )
     else:
         if bboxes:
@@ -390,7 +437,9 @@ def convert_examples_to_features(
 
     label_map = {label: i for i, label in enumerate(label_list)}
 
-    if (mode == "train" and use_multiprocessing) or (mode == "dev" and use_multiprocessing_for_evaluation):
+    if (mode == "train" and use_multiprocessing) or (
+        mode == "dev" and use_multiprocessing_for_evaluation
+    ):
         if chunksize == -1:
             chunksize = max(len(examples) // (process_count * 2), 500)
         examples = [
@@ -417,13 +466,19 @@ def convert_examples_to_features(
         with Pool(process_count) as p:
             features = list(
                 tqdm(
-                    p.imap(convert_examples_with_multiprocessing, examples, chunksize=chunksize),
+                    p.imap(
+                        convert_examples_with_multiprocessing,
+                        examples,
+                        chunksize=chunksize,
+                    ),
                     total=len(examples),
                     disable=silent,
                 )
             )
 
-            features = [feature for feature_group in features for feature in feature_group]
+            features = [
+                feature for feature_group in features for feature in feature_group
+            ]
     else:
         features = [
             convert_example_to_feature(
@@ -493,11 +548,15 @@ def preprocess_batch_for_hf_dataset(
         sequence_lengths.append(len(seq))
         all_words.extend(seq)  # Need to check whether adding the prefix space helps
 
-    tokenized_word_ids_all = tokenizer(text=all_words, add_special_tokens=False)["input_ids"]
+    tokenized_word_ids_all = tokenizer(text=all_words, add_special_tokens=False)[
+        "input_ids"
+    ]
 
     tokenized_word_ids_batch = []
     tokenized_word_ids_batch = [
-        tokenized_word_ids_all[len(tokenized_word_ids_batch) : len(tokenized_word_ids_batch) + seq_len]
+        tokenized_word_ids_all[
+            len(tokenized_word_ids_batch) : len(tokenized_word_ids_batch) + seq_len
+        ]
         for seq_len in sequence_lengths
     ]
 
@@ -567,13 +626,19 @@ def load_hf_dataset(
     if isinstance(data, str):
         # dataset = load_dataset("conll2003", data_files=data)
         dataset = load_dataset(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "ner_dataset_loading_script"),
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)), "ner_dataset_loading_script"
+            ),
             data_files=data,
-            download_mode="force_redownload" if args.reprocess_input_data else "reuse_dataset_if_exists",
+            download_mode="force_redownload"
+            if args.reprocess_input_data
+            else "reuse_dataset_if_exists",
         )
     else:
         raise TypeError(
-            "{} is not a path to a data file (e.g. tsv). The input must be a data file for NERModel.".format(data)
+            "{} is not a path to a data file (e.g. tsv). The input must be a data file for NERModel.".format(
+                data
+            )
         )
 
     dataset = dataset.map(
@@ -598,7 +663,9 @@ def load_hf_dataset(
         batched=True,
     )
 
-    dataset.set_format(type="pt", columns=["input_ids", "token_type_ids", "attention_mask", "labels"])
+    dataset.set_format(
+        type="pt", columns=["input_ids", "token_type_ids", "attention_mask", "labels"]
+    )
 
     if isinstance(data, str):
         # This is not necessarily a train dataset. The datasets library insists on calling it train.
@@ -610,8 +677,12 @@ def load_hf_dataset(
 class LazyNERDataset(Dataset):
     def __init__(self, data_file, tokenizer, args):
         self.data_file = data_file
-        self.lazy_loading_start_line = args.lazy_loading_start_line if args.lazy_loading_start_line else 0
-        self.example_lines, self.num_entries = self._get_examples(self.data_file, self.lazy_loading_start_line)
+        self.lazy_loading_start_line = (
+            args.lazy_loading_start_line if args.lazy_loading_start_line else 0
+        )
+        self.example_lines, self.num_entries = self._get_examples(
+            self.data_file, self.lazy_loading_start_line
+        )
         self.tokenizer = tokenizer
         self.args = args
         self.pad_token_label_id = CrossEntropyLoss().ignore_index
@@ -643,7 +714,9 @@ class LazyNERDataset(Dataset):
                 # Examples could have no label for mode = "test"
                 labels.append("O")
         if words:
-            example = InputExample(guid="%s-%d".format("train", idx), words=words, labels=labels)
+            example = InputExample(
+                guid="%s-%d".format("train", idx), words=words, labels=labels
+            )
 
         label_map = {label: i for i, label in enumerate(self.args.labels_list)}
 

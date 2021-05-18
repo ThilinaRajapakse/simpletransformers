@@ -148,11 +148,15 @@ def convert_example_to_feature(
     padding_length = max_seq_length - len(input_ids)
     if pad_on_left:
         input_ids = ([pad_token] * padding_length) + input_ids
-        input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
+        input_mask = (
+            [0 if mask_padding_with_zero else 1] * padding_length
+        ) + input_mask
         segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
     else:
         input_ids = input_ids + ([pad_token] * padding_length)
-        input_mask = input_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
+        input_mask = input_mask + (
+            [0 if mask_padding_with_zero else 1] * padding_length
+        )
         segment_ids = segment_ids + ([pad_token_segment_id] * padding_length)
 
     assert len(input_ids) == max_seq_length
@@ -166,7 +170,12 @@ def convert_example_to_feature(
     # else:
     #     raise KeyError(output_mode)
 
-    return InputFeatures(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=example.label)
+    return InputFeatures(
+        input_ids=input_ids,
+        input_mask=input_mask,
+        segment_ids=segment_ids,
+        label_id=example.label,
+    )
 
 
 def convert_example_to_feature_sliding_window(
@@ -205,12 +214,16 @@ def convert_example_to_feature_sliding_window(
 
     special_tokens_count = 3 if sep_token_extra else 2
     if len(tokens_a) > bucket_size:
-        token_sets = [tokens_a[i : i + bucket_size] for i in range(0, len(tokens_a), stride)]
+        token_sets = [
+            tokens_a[i : i + bucket_size] for i in range(0, len(tokens_a), stride)
+        ]
     else:
         token_sets.append(tokens_a)
 
     if example.text_b:
-        raise ValueError("Sequence pair tasks not implemented for sliding window tokenization.")
+        raise ValueError(
+            "Sequence pair tasks not implemented for sliding window tokenization."
+        )
 
     # The convention in BERT is:
     # (a) For sequence pairs:
@@ -253,11 +266,15 @@ def convert_example_to_feature_sliding_window(
         padding_length = max_seq_length - len(input_ids)
         if pad_on_left:
             input_ids = ([pad_token] * padding_length) + input_ids
-            input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
+            input_mask = (
+                [0 if mask_padding_with_zero else 1] * padding_length
+            ) + input_mask
             segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
         else:
             input_ids = input_ids + ([pad_token] * padding_length)
-            input_mask = input_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
+            input_mask = input_mask + (
+                [0 if mask_padding_with_zero else 1] * padding_length
+            )
             segment_ids = segment_ids + ([pad_token_segment_id] * padding_length)
 
         assert len(input_ids) == max_seq_length
@@ -272,7 +289,12 @@ def convert_example_to_feature_sliding_window(
         #     raise KeyError(output_mode)
 
         input_features.append(
-            InputFeatures(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=example.label)
+            InputFeatures(
+                input_ids=input_ids,
+                input_mask=input_mask,
+                segment_ids=segment_ids,
+                label_id=example.label,
+            )
         )
 
     return input_features
@@ -334,14 +356,19 @@ def convert_examples_to_features(
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
-                        p.imap(convert_example_to_feature_sliding_window, examples, chunksize=500),
+                        p.imap(
+                            convert_example_to_feature_sliding_window,
+                            examples,
+                            chunksize=500,
+                        ),
                         total=len(examples),
                         disable=silent,
                     )
                 )
         else:
             features = [
-                convert_example_to_feature_sliding_window(example) for example in tqdm(examples, disable=silent)
+                convert_example_to_feature_sliding_window(example)
+                for example in tqdm(examples, disable=silent)
             ]
     else:
         examples = [
@@ -372,7 +399,10 @@ def convert_examples_to_features(
                     )
                 )
         else:
-            features = [convert_example_to_feature(example) for example in tqdm(examples, disable=silent)]
+            features = [
+                convert_example_to_feature(example)
+                for example in tqdm(examples, disable=silent)
+            ]
 
     return features
 

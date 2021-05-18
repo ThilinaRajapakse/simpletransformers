@@ -55,7 +55,9 @@ logger = logging.getLogger(__name__)
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
 
-    def __init__(self, guid, text_a, text_b=None, label=None, x0=None, y0=None, x1=None, y1=None):
+    def __init__(
+        self, guid, text_a, text_b=None, label=None, x0=None, y0=None, x1=None, y1=None
+    ):
         """
         Constructs a InputExample.
 
@@ -116,7 +118,12 @@ def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
             max_length=max_seq_length,
         )
     else:
-        return tokenizer(text=dataset["text"], truncation=True, padding="max_length", max_length=max_seq_length,)
+        return tokenizer(
+            text=dataset["text"],
+            truncation=True,
+            padding="max_length",
+            max_length=max_seq_length,
+        )
 
 
 def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
@@ -150,10 +157,18 @@ def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
     # return [tokenized_example, [example.label for example in data]]
 
 
-def build_classification_dataset(data, tokenizer, args, mode, multi_label, output_mode, no_cache):
+def build_classification_dataset(
+    data, tokenizer, args, mode, multi_label, output_mode, no_cache
+):
     cached_features_file = os.path.join(
         args.cache_dir,
-        "cached_{}_{}_{}_{}_{}".format(mode, args.model_type, args.max_seq_length, len(args.labels_list), len(data),),
+        "cached_{}_{}_{}_{}_{}".format(
+            mode,
+            args.model_type,
+            args.max_seq_length,
+            len(args.labels_list),
+            len(data),
+        ),
     )
 
     if os.path.exists(cached_features_file) and (
@@ -190,7 +205,12 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
 
             if text_b is not None:
                 data = [
-                    (text_a[i : i + chunksize], text_b[i : i + chunksize], tokenizer, args.max_seq_length)
+                    (
+                        text_a[i : i + chunksize],
+                        text_b[i : i + chunksize],
+                        tokenizer,
+                        args.max_seq_length,
+                    )
                     for i in range(0, len(text_a), chunksize)
                 ]
             else:
@@ -201,12 +221,21 @@ def build_classification_dataset(data, tokenizer, args, mode, multi_label, outpu
 
             with Pool(args.process_count) as p:
                 examples = list(
-                    tqdm(p.imap(preprocess_data_multiprocessing, data), total=len(text_a), disable=args.silent)
+                    tqdm(
+                        p.imap(preprocess_data_multiprocessing, data),
+                        total=len(text_a),
+                        disable=args.silent,
+                    )
                 )
 
-            examples = {key: torch.cat([example[key] for example in examples]) for key in examples[0]}
+            examples = {
+                key: torch.cat([example[key] for example in examples])
+                for key in examples[0]
+            }
         else:
-            examples = preprocess_data(text_a, text_b, labels, tokenizer, args.max_seq_length)
+            examples = preprocess_data(
+                text_a, text_b, labels, tokenizer, args.max_seq_length
+            )
 
         if output_mode == "classification":
             labels = torch.tensor(labels, dtype=torch.long)
@@ -232,7 +261,10 @@ class ClassificationDataset(Dataset):
         return len(self.examples["input_ids"])
 
     def __getitem__(self, index):
-        return {key: self.examples[key][index] for key in self.examples}, self.labels[index]
+        return (
+            {key: self.examples[key][index] for key in self.examples},
+            self.labels[index],
+        )
 
 
 def map_labels_to_numeric(example, multi_label, args):
@@ -250,7 +282,9 @@ def load_hf_dataset(data, tokenizer, args, multi_label):
             "csv",
             data_files=data,
             delimiter="\t",
-            download_mode="force_redownload" if args.reprocess_input_data else "reuse_dataset_if_exists",
+            download_mode="force_redownload"
+            if args.reprocess_input_data
+            else "reuse_dataset_if_exists",
         )
     else:
         dataset = HFDataset.from_pandas(data)
@@ -259,12 +293,17 @@ def load_hf_dataset(data, tokenizer, args, multi_label):
         dataset = dataset.map(lambda x: map_labels_to_numeric(x, multi_label, args))
 
     dataset = dataset.map(
-        lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, max_seq_length=args.max_seq_length),
+        lambda x: preprocess_batch_for_hf_dataset(
+            x, tokenizer=tokenizer, max_seq_length=args.max_seq_length
+        ),
         batched=True,
     )
 
     if args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
-        dataset.set_format(type="pt", columns=["input_ids", "token_type_ids", "attention_mask", "labels"])
+        dataset.set_format(
+            type="pt",
+            columns=["input_ids", "token_type_ids", "attention_mask", "labels"],
+        )
     else:
         dataset.set_format(type="pt", columns=["input_ids", "attention_mask", "labels"])
 
@@ -394,11 +433,15 @@ def convert_example_to_feature(
         padding_length = max_seq_length - len(input_ids)
         if pad_on_left:
             input_ids = ([pad_token] * padding_length) + input_ids
-            input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
+            input_mask = (
+                [0 if mask_padding_with_zero else 1] * padding_length
+            ) + input_mask
             segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
         else:
             input_ids = input_ids + ([pad_token] * padding_length)
-            input_mask = input_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
+            input_mask = input_mask + (
+                [0 if mask_padding_with_zero else 1] * padding_length
+            )
             segment_ids = segment_ids + ([pad_token_segment_id] * padding_length)
             if bboxes:
                 bboxes += [pad_token_box] * padding_length
@@ -420,11 +463,18 @@ def convert_example_to_feature(
 
     if bboxes:
         return InputFeatures(
-            input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=example.label, bboxes=bboxes
+            input_ids=input_ids,
+            input_mask=input_mask,
+            segment_ids=segment_ids,
+            label_id=example.label,
+            bboxes=bboxes,
         )
     else:
         return InputFeatures(
-            input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=example.label,
+            input_ids=input_ids,
+            input_mask=input_mask,
+            segment_ids=segment_ids,
+            label_id=example.label,
         )
 
 
@@ -469,12 +519,16 @@ def convert_example_to_feature_sliding_window(
         tokens_a = tokenizer.tokenize(example.text_a)
 
     if len(tokens_a) > bucket_size:
-        token_sets = [tokens_a[i : i + bucket_size] for i in range(0, len(tokens_a), stride)]
+        token_sets = [
+            tokens_a[i : i + bucket_size] for i in range(0, len(tokens_a), stride)
+        ]
     else:
         token_sets.append(tokens_a)
 
     if example.text_b:
-        raise ValueError("Sequence pair tasks not implemented for sliding window tokenization.")
+        raise ValueError(
+            "Sequence pair tasks not implemented for sliding window tokenization."
+        )
 
     # The convention in BERT is:
     # (a) For sequence pairs:
@@ -517,11 +571,15 @@ def convert_example_to_feature_sliding_window(
         padding_length = max_seq_length - len(input_ids)
         if pad_on_left:
             input_ids = ([pad_token] * padding_length) + input_ids
-            input_mask = ([0 if mask_padding_with_zero else 1] * padding_length) + input_mask
+            input_mask = (
+                [0 if mask_padding_with_zero else 1] * padding_length
+            ) + input_mask
             segment_ids = ([pad_token_segment_id] * padding_length) + segment_ids
         else:
             input_ids = input_ids + ([pad_token] * padding_length)
-            input_mask = input_mask + ([0 if mask_padding_with_zero else 1] * padding_length)
+            input_mask = input_mask + (
+                [0 if mask_padding_with_zero else 1] * padding_length
+            )
             segment_ids = segment_ids + ([pad_token_segment_id] * padding_length)
 
         assert len(input_ids) == max_seq_length
@@ -536,7 +594,12 @@ def convert_example_to_feature_sliding_window(
         #     raise KeyError(output_mode)
 
         input_features.append(
-            InputFeatures(input_ids=input_ids, input_mask=input_mask, segment_ids=segment_ids, label_id=example.label,)
+            InputFeatures(
+                input_ids=input_ids,
+                input_mask=input_mask,
+                segment_ids=segment_ids,
+                label_id=example.label,
+            )
         )
 
     return input_features
@@ -607,18 +670,26 @@ def convert_examples_to_features(
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
-                        p.imap(convert_example_to_feature_sliding_window, examples, chunksize=chunksize,),
+                        p.imap(
+                            convert_example_to_feature_sliding_window,
+                            examples,
+                            chunksize=chunksize,
+                        ),
                         total=len(examples),
                         disable=silent,
                     )
                 )
             if flatten:
-                features = [feature for feature_set in features for feature in feature_set]
+                features = [
+                    feature for feature_set in features for feature in feature_set
+                ]
         else:
             with Pool(process_count) as p:
                 features = list(
                     tqdm(
-                        p.imap(convert_example_to_feature, examples, chunksize=chunksize),
+                        p.imap(
+                            convert_example_to_feature, examples, chunksize=chunksize
+                        ),
                         total=len(examples),
                         disable=silent,
                     )
@@ -626,12 +697,18 @@ def convert_examples_to_features(
     else:
         if sliding_window:
             features = [
-                convert_example_to_feature_sliding_window(example) for example in tqdm(examples, disable=silent)
+                convert_example_to_feature_sliding_window(example)
+                for example in tqdm(examples, disable=silent)
             ]
             if flatten:
-                features = [feature for feature_set in features for feature in feature_set]
+                features = [
+                    feature for feature_set in features for feature in feature_set
+                ]
         else:
-            features = [convert_example_to_feature(example) for example in tqdm(examples, disable=silent)]
+            features = [
+                convert_example_to_feature(example)
+                for example in tqdm(examples, disable=silent)
+            ]
 
     return features
 
@@ -654,7 +731,17 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
             tokens_b.pop()
 
 
-POOLING_BREAKDOWN = {1: (1, 1), 2: (2, 1), 3: (3, 1), 4: (2, 2), 5: (5, 1), 6: (3, 2), 7: (7, 1), 8: (4, 2), 9: (3, 3)}
+POOLING_BREAKDOWN = {
+    1: (1, 1),
+    2: (2, 1),
+    3: (3, 1),
+    4: (2, 2),
+    5: (5, 1),
+    6: (3, 2),
+    7: (7, 1),
+    8: (4, 2),
+    9: (3, 3),
+}
 
 
 class ImageEncoder(nn.Module):
@@ -702,17 +789,25 @@ class JsonlDataset(Dataset):
             files_list = json.load(open(files_list))
         if isinstance(data_path, str):
             if not files_list:
-                files_list = [f for f in os.listdir(data_path) if f.endswith(self.data_type_extension)]
+                files_list = [
+                    f
+                    for f in os.listdir(data_path)
+                    if f.endswith(self.data_type_extension)
+                ]
             self.data = [
                 dict(
-                    json.load(open(os.path.join(data_path, l + self.data_type_extension))),
+                    json.load(
+                        open(os.path.join(data_path, l + self.data_type_extension))
+                    ),
                     **{"images": l + image_type_extension},
                 )
                 for l in files_list
             ]
             self.data_dir = os.path.dirname(data_path)
         else:
-            data_path[self.images_label] = data_path[self.images_label].apply(lambda x: x + self.image_type_extension)
+            data_path[self.images_label] = data_path[self.images_label].apply(
+                lambda x: x + self.image_type_extension
+            )
             self.data = data_path.to_dict("records")
             self.data_dir = image_path
         self.tokenizer = tokenizer
@@ -726,17 +821,25 @@ class JsonlDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, index):
-        sentence = torch.LongTensor(self.tokenizer.encode(self.data[index][self.text_label], add_special_tokens=True))
+        sentence = torch.LongTensor(
+            self.tokenizer.encode(
+                self.data[index][self.text_label], add_special_tokens=True
+            )
+        )
         start_token, sentence, end_token = sentence[0], sentence[1:-1], sentence[-1]
         sentence = sentence[: self.max_seq_length]
 
         if self.multi_label:
             label = torch.zeros(self.n_classes)
-            label[[self.labels.index(tgt) for tgt in self.data[index][self.labels_label]]] = 1
+            label[
+                [self.labels.index(tgt) for tgt in self.data[index][self.labels_label]]
+            ] = 1
         else:
             label = torch.tensor(self.labels.index(self.data[index][self.labels_label]))
 
-        image = Image.open(os.path.join(self.data_dir, self.data[index]["images"])).convert("RGB")
+        image = Image.open(
+            os.path.join(self.data_dir, self.data[index]["images"])
+        ).convert("RGB")
         image = self.transforms(image)
 
         return {
@@ -770,7 +873,14 @@ def collate_fn(batch):
     img_start_token = torch.stack([row["image_start_token"] for row in batch])
     img_end_token = torch.stack([row["image_end_token"] for row in batch])
 
-    return text_tensor, mask_tensor, img_tensor, img_start_token, img_end_token, tgt_tensor
+    return (
+        text_tensor,
+        mask_tensor,
+        img_tensor,
+        img_start_token,
+        img_end_token,
+        tgt_tensor,
+    )
 
 
 def get_image_transforms():
@@ -779,7 +889,10 @@ def get_image_transforms():
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.46777044, 0.44531429, 0.40661017], std=[0.12221994, 0.12145835, 0.14380469],),
+            transforms.Normalize(
+                mean=[0.46777044, 0.44531429, 0.40661017],
+                std=[0.12221994, 0.12145835, 0.14380469],
+            ),
         ]
     )
 
@@ -811,7 +924,11 @@ class LazyClassificationDataset(Dataset):
         return line_idx - start_row
 
     def __getitem__(self, idx):
-        line = linecache.getline(self.data_file, idx + 1 + self.start_row).rstrip("\n").split(self.delimiter)
+        line = (
+            linecache.getline(self.data_file, idx + 1 + self.start_row)
+            .rstrip("\n")
+            .split(self.delimiter)
+        )
 
         if not self.text_a_column and not self.text_b_column:
             text = line[self.text_column]

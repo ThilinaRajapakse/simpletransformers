@@ -41,7 +41,8 @@ for lang in languages:
 
     # Prepare the data for testing
     to_predict = [
-        prefix + ": " + str(input_text) for prefix, input_text in zip(df["prefix"].tolist(), df["input_text"].tolist())
+        prefix + ": " + str(input_text)
+        for prefix, input_text in zip(df["prefix"].tolist(), df["input_text"].tolist())
     ]
     truth = df["target_text"].tolist()
     tasks = df["prefix"].tolist()
@@ -60,7 +61,9 @@ for lang in languages:
             f.write("Prediction:\n")
             for pred in preds[i]:
                 f.write(str(pred) + "\n")
-            f.write("________________________________________________________________________________\n")
+            f.write(
+                "________________________________________________________________________________\n"
+            )
 
     # Taking only the first prediction
     preds = [pred[0] for pred in preds]
@@ -82,7 +85,9 @@ for lang in languages:
     for task, outputs in output_dict.items():
         if task == "binary classification":
             task_truth = [int(t) for t in output_dict[task]["truth"]]
-            task_preds = [int(p) if p.isnumeric() else 0 for p in output_dict[task]["preds"]]
+            task_preds = [
+                int(p) if p.isnumeric() else 0 for p in output_dict[task]["preds"]
+            ]
             results_dict[task] = {
                 "F1 Score": f1_score(task_truth, task_preds),
                 "Accuracy Score": accuracy_score(task_truth, task_preds),

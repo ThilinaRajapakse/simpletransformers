@@ -23,7 +23,9 @@ model_args = {
 model = T5Model("test_outputs_large/best_model", args=model_args)
 
 df = pd.read_csv("data/eval_df.tsv", sep="\t").astype(str)
-preds = model.predict(["ask_question: " + description for description in df["input_text"].tolist()])
+preds = model.predict(
+    ["ask_question: " + description for description in df["input_text"].tolist()]
+)
 
 questions = df["target_text"].tolist()
 
@@ -41,4 +43,6 @@ with open("test_outputs_large/generated_questions.txt", "w") as f:
         f.write("Generated questions:\n")
         for pred in preds[i]:
             f.write(str(pred) + "\n")
-        f.write("________________________________________________________________________________\n")
+        f.write(
+            "________________________________________________________________________________\n"
+        )

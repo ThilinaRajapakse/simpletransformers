@@ -1,7 +1,11 @@
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
-from transformers.models.albert.modeling_albert import AlbertConfig, AlbertModel, AlbertPreTrainedModel
+from transformers.models.albert.modeling_albert import (
+    AlbertConfig,
+    AlbertModel,
+    AlbertPreTrainedModel,
+)
 
 
 class AlbertForSequenceClassification(AlbertPreTrainedModel):
@@ -67,7 +71,9 @@ class AlbertForSequenceClassification(AlbertPreTrainedModel):
         pooled_output = self.dropout(pooled_output)
         logits = self.classifier(pooled_output)
 
-        outputs = (logits,) + outputs[2:]  # add hidden states and attention if they are here
+        outputs = (logits,) + outputs[
+            2:
+        ]  # add hidden states and attention if they are here
 
         if labels is not None:
             if self.num_labels == 1:

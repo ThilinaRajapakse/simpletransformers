@@ -58,7 +58,10 @@ class NER(datasets.GeneratorBasedBuilder):
         """Returns SplitGenerators."""
 
         return [
-            datasets.SplitGenerator(name=datasets.Split.TRAIN, gen_kwargs={"filepath": self.config.data_files}),
+            datasets.SplitGenerator(
+                name=datasets.Split.TRAIN,
+                gen_kwargs={"filepath": self.config.data_files},
+            ),
         ]
 
     def _generate_examples(self, filepath):

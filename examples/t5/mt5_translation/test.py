@@ -17,11 +17,23 @@ model = T5Model("mt5", "outputs_base", args=model_args)
 
 eval_df = pd.read_csv("data/eval.tsv", sep="\t").astype(str)
 
-sinhala_truth = [eval_df.loc[eval_df["prefix"] == "translate english to sinhala"]["target_text"].tolist()]
-to_sinhala = eval_df.loc[eval_df["prefix"] == "translate english to sinhala"]["input_text"].tolist()
+sinhala_truth = [
+    eval_df.loc[eval_df["prefix"] == "translate english to sinhala"][
+        "target_text"
+    ].tolist()
+]
+to_sinhala = eval_df.loc[eval_df["prefix"] == "translate english to sinhala"][
+    "input_text"
+].tolist()
 
-english_truth = [eval_df.loc[eval_df["prefix"] == "translate sinhala to english"]["target_text"].tolist()]
-to_english = eval_df.loc[eval_df["prefix"] == "translate sinhala to english"]["input_text"].tolist()
+english_truth = [
+    eval_df.loc[eval_df["prefix"] == "translate sinhala to english"][
+        "target_text"
+    ].tolist()
+]
+to_english = eval_df.loc[eval_df["prefix"] == "translate sinhala to english"][
+    "input_text"
+].tolist()
 
 # Predict
 sinhala_preds = model.predict(to_sinhala)

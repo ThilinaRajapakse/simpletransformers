@@ -6,7 +6,10 @@ from transformers.models.camembert.modeling_camembert import (
     CamembertConfig,
     CamembertModel,
 )
-from transformers.models.roberta.modeling_roberta import RobertaClassificationHead, RobertaForSequenceClassification
+from transformers.models.roberta.modeling_roberta import (
+    RobertaClassificationHead,
+    RobertaForSequenceClassification,
+)
 
 
 class CamembertForSequenceClassification(RobertaForSequenceClassification):
@@ -50,7 +53,13 @@ class CamembertForSequenceClassification(RobertaForSequenceClassification):
         self.sliding_window = sliding_window
 
     def forward(
-        self, input_ids=None, attention_mask=None, token_type_ids=None, position_ids=None, head_mask=None, labels=None
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        labels=None,
     ):
         all_outputs = []
         if self.sliding_window:

@@ -23,7 +23,9 @@ def getDF(path):
 
 
 categories = [
-    category[3:] for category in os.listdir("data") if category.endswith(".gz") and category.startswith("qa")
+    category[3:]
+    for category in os.listdir("data")
+    if category.endswith(".gz") and category.startswith("qa")
 ]
 
 for category in tqdm(categories):
@@ -42,7 +44,13 @@ for category in tqdm(categories):
         except:
             pass
 
-df = pd.concat((pd.read_csv(f"data/{f}", sep="\t") for f in os.listdir("data") if f.endswith(".tsv")))
+df = pd.concat(
+    (
+        pd.read_csv(f"data/{f}", sep="\t")
+        for f in os.listdir("data")
+        if f.endswith(".tsv")
+    )
+)
 df = df[["question", "description"]]
 df["description"] = df["description"].apply(lambda x: x[2:-2])
 df.columns = ["target_text", "input_text"]
