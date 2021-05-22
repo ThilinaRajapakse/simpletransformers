@@ -31,6 +31,7 @@ Supports
       - [Optional](#optional)
   - [Usage](#usage)
     - [A quick example](#a-quick-example)
+    - [Experiment Tracking with Weights and Biases](#experiment-tracking-with-weights-and-biases)
   - [Current Pretrained Models](#current-pretrained-models)
   - [Contributors ✨](#contributors-)
   - [How to Contribute](#how-to-contribute)
@@ -142,6 +143,10 @@ result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 predictions, raw_outputs = model.predict(["Sam was a Wizard"])
 
 ```
+
+### Experiment Tracking with Weights and Biases
+
+- W&B Notebook - [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1VpQKPA-VYrWYBeGLs7LMvxJT-CTv4Yj1)
 
 ---
 
