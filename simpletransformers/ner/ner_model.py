@@ -1,39 +1,37 @@
 from __future__ import absolute_import, division, print_function
 
-import json
 import logging
 import math
 import os
 import random
+import tempfile
 import warnings
 from dataclasses import asdict
-from multiprocessing import cpu_count
-import tempfile
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import torch
-from scipy.stats import pearsonr
 from seqeval.metrics import (
     classification_report,
     f1_score,
     precision_score,
     recall_score,
 )
+from simpletransformers.config.model_args import NERArgs
+from simpletransformers.config.utils import sweep_config_to_sweep_values
+from simpletransformers.ner.ner_utils import (
+    InputExample,
+    LazyNERDataset,
+    convert_examples_to_features,
+    get_examples_from_df,
+    load_hf_dataset,
+    read_examples_from_file,
+)
 from tensorboardX import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from tqdm.auto import tqdm, trange
-from transformers.optimization import (
-    get_constant_schedule,
-    get_constant_schedule_with_warmup,
-    get_linear_schedule_with_warmup,
-    get_cosine_schedule_with_warmup,
-    get_cosine_with_hard_restarts_schedule_with_warmup,
-    get_polynomial_decay_schedule_with_warmup,
-)
-from transformers.optimization import AdamW, Adafactor
 from transformers import (
     AlbertConfig,
     AlbertForTokenClassification,
@@ -45,9 +43,18 @@ from transformers import (
     BertForTokenClassification,
     BertTokenizer,
     BertweetTokenizer,
+    BigBirdConfig,
+    BigBirdForTokenClassification,
+    BigBirdTokenizer,
     CamembertConfig,
     CamembertForTokenClassification,
     CamembertTokenizer,
+    DebertaConfig,
+    DebertaForTokenClassification,
+    DebertaTokenizer,
+    DebertaV2Config,
+    DebertaV2ForTokenClassification,
+    DebertaV2Tokenizer,
     DistilBertConfig,
     DistilBertForTokenClassification,
     DistilBertTokenizer,
@@ -72,7 +79,9 @@ from transformers import (
     SqueezeBertConfig,
     SqueezeBertForTokenClassification,
     SqueezeBertTokenizer,
-    WEIGHTS_NAME,
+    XLMConfig,
+    XLMForTokenClassification,
+    XLMTokenizer,
     XLMRobertaConfig,
     XLMRobertaForTokenClassification,
     XLMRobertaTokenizer,
@@ -80,20 +89,15 @@ from transformers import (
     XLNetForTokenClassification,
     XLNetTokenizerFast,
 )
-from wandb import config
 from transformers.convert_graph_to_onnx import convert, quantize
-
-from simpletransformers.config.global_args import global_args
-from simpletransformers.config.model_args import NERArgs
-from simpletransformers.config.utils import sweep_config_to_sweep_values
-from simpletransformers.ner.ner_utils import (
-    InputExample,
-    LazyNERDataset,
-    convert_examples_to_features,
-    get_examples_from_df,
-    get_labels,
-    load_hf_dataset,
-    read_examples_from_file,
+from transformers.optimization import AdamW, Adafactor
+from transformers.optimization import (
+    get_constant_schedule,
+    get_constant_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
+    get_cosine_schedule_with_warmup,
+    get_cosine_with_hard_restarts_schedule_with_warmup,
+    get_polynomial_decay_schedule_with_warmup,
 )
 
 try:
@@ -104,7 +108,6 @@ except ImportError:
     wandb_available = False
 
 logger = logging.getLogger(__name__)
-
 
 MODELS_WITH_EXTRA_SEP_TOKEN = [
     "roberta",
@@ -149,10 +152,17 @@ class NERModel:
                 RobertaForTokenClassification,
                 BertweetTokenizer,
             ),
+            "bigbird": (BigBirdConfig, BigBirdForTokenClassification, BigBirdTokenizer),
             "camembert": (
                 CamembertConfig,
                 CamembertForTokenClassification,
                 CamembertTokenizer,
+            ),
+            "deberta": (DebertaConfig, DebertaForTokenClassification, DebertaTokenizer),
+            "deberta-v2": (
+                DebertaV2Config,
+                DebertaV2ForTokenClassification,
+                DebertaV2Tokenizer,
             ),
             "distilbert": (
                 DistilBertConfig,
@@ -186,6 +196,7 @@ class NERModel:
                 SqueezeBertForTokenClassification,
                 SqueezeBertTokenizer,
             ),
+            "xlm": (XLMConfig, XLMForTokenClassification, XLMTokenizer),
             "xlmroberta": (
                 XLMRobertaConfig,
                 XLMRobertaForTokenClassification,
@@ -1336,35 +1347,51 @@ class NERModel:
                 ]
 
         if self.args.onnx:
+
+            # Encode
             model_inputs = self.tokenizer.batch_encode_plus(
                 to_predict, return_tensors="pt", padding=True, truncation=True
             )
 
-            for inputs in tqdm(model_inputs):
-                if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
-                    input_ids, attention_mask, token_type_ids = (
+            # Change shape for batching
+            encoded_model_inputs = []
+            if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+                for (input_ids, attention_mask, token_type_ids) in tqdm(
+                    zip(
                         model_inputs["input_ids"],
                         model_inputs["attention_mask"],
                         model_inputs["token_type_ids"],
                     )
-                    input_ids = input_ids.detach().cpu().numpy()
-                    attention_mask = attention_mask.detach().cpu().numpy()
-                    token_type_ids = token_type_ids.detach().cpu().numpy()
+                ):
+                    encoded_model_inputs.append(
+                        (input_ids, attention_mask, token_type_ids)
+                    )
+            else:
+                for (input_ids, attention_mask) in tqdm(
+                    zip(model_inputs["input_ids"], model_inputs["attention_mask"])
+                ):
+                    encoded_model_inputs.append((input_ids, attention_mask))
+
+            # Setup batches
+            eval_sampler = SequentialSampler(encoded_model_inputs)
+            eval_dataloader = DataLoader(
+                encoded_model_inputs,
+                sampler=eval_sampler,
+                batch_size=args.eval_batch_size,
+            )
+            for batch in tqdm(
+                eval_dataloader, disable=args.silent, desc="Running Prediction"
+            ):
+                if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
                     inputs_onnx = {
-                        "input_ids": input_ids,
-                        "attention_mask": attention_mask,
-                        "token_type_ids": token_type_ids,
+                        "input_ids": batch[0].detach().cpu().numpy(),
+                        "attention_mask": batch[1].detach().cpu().numpy(),
+                        "token_type_ids": batch[2].detach().cpu().numpy(),
                     }
                 else:
-                    input_ids, attention_mask = (
-                        model_inputs["input_ids"],
-                        model_inputs["attention_mask"],
-                    )
-                    input_ids = input_ids.detach().cpu().numpy()
-                    attention_mask = attention_mask.detach().cpu().numpy()
                     inputs_onnx = {
-                        "input_ids": input_ids,
-                        "attention_mask": attention_mask,
+                        "input_ids": batch[0].detach().cpu().numpy(),
+                        "attention_mask": batch[1].detach().cpu().numpy(),
                     }
 
                 # Run the model (None = get all the outputs)
