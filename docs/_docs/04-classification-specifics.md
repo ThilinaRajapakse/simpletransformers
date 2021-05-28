@@ -37,6 +37,7 @@ New model types are regularly added to the library. Text classification tasks cu
 | ALBERT       | albert                               |
 | BERT         | bert                                 |
 | BERTweet     | bertweet                             |
+| *BigBird     | bigbird                              |
 | CamemBERT    | camembert                            |
 | *DeBERTa     | deberta                              |
 | DistilBERT   | distilbert                           |

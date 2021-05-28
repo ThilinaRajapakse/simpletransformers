@@ -52,6 +52,9 @@ from transformers import (
     BertConfig,
     BertTokenizerFast,
     BertweetTokenizer,
+    BigBirdConfig,
+    BigBirdTokenizer,
+    BigBirdForSequenceClassification,
     CamembertConfig,
     CamembertTokenizerFast,
     DebertaConfig,
@@ -209,6 +212,11 @@ class ClassificationModel:
                 RobertaConfig,
                 RobertaForSequenceClassification,
                 BertweetTokenizer,
+            ),
+            "bigbird": (
+                BigBirdConfig,
+                BigBirdForSequenceClassification,
+                BigBirdTokenizer,
             ),
             "camembert": (
                 CamembertConfig,
