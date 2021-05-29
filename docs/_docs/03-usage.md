@@ -215,7 +215,7 @@ model_args = ClassificationArgs()
 model_args.num_train_epochs = 5
 model_args.learning_rate = 1e-4
 
-model = ClassficationModel("bert", "bert-base-cased", args=model_args)
+model = ClassificationModel("bert", "bert-base-cased", args=model_args)
 ```
 
 ### Using a python dictionary
@@ -229,7 +229,7 @@ model_args = {
     "learning_rate": 1e-4,
 }
 
-model = ClassficationModel("bert", "bert-base-cased", args=model_args)
+model = ClassificationModel("bert", "bert-base-cased", args=model_args)
 ```
 
 **Tip:** Using the dataclass approach has the benefits of IDE auto-completion as well as ensuring that there are no typos in arguments that could lead to unexpected behaviour.
