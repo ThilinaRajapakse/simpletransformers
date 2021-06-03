@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.61.6] - 2021-05-28
+
+### Fixed
+
+- Fixed the onnx predict loop [whr778](https://github.com/whr778)
+
+### Added
+
+- Added NER support for BigBird, Deberta, Deberta-v2, and xlm pretrained models [whr778](https://github.com/whr778)
+- Added BigBird for regular sequence classification (not multilabel) [@manueltonneau](https://github.com/manueltonneau)
+
+## [0.61.5] - 2021-05-18
+### Added
+
+- Fixed possible bug when using HF Datasets with Seq2SeqModel
+- Added `repo: simpletransformers` to W&B config
+
 ## [0.61.4] - 2021-03-27
 
 ### Added
@@ -1497,7 +1514,11 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.61.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/87eeb0e...HEAD
+[0.61.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/281ff31...HEAD
+
+[0.61.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b49bf28...281ff31
+
+[0.61.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/87eeb0e...b49bf28
 
 [0.61.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/76f1df5...87eeb0e
 

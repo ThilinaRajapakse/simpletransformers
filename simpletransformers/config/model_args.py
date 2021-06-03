@@ -108,14 +108,20 @@ class ModelArgs:
             raise (TypeError(f"{new_values} is not a Python dict."))
 
     def get_args_for_saving(self):
-        args_for_saving = {key: value for key, value in asdict(self).items() if key not in self.not_saved_args}
+        args_for_saving = {
+            key: value
+            for key, value in asdict(self).items()
+            if key not in self.not_saved_args
+        }
         return args_for_saving
 
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
         with open(os.path.join(output_dir, "model_args.json"), "w") as f:
             args_dict = self.get_args_for_saving()
-            if args_dict["tokenizer_type"] is not None and not isinstance(args_dict["tokenizer_type"], str):
+            if args_dict["tokenizer_type"] is not None and not isinstance(
+                args_dict["tokenizer_type"], str
+            ):
                 args_dict["tokenizer_type"] = type(args_dict["tokenizer_type"]).__name__
             json.dump(args_dict, f)
 
@@ -300,6 +306,7 @@ class Seq2SeqArgs(ModelArgs):
     evaluate_generated_text: bool = False
     faiss_d: int = 768
     faiss_m: int = 128
+    include_title_in_knowledge_dataset: bool = True
     length_penalty: float = 2.0
     max_length: int = 20
     max_steps: int = -1
@@ -307,15 +314,15 @@ class Seq2SeqArgs(ModelArgs):
     num_return_sequences: int = 1
     rag_embed_batch_size: int = 16
     repetition_penalty: float = 1.0
-    top_k: float = None
-    top_p: float = None
-    use_multiprocessed_decoding: bool = False
     save_knowledge_dataset: bool = True
     save_knowledge_dataset_with_checkpoints: bool = False
     split_text_character: str = " "
     split_text_n: int = 100
     src_lang: str = "en_XX"
     tgt_lang: str = "ro_RO"
+    top_k: float = None
+    top_p: float = None
+    use_multiprocessed_decoding: bool = False
 
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)

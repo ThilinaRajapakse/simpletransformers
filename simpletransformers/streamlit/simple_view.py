@@ -65,34 +65,88 @@ def load_model(
                 )
             ) from e
     model = create_model(
-        model_class, model_type, model_name, num_labels, weight, args, use_cuda, cuda_device, **kwargs
+        model_class,
+        model_type,
+        model_name,
+        num_labels,
+        weight,
+        args,
+        use_cuda,
+        cuda_device,
+        **kwargs,
     )
     return model, model_class
 
 
-def create_model(model_class, model_type, model_name, num_labels, weight, args, use_cuda, cuda_device, **kwargs):
+def create_model(
+    model_class,
+    model_type,
+    model_name,
+    num_labels,
+    weight,
+    args,
+    use_cuda,
+    cuda_device,
+    **kwargs,
+):
     if model_class == "ClassificationModel":
-        return ClassificationModel(model_type, model_name, num_labels, weight, args, use_cuda, cuda_device, **kwargs)
+        return ClassificationModel(
+            model_type,
+            model_name,
+            num_labels,
+            weight,
+            args,
+            use_cuda,
+            cuda_device,
+            **kwargs,
+        )
     elif model_class == "MultiLabelClassificationModel":
         return MultiLabelClassificationModel(
-            model_type, model_name, num_labels, weight, args, use_cuda, cuda_device, **kwargs
+            model_type,
+            model_name,
+            num_labels,
+            weight,
+            args,
+            use_cuda,
+            cuda_device,
+            **kwargs,
         )
     elif model_class == "QuestionAnsweringModel":
-        return QuestionAnsweringModel(model_type, model_name, args, use_cuda, cuda_device, **kwargs)
+        return QuestionAnsweringModel(
+            model_type, model_name, args, use_cuda, cuda_device, **kwargs
+        )
     elif model_class == "NERModel":
-        return NERModel(model_type, model_name, args=args, use_cuda=use_cuda, cuda_device=cuda_device, **kwargs)
+        return NERModel(
+            model_type,
+            model_name,
+            args=args,
+            use_cuda=use_cuda,
+            cuda_device=cuda_device,
+            **kwargs,
+        )
     elif model_class == "T5Model":
         args = T5Args()
         args.use_multiprocessed_decoding = False
-        return T5Model(model_type, model_name, args=args, use_cuda=use_cuda, cuda_device=cuda_device, **kwargs)
+        return T5Model(
+            model_type,
+            model_name,
+            args=args,
+            use_cuda=use_cuda,
+            cuda_device=cuda_device,
+            **kwargs,
+        )
     else:
-        raise ValueError("{} is either invalid or not yet implemented.".format(model_class))
+        raise ValueError(
+            "{} is either invalid or not yet implemented.".format(model_class)
+        )
 
 
 def find_all_models(current_dir, model_list):
     for directory in os.listdir(current_dir):
         if os.path.isdir(os.path.join(current_dir, directory)):
-            model_list = find_all_models(os.path.join(current_dir, directory), model_list)
+            model_list = find_all_models(
+                os.path.join(current_dir, directory), model_list
+            )
     if os.path.isfile(os.path.join(current_dir, "model_args.json")):
         with open(os.path.join(current_dir, "model_args.json"), "r") as f:
             model_args = json.load(f)
@@ -146,14 +200,22 @@ def streamlit_runner(
                 """  # noqa
             )
 
-        manual_model = st.sidebar.checkbox("Specify model manually", value=False if selected_dir else True)
+        manual_model = st.sidebar.checkbox(
+            "Specify model manually", value=False if selected_dir else True
+        )
         if manual_model:
             st.sidebar.subheader("Model Details")
             fill_info = st.empty()
-            fill_info.markdown("Please fill the Model details on the sidebar and click `Load Model`.")
-            model_class = st.sidebar.selectbox("Simple Transformers task", list(model_class_map.keys()))
+            fill_info.markdown(
+                "Please fill the Model details on the sidebar and click `Load Model`."
+            )
+            model_class = st.sidebar.selectbox(
+                "Simple Transformers task", list(model_class_map.keys())
+            )
             model_type = st.sidebar.text_input("Model type (e.g. bert, roberta, xlnet)")
-            model_name = st.sidebar.text_input("Model name (e.g. bert-base-cased, roberta-base)")
+            model_name = st.sidebar.text_input(
+                "Model name (e.g. bert-base-cased, roberta-base)"
+            )
 
             if manual_model_load(model_class, model_type, model_name):
                 selected_dir = None
@@ -161,7 +223,16 @@ def streamlit_runner(
                 fill_info.markdown("")
 
     model, model_class = load_model(
-        selected_dir, model_class, model_type, model_name, num_labels, weight, args, use_cuda, cuda_device, **kwargs
+        selected_dir,
+        model_class,
+        model_type,
+        model_name,
+        num_labels,
+        weight,
+        args,
+        use_cuda,
+        cuda_device,
+        **kwargs,
     )
     model.args.use_multiprocessing = False
 

@@ -34,7 +34,8 @@ df = pd.read_csv("data/eval.tsv", sep="\t").astype(str)
 
 # Prepare the data for testing
 to_predict = [
-    prefix + ": " + str(input_text) for prefix, input_text in zip(df["prefix"].tolist(), df["input_text"].tolist())
+    prefix + ": " + str(input_text)
+    for prefix, input_text in zip(df["prefix"].tolist(), df["input_text"].tolist())
 ]
 truth = df["target_text"].tolist()
 tasks = df["prefix"].tolist()
@@ -121,7 +122,9 @@ for task, outputs in output_dict.items():
             pass
     if task == "similarity":
         task_truth = [float(t) for t in output_dict[task]["truth"]]
-        task_preds = [float(p) if p.isnumeric() else 0.0 for p in output_dict[task]["preds"]]
+        task_preds = [
+            float(p) if p.isnumeric() else 0.0 for p in output_dict[task]["preds"]
+        ]
         results_dict[task] = {
             "Pearson Correlation": pearson_corr(task_truth, task_preds),
             "Spearman Correlation": spearman_corr(task_truth, task_preds),

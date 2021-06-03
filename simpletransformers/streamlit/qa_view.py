@@ -28,7 +28,9 @@ def get_states(model, session_state=None):
 
 @st.cache(hash_funcs={QuestionAnsweringModel: simple_transformers_model})
 def get_prediction(model, context_text, question_text):
-    to_predict = [{"context": context_text, "qas": [{"id": 0, "question": question_text}]}]
+    to_predict = [
+        {"context": context_text, "qas": [{"id": 0, "question": question_text}]}
+    ]
 
     answers, probabilities = model.predict(to_predict)
 
@@ -52,14 +54,22 @@ def qa_viewer(model):
     )
 
     model.args.max_answer_length = st.sidebar.slider(
-        "Max Answer Length", min_value=1, max_value=512, value=model.args.max_answer_length
+        "Max Answer Length",
+        min_value=1,
+        max_value=512,
+        value=model.args.max_answer_length,
     )
 
     model.args.max_query_length = st.sidebar.slider(
-        "Max Query Length", min_value=1, max_value=512, value=model.args.max_query_length
+        "Max Query Length",
+        min_value=1,
+        max_value=512,
+        value=model.args.max_query_length,
     )
 
-    model.args.n_best_size = st.sidebar.slider("Number of answers to generate", min_value=1, max_value=20)
+    model.args.n_best_size = st.sidebar.slider(
+        "Number of answers to generate", min_value=1, max_value=20
+    )
 
     st.subheader("Enter context: ")
     context_text = st.text_area("", key="context")
@@ -78,15 +88,25 @@ def qa_viewer(model):
         if answers[0] != "empty":
             if len(context_pieces) == 2:
                 st.write(
-                    QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], context_pieces[-1]), unsafe_allow_html=True
+                    QA_ANSWER_WRAPPER.format(
+                        context_pieces[0], answers[0], context_pieces[-1]
+                    ),
+                    unsafe_allow_html=True,
                 )
             else:
                 st.write(
-                    QA_ANSWER_WRAPPER.format(context_pieces[0], answers[0], answers[0].join(context_pieces[1:])),
+                    QA_ANSWER_WRAPPER.format(
+                        context_pieces[0],
+                        answers[0],
+                        answers[0].join(context_pieces[1:]),
+                    ),
                     unsafe_allow_html=True,
                 )
         else:
-            st.write(QA_EMPTY_ANSWER_WRAPPER.format("", answers[0], ""), unsafe_allow_html=True)
+            st.write(
+                QA_EMPTY_ANSWER_WRAPPER.format("", answers[0], ""),
+                unsafe_allow_html=True,
+            )
 
         probabilities = probabilities[0]["probability"]
 

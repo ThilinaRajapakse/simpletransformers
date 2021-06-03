@@ -49,7 +49,8 @@ df = pd.read_csv("data/train.tsv", sep="\t").astype(str)
 
 # Prepare the data for testing
 to_predict = [
-    prefix + ": " + str(input_text) for prefix, input_text in zip(df["prefix"].tolist(), df["input_text"].tolist())
+    prefix + ": " + str(input_text)
+    for prefix, input_text in zip(df["prefix"].tolist(), df["input_text"].tolist())
 ]
 truth = df["target_text"].tolist()
 tasks = df["prefix"].tolist()
@@ -68,7 +69,9 @@ with open(f"predictions/predictions_{datetime.now()}.txt", "w") as f:
         f.write("Prediction:\n")
         for pred in preds[i]:
             f.write(str(pred) + "\n")
-        f.write("________________________________________________________________________________\n")
+        f.write(
+            "________________________________________________________________________________\n"
+        )
 
 # Taking only the first prediction
 preds = [pred[0] for pred in preds]

@@ -8,7 +8,9 @@ from sklearn.metrics import accuracy_score
 from simpletransformers.classification import ClassificationArgs, ClassificationModel
 from utils import load_rte_data_file
 
-layer_parameters = {f"layer_{i}-{i + 6}": {"min": 0.0, "max": 5e-5} for i in range(0, 24, 6)}
+layer_parameters = {
+    f"layer_{i}-{i + 6}": {"min": 0.0, "max": 5e-5} for i in range(0, 24, 6)
+}
 
 sweep_config = {
     "name": "layerwise-sweep-batch-16",
@@ -62,7 +64,11 @@ def train():
     wandb.init()
 
     # Get sweep hyperparameters
-    args = {key: value["value"] for key, value in wandb.config.as_dict().items() if key != "_wandb"}
+    args = {
+        key: value["value"]
+        for key, value in wandb.config.as_dict().items()
+        if key != "_wandb"
+    }
 
     # Extracting the hyperparameter values
     cleaned_args = {}
@@ -89,7 +95,9 @@ def train():
                 {
                     "params": [params_key],
                     "lr": value,
-                    "weight_decay": model_args.weight_decay if "bias" not in params_key else 0.0,
+                    "weight_decay": model_args.weight_decay
+                    if "bias" not in params_key
+                    else 0.0,
                 }
             )
         else:
@@ -100,13 +108,17 @@ def train():
     model_args.update_from_dict(cleaned_args)
 
     # Create a TransformerModel
-    model = ClassificationModel("roberta", "roberta-large", use_cuda=True, args=model_args)
+    model = ClassificationModel(
+        "roberta", "roberta-large", use_cuda=True, args=model_args
+    )
 
     # Train the model
     model.train_model(
         train_df,
         eval_df=eval_df,
-        accuracy=lambda truth, predictions: accuracy_score(truth, [round(p) for p in predictions]),
+        accuracy=lambda truth, predictions: accuracy_score(
+            truth, [round(p) for p in predictions]
+        ),
     )
 
     # model.eval_model(eval_df, f1=f1_score)

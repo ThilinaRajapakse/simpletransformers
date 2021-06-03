@@ -4,7 +4,12 @@ from simpletransformers.language_representation import RepresentationModel
 
 
 @pytest.mark.parametrize(
-    "model_type, model_name", [("bert", "bert-base-uncased"), ("roberta", "roberta-base"), ("gpt2", "distilgpt2")],
+    "model_type, model_name",
+    [
+        ("bert", "bert-base-uncased"),
+        ("roberta", "roberta-base"),
+        ("gpt2", "distilgpt2"),
+    ],
 )
 @pytest.mark.parametrize("combine_strategy", ["mean", "concat", None])
 def test_shapes(model_type, model_name, combine_strategy):
@@ -14,10 +19,18 @@ def test_shapes(model_type, model_name, combine_strategy):
         model_type,
         model_name,
         use_cuda=False,
-        args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True},
+        args={
+            "no_save": True,
+            "reprocess_input_data": True,
+            "overwrite_output_dir": True,
+        },
     )
-    encoded_sentences = model.encode_sentences(sentence_list, combine_strategy=combine_strategy)
-    longest_seq = 3  # RepresentationModel truncates sentences to the longest sentence in the list
+    encoded_sentences = model.encode_sentences(
+        sentence_list, combine_strategy=combine_strategy
+    )
+    longest_seq = (
+        3  # RepresentationModel truncates sentences to the longest sentence in the list
+    )
     if model_type == "bert" or model_type == "roberta":
         longest_seq += 2  # add [CLS] & [SEP] tokens added by BERT & ROBERTA Models
     # last dimention is the embedding dimension, it depends on the model

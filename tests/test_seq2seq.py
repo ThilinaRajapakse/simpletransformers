@@ -15,7 +15,9 @@ from simpletransformers.seq2seq import Seq2SeqArgs, Seq2SeqModel
         ("roberta-base", "bert-base-cased", "roberta", False),
     ],
 )
-def test_seq2seq(encoder_decoder_type, encoder_decoder_name, encoder_type, use_hf_datasets):
+def test_seq2seq(
+    encoder_decoder_type, encoder_decoder_name, encoder_type, use_hf_datasets
+):
     train_data = [
         ["one", "1"],
         ["two", "2"],

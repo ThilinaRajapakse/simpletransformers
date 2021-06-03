@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss, MSELoss
-from transformers.models.mobilebert.modeling_mobilebert import MobileBertModel, MobileBertPreTrainedModel
+from transformers.models.mobilebert.modeling_mobilebert import (
+    MobileBertModel,
+    MobileBertPreTrainedModel,
+)
 
 
 class MobileBertForSequenceClassification(MobileBertPreTrainedModel):

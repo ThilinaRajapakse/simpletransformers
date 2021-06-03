@@ -29,7 +29,15 @@ from simpletransformers.custom_models.models import (
 
 
 class MultiLabelClassificationModel(ClassificationModel):
-    def __init__(self, model_type, model_name, num_labels=None, pos_weight=None, args=None, use_cuda=True):
+    def __init__(
+        self,
+        model_type,
+        model_name,
+        num_labels=None,
+        pos_weight=None,
+        args=None,
+        use_cuda=True,
+    ):
         """
         Initializes a MultiLabelClassification model.
 
@@ -42,17 +50,39 @@ class MultiLabelClassificationModel(ClassificationModel):
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
         """
         MODEL_CLASSES = {
-            "bert": (BertConfig, BertForMultiLabelSequenceClassification, BertTokenizer),
-            "roberta": (RobertaConfig, RobertaForMultiLabelSequenceClassification, RobertaTokenizer),
-            "xlnet": (XLNetConfig, XLNetForMultiLabelSequenceClassification, XLNetTokenizer),
+            "bert": (
+                BertConfig,
+                BertForMultiLabelSequenceClassification,
+                BertTokenizer,
+            ),
+            "roberta": (
+                RobertaConfig,
+                RobertaForMultiLabelSequenceClassification,
+                RobertaTokenizer,
+            ),
+            "xlnet": (
+                XLNetConfig,
+                XLNetForMultiLabelSequenceClassification,
+                XLNetTokenizer,
+            ),
             "xlm": (XLMConfig, XLMForMultiLabelSequenceClassification, XLMTokenizer),
-            "distilbert": (DistilBertConfig, DistilBertForMultiLabelSequenceClassification, DistilBertTokenizer),
-            "albert": (AlbertConfig, AlbertForMultiLabelSequenceClassification, AlbertTokenizer),
+            "distilbert": (
+                DistilBertConfig,
+                DistilBertForMultiLabelSequenceClassification,
+                DistilBertTokenizer,
+            ),
+            "albert": (
+                AlbertConfig,
+                AlbertForMultiLabelSequenceClassification,
+                AlbertTokenizer,
+            ),
         }
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if num_labels:
-            self.config = config_class.from_pretrained(model_name, num_labels=num_labels)
+            self.config = config_class.from_pretrained(
+                model_name, num_labels=num_labels
+            )
             self.num_labels = num_labels
         else:
             self.config = config_class.from_pretrained(model_name)
@@ -75,7 +105,9 @@ class MultiLabelClassificationModel(ClassificationModel):
 
         if self.pos_weight:
             self.model = model_class.from_pretrained(
-                model_name, config=self.config, pos_weight=torch.Tensor(self.pos_weight).to(self.device)
+                model_name,
+                config=self.config,
+                pos_weight=torch.Tensor(self.pos_weight).to(self.device),
             )
         else:
             self.model = model_class.from_pretrained(model_name, config=self.config)
@@ -120,7 +152,13 @@ class MultiLabelClassificationModel(ClassificationModel):
         self.args["model_type"] = model_type
 
     def train_model(
-        self, train_df, multi_label=True, eval_df=None, output_dir=None, show_running_loss=True, args=None
+        self,
+        train_df,
+        multi_label=True,
+        eval_df=None,
+        output_dir=None,
+        show_running_loss=True,
+        args=None,
     ):
         return super().train_model(
             train_df,
@@ -131,17 +169,33 @@ class MultiLabelClassificationModel(ClassificationModel):
             args=args,
         )
 
-    def eval_model(self, eval_df, multi_label=True, output_dir=None, verbose=False, **kwargs):
-        return super().eval_model(eval_df, output_dir=output_dir, multi_label=multi_label, verbose=verbose, **kwargs)
+    def eval_model(
+        self, eval_df, multi_label=True, output_dir=None, verbose=False, **kwargs
+    ):
+        return super().eval_model(
+            eval_df,
+            output_dir=output_dir,
+            multi_label=multi_label,
+            verbose=verbose,
+            **kwargs
+        )
 
     def evaluate(self, eval_df, output_dir, multi_label=True, prefix="", **kwargs):
-        return super().evaluate(eval_df, output_dir, multi_label=multi_label, prefix=prefix, **kwargs)
+        return super().evaluate(
+            eval_df, output_dir, multi_label=multi_label, prefix=prefix, **kwargs
+        )
 
-    def load_and_cache_examples(self, examples, evaluate=False, no_cache=False, multi_label=True):
-        return super().load_and_cache_examples(examples, evaluate=evaluate, no_cache=no_cache, multi_label=multi_label)
+    def load_and_cache_examples(
+        self, examples, evaluate=False, no_cache=False, multi_label=True
+    ):
+        return super().load_and_cache_examples(
+            examples, evaluate=evaluate, no_cache=no_cache, multi_label=multi_label
+        )
 
     def compute_metrics(self, preds, labels, eval_examples, multi_label=True, **kwargs):
-        return super().compute_metrics(preds, labels, eval_examples, multi_label=multi_label, **kwargs)
+        return super().compute_metrics(
+            preds, labels, eval_examples, multi_label=multi_label, **kwargs
+        )
 
     def predict(self, to_predict, multi_label=True):
         return super().predict(to_predict, multi_label=multi_label)

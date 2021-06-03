@@ -27,9 +27,13 @@ def do_translate(input_text, target_language=None):
     elif target_language == "swedish":
         return model_map["english-swedish"].predict(input_text)
     elif target_language == "spanish":
-        return model_map["english-romance"].predict([">>es<< " + text for text in input_text])
+        return model_map["english-romance"].predict(
+            [">>es<< " + text for text in input_text]
+        )
     elif target_language == "french":
-        return model_map["english-romance"].predict([">>fr<< " + text for text in input_text])
+        return model_map["english-romance"].predict(
+            [">>fr<< " + text for text in input_text]
+        )
 
 
 def translate_dataset(input_file, target_language):

@@ -2,7 +2,11 @@ import streamlit as st
 import pandas as pd
 
 from simpletransformers.ner import NERModel
-from simpletransformers.streamlit.streamlit_utils import get, simple_transformers_model, get_color
+from simpletransformers.streamlit.streamlit_utils import (
+    get,
+    simple_transformers_model,
+    get_color,
+)
 
 
 ENTITY_WRAPPER = """<mark style="background: rgba{}; font-weight: 450; border-radius: 0.5rem; margin: 0.1em; padding: 0.25rem; display: inline-block">{} {}</mark>"""  # noqa
@@ -11,7 +15,9 @@ ENTITY_LABEL_WRAPPER = """<span style="background: #fff; font-size: 0.56em; font
 
 def format_word(word, entity, entity_checkboxes, entity_color_map):
     if entity_checkboxes[entity]:
-        return ENTITY_WRAPPER.format(entity_color_map[entity], word, ENTITY_LABEL_WRAPPER.format(entity))
+        return ENTITY_WRAPPER.format(
+            entity_color_map[entity], word, ENTITY_LABEL_WRAPPER.format(entity)
+        )
     else:
         return word
 
@@ -30,7 +36,9 @@ def ner_viewer(model):
     entity_list = model.args.labels_list
 
     st.sidebar.subheader("Entities")
-    entity_checkboxes = {entity: st.sidebar.checkbox(entity, value=True) for entity in entity_list}
+    entity_checkboxes = {
+        entity: st.sidebar.checkbox(entity, value=True) for entity in entity_list
+    }
     entity_color_map = {entity: get_color(i) for i, entity in enumerate(entity_list)}
 
     st.sidebar.subheader("Parameters")

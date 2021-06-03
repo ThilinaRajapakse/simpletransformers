@@ -15,11 +15,15 @@ eval_df.head()
 train_df[0] = (train_df[0] == 2).astype(int)
 eval_df[0] = (eval_df[0] == 2).astype(int)
 
-train_df = pd.DataFrame({"text": train_df[1].replace(r"\n", " ", regex=True), "labels": train_df[0]})
+train_df = pd.DataFrame(
+    {"text": train_df[1].replace(r"\n", " ", regex=True), "labels": train_df[0]}
+)
 
 print(train_df.head())
 
-eval_df = pd.DataFrame({"text": eval_df[1].replace(r"\n", " ", regex=True), "labels": eval_df[0]})
+eval_df = pd.DataFrame(
+    {"text": eval_df[1].replace(r"\n", " ", regex=True), "labels": eval_df[0]}
+)
 
 print(eval_df.head())
 

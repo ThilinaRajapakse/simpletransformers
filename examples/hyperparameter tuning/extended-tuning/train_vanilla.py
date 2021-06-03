@@ -10,7 +10,9 @@ from sklearn.metrics import accuracy_score, f1_score
 from simpletransformers.classification import ClassificationArgs, ClassificationModel
 from utils import load_rte_data_file
 
-prettyprinter.install_extras(include=["dataclasses",], warn_on_error=True)
+prettyprinter.install_extras(
+    include=["dataclasses",], warn_on_error=True,
+)
 
 
 logging.basicConfig(level=logging.INFO)
@@ -52,7 +54,9 @@ model = ClassificationModel("roberta", "roberta-large", use_cuda=True, args=mode
 model.train_model(
     train_df,
     eval_df=eval_df,
-    accuracy=lambda truth, predictions: accuracy_score(truth, [round(p) for p in predictions]),
+    accuracy=lambda truth, predictions: accuracy_score(
+        truth, [round(p) for p in predictions]
+    ),
 )
 
 model.eval_model(test_df, verbose=True)

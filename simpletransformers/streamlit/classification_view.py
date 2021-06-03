@@ -3,7 +3,10 @@ import pandas as pd
 import numpy as np
 from scipy.special import softmax
 
-from simpletransformers.classification import ClassificationModel, MultiLabelClassificationModel
+from simpletransformers.classification import (
+    ClassificationModel,
+    MultiLabelClassificationModel,
+)
 from simpletransformers.streamlit.streamlit_utils import get, simple_transformers_model
 
 
@@ -57,11 +60,16 @@ def classification_viewer(model, model_class):
             session_state, model = get_states(model, session_state)
 
         model.args.max_seq_length = st.sidebar.slider(
-            "Max Seq Length", min_value=1, max_value=512, value=model.args.max_seq_length
+            "Max Seq Length",
+            min_value=1,
+            max_value=512,
+            value=model.args.max_seq_length,
         )
 
         sliding_window = st.sidebar.radio(
-            "Sliding Window", ("Enable", "Disable"), index=0 if model.args.sliding_window else 1
+            "Sliding Window",
+            ("Enable", "Disable"),
+            index=0 if model.args.sliding_window else 1,
         )
         if sliding_window == "Enable":
             model.args.sliding_window = True
@@ -70,7 +78,10 @@ def classification_viewer(model, model_class):
 
         if model.args.sliding_window:
             model.args.stride = st.sidebar.slider(
-                "Stride (Fraction of Max Seq Length)", min_value=0.0, max_value=1.0, value=model.args.stride
+                "Stride (Fraction of Max Seq Length)",
+                min_value=0.0,
+                max_value=1.0,
+                value=model.args.stride,
             )
     elif model_class == "MultiLabelClassificationModel":
         try:
@@ -80,7 +91,10 @@ def classification_viewer(model, model_class):
             session_state, model = get_states(model, session_state)
 
         model.args.max_seq_length = st.sidebar.slider(
-            "Max Seq Length", min_value=1, max_value=512, value=model.args.max_seq_length
+            "Max Seq Length",
+            min_value=1,
+            max_value=512,
+            value=model.args.max_seq_length,
         )
 
     if input_text:
@@ -96,19 +110,27 @@ def classification_viewer(model, model_class):
         st.subheader(f"Model outputs")
         st.text("Raw values: ")
         try:
-            raw_df = pd.DataFrame(raw_values, columns=[f"Label {label}" for label in model.args.labels_list])
+            raw_df = pd.DataFrame(
+                raw_values,
+                columns=[f"Label {label}" for label in model.args.labels_list],
+            )
         except Exception:
-            raw_df = pd.DataFrame(raw_values, columns=[f"Label {label}" for label in range(len(raw_values[0]))])
+            raw_df = pd.DataFrame(
+                raw_values,
+                columns=[f"Label {label}" for label in range(len(raw_values[0]))],
+            )
         st.dataframe(raw_df)
 
         st.text("Probabilities: ")
         try:
             prob_df = pd.DataFrame(
-                softmax(raw_values, axis=1), columns=[f"Label {label}" for label in model.args.labels_list]
+                softmax(raw_values, axis=1),
+                columns=[f"Label {label}" for label in model.args.labels_list],
             )
         except Exception:
             prob_df = pd.DataFrame(
-                softmax(raw_values, axis=1), columns=[f"Label {i}" for i in range(len(raw_values[0]))]
+                softmax(raw_values, axis=1),
+                columns=[f"Label {i}" for i in range(len(raw_values[0]))],
             )
         st.dataframe(prob_df)
 

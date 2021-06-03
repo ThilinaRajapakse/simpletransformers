@@ -51,9 +51,16 @@ def test_question_answering(model_type, model_name):
                     "id": "00003",
                     "is_impossible": False,
                     "question": "What was the name of the 1937 treaty?",
-                    "answers": [{"text": "Bald Eagle Protection Act", "answer_start": 167}],
+                    "answers": [
+                        {"text": "Bald Eagle Protection Act", "answer_start": 167}
+                    ],
                 },
-                {"id": "00004", "is_impossible": True, "question": "How did Alexandar Hamilton die?", "answers": [],},
+                {
+                    "id": "00004",
+                    "is_impossible": True,
+                    "question": "How did Alexandar Hamilton die?",
+                    "answers": [],
+                },
             ],
         },
     ]  # noqa
@@ -74,7 +81,11 @@ def test_question_answering(model_type, model_name):
     model = QuestionAnsweringModel(
         model_type,
         model_name,
-        args={"no_save": True, "reprocess_input_data": True, "overwrite_output_dir": True},
+        args={
+            "no_save": True,
+            "reprocess_input_data": True,
+            "overwrite_output_dir": True,
+        },
         use_cuda=False,
     )
 

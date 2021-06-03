@@ -40,7 +40,11 @@ eval_data = [
 eval_df = pd.DataFrame(eval_data, columns=["sentence_id", "words", "labels"])
 
 # Create a NERModel
-model = NERModel("bert", "bert-base-cased", args={"overwrite_output_dir": True, "reprocess_input_data": True})
+model = NERModel(
+    "bert",
+    "bert-base-cased",
+    args={"overwrite_output_dir": True, "reprocess_input_data": True},
+)
 
 # # Train the model
 # model.train_model(train_df)

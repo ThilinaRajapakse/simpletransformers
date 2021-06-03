@@ -39,7 +39,12 @@ train_data = [
                 "question": "What was the name of the 1937 treaty?",
                 "answers": [{"text": "Bald Eagle Protection Act", "answer_start": 167}],
             },
-            {"id": "00004", "is_impossible": True, "question": "How did Alexandar Hamilton die?", "answers": [],},
+            {
+                "id": "00004",
+                "is_impossible": True,
+                "question": "How did Alexandar Hamilton die?",
+                "answers": [],
+            },
         ],
     },
 ]  # noqa: ignore flake8"
@@ -79,7 +84,9 @@ train_args = {
 }
 
 # Create the QuestionAnsweringModel
-model = QuestionAnsweringModel("bert", "bert-base-cased", args=train_args, use_cuda=True, cuda_device=0)
+model = QuestionAnsweringModel(
+    "bert", "bert-base-cased", args=train_args, use_cuda=True, cuda_device=0
+)
 
 # Train the model with JSON file
 model.train_model("data/train.jsonl", eval_data="data/train.json")
