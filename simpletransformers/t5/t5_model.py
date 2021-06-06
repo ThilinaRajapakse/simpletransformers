@@ -8,6 +8,7 @@ from dataclasses import asdict
 from multiprocessing import Pool, cpu_count
 from os import truncate
 from pathlib import Path
+from accelerate import Accelerator
 
 import numpy as np
 import pandas as pd
@@ -117,6 +118,7 @@ class T5Model:
             self.device = "cpu"
 
         self.results = {}
+        self.accelerator = Accelerator()
 
         config_class, model_class = MODEL_CLASSES[model_type]
 
@@ -432,6 +434,10 @@ class T5Model:
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
+        model, optimizer, train_dataloader = self.accelerator.prepare(
+            model, optimizer, train_dataloader
+        )
+
         logger.info(" Training started")
 
         global_step = 0
@@ -539,7 +545,7 @@ class T5Model:
                 if args.fp16:
                     scaler.scale(loss).backward()
                 else:
-                    loss.backward()
+                    self.accelerator.backward(loss)
 
                 tr_loss += loss.item()
                 if (step + 1) % args.gradient_accumulation_steps == 0:
@@ -1114,6 +1120,7 @@ class T5Model:
         return results
 
     def _move_model_to_device(self):
+        self.device = self.accelerator.device
         self.model.to(self.device)
 
     def _get_inputs_dict(self, batch):
