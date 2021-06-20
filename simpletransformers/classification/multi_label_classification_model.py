@@ -13,6 +13,8 @@ from transformers import (
     BertConfig,
     BertTokenizer,
     BertweetTokenizer,
+    BigBirdConfig,
+    BigBirdTokenizer,
     CamembertConfig,
     CamembertTokenizer,
     DistilBertConfig,
@@ -41,6 +43,7 @@ from simpletransformers.custom_models.models import (
     AlbertForMultiLabelSequenceClassification,
     BertForMultiLabelSequenceClassification,
     BertweetForMultiLabelSequenceClassification,
+    BigBirdForMultiLabelSequenceClassification,
     CamembertForMultiLabelSequenceClassification,
     DistilBertForMultiLabelSequenceClassification,
     ElectraForMultiLabelSequenceClassification,
@@ -104,6 +107,11 @@ class MultiLabelClassificationModel(ClassificationModel):
                 RobertaConfig,
                 BertweetForMultiLabelSequenceClassification,
                 BertweetTokenizer,
+            ),
+            "bigbird": (
+                BigBirdConfig,
+                BigBirdForMultiLabelSequenceClassification,
+                BigBirdTokenizer,
             ),
             "camembert": (
                 CamembertConfig,
