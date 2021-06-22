@@ -60,9 +60,6 @@ from transformers import (
     DebertaConfig,
     DebertaForSequenceClassification,
     DebertaTokenizer,
-    DebertaV2Config,
-    DebertaV2ForSequenceClassification,
-    DebertaV2Tokenizer,
     DistilBertConfig,
     DistilBertTokenizerFast,
     ElectraConfig,
@@ -230,11 +227,6 @@ class ClassificationModel:
                 DebertaConfig,
                 DebertaForSequenceClassification,
                 DebertaTokenizer,
-            ),
-            "debertav2": (
-                DebertaV2Config,
-                DebertaV2ForSequenceClassification,
-                DebertaV2Tokenizer,
             ),
             "distilbert": (
                 DistilBertConfig,
@@ -866,10 +858,9 @@ class ClassificationModel:
                 logger.info(" Initializing WandB run for training.")
                 wandb.init(
                     project=args.wandb_project,
-                    config={**asdict(args)},
+                    config={**asdict(args), "repo": "simpletransformers"},
                     **args.wandb_kwargs,
                 )
-                wandb.run._label(repo="simpletransformers")
             wandb.watch(self.model)
 
         if self.args.fp16:
@@ -1537,10 +1528,9 @@ class ClassificationModel:
                 logger.info(" Initializing WandB run for evaluation.")
                 wandb.init(
                     project=args.wandb_project,
-                    config={**asdict(args)},
+                    config={**asdict(args), "repo": "simpletransformers"},
                     **args.wandb_kwargs,
                 )
-                wandb.run._label(repo="simpletransformers")
             if not args.labels_map:
                 self.args.labels_map = {i: i for i in range(self.num_labels)}
 

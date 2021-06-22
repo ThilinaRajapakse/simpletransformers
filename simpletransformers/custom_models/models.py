@@ -15,23 +15,15 @@ from transformers import (
     XLNetModel,
     XLNetPreTrainedModel,
 )
-from transformers.modeling_utils import PreTrainedModel, SequenceSummary
+from transformers.models.camembert.configuration_camembert import CamembertConfig
+from transformers.models.distilbert.configuration_distilbert import DistilBertConfig
+from transformers.models.roberta.configuration_roberta import RobertaConfig
+from transformers.models.xlm_roberta.configuration_xlm_roberta import XLMRobertaConfig
 from transformers.models.albert.modeling_albert import (
     AlbertConfig,
     AlbertModel,
     AlbertPreTrainedModel,
 )
-from transformers.models.big_bird.configuration_big_bird import BigBirdConfig
-from transformers.models.big_bird.modeling_big_bird import (
-    BigBirdClassificationHead,
-    BigBirdModel,
-    BigBirdPreTrainedModel,
-)
-from transformers.models.camembert.configuration_camembert import CamembertConfig
-from transformers.models.camembert.modeling_camembert import (
-    CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-)
-from transformers.models.distilbert.configuration_distilbert import DistilBertConfig
 from transformers.models.distilbert.modeling_distilbert import (
     DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
 )
@@ -41,19 +33,21 @@ from transformers.models.electra.modeling_electra import (
     ElectraModel,
     ElectraPreTrainedModel,
 )
-from transformers.models.longformer.modeling_longformer import (
-    LongformerClassificationHead,
-    LongformerPreTrainedModel,
+from transformers.models.camembert.modeling_camembert import (
+    CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
 )
-from transformers.models.roberta.configuration_roberta import RobertaConfig
 from transformers.models.roberta.modeling_roberta import (
     ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
     RobertaClassificationHead,
     RobertaForQuestionAnswering,
 )
-from transformers.models.xlm_roberta.configuration_xlm_roberta import XLMRobertaConfig
+from transformers.modeling_utils import PreTrainedModel, SequenceSummary
 from transformers.models.xlm_roberta.modeling_xlm_roberta import (
     XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
+)
+from transformers.models.longformer.modeling_longformer import (
+    LongformerClassificationHead,
+    LongformerPreTrainedModel,
 )
 
 
@@ -829,53 +823,3 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
 class XLMRobertaForQuestionAnswering(RobertaForQuestionAnswering):
     config_class = XLMRobertaConfig
     pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
-
-
-class BigBirdForMultiLabelSequenceClassification(BigBirdPreTrainedModel):
-    """
-    Bert model adapted for multi-label sequence classification
-    """
-
-    def __init__(self, config, pos_weight=None):
-        super(BigBirdForMultiLabelSequenceClassification, self).__init__(config)
-        self.num_labels = config.num_labels
-        self.config = config
-        self.bert = BigBirdModel(config)
-        self.classifier = BigBirdClassificationHead(config)
-        self.pos_weight = pos_weight
-
-        self.init_weights()
-
-    def forward(
-        self,
-        input_ids,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        head_mask=None,
-        labels=None,
-    ):
-        outputs = self.bert(
-            input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            head_mask=head_mask,
-        )
-
-        sequence_output = outputs[0]
-        logits = self.classifier(sequence_output)
-
-        outputs = (logits,) + outputs[
-            2:
-        ]  # add hidden states and attention if they are here
-
-        if labels is not None:
-            loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
-            labels = labels.float()
-            loss = loss_fct(
-                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
-            )
-            outputs = (loss,) + outputs
-
-        return outputs  # (loss), logits, (hidden_states), (attentions)

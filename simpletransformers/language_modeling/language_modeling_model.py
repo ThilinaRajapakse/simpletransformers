@@ -722,10 +722,9 @@ class LanguageModelingModel:
         if args.wandb_project:
             wandb.init(
                 project=args.wandb_project,
-                config={**asdict(args)},
+                config={**asdict(args), "repo": "simpletransformers"},
                 **args.wandb_kwargs,
             )
-            wandb.run._label(repo="simpletransformers")
             wandb.watch(self.model)
 
         if args.fp16:

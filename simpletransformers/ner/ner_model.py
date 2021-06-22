@@ -668,10 +668,9 @@ class NERModel:
         if args.wandb_project:
             wandb.init(
                 project=args.wandb_project,
-                config={**asdict(args)},
+                config={**asdict(args), "repo": "simpletransformers"},
                 **args.wandb_kwargs,
             )
-            wandb.run._label(repo="simpletransformers")
             wandb.watch(self.model)
 
         if self.args.fp16:
@@ -1253,10 +1252,9 @@ class NERModel:
         if self.args.wandb_project and wandb_log:
             wandb.init(
                 project=args.wandb_project,
-                config={**asdict(args)},
+                config={**asdict(args), "repo": "simpletransformers"},
                 **args.wandb_kwargs,
             )
-            labels_list = sorted(self.args.labels_list)
 
             labels_list = sorted(self.args.labels_list)
 
