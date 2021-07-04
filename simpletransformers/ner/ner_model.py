@@ -61,6 +61,7 @@ from transformers import (
     ElectraConfig,
     ElectraForTokenClassification,
     ElectraTokenizer,
+    HerbertTokenizerFast,
     LayoutLMConfig,
     LayoutLMForTokenClassification,
     LayoutLMTokenizer,
@@ -170,6 +171,7 @@ class NERModel:
                 DistilBertTokenizer,
             ),
             "electra": (ElectraConfig, ElectraForTokenClassification, ElectraTokenizer),
+            "hebrert": (RobertaConfig, RobertaForTokenClassification, HerbertTokenizerFast),
             "layoutlm": (
                 LayoutLMConfig,
                 LayoutLMForTokenClassification,

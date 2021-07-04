@@ -69,6 +69,7 @@ from transformers import (
     ElectraTokenizerFast,
     FlaubertConfig,
     FlaubertTokenizer,
+    HerbertTokenizerFast,
     LayoutLMConfig,
     LayoutLMTokenizerFast,
     LongformerConfig,
@@ -251,6 +252,7 @@ class ClassificationModel:
                 FlaubertForSequenceClassification,
                 FlaubertTokenizer,
             ),
+            "hebrert": (RobertaConfig, RobertaForTokenClassification, HerbertTokenizerFast),
             "layoutlm": (
                 LayoutLMConfig,
                 LayoutLMForSequenceClassification,
