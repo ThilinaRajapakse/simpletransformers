@@ -171,7 +171,7 @@ class NERModel:
                 DistilBertTokenizer,
             ),
             "electra": (ElectraConfig, ElectraForTokenClassification, ElectraTokenizer),
-            "herbert": (RobertaConfig, RobertaForTokenClassification, HerbertTokenizerFast),
+            "herbert": (BertConfig, BertForTokenClassification, HerbertTokenizerFast),
             "layoutlm": (
                 LayoutLMConfig,
                 LayoutLMForTokenClassification,
