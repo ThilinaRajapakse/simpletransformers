@@ -720,7 +720,16 @@ class NERModel:
                         loss = outputs[0]
                         if self.loss_fct:
                             logits = outputs[1]
-                            loss = self.loss_fct(logits.view(-1, self.num_labels), inputs['labels'].view(-1))
+                            labels = inputs['labels']
+                            if inputs.get('attention_mask') is not None:
+                                active_loss = attention_mask.view(-1) == 1
+                                active_logits = logits.view(-1, self.num_labels)
+                                active_labels = torch.where(
+                                    active_loss, labels.view(-1), torch.tensor(loss_fct.ignore_index).type_as(labels)
+                                )
+                                loss = loss_fct(active_logits, active_labels)
+                            else:
+                                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
                 else:
                     outputs = model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
