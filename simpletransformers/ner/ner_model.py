@@ -109,6 +109,9 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
+MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT = ["squeezebert", "deberta", "mpnet"]
+
 MODELS_WITH_EXTRA_SEP_TOKEN = [
     "roberta",
     "camembert",
@@ -124,6 +127,7 @@ class NERModel:
         model_type,
         model_name,
         labels=None,
+        weight=None,
         args=None,
         use_cuda=True,
         cuda_device=-1,
@@ -137,6 +141,7 @@ class NERModel:
             model_type: The type of model (bert, roberta)
             model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_model.bin).
             labels (optional): A list of all Named Entity labels.  If not given, ["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"] will be used.
+            weight (optional): A list of length len(labels) containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
@@ -251,6 +256,13 @@ class NERModel:
             ]
         self.num_labels = len(self.args.labels_list)
 
+        if model_type in MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT and weight is not None:
+            raise ValueError(
+                "{} does not currently support class weights".format(model_type)
+            )
+        else:
+            self.weight = weight
+
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if self.num_labels:
             self.config = config_class.from_pretrained(
@@ -297,16 +309,32 @@ class NERModel:
                 )
         else:
             if not self.args.quantized_model:
-                self.model = model_class.from_pretrained(
-                    model_name, config=self.config, **kwargs
-                )
+                if self.weight:
+                    self.model = model_class.from_pretrained(
+                        model_name,
+                        config=self.config,
+                        weight=torch.Tensor(self.weight).to(self.device),
+                        **kwargs,
+                    )
+                else:
+                    self.model = model_class.from_pretrained(
+                        model_name, config=self.config, **kwargs
+                    )
             else:
                 quantized_weights = torch.load(
                     os.path.join(model_name, "pytorch_model.bin")
                 )
-                self.model = model_class.from_pretrained(
-                    None, config=self.config, state_dict=quantized_weights
-                )
+                if self.weight:
+                    self.model = model_class.from_pretrained(
+                        None,
+                        config=self.config,
+                        state_dict=quantized_weights,
+                        weight=torch.Tensor(self.weight).to(self.device),
+                    )
+                else:
+                    self.model = model_class.from_pretrained(
+                        None, config=self.config, state_dict=quantized_weights
+                    )
 
             if self.args.dynamic_quantize:
                 self.model = torch.quantization.quantize_dynamic(
