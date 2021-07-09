@@ -887,9 +887,12 @@ class LanguageModelingModel:
 
                         if self.is_world_master():
                             for key, value in results.items():
-                                tb_writer.add_scalar(
-                                    "eval_{}".format(key), value, global_step
-                                )
+                                try:
+                                    tb_writer.add_scalar(
+                                        "eval_{}".format(key), value, global_step
+                                    )
+                                except (NotImplementedError, AssertionError):
+                                    pass
 
                         output_dir_current = os.path.join(
                             output_dir, "checkpoint-{}".format(global_step)
