@@ -87,6 +87,8 @@ Initializes a T5Model model.
 > Parameters
 {: .parameter-blockquote}
 
+* **model_type** *(`str`)* - The type of model (t5, mt5).
+
 * **model_name** *(`str`)* - The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
 
 * **args** *(`dict`, optional)* - [Default args](/docs/usage/#configuring-a-simple-transformers-model) will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args or a `T5Args` object.
