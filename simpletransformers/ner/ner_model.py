@@ -297,7 +297,7 @@ class NERModel:
 
             if not onnx_execution_provider:
                 onnx_execution_provider = (
-                    "CUDAExecutionProvider" if use_cuda else "CPUExecutionProvider"
+                    ["CUDAExecutionProvider"] if use_cuda else ["CPUExecutionProvider"]
                 )
 
             options = SessionOptions()
@@ -305,12 +305,12 @@ class NERModel:
             if self.args.dynamic_quantize:
                 model_path = quantize(Path(os.path.join(model_name, "onnx_model.onnx")))
                 self.model = InferenceSession(
-                    model_path.as_posix(), options, providers=[onnx_execution_provider]
+                    model_path.as_posix(), options, providers=onnx_execution_provider
                 )
             else:
                 model_path = os.path.join(model_name, "onnx_model.onnx")
                 self.model = InferenceSession(
-                    model_path, options, providers=[onnx_execution_provider]
+                    model_path, options, providers=onnx_execution_provider
                 )
         else:
             if not self.args.quantized_model:
