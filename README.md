@@ -1,13 +1,14 @@
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-73-orange.svg?style=flat-square)](#contributors-)
+
+
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
 
-This library is based on the [Transformers](https://github.com/huggingface/transformers) library by HuggingFace. Simple Transformers lets you quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate a model.
+This library is based on the [Transformers](https://github.com/huggingface/transformers) library by HuggingFace. `Simple Transformers` lets you quickly train and evaluate Transformer models. Only 3 lines of code are needed to **initialize**, **train**, and **evaluate** a model.
 
-Supports
+**Supported Tasks:**
+
 - Sequence Classification
 - Token Classification (NER)
 - Question Answering
@@ -20,10 +21,10 @@ Supports
 - Conversational AI.
 - Text Representation Generation.
 
-
 # Table of contents
 
 <!--ts-->
+
 - [Simple Transformers](#simple-transformers)
 - [Table of contents](#table-of-contents)
   - [Setup](#setup)
@@ -37,34 +38,52 @@ Supports
   - [How to Contribute](#how-to-contribute)
     - [How to Update Docs](#how-to-update-docs)
   - [Acknowledgements](#acknowledgements)
+
 <!--te-->
 
 ## Setup
 
 ### With Conda
 
-1. Install Anaconda or Miniconda Package Manager from [here](https://www.anaconda.com/distribution/)
+1. Install `Anaconda` or `Miniconda` Package Manager from [here](https://www.anaconda.com/distribution/)
 2. Create a new virtual environment and install packages.
-`conda create -n st python pandas tqdm`
-`conda activate st`
-If using cuda:
-&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch>=1.6 cudatoolkit=11.0 -c pytorch`
-else:
-&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cpuonly -c pytorch`
 
-3. Install simpletransformers.
-`pip install simpletransformers`
+```bash
+$ conda create -n st python pandas tqdm
+$ conda activate st
+```
+
+With using Cuda:
+
+```bash
+$ conda install pytorch>=1.6 cudatoolkit=11.0 -c pytorch
+```
+
+Without using Cuda
+
+```bash
+$ conda install pytorch cpuonly -c pytorch
+```
+
+3. Install `simpletransformers`.
+
+```bash
+$ pip install simpletransformers
+```
 
 #### Optional
 
-1. Install Weights and Biases (wandb) for tracking and visualizing training in a web browser.
-`pip install wandb`
+1. Install `Weights` and `Biases` (wandb) for tracking and visualizing training in a web browser.
+
+```bash
+$ pip install wandb
+```
 
 ## Usage
 
 **All documentation is now live at [simpletransformers.ai](https://simpletransformers.ai/)**
 
-Simple Transformer models are built with a particular Natural Language Processing (NLP) task in mind. Each such model comes equipped with features and functionality designed to best fit the task that they are intended to perform. The high-level process of using Simple Transformers models follows the same pattern.
+`Simple Transformer` models are built with a particular Natural Language Processing (NLP) task in mind. Each such model comes equipped with features and functionality designed to best fit the task that they are intended to perform. The high-level process of using Simple Transformers models follows the same pattern.
 
 1. Initialize a task-specific model
 2. Train the model with `train_model()`
@@ -73,10 +92,10 @@ Simple Transformer models are built with a particular Natural Language Processin
 
 However, there are necessary differences between the different models to ensure that they are well suited for their intended task. The key differences will typically be the differences in input/output data formats and any task specific features/configuration options. These can all be found in the documentation section for each task.
 
-The currently implemented task-specific Simple Transformer models, along with their task, are given below.
+The currently implemented task-specific `Simple Transformer` models, along with their task, are given below.
 
-| Task                                                      | Model                           |
-| --------------------------------------------------------- | ------------------------------- |
+| Task                                                      | Model                             |
+| --------------------------------------------------------- | --------------------------------- |
 | Binary and multi-class text classification                | `ClassificationModel`           |
 | Conversational AI (chatbot training)                      | `ConvAIModel`                   |
 | Language generation                                       | `LanguageGenerationModel`       |
@@ -90,14 +109,10 @@ The currently implemented task-specific Simple Transformer models, along with th
 | Text Representation Generation                            | `RepresentationModel`           |
 
 - **Please refer to the relevant section in the [docs](https://simpletransformers.ai/) for more information on how to use these models.**
-
 - Example scripts can be found in the [examples](https://github.com/ThilinaRajapakse/simpletransformers/tree/master/examples) directory.
-
 - See the [Changelog](https://github.com/ThilinaRajapakse/simpletransformers/blob/master/CHANGELOG.md) for up-to-date changes to the project.
 
-
 ### A quick example
-
 
 ```python
 from simpletransformers.classification import ClassificationModel, ClassificationArgs
@@ -146,7 +161,7 @@ predictions, raw_outputs = model.predict(["Sam was a Wizard"])
 
 ### Experiment Tracking with Weights and Biases
 
-- W&B Notebook - [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1VpQKPA-VYrWYBeGLs7LMvxJT-CTv4Yj1)
+- W&B Notebook -
 
 ---
 
@@ -165,8 +180,11 @@ dictionary.
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+
 <!-- prettier-ignore-start -->
+
 <!-- markdownlint-disable -->
+
 <table>
   <tr>
     <td align="center"><a href="https://github.com/hawktang"><img src="https://avatars0.githubusercontent.com/u/2004071?v=4?s=100" width="100px;" alt=""/><br /><sub><b>hawktang</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=hawktang" title="Code">💻</a></td>
@@ -266,6 +284,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
 </table>
 
 <!-- markdownlint-restore -->
+
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->
@@ -275,19 +294,22 @@ This project follows the [all-contributors](https://github.com/all-contributors/
 *If you should be on this list but you aren't, or you are on the list but don't want to be, please don't hesitate to contact me!*
 
 ---
+
 ## How to Contribute
 
 ### How to Update Docs
+
 The latest version of the docs is hosted on [Github Pages](https://simpletransformers.ai/), if you want to help document Simple Transformers
 below are the steps to edit the docs.
 Docs are built using [Jekyll](https://jekyllrb.com/) library, refer to their webpage for a detailed explanation of how it works.
+
 1) **Install [Jekyll](https://jekyllrb.com/)**: Run the command `gem install bundler jekyll`
 2) **Visualizing the docs on your local computer**:
-In your terminal cd into the docs directory of this repo, eg: `cd simpletransformers/docs`
-From the docs directory run this command to serve the Jekyll docs locally: `bundle exec jekyll serve`
-Browse to http://localhost:4000 or whatever url you see in the console to visualize the docs.
+   In your terminal cd into the docs directory of this repo, eg: `cd simpletransformers/docs`
+   From the docs directory run this command to serve the Jekyll docs locally: `bundle exec jekyll serve`
+   Browse to http://localhost:4000 or whatever url you see in the console to visualize the docs.
 3) **Edit and visualize changes**:
-All the section pages of our docs can be found under `docs/_docs` directory, you can edit any file you want by following the markdown format and visualize the changes after refreshing the browser tab.
+   All the section pages of our docs can be found under `docs/_docs` directory, you can edit any file you want by following the markdown format and visualize the changes after refreshing the browser tab.
 
 ---
 
@@ -295,4 +317,4 @@ All the section pages of our docs can be found under `docs/_docs` directory, you
 
 None of this would have been possible without the hard work by the HuggingFace team in developing the [Transformers](https://github.com/huggingface/transformers) library.
 
-_<div>Icon for the Social Media Preview made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></div>_
+_`<div>`Icon for the Social Media Preview made by `<a href="https://www.flaticon.com/authors/freepik" title="Freepik">`Freepik`</a>` from `<a href="https://www.flaticon.com/" title="Flaticon">`www.flaticon.com`</a></div>`_
