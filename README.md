@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-76-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-77-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -265,6 +265,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://www.linkedin.com/in/brett-fazio/"><img src="https://avatars.githubusercontent.com/u/11671691?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Brett Fazio</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=brettfazio" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/tiena2cva"><img src="https://avatars.githubusercontent.com/u/12130196?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Viet-Tien</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=tiena2cva" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/bizzyvinci"><img src="https://avatars.githubusercontent.com/u/22333930?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Bisola Olasehinde</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=bizzyvinci" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=bizzyvinci" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://wanchichen.github.io/"><img src="https://avatars.githubusercontent.com/u/39677488?v=4?s=100" width="100px;" alt=""/><br /><sub><b>William Chen</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=wanchichen" title="Documentation">📖</a></td>
   </tr>
 </table>
 
