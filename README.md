@@ -5,9 +5,10 @@
 
 # Simple Transformers
 
-This library is based on the [Transformers](https://github.com/huggingface/transformers) library by HuggingFace. Simple Transformers lets you quickly train and evaluate Transformer models. Only 3 lines of code are needed to initialize a model, train the model, and evaluate a model.
+This library is based on the [Transformers](https://github.com/huggingface/transformers) library by HuggingFace. `Simple Transformers` lets you quickly train and evaluate Transformer models. Only 3 lines of code are needed to **initialize**, **train**, and **evaluate** a model.
 
-Supports
+**Supported Tasks:**
+
 - Sequence Classification
 - Token Classification (NER)
 - Question Answering
@@ -43,28 +44,38 @@ Supports
 
 ### With Conda
 
-1. Install Anaconda or Miniconda Package Manager from [here](https://www.anaconda.com/distribution/)
+1. Install `Anaconda` or `Miniconda` Package Manager from [here](https://www.anaconda.com/distribution/)
 2. Create a new virtual environment and install packages.
-`conda create -n st python pandas tqdm`
-`conda activate st`
-If using cuda:
-&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch>=1.6 cudatoolkit=11.0 -c pytorch`
-else:
-&nbsp;&nbsp;&nbsp;&nbsp;`conda install pytorch cpuonly -c pytorch`
+```bash
+$ conda create -n st python pandas tqdm
+$ conda activate st
+```
+With using Cuda:
+```bash
+$ conda install pytorch>=1.6 cudatoolkit=11.0 -c pytorch
+```
+Without using Cuda
+```bash
+$ conda install pytorch cpuonly -c pytorch
+```
 
-3. Install simpletransformers.
-`pip install simpletransformers`
+3. Install `simpletransformers`.
+```bash
+$ pip install simpletransformers
+```
 
 #### Optional
 
-1. Install Weights and Biases (wandb) for tracking and visualizing training in a web browser.
-`pip install wandb`
+1. Install `Weights` and `Biases` (wandb) for tracking and visualizing training in a web browser.
+```bash
+$ pip install wandb
+```
 
 ## Usage
 
 **All documentation is now live at [simpletransformers.ai](https://simpletransformers.ai/)**
 
-Simple Transformer models are built with a particular Natural Language Processing (NLP) task in mind. Each such model comes equipped with features and functionality designed to best fit the task that they are intended to perform. The high-level process of using Simple Transformers models follows the same pattern.
+`Simple Transformer` models are built with a particular Natural Language Processing (NLP) task in mind. Each such model comes equipped with features and functionality designed to best fit the task that they are intended to perform. The high-level process of using Simple Transformers models follows the same pattern.
 
 1. Initialize a task-specific model
 2. Train the model with `train_model()`
@@ -73,7 +84,7 @@ Simple Transformer models are built with a particular Natural Language Processin
 
 However, there are necessary differences between the different models to ensure that they are well suited for their intended task. The key differences will typically be the differences in input/output data formats and any task specific features/configuration options. These can all be found in the documentation section for each task.
 
-The currently implemented task-specific Simple Transformer models, along with their task, are given below.
+The currently implemented task-specific `Simple Transformer` models, along with their task, are given below.
 
 | Task                                                      | Model                           |
 | --------------------------------------------------------- | ------------------------------- |
@@ -219,7 +230,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/tekkkon"><img src="https://avatars2.githubusercontent.com/u/6827543?v=4?s=100" width="100px;" alt=""/><br /><sub><b>tekkkon</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=tekkkon" title="Code">💻</a></td>
     <td align="center"><a href="https://www.linkedin.com/in/garg-amit/"><img src="https://avatars1.githubusercontent.com/u/19791871?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Amit Garg</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Amit80007" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/caprone"><img src="https://avatars1.githubusercontent.com/u/15055331?v=4?s=100" width="100px;" alt=""/><br /><sub><b>caprone</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/issues?q=author%3Acaprone" title="Bug reports">🐛</a></td>
-    <td align="center"><a href="https://www.linkedin.com/in/ather-fawaz-024596134/"><img src="https://avatars0.githubusercontent.com/u/42374034?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Ather Fawaz</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=atherfawaz" title="Code">💻</a></td>
+    <td align="center"><a href="https://www.linkedin.com/in/ather-fawaz-024596134/"><img src="https://avatars0.githubusercontent.com/u/42374034?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Ather Fawaz</bnstall wandb`></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=atherfawaz" title="Code">💻</a></td>
     <td align="center"><a href="https://santi.uy"><img src="https://avatars3.githubusercontent.com/u/3905501?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Santiago Castro</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=bryant1410" title="Documentation">📖</a></td>
   </tr>
   <tr>
