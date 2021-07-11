@@ -61,6 +61,7 @@ from transformers import (
     ElectraConfig,
     ElectraForTokenClassification,
     ElectraTokenizer,
+    HerbertTokenizerFast,
     LayoutLMConfig,
     LayoutLMForTokenClassification,
     LayoutLMTokenizer,
@@ -173,6 +174,7 @@ class NERModel:
                 DistilBertTokenizer,
             ),
             "electra": (ElectraConfig, ElectraForTokenClassification, ElectraTokenizer),
+            "herbert": (BertConfig, BertForTokenClassification, HerbertTokenizerFast),
             "layoutlm": (
                 LayoutLMConfig,
                 LayoutLMForTokenClassification,
@@ -830,9 +832,12 @@ class NERModel:
                             **kwargs,
                         )
                         for key, value in results.items():
-                            tb_writer.add_scalar(
-                                "eval_{}".format(key), value, global_step
-                            )
+                            try:
+                                tb_writer.add_scalar(
+                                    "eval_{}".format(key), value, global_step
+                                )
+                            except (NotImplementedError, AssertionError):
+                                pass
 
                         if args.save_eval_checkpoints:
                             self.save_model(
