@@ -470,6 +470,25 @@ class NERModel:
 
         return global_step, training_details
 
+    def _calculate_loss(self, model, inputs):
+        outputs = model(**inputs)
+        # model outputs are always tuple in pytorch-transformers (see doc)
+        loss = outputs[0]
+        if self.loss_fct:
+            logits = outputs[1]
+            labels = inputs['labels']
+            attention_mask = inputs.get('attention_mask')
+            if attention_mask is not None:
+                active_loss = attention_mask.view(-1) == 1
+                active_logits = logits.view(-1, self.num_labels)
+                active_labels = torch.where(
+                    active_loss, labels.view(-1), torch.tensor(self.loss_fct.ignore_index).type_as(labels)
+                )
+                loss = self.loss_fct(active_logits, active_labels)
+            else:
+                loss = self.loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        return (loss, *outputs[1:])
+
     def train(
         self,
         train_dataset,
@@ -719,36 +738,9 @@ class NERModel:
 
                 if self.args.fp16:
                     with amp.autocast():
-                        outputs = model(**inputs)
-                        # model outputs are always tuple in pytorch-transformers (see doc)
-                        loss = outputs[0]
-                        if self.loss_fct:
-                            logits = outputs[1]
-                            labels = inputs["labels"]
-                            if inputs.get("attention_mask") is not None:
-                                active_loss = inputs.get("attention_mask").view(-1) == 1
-                                active_logits = logits.view(-1, self.num_labels)
-                                active_labels = torch.where(
-                                    active_loss,
-                                    labels.view(-1),
-                                    torch.tensor(self.loss_fct.ignore_index).type_as(
-                                        labels
-                                    ),
-                                )
-                                loss = self.loss_fct(active_logits, active_labels)
-                            else:
-                                loss = self.loss_fct(
-                                    logits.view(-1, self.num_labels), labels.view(-1)
-                                )
+                        loss, *_ = self._calculate_loss(model, inputs)
                 else:
-                    outputs = model(**inputs)
-                    # model outputs are always tuple in pytorch-transformers (see doc)
-                    loss = outputs[0]
-                    if self.loss_fct:
-                        logits = outputs[1]
-                        loss = self.loss_fct(
-                            logits.view(-1, self.num_labels), inputs["labels"].view(-1)
-                        )
+                    loss, *_ = self._calculate_loss(model, inputs)
 
                 if args.n_gpu > 1:
                     loss = (
@@ -1206,20 +1198,11 @@ class NERModel:
 
                 if self.args.fp16:
                     with amp.autocast():
-                        outputs = model(**inputs)
+                        outputs = self._calculate_loss(model, inputs)
                         tmp_eval_loss, logits = outputs[:2]
-                        if self.loss_fct:
-                            tmp_eval_loss = self.loss_fct(
-                                logits.view(-1, self.num_labels),
-                                inputs["labels"].view(-1),
-                            )
                 else:
-                    outputs = model(**inputs)
+                    outputs = self._calculate_loss(model, inputs)
                     tmp_eval_loss, logits = outputs[:2]
-                    if self.loss_fct:
-                        tmp_eval_loss = self.loss_fct(
-                            logits.view(-1, self.num_labels), inputs["labels"].view(-1)
-                        )
 
                 if self.args.n_gpu > 1:
                     tmp_eval_loss = tmp_eval_loss.mean()
@@ -1498,21 +1481,11 @@ class NERModel:
 
                     if self.args.fp16:
                         with amp.autocast():
-                            outputs = model(**inputs)
+                            outputs = self._calculate_loss(model, inputs)
                             tmp_eval_loss, logits = outputs[:2]
-                            if self.loss_fct:
-                                tmp_eval_loss = self.loss_fct(
-                                    logits.view(-1, self.num_labels),
-                                    inputs["labels"].view(-1),
-                                )
                     else:
-                        outputs = model(**inputs)
+                        outputs = self._calculate_loss(model, inputs)
                         tmp_eval_loss, logits = outputs[:2]
-                        if self.loss_fct:
-                            tmp_eval_loss = self.loss_fct(
-                                logits.view(-1, self.num_labels),
-                                inputs["labels"].view(-1),
-                            )
 
                     if self.args.n_gpu > 1:
                         tmp_eval_loss = tmp_eval_loss.mean()
