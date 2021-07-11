@@ -678,6 +678,34 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "brettfazio",
+      "name": "Brett Fazio",
+      "avatar_url": "https://avatars.githubusercontent.com/u/11671691?v=4",
+      "profile": "https://www.linkedin.com/in/brett-fazio/",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "tiena2cva",
+      "name": "Viet-Tien",
+      "avatar_url": "https://avatars.githubusercontent.com/u/12130196?v=4",
+      "profile": "https://github.com/tiena2cva",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "bizzyvinci",
+      "name": "Bisola Olasehinde",
+      "avatar_url": "https://avatars.githubusercontent.com/u/22333930?v=4",
+      "profile": "https://github.com/bizzyvinci",
+      "contributions": [
+        "code",
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
