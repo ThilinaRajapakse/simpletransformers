@@ -678,6 +678,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "brettfazio",
+      "name": "Brett Fazio",
+      "avatar_url": "https://avatars.githubusercontent.com/u/11671691?v=4",
+      "profile": "https://www.linkedin.com/in/brett-fazio/",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
