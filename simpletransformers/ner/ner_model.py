@@ -109,6 +109,8 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT = ["squeezebert", "deberta", "mpnet"]
+
 MODELS_WITH_EXTRA_SEP_TOKEN = [
     "roberta",
     "camembert",
@@ -118,12 +120,14 @@ MODELS_WITH_EXTRA_SEP_TOKEN = [
 ]
 
 
+
 class NERModel:
     def __init__(
         self,
         model_type,
         model_name,
         labels=None,
+        weight=None,
         args=None,
         use_cuda=True,
         cuda_device=-1,
@@ -261,6 +265,11 @@ class NERModel:
             self.config = config_class.from_pretrained(model_name, **self.args.config)
             self.num_labels = self.config.num_labels
 
+        if model_type in MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT and weight is not None:
+            raise ValueError("{} does not currently support class weights".format(model_type))
+        else:
+            self.weight = weight
+
         if use_cuda:
             if torch.cuda.is_available():
                 if cuda_device == -1:
@@ -274,6 +283,11 @@ class NERModel:
                 )
         else:
             self.device = "cpu"
+
+        if self.weight:
+            self.loss_fct = CrossEntropyLoss(weight=torch.Tensor(self.weight).to(self.device))
+        else:
+            self.loss_fct = None
 
         if self.args.onnx:
             from onnxruntime import InferenceSession, SessionOptions
@@ -705,10 +719,25 @@ class NERModel:
                         outputs = model(**inputs)
                         # model outputs are always tuple in pytorch-transformers (see doc)
                         loss = outputs[0]
+                        if self.loss_fct:
+                            logits = outputs[1]
+                            labels = inputs['labels']
+                            if inputs.get('attention_mask') is not None:
+                                active_loss = attention_mask.view(-1) == 1
+                                active_logits = logits.view(-1, self.num_labels)
+                                active_labels = torch.where(
+                                    active_loss, labels.view(-1), torch.tensor(loss_fct.ignore_index).type_as(labels)
+                                )
+                                loss = loss_fct(active_logits, active_labels)
+                            else:
+                                loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
                 else:
                     outputs = model(**inputs)
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     loss = outputs[0]
+                    if self.loss_fct:
+                        logits = outputs[1]
+                        loss = self.loss_fct(logits.view(-1, self.num_labels), inputs['labels'].view(-1))
 
                 if args.n_gpu > 1:
                     loss = (
@@ -1168,9 +1197,13 @@ class NERModel:
                     with amp.autocast():
                         outputs = model(**inputs)
                         tmp_eval_loss, logits = outputs[:2]
+                        if self.loss_fct:
+                            tmp_eval_loss = self.loss_fct(logits.view(-1, self.num_labels), inputs['labels'].view(-1))
                 else:
                     outputs = model(**inputs)
                     tmp_eval_loss, logits = outputs[:2]
+                    if self.loss_fct:
+                        tmp_eval_loss = self.loss_fct(logits.view(-1, self.num_labels), inputs['labels'].view(-1))
 
                 if self.args.n_gpu > 1:
                     tmp_eval_loss = tmp_eval_loss.mean()
@@ -1451,9 +1484,14 @@ class NERModel:
                         with amp.autocast():
                             outputs = model(**inputs)
                             tmp_eval_loss, logits = outputs[:2]
+                            if self.loss_fct:
+                                tmp_eval_loss = self.loss_fct(
+                                    logits.view(-1, self.num_labels), inputs['labels'].view(-1))
                     else:
                         outputs = model(**inputs)
                         tmp_eval_loss, logits = outputs[:2]
+                        if self.loss_fct:
+                            tmp_eval_loss = self.loss_fct(logits.view(-1, self.num_labels), inputs['labels'].view(-1))
 
                     if self.args.n_gpu > 1:
                         tmp_eval_loss = tmp_eval_loss.mean()
