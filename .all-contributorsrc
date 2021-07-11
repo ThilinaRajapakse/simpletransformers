@@ -687,6 +687,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "tiena2cva",
+      "name": "Viet-Tien",
+      "avatar_url": "https://avatars.githubusercontent.com/u/12130196?v=4",
+      "profile": "https://github.com/tiena2cva",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
