@@ -112,14 +112,14 @@ def read_examples_from_file(data_file, mode, bbox=False):
                         x1 = []
                         y1 = []
                 else:
-                    splits = line.split(" ")
+                    splits = line.split()
                     words.append(splits[0])
                     if len(splits) > 1:
-                        labels.append(splits[1].replace("\n", ""))
-                        x0.append(split[2].replace("\n", ""))
-                        y0.append(split[3].replace("\n", ""))
-                        x1.append(split[4].replace("\n", ""))
-                        y1.append(split[5].replace("\n", ""))
+                        labels.append(splits[1])
+                        x0.append(splits[2])
+                        y0.append(splits[3])
+                        x1.append(splits[4])
+                        y1.append(splits[5])
                     else:
                         # Examples could have no label for mode = "test"
                         labels.append("O")
