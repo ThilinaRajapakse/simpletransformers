@@ -706,6 +706,15 @@
         "code",
         "doc"
       ]
+    },
+    {
+      "login": "wanchichen",
+      "name": "William Chen",
+      "avatar_url": "https://avatars.githubusercontent.com/u/39677488?v=4",
+      "profile": "https://wanchichen.github.io/",
+      "contributions": [
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
