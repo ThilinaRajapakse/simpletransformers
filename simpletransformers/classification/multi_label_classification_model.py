@@ -21,6 +21,7 @@ from transformers import (
     DistilBertTokenizer,
     ElectraConfig,
     ElectraTokenizer,
+    HerbertTokenizer,
     FlaubertConfig,
     FlaubertTokenizer,
     LongformerConfig,
@@ -127,6 +128,11 @@ class MultiLabelClassificationModel(ClassificationModel):
                 ElectraConfig,
                 ElectraForMultiLabelSequenceClassification,
                 ElectraTokenizer,
+            ),
+            "herbert": (
+              BertConfig,
+              BertForMultiLabelSequenceClassification,
+              HerbertTokenizer
             ),
             "flaubert": (
                 FlaubertConfig,

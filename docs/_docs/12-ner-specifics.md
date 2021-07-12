@@ -35,6 +35,7 @@ New model types are regularly added to the library. Named Entity Recognition tas
 | DeBERTaV2   | deberta-v2                |
 | DistilBERT  | distilbert                |
 | ELECTRA     | electra                   |
+| HerBERT     | herbert                   |
 | LayoutLM    | layoutlm                  |
 | Longformer  | longformer                |
 | MobileBERT  | mobilebert                |
