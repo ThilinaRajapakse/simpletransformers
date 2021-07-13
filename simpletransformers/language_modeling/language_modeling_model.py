@@ -1426,6 +1426,8 @@ class LanguageModelingModel:
             )
         elif self.args.model_type in ['bigbird']:
             tokenizer = SentencePieceBPETokenizer()
+            self.args.special_tokens = ['</s>', '<s>', '<unk>', '<pad>', '[SEP]', '[CLS]', '[MASK]']
+
             tokenizer.train(
                 files=train_files,
                 vocab_size=self.args.vocab_size,
