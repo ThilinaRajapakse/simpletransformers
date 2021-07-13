@@ -130,9 +130,9 @@ class MultiLabelClassificationModel(ClassificationModel):
                 ElectraTokenizer,
             ),
             "herbert": (
-              BertConfig,
-              BertForMultiLabelSequenceClassification,
-              HerbertTokenizer
+                BertConfig,
+                BertForMultiLabelSequenceClassification,
+                HerbertTokenizer,
             ),
             "flaubert": (
                 FlaubertConfig,

@@ -252,7 +252,11 @@ class ClassificationModel:
                 FlaubertForSequenceClassification,
                 FlaubertTokenizer,
             ),
-            "herbert": (BertConfig, BertForSequenceClassification, HerbertTokenizerFast),
+            "herbert": (
+                BertConfig,
+                BertForSequenceClassification,
+                HerbertTokenizerFast,
+            ),
             "layoutlm": (
                 LayoutLMConfig,
                 LayoutLMForSequenceClassification,
