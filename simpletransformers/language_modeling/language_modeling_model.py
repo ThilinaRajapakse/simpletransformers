@@ -25,6 +25,7 @@ from sklearn.metrics import (
 )
 from tensorboardX import SummaryWriter
 from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
+from tokenizers.implementations import SentencePieceBPETokenizer
 from tokenizers.processors import BertProcessing
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
@@ -47,6 +48,9 @@ from transformers import (
     BertConfig,
     BertForMaskedLM,
     BertTokenizer,
+    BigBirdConfig,
+    BigBirdForMaskedLM,
+    BigBirdTokenizer,
     CamembertConfig,
     CamembertForMaskedLM,
     CamembertTokenizer,
@@ -70,7 +74,7 @@ from transformers import (
     PreTrainedTokenizer,
     RobertaConfig,
     RobertaForMaskedLM,
-    RobertaTokenizer,
+    RobertaTokenizer
 )
 from transformers.data.datasets.language_modeling import (
     LineByLineTextDataset,
@@ -99,6 +103,7 @@ logger = logging.getLogger(__name__)
 MODEL_CLASSES = {
     "auto": (AutoConfig, AutoModelWithLMHead, AutoTokenizer),
     "bert": (BertConfig, BertForMaskedLM, BertTokenizer),
+    "bigbird": (BigBirdConfig, BigBirdForMaskedLM, BigBirdTokenizer),
     "camembert": (CamembertConfig, CamembertForMaskedLM, CamembertTokenizer),
     "distilbert": (DistilBertConfig, DistilBertForMaskedLM, DistilBertTokenizer),
     "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
@@ -1418,6 +1423,15 @@ class LanguageModelingModel:
                 min_frequency=self.args.min_frequency,
                 special_tokens=self.args.special_tokens,
                 wordpieces_prefix="##",
+            )
+        elif self.args.model_type in ['bigbird']:
+            tokenizer = SentencePieceBPETokenizer()
+            tokenizer.train(
+                files=train_files,
+                vocab_size=self.args.vocab_size,
+                min_frequency=self.args.min_frequency,
+                show_progress=True,
+                special_tokens=self.args.special_tokens
             )
         else:
             tokenizer = ByteLevelBPETokenizer(lowercase=self.args.do_lower_case)
