@@ -1425,16 +1425,34 @@ class LanguageModelingModel:
                 wordpieces_prefix="##",
             )
         elif self.args.model_type in ['bigbird']:
-            tokenizer = SentencePieceBPETokenizer()
-            self.args.special_tokens = ['</s>', '<s>', '<unk>', '<pad>', '[SEP]', '[CLS]', '[MASK]']
+            # The google BigBird way
+            import sentencepiece as spm
+            import shutil
+            import os
+            # </s>,<s>,<unk>,<pad> are built in -- leave as default
+            spm.SentencePieceTrainer.Train(
+                f"--input={train_files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix=spiece --vocab_size={self.args.vocab_size}")
 
-            tokenizer.train(
-                files=train_files,
-                vocab_size=self.args.vocab_size,
-                min_frequency=self.args.min_frequency,
-                show_progress=True,
-                special_tokens=self.args.special_tokens
-            )
+            os.makedirs(output_dir, exist_ok=True)
+
+            if os.path.exists(hparams['output_dir'] + '/' + 'spiece.model'):
+                os.remove(hparams['output_dir'] + '/' + 'spiece.model')
+            shutil.move(src='spiece.model', dst=output_dir)
+
+            if os.path.exists(hparams['output_dir'] + '/' + 'spiece.vocab'):
+                os.remove(hparams['output_dir'] + '/' + 'spiece.vocab')
+            shutil.move(src='spiece.vocab', dst=output_dir)
+
+            # tokenizer = SentencePieceBPETokenizer()
+            # self.args.special_tokens = ['</s>', '<s>', '<unk>', '<pad>', '[SEP]', '[CLS]', '[MASK]']
+            #
+            # tokenizer.train(
+            #     files=train_files,
+            #     vocab_size=self.args.vocab_size,
+            #     min_frequency=self.args.min_frequency,
+            #     show_progress=True,
+            #     special_tokens=self.args.special_tokens
+            # )
         else:
             tokenizer = ByteLevelBPETokenizer(lowercase=self.args.do_lower_case)
 
