@@ -1455,14 +1455,15 @@ class LanguageModelingModel:
                 special_tokens=self.args.special_tokens,
             )
 
-        os.makedirs(output_dir, exist_ok=True)
+        if self.args.model_type not in ['bigbird']:
+            os.makedirs(output_dir, exist_ok=True)
 
-        tokenizer.save_model(output_dir)
-        logger.info(
-            " Training of {} tokenizer complete. Saved to {}.".format(
-                tokenizer_name, output_dir
+            tokenizer.save_model(output_dir)
+            logger.info(
+                " Training of {} tokenizer complete. Saved to {}.".format(
+                    tokenizer_name, output_dir
+                )
             )
-        )
 
         _, _, tokenizer_class = MODEL_CLASSES[self.args.model_type]
         tokenizer = tokenizer_class.from_pretrained(output_dir)
