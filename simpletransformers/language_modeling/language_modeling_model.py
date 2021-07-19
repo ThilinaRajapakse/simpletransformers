@@ -1426,22 +1426,24 @@ class LanguageModelingModel:
             )
         elif self.args.model_type in ['bigbird']:
             # The google BigBird way
+            # Tokenizers sentencepiece does not build a BigBird compatible model
             import sentencepiece as spm
             import shutil
-            import os
 
             # </s>,<s>,<unk>,<pad> are built in -- leave as default
-            spm.SentencePieceTrainer.Train(
-                f"--input={train_files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix=spiece --vocab_size={self.args.vocab_size}")
-
+            # BigBird uses spiece as a vocab model prefix
             os.makedirs(output_dir, exist_ok=True)
+            files = ",".join(train_files)
+            spm.SentencePieceTrainer.Train(
+                f"--input={files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix=spiece --vocab_size={self.args.vocab_size}")
 
-            if os.path.exists(hparams['output_dir'] + '/' + 'spiece.model'):
-                os.remove(hparams['output_dir'] + '/' + 'spiece.model')
+            # SentencePiece There is no option for output path https://github.com/google/sentencepiece/blob/master/doc/options.md
+            if os.path.exists(output_dir + '/' + 'spiece.model'):
+                os.remove(output_dir + '/' + 'spiece.model')
             shutil.move(src='spiece.model', dst=output_dir)
 
-            if os.path.exists(hparams['output_dir'] + '/' + 'spiece.vocab'):
-                os.remove(hparams['output_dir'] + '/' + 'spiece.vocab')
+            if os.path.exists(output_dir + '/' + 'spiece.vocab'):
+                os.remove(output_dir + '/' + 'spiece.vocab')
             shutil.move(src='spiece.vocab', dst=output_dir)
         else:
             tokenizer = ByteLevelBPETokenizer(lowercase=self.args.do_lower_case)
