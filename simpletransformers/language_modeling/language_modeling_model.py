@@ -107,7 +107,7 @@ MODEL_CLASSES = {
     "longformer": (LongformerConfig, LongformerForMaskedLM, LongformerTokenizer),
     "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
-    "xlmroberta": (XLMRobertaConfig, XLMRobertaForMaskedLM,XLMRobertaTokenizer),
+    "xlmroberta": (XLMRobertaConfig, XLMRobertaForMaskedLM, XLMRobertaTokenizer),
 }
 
 
