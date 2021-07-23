@@ -76,7 +76,7 @@ from transformers import (
     RobertaForMaskedLM,
     RobertaTokenizer,
     XLMRobertaConfig,
-    XLMRobertaForTokenClassification,
+    XLMRobertaForMaskedLM,
     XLMRobertaTokenizer
 )
 from transformers.data.datasets.language_modeling import LineByLineTextDataset, TextDataset
@@ -107,7 +107,7 @@ MODEL_CLASSES = {
     "longformer": (LongformerConfig, LongformerForMaskedLM, LongformerTokenizer),
     "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
-    "xlmroberta": (XLMRobertaConfig, XLMRobertaForTokenClassification,XLMRobertaTokenizer),
+    "xlmroberta": (XLMRobertaConfig, XLMRobertaForMaskedLM,XLMRobertaTokenizer),
 }
 
 
