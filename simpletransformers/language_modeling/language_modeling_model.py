@@ -1115,9 +1115,9 @@ class LanguageModelingModel:
                 special_tokens=self.args.special_tokens,
                 wordpieces_prefix="##",
             )
-        elif self.args.model_type in ['bigbird']:
+        elif self.args.model_type in ['bigbird', 'xlmroberta']:
             # The google BigBird way
-            # Tokenizers sentencepiece does not build a BigBird compatible model
+            # Tokenizers sentencepiece does not build a BigBird compatible vocabulary model
             import sentencepiece as spm
             import shutil
 
@@ -1125,8 +1125,13 @@ class LanguageModelingModel:
             # BigBird uses spiece as a vocab model prefix
             os.makedirs(output_dir, exist_ok=True)
             files = ",".join(train_files)
+
+            prefix='spiece'
+            if self.args.model_type in ['xlmroberta']:
+                prefix='sentencepiece.bpe'
+
             spm.SentencePieceTrainer.Train(
-                f"--input={files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix=spiece --vocab_size={self.args.vocab_size}")
+                f"--input={files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix={prefix} --vocab_size={self.args.vocab_size}")
 
             # SentencePiece There is no option for output path https://github.com/google/sentencepiece/blob/master/doc/options.md
             if os.path.exists(output_dir + '/' + 'spiece.model'):
