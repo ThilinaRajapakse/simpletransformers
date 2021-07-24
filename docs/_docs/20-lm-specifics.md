@@ -2,10 +2,9 @@
 title: Language Modeling Specifics
 permalink: /docs/lm-specifics/
 excerpt: "Specific notes for Language Modeling tasks."
-last_modified_at: 2020/12/08 00:05:36
+last_modified_at: 2021/07/24 13:16:18
 toc: true
 ---
-
 The idea of (probabilistic) language modeling is to calculate the probability of a sentence (or sequence of words). This can be used to find the probabilities for the next word in a sequence, or the probabilities for possible words at a given (masked) position.
 
 The commonly used *pre-training* strategies reflect this idea. For example;
@@ -44,7 +43,6 @@ The process of performing Language Modeling in Simple Transformers follows the [
 2. Train the model with `train_model()`
 3. Evaluate the model with `eval_model()`
 
-
 ## Supported Model Types
 
 New model types are regularly added to the library. Language Modeling tasks currently supports the model types given below.
@@ -52,6 +50,7 @@ New model types are regularly added to the library. Language Modeling tasks curr
 | Model      | Model code for `LanguageModelingModel` |
 | ---------- | -------------------------------------- |
 | BERT       | bert                                   |
+| BigBird    | bigbird                                |
 | CamemBERT  | camembert                              |
 | DistilBERT | distilbert                             |
 | ELECTRA    | electra                                |
@@ -59,10 +58,10 @@ New model types are regularly added to the library. Language Modeling tasks curr
 | Longformer | longformer                             |
 | OpenAI GPT | openai-gpt                             |
 | RoBERTa    | roberta                                |
+| XLMRoBERTa | xlmroberta                             |
 
 **Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
 {: .notice--success}
-
 
 ## ELECTRA Models
 
@@ -76,44 +75,43 @@ You can configure an ELECTRA model in several ways by using the options below.
 - To load a saved ELECTRA model, you can provide the path to the save files as `model_name`.
 - However, the pre-trained ELECTRA models made public by Google are available as separate generator and discriminator models. When starting from these models (Language Model fine-tuning), set `model_name` to `electra` and provide the pre-trained models as `generator_name` and `discriminator_name`. These two parameters can also be used to load locally saved generator and/or discriminator models.
 
-    ```python
-    model = LanguageModelingModel(
-        "electra",
-        "electra",
-        generator_name="outputs/generator_model",
-        discriminator_name="outputs/disciminator_model",
-    )
+  ```python
+  model = LanguageModelingModel(
+      "electra",
+      "electra",
+      generator_name="outputs/generator_model",
+      discriminator_name="outputs/disciminator_model",
+  )
 
-    ```
+  ```
 - When training an ELECTRA language model from scratch, you can define the architecture by using the `generator_config` and `discriminator_config` in the `args` dict. The [default values](https://huggingface.co/transformers/model_doc/electra.html#electraconfig) will be used for any config parameters that aren't specified.
 
-    ```python
-    model_args = {
-        "vocab_size": 52000,
-        "generator_config": {
-            "embedding_size": 128,
-            "hidden_size": 256,
-            "num_hidden_layers": 3,
-        },
-        "discriminator_config": {
-            "embedding_size": 128,
-            "hidden_size": 256,
-        },
-    }
+  ```python
+  model_args = {
+      "vocab_size": 52000,
+      "generator_config": {
+          "embedding_size": 128,
+          "hidden_size": 256,
+          "num_hidden_layers": 3,
+      },
+      "discriminator_config": {
+          "embedding_size": 128,
+          "hidden_size": 256,
+      },
+  }
 
-    train_file = "data/train_all.txt"
+  train_file = "data/train_all.txt"
 
-    model = LanguageModelingModel(
-        "electra",
-        None,
-        args=model_args,
-        train_files=train_file,
-    )
+  model = LanguageModelingModel(
+      "electra",
+      None,
+      args=model_args,
+      train_files=train_file,
+  )
 
-    ```
+  ```
 
 Refer to the [Language Modeling Minimal Start](/docs/lm-minimal-start/) for full (minimal) examples.
-
 
 ### Saving ELECTRA models
 
@@ -139,7 +137,6 @@ classification_model = ClassificationModel("electra", "outputs/checkpoint-1-epoc
 **Note:** Both `save_discriminator()` and `save_generator()` methods takes in an optional `output_dir` argument which specifies where the model should be saved.
 {: .notice--info}
 
-
 ## Distributed Training
 
 Simple Transformers supports distributed language model training.
@@ -148,6 +145,7 @@ Simple Transformers supports distributed language model training.
 {: .notice--success}
 
 You can launch distributed training as shown below.
+
 ```bash
 python -m torch.distributed.launch --nproc_per_node=4 train_new_lm.py
 ```
