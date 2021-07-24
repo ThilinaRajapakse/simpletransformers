@@ -1121,17 +1121,21 @@ class LanguageModelingModel:
             import sentencepiece as spm
             import shutil
 
-            # </s>,<s>,<unk>,<pad> are built in -- leave as default
-            # BigBird uses spiece as a vocab model prefix
             os.makedirs(output_dir, exist_ok=True)
             files = ",".join(train_files)
 
-            prefix='spiece'
             if self.args.model_type in ['xlmroberta']:
+                # </s>,<s>,<unk>,<pad> are built in -- leave as default
+                # XLMRoberta uses sentencepiece.bpe as a vocab model prefix
                 prefix='sentencepiece.bpe'
-
-            spm.SentencePieceTrainer.Train(
-                f"--input={files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix={prefix} --vocab_size={self.args.vocab_size}")
+                spm.SentencePieceTrainer.Train(
+                    f"--input={files} --user_defined_symbols='<mask>, <s>NOTUSED, </s>NOTUSED' --model_prefix={prefix} --vocab_size={self.args.vocab_size}")
+            else:
+                # </s>,<s>,<unk>,<pad> are built in -- leave as default
+                # BigBird uses spiece as a vocab model prefix
+                prefix = 'spiece'
+                spm.SentencePieceTrainer.Train(
+                    f"--input={files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix=spiece --vocab_size={self.args.vocab_size}")
 
             # SentencePiece There is no option for output path https://github.com/google/sentencepiece/blob/master/doc/options.md
             if os.path.exists(output_dir + '/' + 'spiece.model'):
@@ -1151,7 +1155,7 @@ class LanguageModelingModel:
                 special_tokens=self.args.special_tokens,
             )
 
-        if self.args.model_type not in ['bigbird']:
+        if self.args.model_type not in ['bigbird', 'xlmroberta']:
             os.makedirs(output_dir, exist_ok=True)
 
             tokenizer.save_model(output_dir)
