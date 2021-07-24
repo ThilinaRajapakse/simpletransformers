@@ -1129,7 +1129,7 @@ class LanguageModelingModel:
                 # XLMRoberta uses sentencepiece.bpe as a vocab model prefix
                 prefix='sentencepiece.bpe'
                 spm.SentencePieceTrainer.Train(
-                    f"--input={files} --user_defined_symbols='<mask>, <s>NOTUSED, </s>NOTUSED' --model_prefix={prefix} --vocab_size={self.args.vocab_size}")
+                    f"--input={files} --user_defined_symbols='<mask>,<s>NOTUSED,</s>NOTUSED' --model_prefix={prefix} --vocab_size={self.args.vocab_size}")
             else:
                 # </s>,<s>,<unk>,<pad> are built in -- leave as default
                 # BigBird uses spiece as a vocab model prefix
@@ -1138,13 +1138,13 @@ class LanguageModelingModel:
                     f"--input={files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix=spiece --vocab_size={self.args.vocab_size}")
 
             # SentencePiece There is no option for output path https://github.com/google/sentencepiece/blob/master/doc/options.md
-            if os.path.exists(output_dir + '/' + 'spiece.model'):
-                os.remove(output_dir + '/' + 'spiece.model')
-            shutil.move(src='spiece.model', dst=output_dir)
+            if os.path.exists(output_dir + '/' + f'{prefix}.model'):
+                os.remove(output_dir + '/' + f'{prefix}.model')
+            shutil.move(src=f'{prefix}.model', dst=output_dir)
 
-            if os.path.exists(output_dir + '/' + 'spiece.vocab'):
-                os.remove(output_dir + '/' + 'spiece.vocab')
-            shutil.move(src='spiece.vocab', dst=output_dir)
+            if os.path.exists(output_dir + '/' + f'{prefix}.vocab'):
+                os.remove(output_dir + '/' + f'{prefix}.vocab')
+            shutil.move(src=f'{prefix}.vocab', dst=output_dir)
         else:
             tokenizer = ByteLevelBPETokenizer(lowercase=self.args.do_lower_case)
 
