@@ -301,6 +301,7 @@ class Seq2SeqArgs(ModelArgs):
     model_class: str = "Seq2SeqModel"
     base_marian_model_name: str = None
     dataset_class: Dataset = None
+    dataset_cache_dir: str = None
     do_sample: bool = False
     early_stopping: bool = True
     evaluate_generated_text: bool = False

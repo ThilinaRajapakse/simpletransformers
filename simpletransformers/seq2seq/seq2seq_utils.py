@@ -103,7 +103,8 @@ def preprocess_batch_for_hf_dataset(
                 return_tensors="np",
                 truncation=True,
             )
-        except TypeError:
+        except (TypeError, ValueError) as e:
+            logger.warn(e)
             logger.warn(
                 """Error encountered while converting target_text.
             All target_text values have been manually cast to String as a workaround.
@@ -160,6 +161,7 @@ def load_hf_dataset(data, encoder_tokenizer, decoder_tokenizer, args):
             download_mode="force_redownload"
             if args.reprocess_input_data
             else "reuse_dataset_if_exists",
+            cache_dir=args.dataset_cache_dir,
         )
     else:
         dataset = HFDataset.from_pandas(data)
@@ -482,11 +484,19 @@ def generate_faiss_index_dataset(data, ctx_encoder_name, args, device):
     if isinstance(data, str):
         if args.include_title_in_knowledge_dataset:
             dataset = load_dataset(
-                "csv", data_files=data, delimiter="\t", column_names=["title", "text"]
+                "csv",
+                data_files=data,
+                delimiter="\t",
+                column_names=["title", "text"],
+                cache_dir=args.dataset_cache_dir,
             )
         else:
             dataset = load_dataset(
-                "csv", data_files=data, delimiter="\t", column_names=["text"]
+                "csv",
+                data_files=data,
+                delimiter="\t",
+                column_names=["text"],
+                cache_dir=args.dataset_cache_dir,
             )
     else:
         dataset = HFDataset.from_pandas(data)
