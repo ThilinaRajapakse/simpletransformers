@@ -1126,12 +1126,14 @@ class LanguageModelingModel:
             os.makedirs(output_dir, exist_ok=True)
             files = ",".join(train_files)
 
-            prefix='spiece'
             if self.args.model_type in ['xlmroberta']:
                 prefix='sentencepiece.bpe'
-
-            spm.SentencePieceTrainer.Train(
-                f"--input={files} --user_defined_symbols='<mask>, <s>NOTUSED, </s>NOTUSED' --model_prefix={prefix} --vocab_size={self.args.vocab_size}")
+                spm.SentencePieceTrainer.Train(
+                    f"--input={files} --user_defined_symbols='<mask>, <s>NOTUSED, </s>NOTUSED' --model_prefix={prefix} --vocab_size={self.args.vocab_size}")
+            else:
+                prefix = 'spiece'
+                spm.SentencePieceTrainer.Train(
+                    f"--input={files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix=spiece --vocab_size={self.args.vocab_size}")
 
             # SentencePiece There is no option for output path https://github.com/google/sentencepiece/blob/master/doc/options.md
             if os.path.exists(output_dir + '/' + 'spiece.model'):
