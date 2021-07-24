@@ -1155,7 +1155,7 @@ class LanguageModelingModel:
                 special_tokens=self.args.special_tokens,
             )
 
-        if self.args.model_type not in ['bigbird']:
+        if self.args.model_type not in ['bigbird', 'xlmroberta']:
             os.makedirs(output_dir, exist_ok=True)
 
             tokenizer.save_model(output_dir)
