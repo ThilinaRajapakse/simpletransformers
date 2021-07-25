@@ -474,6 +474,7 @@ class NERModel:
             output_dir,
             show_running_loss=True,
             eval_data=None,
+            test_data=None,
             verbose=True,
             **kwargs,
     ):
@@ -833,6 +834,18 @@ class NERModel:
                         training_progress_scores["train_loss"].append(current_loss)
                         for key in results:
                             training_progress_scores[key].append(results[key])
+
+                        if test_data is not None:
+                            test_results, _, _ = self.eval_model(
+                                    test_data,
+                                    verbose=verbose and args.evaluate_during_training_verbose,
+                                    silent=args.evaluate_during_training_silent,
+                                    wandb_log=False,
+                                    **kwargs,
+                            )
+                            for key in test_results:
+                                training_progress_scores['test_'+key].append(test_results[key])
+
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
                             os.path.join(
@@ -970,6 +983,18 @@ class NERModel:
                 training_progress_scores["train_loss"].append(current_loss)
                 for key in results:
                     training_progress_scores[key].append(results[key])
+
+                if test_data is not None:
+                    test_results, _, _ = self.eval_model(
+                        test_data,
+                        verbose=verbose and args.evaluate_during_training_verbose,
+                        silent=args.evaluate_during_training_silent,
+                        wandb_log=False,
+                        **kwargs,
+                    )
+                    for key in test_results:
+                        training_progress_scores['test_'+key].append(test_results[key])
+
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(
                     os.path.join(args.output_dir, "training_progress_scores.csv"),
@@ -1251,7 +1276,10 @@ class NERModel:
 
         extra_metrics = {}
         for metric, func in kwargs.items():
-            extra_metrics[metric] = func(out_label_list, preds_list)
+            if metric.startswith("prob_"):
+                extra_metrics[metric] = func(out_label_ids, model_outputs)
+            else:
+                extra_metrics[metric] = func(out_label_ids, preds)
 
         result = {
             "eval_loss": eval_loss,
