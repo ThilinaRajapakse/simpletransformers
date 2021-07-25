@@ -94,8 +94,8 @@ class TverskyLoss(nn.Module):
         input_soft = input_soft[input_mask]
 
         # create the labels one hot tensor
-        target_one_hot = F.one_hot(target, num_classes=input.shape[1],
-                                   device=input.device, dtype=input.dtype)
+        target_one_hot = F.one_hot(target, num_classes=input.shape[1]) \
+            .to(input.device).type(input_soft.dtype)
 
         # compute the actual dice score
         intersection = torch.sum(input_soft * target_one_hot, -1)
