@@ -20,6 +20,7 @@ from seqeval.metrics import (
 )
 from simpletransformers.config.model_args import NERArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
+from simpletransformers.losses.loss_utils import init_loss, _calculate_loss
 from simpletransformers.ner.ner_utils import (
     InputExample,
     LazyNERDataset,
@@ -123,16 +124,16 @@ MODELS_WITH_EXTRA_SEP_TOKEN = [
 
 class NERModel:
     def __init__(
-        self,
-        model_type,
-        model_name,
-        labels=None,
-        weight=None,
-        args=None,
-        use_cuda=True,
-        cuda_device=-1,
-        onnx_execution_provider=None,
-        **kwargs,
+            self,
+            model_type,
+            model_name,
+            labels=None,
+            weight=None,
+            args=None,
+            use_cuda=True,
+            cuda_device=-1,
+            onnx_execution_provider=None,
+            **kwargs,
     ):
         """
         Initializes a NERModel
@@ -287,12 +288,7 @@ class NERModel:
         else:
             self.device = "cpu"
 
-        if self.weight:
-            self.loss_fct = CrossEntropyLoss(
-                weight=torch.Tensor(self.weight).to(self.device)
-            )
-        else:
-            self.loss_fct = None
+        self.loss_fct = init_loss(weight=self.weight, device=self.device, args=args)
 
         if self.args.onnx:
             from onnxruntime import InferenceSession, SessionOptions
@@ -387,14 +383,14 @@ class NERModel:
             self.args.wandb_project = None
 
     def train_model(
-        self,
-        train_data,
-        output_dir=None,
-        show_running_loss=True,
-        args=None,
-        eval_data=None,
-        verbose=True,
-        **kwargs,
+            self,
+            train_data,
+            output_dir=None,
+            show_running_loss=True,
+            args=None,
+            eval_data=None,
+            verbose=True,
+            **kwargs,
     ):
         """
         Trains the model using 'train_data'
@@ -439,9 +435,9 @@ class NERModel:
             output_dir = self.args.output_dir
 
         if (
-            os.path.exists(output_dir)
-            and os.listdir(output_dir)
-            and not self.args.overwrite_output_dir
+                os.path.exists(output_dir)
+                and os.listdir(output_dir)
+                and not self.args.overwrite_output_dir
         ):
             raise ValueError(
                 "Output directory ({}) already exists and is not empty."
@@ -472,35 +468,14 @@ class NERModel:
 
         return global_step, training_details
 
-    def _calculate_loss(self, model, inputs):
-        outputs = model(**inputs)
-        # model outputs are always tuple in pytorch-transformers (see doc)
-        loss = outputs[0]
-        if self.loss_fct:
-            logits = outputs[1]
-            labels = inputs["labels"]
-            attention_mask = inputs.get("attention_mask")
-            if attention_mask is not None:
-                active_loss = attention_mask.view(-1) == 1
-                active_logits = logits.view(-1, self.num_labels)
-                active_labels = torch.where(
-                    active_loss,
-                    labels.view(-1),
-                    torch.tensor(self.loss_fct.ignore_index).type_as(labels),
-                )
-                loss = self.loss_fct(active_logits, active_labels)
-            else:
-                loss = self.loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        return (loss, *outputs[1:])
-
     def train(
-        self,
-        train_dataset,
-        output_dir,
-        show_running_loss=True,
-        eval_data=None,
-        verbose=True,
-        **kwargs,
+            self,
+            train_dataset,
+            output_dir,
+            show_running_loss=True,
+            eval_data=None,
+            verbose=True,
+            **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -521,9 +496,9 @@ class NERModel:
         )
 
         t_total = (
-            len(train_dataloader)
-            // args.gradient_accumulation_steps
-            * args.num_train_epochs
+                len(train_dataloader)
+                // args.gradient_accumulation_steps
+                * args.num_train_epochs
         )
 
         no_decay = ["bias", "LayerNorm.weight"]
@@ -568,7 +543,7 @@ class NERModel:
                             p
                             for n, p in model.named_parameters()
                             if n not in custom_parameter_names
-                            and not any(nd in n for nd in no_decay)
+                               and not any(nd in n for nd in no_decay)
                         ],
                         "weight_decay": args.weight_decay,
                     },
@@ -577,7 +552,7 @@ class NERModel:
                             p
                             for n, p in model.named_parameters()
                             if n not in custom_parameter_names
-                            and any(nd in n for nd in no_decay)
+                               and any(nd in n for nd in no_decay)
                         ],
                         "weight_decay": 0.0,
                     },
@@ -685,10 +660,10 @@ class NERModel:
                     checkpoint_suffix = checkpoint_suffix[-1]
                 global_step = int(checkpoint_suffix)
                 epochs_trained = global_step // (
-                    len(train_dataloader) // args.gradient_accumulation_steps
+                        len(train_dataloader) // args.gradient_accumulation_steps
                 )
                 steps_trained_in_current_epoch = global_step % (
-                    len(train_dataloader) // args.gradient_accumulation_steps
+                        len(train_dataloader) // args.gradient_accumulation_steps
                 )
 
                 logger.info(
@@ -742,9 +717,13 @@ class NERModel:
 
                 if self.args.fp16:
                     with amp.autocast():
-                        loss, *_ = self._calculate_loss(model, inputs)
+                        loss, *_ = _calculate_loss(model, inputs,
+                                                   loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                                   args=self.args)
                 else:
-                    loss, *_ = self._calculate_loss(model, inputs)
+                    loss, *_ = _calculate_loss(model, inputs,
+                                               loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                               args=self.args)
 
                 if args.n_gpu > 1:
                     loss = (
@@ -815,8 +794,8 @@ class NERModel:
                         )
 
                     if args.evaluate_during_training and (
-                        args.evaluate_during_training_steps > 0
-                        and global_step % args.evaluate_during_training_steps == 0
+                            args.evaluate_during_training_steps > 0
+                            and global_step % args.evaluate_during_training_steps == 0
                     ):
 
                         output_dir_current = os.path.join(
@@ -876,8 +855,8 @@ class NERModel:
                             )
                         if best_eval_metric and args.early_stopping_metric_minimize:
                             if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                < args.early_stopping_delta
+                                    results[args.early_stopping_metric] - best_eval_metric
+                                    < args.early_stopping_delta
                             ):
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self.save_model(
@@ -891,8 +870,8 @@ class NERModel:
                             else:
                                 if args.use_early_stopping:
                                     if (
-                                        early_stopping_counter
-                                        < args.early_stopping_patience
+                                            early_stopping_counter
+                                            < args.early_stopping_patience
                                     ):
                                         early_stopping_counter += 1
                                         if verbose:
@@ -920,8 +899,8 @@ class NERModel:
                                         )
                         else:
                             if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                > args.early_stopping_delta
+                                    results[args.early_stopping_metric] - best_eval_metric
+                                    > args.early_stopping_delta
                             ):
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self.save_model(
@@ -935,8 +914,8 @@ class NERModel:
                             else:
                                 if args.use_early_stopping:
                                     if (
-                                        early_stopping_counter
-                                        < args.early_stopping_patience
+                                            early_stopping_counter
+                                            < args.early_stopping_patience
                                     ):
                                         early_stopping_counter += 1
                                         if verbose:
@@ -1011,8 +990,8 @@ class NERModel:
                     )
                 if best_eval_metric and args.early_stopping_metric_minimize:
                     if (
-                        results[args.early_stopping_metric] - best_eval_metric
-                        < args.early_stopping_delta
+                            results[args.early_stopping_metric] - best_eval_metric
+                            < args.early_stopping_delta
                     ):
                         best_eval_metric = results[args.early_stopping_metric]
                         self.save_model(
@@ -1025,8 +1004,8 @@ class NERModel:
                         early_stopping_counter = 0
                     else:
                         if (
-                            args.use_early_stopping
-                            and args.early_stopping_consider_epochs
+                                args.use_early_stopping
+                                and args.early_stopping_consider_epochs
                         ):
                             if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
@@ -1055,8 +1034,8 @@ class NERModel:
                                 )
                 else:
                     if (
-                        results[args.early_stopping_metric] - best_eval_metric
-                        > args.early_stopping_delta
+                            results[args.early_stopping_metric] - best_eval_metric
+                            > args.early_stopping_delta
                     ):
                         best_eval_metric = results[args.early_stopping_metric]
                         self.save_model(
@@ -1070,8 +1049,8 @@ class NERModel:
                         early_stopping_counter = 0
                     else:
                         if (
-                            args.use_early_stopping
-                            and args.early_stopping_consider_epochs
+                                args.use_early_stopping
+                                and args.early_stopping_consider_epochs
                         ):
                             if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
@@ -1107,13 +1086,13 @@ class NERModel:
         )
 
     def eval_model(
-        self,
-        eval_data,
-        output_dir=None,
-        verbose=True,
-        silent=False,
-        wandb_log=True,
-        **kwargs,
+            self,
+            eval_data,
+            output_dir=None,
+            verbose=True,
+            silent=False,
+            wandb_log=True,
+            **kwargs,
     ):
         """
         Evaluates the model on eval_data. Saves results to output_dir.
@@ -1159,13 +1138,13 @@ class NERModel:
         return result, model_outputs, preds_list
 
     def evaluate(
-        self,
-        eval_dataset,
-        output_dir,
-        verbose=True,
-        silent=False,
-        wandb_log=True,
-        **kwargs,
+            self,
+            eval_dataset,
+            output_dir,
+            verbose=True,
+            silent=False,
+            wandb_log=True,
+            **kwargs,
     ):
         """
         Evaluates the model on eval_dataset.
@@ -1198,17 +1177,21 @@ class NERModel:
             from torch.cuda import amp
 
         for batch in tqdm(
-            eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"
+                eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"
         ):
             with torch.no_grad():
                 inputs = self._get_inputs_dict(batch)
 
                 if self.args.fp16:
                     with amp.autocast():
-                        outputs = self._calculate_loss(model, inputs)
+                        outputs = _calculate_loss(model, inputs,
+                                                  loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                                  args=self.args)
                         tmp_eval_loss, logits = outputs[:2]
                 else:
-                    outputs = self._calculate_loss(model, inputs)
+                    outputs = _calculate_loss(model, inputs,
+                                              loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                              args=self.args)
                     tmp_eval_loss, logits = outputs[:2]
 
                 if self.args.n_gpu > 1:
@@ -1398,18 +1381,18 @@ class NERModel:
             encoded_model_inputs = []
             if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
                 for (input_ids, attention_mask, token_type_ids) in tqdm(
-                    zip(
-                        model_inputs["input_ids"],
-                        model_inputs["attention_mask"],
-                        model_inputs["token_type_ids"],
-                    )
+                        zip(
+                            model_inputs["input_ids"],
+                            model_inputs["attention_mask"],
+                            model_inputs["token_type_ids"],
+                        )
                 ):
                     encoded_model_inputs.append(
                         (input_ids, attention_mask, token_type_ids)
                     )
             else:
                 for (input_ids, attention_mask) in tqdm(
-                    zip(model_inputs["input_ids"], model_inputs["attention_mask"])
+                        zip(model_inputs["input_ids"], model_inputs["attention_mask"])
                 ):
                     encoded_model_inputs.append((input_ids, attention_mask))
 
@@ -1421,7 +1404,7 @@ class NERModel:
                 batch_size=args.eval_batch_size,
             )
             for batch in tqdm(
-                eval_dataloader, disable=args.silent, desc="Running Prediction"
+                    eval_dataloader, disable=args.silent, desc="Running Prediction"
             ):
                 if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
                     inputs_onnx = {
@@ -1479,7 +1462,7 @@ class NERModel:
                 from torch.cuda import amp
 
             for batch in tqdm(
-                eval_dataloader, disable=args.silent, desc="Running Prediction"
+                    eval_dataloader, disable=args.silent, desc="Running Prediction"
             ):
                 batch = tuple(t.to(device) for t in batch)
 
@@ -1488,10 +1471,14 @@ class NERModel:
 
                     if self.args.fp16:
                         with amp.autocast():
-                            outputs = self._calculate_loss(model, inputs)
+                            outputs = _calculate_loss(model, inputs,
+                                                      loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                                      args=self.args)
                             tmp_eval_loss, logits = outputs[:2]
                     else:
-                        outputs = self._calculate_loss(model, inputs)
+                        outputs = _calculate_loss(model, inputs,
+                                                  loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                                  args=self.args)
                         tmp_eval_loss, logits = outputs[:2]
 
                     if self.args.n_gpu > 1:
@@ -1583,7 +1570,7 @@ class NERModel:
         return preds, model_outputs
 
     def _convert_tokens_to_word_logits(
-        self, input_ids, label_ids, attention_mask, logits
+            self, input_ids, label_ids, attention_mask, logits
     ):
 
         ignore_ids = [
@@ -1616,7 +1603,7 @@ class NERModel:
         return word_logits
 
     def load_and_cache_examples(
-        self, data, evaluate=False, no_cache=False, to_predict=None
+            self, data, evaluate=False, no_cache=False, to_predict=None
     ):
         """
         Reads data_file and generates a TensorDataset containing InputFeatures. Caches the InputFeatures.
@@ -1703,10 +1690,10 @@ class NERModel:
                     os.makedirs(self.args.cache_dir, exist_ok=True)
 
                 if os.path.exists(cached_features_file) and (
-                    (not args.reprocess_input_data and not no_cache)
-                    or (
-                        mode == "dev" and args.use_cached_eval_features and not no_cache
-                    )
+                        (not args.reprocess_input_data and not no_cache)
+                        or (
+                                mode == "dev" and args.use_cached_eval_features and not no_cache
+                        )
                 ):
                     features = torch.load(cached_features_file)
                     logger.info(
@@ -1857,7 +1844,7 @@ class NERModel:
         return training_progress_scores
 
     def save_model(
-        self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None
+            self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None
     ):
         if not output_dir:
             output_dir = self.args.output_dir

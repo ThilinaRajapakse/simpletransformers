@@ -56,6 +56,8 @@ class ModelArgs:
     learning_rate: float = 4e-5
     local_rank: int = -1
     logging_steps: int = 50
+    loss_type: str = None
+    loss_args: dict = field(default_factory=dict)
     manual_seed: int = None
     max_grad_norm: float = 1.0
     max_seq_length: int = 128

@@ -118,6 +118,7 @@ from simpletransformers.classification.classification_utils import (
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import ClassificationArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
+from simpletransformers.losses.loss_utils import init_loss, _calculate_loss
 #from simpletransformers.custom_models.models import ElectraForSequenceClassification
 
 
@@ -362,12 +363,7 @@ class ClassificationModel:
         else:
             self.device = "cpu"
 
-        if self.weight:
-            self.loss_fct = CrossEntropyLoss(
-                weight=torch.Tensor(self.weight).to(self.device)
-            )
-        else:
-            self.loss_fct = None
+        self.loss_fct = init_loss(weight=self.weight, device=self.device, args=args)
 
         if self.args.onnx:
             from onnxruntime import InferenceSession, SessionOptions
@@ -627,26 +623,6 @@ class ClassificationModel:
 
         return global_step, training_details
 
-    def _calculate_loss(self, model, inputs):
-        outputs = model(**inputs)
-        # model outputs are always tuple in pytorch-transformers (see doc)
-        loss = outputs[0]
-        if self.loss_fct:
-            logits = outputs[1]
-            labels = inputs["labels"]
-            attention_mask = inputs.get("attention_mask")
-            if attention_mask is not None:
-                active_loss = attention_mask.view(-1) == 1
-                active_logits = logits.view(-1, self.num_labels)
-                active_labels = torch.where(
-                    active_loss,
-                    labels.view(-1),
-                    torch.tensor(self.loss_fct.ignore_index).type_as(labels),
-                )
-                loss = self.loss_fct(active_logits, active_labels)
-            else:
-                loss = self.loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        return (loss, *outputs[1:])
 
     def train(
         self,
@@ -896,9 +872,13 @@ class ClassificationModel:
                 inputs = self._get_inputs_dict(batch)
                 if self.args.fp16:
                     with amp.autocast():
-                        loss, *_ = self._calculate_loss(model, inputs)
+                        loss, *_ = _calculate_loss(model, inputs,
+                                                   loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                                   args=self.args)
                 else:
-                    loss, *_ = self._calculate_loss(model, inputs)
+                    loss, *_ = _calculate_loss(model, inputs,
+                                               loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                               args=self.args)
 
                 if args.n_gpu > 1:
                     loss = (
@@ -1438,10 +1418,14 @@ class ClassificationModel:
 
                 if self.args.fp16:
                     with amp.autocast():
-                        outputs = self._calculate_loss(model, inputs)
+                        outputs = _calculate_loss(model, inputs,
+                                                  loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                                  args=self.args)
                         tmp_eval_loss, logits = outputs[:2]
                 else:
-                    outputs = self._calculate_loss(model, inputs)
+                    outputs = _calculate_loss(model, inputs,
+                                              loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                              args=self.args)
                     tmp_eval_loss, logits = outputs[:2]
 
                 if multi_label:
@@ -1953,10 +1937,14 @@ class ClassificationModel:
 
                         if self.args.fp16:
                             with amp.autocast():
-                                outputs = self._calculate_loss(model, inputs)
+                                outputs = _calculate_loss(model, inputs,
+                                                          loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                                          args=self.args)
                                 tmp_eval_loss, logits = outputs[:2]
                         else:
-                            outputs = self._calculate_loss(model, inputs)
+                            outputs = _calculate_loss(model, inputs,
+                                                      loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                                      args=self.args)
                             tmp_eval_loss, logits = outputs[:2]
                         embedding_outputs, layer_hidden_states = (
                             outputs[2][0],
@@ -2015,10 +2003,14 @@ class ClassificationModel:
 
                         if self.args.fp16:
                             with amp.autocast():
-                                outputs = self._calculate_loss(model, inputs)
+                                outputs = _calculate_loss(model, inputs,
+                                                          loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                                          args=self.args)
                                 tmp_eval_loss, logits = outputs[:2]
                         else:
-                            outputs = self._calculate_loss(model, inputs)
+                            outputs = _calculate_loss(model, inputs,
+                                                      loss_fct=self.loss_fct, num_labels=self.num_labels,
+                                                      args=self.args)
                             tmp_eval_loss, logits = outputs[:2]
 
                         if multi_label:

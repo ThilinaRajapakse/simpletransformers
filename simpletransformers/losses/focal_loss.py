@@ -6,6 +6,8 @@ import torch.nn.functional as F
 
 # based on:
 # https://github.com/zhezh/focalloss/blob/master/focalloss.py
+# adapted from:
+# https://kornia.readthedocs.io/en/v0.1.2/_modules/torchgeometry/losses/focal.html
 
 
 class FocalLoss(nn.Module):
@@ -27,29 +29,32 @@ class FocalLoss(nn.Module):
         eps (Optional[float]): small constant to maintain numerical stability of loss calculation. Default: 1e-6
 
     Shape:
-        - Input: :math:`(N, C, H, W)` where C = number of classes.
-        - Target: :math:`(N, H, W)` where each value is
+        - Input: :math:`(N, C)` where C = number of classes.
+        - Target: :math:`(N)` where each value is
           :math:`0 ≤ targets[i] ≤ C−1`.
     Examples:
-        >>> N = 5  # num_classes
+        >>> C = 5  # num_classes
+        >>> N = 1 # num_examples
         >>> loss = FocalLoss(alpha=0.5, gamma=2.0, reduction='mean')
-        >>> input = torch.randn(1, N, 3, 5, requires_grad=True)
-        >>> target = torch.empty(1, 3, 5, dtype=torch.long).random_(N)
+        >>> input = torch.randn(N, C, requires_grad=True)
+        >>> target = torch.empty(N, dtype=torch.long).random_(N)
         >>> output = loss(input, target)
         >>> output.backward()
     References:
         [1] https://arxiv.org/abs/1708.02002
     """
 
-    def __init__(self, alpha: float, gamma: Optional[float] = 2.0,
-                 reduction: Optional[str] = 'none', ignore_index: Optional[int] = -100,
-                 eps: Optional[float] = 1e-6) -> None:
+    def __init__(self, alpha: float,
+                 gamma: float = 2.0,
+                 reduction: Optional[str] = 'mean',
+                 ignore_index: int = -100,
+                 eps: float = 1e-6) -> None:
         super(FocalLoss, self).__init__()
         self.alpha: float = alpha
-        self.gamma: Optional[float] = gamma
+        self.gamma: float = gamma
         self.reduction: Optional[str] = reduction
         self.eps: float = eps
-        self.ignore_index: Optional[int] = ignore_index
+        self.ignore_index: int = ignore_index
 
     def forward(
             self,
