@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, print_function
-
+import collections
 import logging
 import math
 import os
@@ -1858,7 +1858,8 @@ class NERModel:
             return inputs
 
     def _create_training_progress_scores(self, **kwargs):
-        extra_metrics = {key: [] for key in kwargs}
+        return collections.defaultdict(list)
+        """extra_metrics = {key: [] for key in kwargs}
         training_progress_scores = {
             "global_step": [],
             "precision": [],
@@ -1869,7 +1870,7 @@ class NERModel:
             **extra_metrics,
         }
 
-        return training_progress_scores
+        return training_progress_scores"""
 
     def save_model(
             self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None

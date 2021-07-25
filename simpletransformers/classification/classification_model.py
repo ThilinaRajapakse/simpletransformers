@@ -3,7 +3,7 @@
 
 
 from __future__ import absolute_import, division, print_function
-
+import collections
 import logging
 import math
 import os
@@ -2206,7 +2206,8 @@ class ClassificationModel:
         return {metric: values[-1] for metric, values in metric_values.items()}
 
     def _create_training_progress_scores(self, multi_label, **kwargs):
-        extra_metrics = {key: [] for key in kwargs}
+        return collections.defaultdict(list)
+        """extra_metrics = {key: [] for key in kwargs}
         if multi_label:
             training_progress_scores = {
                 "global_step": [],
@@ -2259,7 +2260,7 @@ class ClassificationModel:
                     **extra_metrics,
                 }
 
-        return training_progress_scores
+        return training_progress_scores"""
 
     def save_model(
         self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None
