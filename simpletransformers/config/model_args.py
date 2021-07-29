@@ -115,6 +115,8 @@ class ModelArgs:
             for key, value in asdict(self).items()
             if key not in self.not_saved_args
         }
+        if 'settings' in args_for_saving['wandb_kwargs']:
+            del args_for_saving['wandb_kwargs']['settings']
         return args_for_saving
 
     def save(self, output_dir):

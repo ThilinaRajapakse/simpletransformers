@@ -836,14 +836,14 @@ class ClassificationModel:
             )
 
         if args.wandb_project:
-            if not wandb.setup().settings.sweep_id:
-                logger.info(" Initializing WandB run for training.")
-                wandb.init(
-                    project=args.wandb_project,
-                    config={**asdict(args)},
-                    **args.wandb_kwargs,
-                )
-                wandb.run._label(repo="simpletransformers")
+            #if not wandb.setup().settings.sweep_id:
+            logger.info(" Initializing WandB run for training.")
+            wandb.init(
+                project=args.wandb_project,
+                config={**asdict(args)},
+                **args.wandb_kwargs,
+            )
+            wandb.run._label(repo="simpletransformers")
             wandb.watch(self.model)
 
         if self.args.fp16:
