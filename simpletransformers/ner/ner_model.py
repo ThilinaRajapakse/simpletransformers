@@ -1277,9 +1277,9 @@ class NERModel:
         extra_metrics = {}
         for metric, func in kwargs.items():
             if metric.startswith("prob_"):
-                extra_metrics[metric] = func(out_label_ids, model_outputs)
+                extra_metrics[metric] = func(out_label_list, model_outputs)
             else:
-                extra_metrics[metric] = func(out_label_ids, preds)
+                extra_metrics[metric] = func(out_label_list, preds_list)
 
         result = {
             "eval_loss": eval_loss,
@@ -1306,7 +1306,6 @@ class NERModel:
                 config={**asdict(args)},
                 **args.wandb_kwargs,
             )
-            labels_list = sorted(self.args.labels_list)
 
             labels_list = sorted(self.args.labels_list)
 
