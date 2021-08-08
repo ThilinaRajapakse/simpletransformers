@@ -251,7 +251,7 @@ class Seq2SeqModel:
                     self.dataset = load_from_disk(knowledge_dataset)
                     if index_path:
                         self.dataset.load_faiss_index("embeddings", index_path)
-                    elif os.path.isfile(
+                    elif os.path.isdir(
                         os.path.join(knowledge_dataset, "hf_dataset_index.faiss")
                     ):
                         self.dataset.load_faiss_index(
@@ -586,7 +586,7 @@ class Seq2SeqModel:
                 relative_step=args.adafactor_relative_step,
                 warmup_init=args.adafactor_warmup_init,
             )
-            print("Using Adafactor for T5")
+
         else:
             raise ValueError(
                 "{} is not a valid optimizer class. Please use one of ('AdamW', 'Adafactor') instead.".format(
@@ -1456,7 +1456,7 @@ class Seq2SeqModel:
         self, data, evaluate=False, no_cache=False, verbose=True, silent=False
     ):
         """
-        Creates a T5Dataset from data.
+        Creates a Seq2SeqDataset from data.
 
         Utility function for train() and eval() methods. Not intended to be used directly.
         """

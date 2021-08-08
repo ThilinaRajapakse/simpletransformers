@@ -77,7 +77,7 @@ from transformers import (
     RobertaTokenizer,
     XLMRobertaConfig,
     XLMRobertaForMaskedLM,
-    XLMRobertaTokenizer
+    XLMRobertaTokenizer,
 )
 from transformers.data.datasets.language_modeling import LineByLineTextDataset, TextDataset
 
@@ -514,7 +514,7 @@ class LanguageModelingModel:
                 relative_step=args.adafactor_relative_step,
                 warmup_init=args.adafactor_warmup_init,
             )
-            print("Using Adafactor for T5")
+
         else:
             raise ValueError(
                 "{} is not a valid optimizer class. Please use one of ('AdamW', 'Adafactor') instead.".format(

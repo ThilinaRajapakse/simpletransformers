@@ -879,3 +879,14 @@ class BigBirdForMultiLabelSequenceClassification(BigBirdPreTrainedModel):
             outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
+
+
+class DualEncoderModel(PreTrainedModel):
+    def __init__(
+        self,
+        context_encoder,
+        question_encoder,
+        context_config,
+        question_config,
+    ):
+        super().__init__(config=context_config)  # Initialize with context_config for now

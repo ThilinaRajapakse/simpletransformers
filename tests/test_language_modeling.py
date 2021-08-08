@@ -14,7 +14,6 @@ from simpletransformers.language_modeling import LanguageModelingModel
         ("bert", None),
         ("electra", None),
         ("longformer", None),
-        ("reformer", "google/reformer-crime-and-punishment"),
         # ("xlnet", "xlnet-base-cased"),
         # ("xlm", "xlm-mlm-17-1280"),
         ("roberta", "roberta-base"),
@@ -55,6 +54,9 @@ def test_language_modeling(model_type, model_name):
             "num_train_epochs": 1,
             "no_save": True,
         }
+
+    if model_name is None:
+        model_args["vocab_size"] = 100
 
     model = LanguageModelingModel(
         model_type,

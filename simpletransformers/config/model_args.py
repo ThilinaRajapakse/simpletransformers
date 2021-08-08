@@ -349,6 +349,16 @@ class Seq2SeqArgs(ModelArgs):
 
 
 @dataclass
+class RetrievalArgs(Seq2SeqArgs):
+    """
+    Model args for a RetrievalModel
+    """
+
+    context_config: dict = field(default_factory=dict)
+    question_config: dict = field(default_factory=dict)
+
+
+@dataclass
 class LanguageGenerationArgs(ModelArgs):
     """
     Model args for a LanguageGenerationModel
