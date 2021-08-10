@@ -53,7 +53,7 @@ $ conda create -n st python pandas tqdm
 $ conda activate st
 ```
 
-With using Cuda:
+Using Cuda:
 
 ```bash
 $ conda install pytorch>=1.6 cudatoolkit=11.0 -c pytorch
