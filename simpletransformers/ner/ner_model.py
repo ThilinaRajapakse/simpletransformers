@@ -28,8 +28,9 @@ from simpletransformers.ner.ner_utils import (
     get_examples_from_df,
     load_hf_dataset,
     read_examples_from_file,
+    flatten_results,
 )
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from tqdm.auto import tqdm, trange
@@ -487,7 +488,7 @@ class NERModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+        tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
@@ -813,13 +814,6 @@ class NERModel:
                             output_dir=output_dir_current,
                             **kwargs,
                         )
-                        for key, value in results.items():
-                            try:
-                                tb_writer.add_scalar(
-                                    "eval_{}".format(key), value, global_step
-                                )
-                            except (NotImplementedError, AssertionError):
-                                pass
 
                         if args.save_eval_checkpoints:
                             self.save_model(
@@ -856,6 +850,13 @@ class NERModel:
 
                         if args.wandb_project or self.is_sweeping:
                             wandb.log(self._get_last_metrics(training_progress_scores))
+
+                        for key, value in flatten_results(self._get_last_metrics(training_progress_scores)).items():
+                            try:
+                                tb_writer.add_scalar(key, value, global_step)
+                            except (NotImplementedError, AssertionError):
+                                if verbose:
+                                    logger.warning(f"can't log value of type: {type(value)} to tensorboar")
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
@@ -1003,6 +1004,13 @@ class NERModel:
 
                 if args.wandb_project or self.is_sweeping:
                     wandb.log(self._get_last_metrics(training_progress_scores))
+
+                for key, value in flatten_results(self._get_last_metrics(training_progress_scores)).items():
+                    try:
+                        tb_writer.add_scalar(key, value, global_step)
+                    except (NotImplementedError, AssertionError):
+                        if verbose:
+                            logger.warning(f"can't log value of type: {type(value)} to tensorboar")
 
                 if not best_eval_metric:
                     best_eval_metric = results[args.early_stopping_metric]

@@ -29,7 +29,7 @@ from sklearn.metrics import (
     auc,
     average_precision_score,
 )
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
@@ -114,6 +114,7 @@ from simpletransformers.classification.classification_utils import (
     ClassificationDataset,
     convert_examples_to_features,
     load_hf_dataset,
+    flatten_results,
 )
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import ClassificationArgs
@@ -644,7 +645,7 @@ class ClassificationModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+        tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
 
         t_total = (
             len(train_dataloader)
@@ -961,13 +962,6 @@ class ClassificationModel:
                             wandb_log=False,
                             **kwargs,
                         )
-                        for key, value in results.items():
-                            try:
-                                tb_writer.add_scalar(
-                                    "eval_{}".format(key), value, global_step
-                                )
-                            except (NotImplementedError, AssertionError):
-                                pass
 
                         output_dir_current = os.path.join(
                             output_dir, "checkpoint-{}".format(global_step)
@@ -1008,6 +1002,13 @@ class ClassificationModel:
 
                         if args.wandb_project or self.is_sweeping:
                             wandb.log(self._get_last_metrics(training_progress_scores))
+
+                        for key, value in flatten_results(self._get_last_metrics(training_progress_scores)):
+                            try:
+                                tb_writer.add_scalar(key, value, global_step)
+                            except (NotImplementedError, AssertionError):
+                                if verbose:
+                                    logger.warning(f"can't log value of type: {type(value)} to tensorboar")
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
@@ -1155,6 +1156,13 @@ class ClassificationModel:
 
                 if args.wandb_project or self.is_sweeping:
                     wandb.log(self._get_last_metrics(training_progress_scores))
+
+                for key, value in flatten_results(self._get_last_metrics(training_progress_scores)):
+                    try:
+                        tb_writer.add_scalar(key, value, global_step)
+                    except (NotImplementedError, AssertionError):
+                        if verbose:
+                            logger.warning(f"can't log value of type: {type(value)} to tensorboar")
 
                 if not best_eval_metric:
                     best_eval_metric = results[args.early_stopping_metric]
