@@ -100,10 +100,11 @@ class FocalLoss(nn.Module):
         weights = torch.ones_like(focal_loss, dtype=focal_loss.dtype, device=focal_loss.device)
         if self.alpha is not None:
             if isinstance(self.alpha, float):
-                weights = torch.where(target > 0, 1-self.alpha, self.alpha)
+                alpha = torch.tensor(self.alpha, device=input.device)
+                weights = torch.where(target > 0, 1-alpha, alpha)
             elif torch.is_tensor(self.alpha):
-                self.alpha.to(input.device)
-                weights = self.alpha.gather(0, target)
+                alpha = self.alpha.to(input.device)
+                weights = alpha.gather(0, target)
 
         tmp_loss = focal_loss * weights
         if self.reduction == 'none':
