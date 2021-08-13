@@ -1009,6 +1009,7 @@ class ClassificationModel:
                             except (NotImplementedError, AssertionError):
                                 if verbose:
                                     logger.warning(f"can't log value of type: {type(value)} to tensorboar")
+                        tb_writer.flush()
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
@@ -1163,6 +1164,7 @@ class ClassificationModel:
                     except (NotImplementedError, AssertionError):
                         if verbose:
                             logger.warning(f"can't log value of type: {type(value)} to tensorboar")
+                tb_writer.flush()
 
                 if not best_eval_metric:
                     best_eval_metric = results[args.early_stopping_metric]
