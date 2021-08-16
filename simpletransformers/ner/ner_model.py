@@ -287,7 +287,7 @@ class NERModel:
         else:
             self.device = "cpu"
 
-        if self.weight:
+        if self.weight != None:
             self.loss_fct = CrossEntropyLoss(
                 weight=torch.Tensor(self.weight).to(self.device)
             )
