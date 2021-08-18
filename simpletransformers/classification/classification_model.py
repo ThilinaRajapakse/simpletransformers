@@ -364,7 +364,7 @@ class ClassificationModel:
         else:
             self.device = "cpu"
 
-        self.loss_fct = init_loss(weight=self.weight, device=self.device, args=args)
+        self.loss_fct = init_loss(weight=self.weight, device=self.device, args=self.args)
 
         if self.args.onnx:
             from onnxruntime import InferenceSession, SessionOptions
