@@ -1035,7 +1035,13 @@ class MultiModalClassificationModel:
         return result, model_outputs
 
     def evaluate(
-        self, eval_dataset, output_dir, prefix="", verbose=True, silent=False, **kwargs,
+        self,
+        eval_dataset,
+        output_dir,
+        prefix="",
+        verbose=True,
+        silent=False,
+        **kwargs,
     ):
         """
         Evaluates the model on eval_df.

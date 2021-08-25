@@ -41,6 +41,8 @@ from simpletransformers.config.model_args import RetrievalArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.retrieval.retrieval_utils import (
     load_hf_dataset,
+    get_evaluation_passage_dataset,
+    mean_reciprocal_rank_at_k,
 )
 
 try:
@@ -53,7 +55,13 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 MODEL_CLASSES = {
-    "dpr": (DPRConfig, DPRContextEncoder, DPRQuestionEncoder, DPRContextEncoderTokenizerFast, DPRQuestionEncoderTokenizerFast),
+    "dpr": (
+        DPRConfig,
+        DPRContextEncoder,
+        DPRQuestionEncoder,
+        DPRContextEncoderTokenizerFast,
+        DPRQuestionEncoderTokenizerFast,
+    ),
 }
 
 
@@ -63,9 +71,11 @@ class RetrievalModel:
         model_type=None,
         model_name=None,
         context_encoder_name=None,
-        question_encoder_name=None,
+        query_encoder_name=None,
         context_config=None,
-        question_config=None,
+        query_config=None,
+        context_encoder_tokenizer=None,
+        query_encoder_tokenizer=None,
         args=None,
         use_cuda=True,
         cuda_device=-1,
@@ -112,43 +122,64 @@ class RetrievalModel:
         if not use_cuda:
             self.args.fp16 = False
 
-        config_class, context_encoder, question_encoder, context_tokenizer, question_tokenizer = MODEL_CLASSES[model_type]
+        if model_type == "dpr":
+            (
+                config_class,
+                context_encoder,
+                query_encoder,
+                context_tokenizer,
+                query_tokenizer,
+            ) = MODEL_CLASSES[model_type]
 
         if context_encoder_name:
             self.context_config = config_class.from_pretrained(
-                context_encoder_name,
-                **self.args.context_config
+                context_encoder_name, **self.args.context_config
             )
             self.context_encoder = context_encoder.from_pretrained(
-                context_encoder_name,
-                config=self.context_config
+                context_encoder_name, config=self.context_config
             )
             self.context_tokenizer = context_tokenizer.from_pretrained(
-                context_encoder_name,
-                config=self.context_config
+                context_encoder_name
+            )
+        elif model_name:
+            self.context_config = config_class.from_pretrained(
+                os.path.join(model_name, "context_encoder"), **self.args.context_config
+            )
+            self.context_encoder = context_encoder.from_pretrained(
+                os.path.join(model_name, "context_encoder"), config=self.context_config
+            )
+            self.context_tokenizer = context_tokenizer.from_pretrained(
+                os.path.join(model_name, "context_encoder")
             )
         else:
-            self.context_config = config_class.from_pretrained(model_name, **self.args.context_config)
-            self.context_encoder = context_encoder.from_pretrained(os.path.join(model_name, "context_encoder"), config=self.context_config)
-            self.context_tokenizer = context_tokenizer.from_pretrained(os.path.join(model_name, "context_encoder"), config=self.context_config)
+            self.context_config = config_class(**self.args.context_config)
+            self.context_encoder = context_encoder(config=self.context_config)
+            self.context_tokenizer = context_tokenizer.from_pretrained(context_encoder_tokenizer)
 
-        if question_encoder_name:
-            self.question_config = config_class.from_pretrained(
-                question_encoder_name,
-                **self.args.question_config
+        if query_encoder_name:
+            self.query_config = config_class.from_pretrained(
+                query_encoder_name, **self.args.query_config
             )
-            self.question_encoder = question_encoder.from_pretrained(
-                question_encoder_name,
-                config=config
+            self.query_encoder = query_encoder.from_pretrained(
+                query_encoder_name, config=self.query_config
             )
-            self.question_tokenizer = question_tokenizer.from_pretrained(
-                question_encoder_name,
-                config=config
+            self.query_tokenizer = query_tokenizer.from_pretrained(
+                query_encoder_name
+            )
+        elif model_name:
+            self.query_config = config_class.from_pretrained(
+                os.path.join(model_name, "query_encoder"), **self.args.query_config
+            )
+            self.query_encoder = query_encoder.from_pretrained(
+                os.path.join(model_name, "query_encoder"), config=self.query_config
+            )
+            self.query_tokenizer = query_tokenizer.from_pretrained(
+                os.path.join(model_name, "query_encoder")
             )
         else:
-            self.question_config = config_class.from_pretrained(model_name, **self.args.question_config)
-            self.question_encoder = question_encoder.from_pretrained(os.path.join(model_name, "question_encoder"), config=config)
-            self.question_tokenizer = question_tokenizer.from_pretrained(os.path.join(model_name, "question_encoder"), config=config)
+            self.query_config = config_class(**self.args.query_config)
+            self.query_encoder = query_encoder(config=self.query_config)
+            self.query_tokenizer = query_tokenizer.from_pretrained(query_encoder_tokenizer)
 
         # TODO: Add support for adding special tokens to the tokenizers
 
@@ -169,9 +200,10 @@ class RetrievalModel:
         Trains the model using 'train_data'
 
         Args:
-            train_data: Pandas DataFrame containing the 2 columns - `question_text`, 'gold_passage'.
-                        - `question_text`: The question text sequence
+            train_data: Pandas DataFrame containing the 2 columns - `query_text`, 'gold_passage'.
+                        - `query_text`: The Query text sequence
                         - `gold_passage`: The gold passage text sequence
+                        If `use_hf_datasets` is True, then this may also be the path to a TSV file with the same columns.
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
@@ -225,7 +257,11 @@ class RetrievalModel:
             **kwargs,
         )
 
-        self.save_model(self.args.output_dir, model=self.model)
+        self.save_model(
+            self.args.output_dir,
+            context_model=self.context_encoder,
+            query_model=self.query_encoder,
+        )
 
         if verbose:
             logger.info(
@@ -251,7 +287,8 @@ class RetrievalModel:
         Utility function to be used by the train_model() method. Not intended to be used directly.
         """
 
-        model = self.model
+        context_model = self.context_encoder
+        query_model = self.query_encoder
         args = self.args
 
         tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
@@ -277,7 +314,9 @@ class RetrievalModel:
                 * args.num_train_epochs
             )
 
-        optimizer_grouped_parameters = self.get_optimizer_parameters(model, args)
+        optimizer_grouped_parameters = self.get_optimizer_parameters(
+            context_model, query_model, args
+        )
 
         warmup_steps = math.ceil(t_total * args.warmup_ratio)
         args.warmup_steps = (
@@ -312,6 +351,8 @@ class RetrievalModel:
 
         scheduler = self.get_scheduler(optimizer, args, t_total)
 
+        criterion = torch.nn.NLLLoss(reduction="mean")
+
         if (
             args.model_name
             and os.path.isfile(os.path.join(args.model_name, "optimizer.pt"))
@@ -326,14 +367,16 @@ class RetrievalModel:
             )
 
         if args.n_gpu > 1:
-            model = torch.nn.DataParallel(model)
+            context_model = torch.nn.DataParallel(context_model)
+            query_model = torch.nn.DataParallel(query_model)
 
         logger.info(" Training started")
 
         global_step = 0
         training_progress_scores = None
         tr_loss, logging_loss = 0.0, 0.0
-        model.zero_grad()
+        context_model.zero_grad()
+        query_model.zero_grad()
         train_iterator = trange(
             int(args.num_train_epochs), desc="Epoch", disable=args.silent, mininterval=0
         )
@@ -381,7 +424,8 @@ class RetrievalModel:
                 **args.wandb_kwargs,
             )
             wandb.run._label(repo="simpletransformers")
-            wandb.watch(self.model)
+            wandb.watch(context_model)
+            wandb.watch(query_model)
 
         if args.fp16:
             from torch.cuda import amp
@@ -389,7 +433,8 @@ class RetrievalModel:
             scaler = amp.GradScaler()
 
         for current_epoch in train_iterator:
-            model.train()
+            context_model.train()
+            query_model.train()
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue
@@ -408,7 +453,630 @@ class RetrievalModel:
                     continue
                 # batch = tuple(t.to(device) for t in batch)
 
-                inputs = self._get_inputs_dict(batch)
+                context_inputs, query_inputs, labels = self._get_inputs_dict(batch)
+                if args.fp16:
+                    with amp.autocast():
+                        loss, *_, correct_count = self._calculate_loss(
+                            context_model,
+                            query_model,
+                            context_inputs,
+                            query_inputs,
+                            labels,
+                            criterion,
+                        )
+                else:
+                    loss, *_, correct_count = self._calculate_loss(
+                        context_model,
+                        query_model,
+                        context_inputs,
+                        query_inputs,
+                        labels,
+                        criterion,
+                    )
+
+                if args.n_gpu > 1:
+                    loss = loss.mean()
+
+                current_loss = loss.item()
+
+                if show_running_loss:
+                    batch_iterator.set_description(
+                        f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct count: {correct_count}"
+                    )
+
+                if args.gradient_accumulation_steps > 1:
+                    loss = loss / args.gradient_accumulation_steps
+
+                if args.fp16:
+                    scaler.scale(loss).backward()
+                else:
+                    loss.backward()
+
+                tr_loss += loss.item()
+                if (step + 1) % args.gradient_accumulation_steps == 0:
+                    if args.fp16:
+                        scaler.unscale_(optimizer)
+                    if args.optimizer == "AdamW":
+                        torch.nn.utils.clip_grad_norm_(
+                            context_model.parameters(), args.max_grad_norm
+                        )
+                        torch.nn.utils.clip_grad_norm_(
+                            query_model.parameters(), args.max_grad_norm
+                        )
+
+                    if args.fp16:
+                        scaler.step(optimizer)
+                        scaler.update()
+                    else:
+                        optimizer.step()
+                    scheduler.step()  # Update learning rate schedule
+                    context_model.zero_grad()
+                    query_model.zero_grad()
+                    global_step += 1
+
+                    if args.logging_steps > 0 and global_step % args.logging_steps == 0:
+                        # Log metrics
+                        tb_writer.add_scalar(
+                            "lr", scheduler.get_last_lr()[0], global_step
+                        )
+                        tb_writer.add_scalar(
+                            "loss",
+                            (tr_loss - logging_loss) / args.logging_steps,
+                            global_step,
+                        )
+                        logging_loss = tr_loss
+                        if args.wandb_project or self.is_sweeping:
+                            wandb.log(
+                                {
+                                    "Training loss": current_loss,
+                                    "lr": scheduler.get_last_lr()[0],
+                                    "global_step": global_step,
+                                }
+                            )
+
+                    if args.save_steps > 0 and global_step % args.save_steps == 0:
+                        # Save model checkpoint
+                        output_dir_current = os.path.join(
+                            output_dir, "checkpoint-{}".format(global_step)
+                        )
+
+                        self.save_model(
+                            output_dir_current,
+                            optimizer,
+                            scheduler,
+                            context_model=context_model,
+                            query_model=query_model,
+                        )
+
+                    if args.evaluate_during_training and (
+                        args.evaluate_during_training_steps > 0
+                        and global_step % args.evaluate_during_training_steps == 0
+                    ):
+                        # Only evaluate when single GPU otherwise metrics may not average well
+                        results = self.eval_model(
+                            eval_data,
+                            verbose=verbose and args.evaluate_during_training_verbose,
+                            silent=args.evaluate_during_training_silent,
+                            **kwargs,
+                        )
+                        for key, value in results.items():
+                            try:
+                                tb_writer.add_scalar(
+                                    "eval_{}".format(key), value, global_step
+                                )
+                            except (NotImplementedError, AssertionError):
+                                pass
+
+                        output_dir_current = os.path.join(
+                            output_dir, "checkpoint-{}".format(global_step)
+                        )
+
+                        if args.save_eval_checkpoints:
+                            self.save_model(
+                                output_dir_current,
+                                optimizer,
+                                scheduler,
+                                context_model=context_model,
+                                query_model=query_model,
+                                results=results,
+                            )
+
+                        training_progress_scores["global_step"].append(global_step)
+                        training_progress_scores["train_loss"].append(current_loss)
+                        for key in results:
+                            training_progress_scores[key].append(results[key])
+                        report = pd.DataFrame(training_progress_scores)
+                        report.to_csv(
+                            os.path.join(
+                                args.output_dir, "training_progress_scores.csv"
+                            ),
+                            index=False,
+                        )
+
+                        if args.wandb_project or self.is_sweeping:
+                            wandb.log(self._get_last_metrics(training_progress_scores))
+
+                        if not best_eval_metric:
+                            best_eval_metric = results[args.early_stopping_metric]
+                            if args.save_best_model:
+                                self.save_model(
+                                    args.best_model_dir,
+                                    optimizer,
+                                    scheduler,
+                                    context_model=context_model,
+                                    query_model=query_model,
+                                    results=results,
+                                )
+                        if best_eval_metric and args.early_stopping_metric_minimize:
+                            if (
+                                results[args.early_stopping_metric] - best_eval_metric
+                                < args.early_stopping_delta
+                            ):
+                                best_eval_metric = results[args.early_stopping_metric]
+                                if args.save_best_model:
+                                    self.save_model(
+                                        args.best_model_dir,
+                                        optimizer,
+                                        scheduler,
+                                        context_model=context_model,
+                                        query_model=query_model,
+                                        results=results,
+                                    )
+                                early_stopping_counter = 0
+                            else:
+                                if args.use_early_stopping:
+                                    if (
+                                        early_stopping_counter
+                                        < args.early_stopping_patience
+                                    ):
+                                        early_stopping_counter += 1
+                                        if verbose:
+                                            logger.info(
+                                                f" No improvement in {args.early_stopping_metric}"
+                                            )
+                                            logger.info(
+                                                f" Current step: {early_stopping_counter}"
+                                            )
+                                            logger.info(
+                                                f" Early stopping patience: {args.early_stopping_patience}"
+                                            )
+                                    else:
+                                        if verbose:
+                                            logger.info(
+                                                f" Patience of {args.early_stopping_patience} steps reached"
+                                            )
+                                            logger.info(" Training terminated.")
+                                            train_iterator.close()
+                                        return (
+                                            global_step,
+                                            tr_loss / global_step
+                                            if not self.args.evaluate_during_training
+                                            else training_progress_scores,
+                                        )
+                        else:
+                            if (
+                                results[args.early_stopping_metric] - best_eval_metric
+                                > args.early_stopping_delta
+                            ):
+                                best_eval_metric = results[args.early_stopping_metric]
+                                if args.save_best_model:
+                                    self.save_model(
+                                        args.best_model_dir,
+                                        optimizer,
+                                        scheduler,
+                                        context_model=context_model,
+                                        query_model=query_model,
+                                        results=results,
+                                    )
+                                early_stopping_counter = 0
+                            else:
+                                if args.use_early_stopping:
+                                    if (
+                                        early_stopping_counter
+                                        < args.early_stopping_patience
+                                    ):
+                                        early_stopping_counter += 1
+                                        if verbose:
+                                            logger.info(
+                                                f" No improvement in {args.early_stopping_metric}"
+                                            )
+                                            logger.info(
+                                                f" Current step: {early_stopping_counter}"
+                                            )
+                                            logger.info(
+                                                f" Early stopping patience: {args.early_stopping_patience}"
+                                            )
+                                    else:
+                                        if verbose:
+                                            logger.info(
+                                                f" Patience of {args.early_stopping_patience} steps reached"
+                                            )
+                                            logger.info(" Training terminated.")
+                                            train_iterator.close()
+                                        return (
+                                            global_step,
+                                            tr_loss / global_step
+                                            if not self.args.evaluate_during_training
+                                            else training_progress_scores,
+                                        )
+                        context_model.train()
+                        query_model.train()
+
+            epoch_number += 1
+            output_dir_current = os.path.join(
+                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
+            )
+
+            if args.save_model_every_epoch or args.evaluate_during_training:
+                os.makedirs(output_dir_current, exist_ok=True)
+
+            if args.save_model_every_epoch:
+                self.save_model(
+                    output_dir_current,
+                    optimizer,
+                    scheduler,
+                    context_model=context_model,
+                    query_model=query_model,
+                )
+
+            if args.evaluate_during_training and args.evaluate_each_epoch:
+                results = self.eval_model(
+                    eval_data,
+                    verbose=verbose and args.evaluate_during_training_verbose,
+                    silent=args.evaluate_during_training_silent,
+                    **kwargs,
+                )
+
+                if args.save_eval_checkpoints:
+                    self.save_model(
+                        output_dir_current, optimizer, scheduler, results=results
+                    )
+
+                training_progress_scores["global_step"].append(global_step)
+                training_progress_scores["train_loss"].append(current_loss)
+                for key in results:
+                    training_progress_scores[key].append(results[key])
+                report = pd.DataFrame(training_progress_scores)
+                report.to_csv(
+                    os.path.join(args.output_dir, "training_progress_scores.csv"),
+                    index=False,
+                )
+
+                if args.wandb_project or self.is_sweeping:
+                    wandb.log(self._get_last_metrics(training_progress_scores))
+
+                if not best_eval_metric:
+                    best_eval_metric = results[args.early_stopping_metric]
+                    if args.save_best_model:
+                        self.save_model(
+                            args.best_model_dir,
+                            optimizer,
+                            scheduler,
+                            context_model=context_model,
+                            query_model=query_model,
+                            results=results,
+                        )
+                if best_eval_metric and args.early_stopping_metric_minimize:
+                    if (
+                        results[args.early_stopping_metric] - best_eval_metric
+                        < args.early_stopping_delta
+                    ):
+                        best_eval_metric = results[args.early_stopping_metric]
+                        if args.save_best_model:
+                            self.save_model(
+                                args.best_model_dir,
+                                optimizer,
+                                scheduler,
+                                context_model=context_model,
+                                query_model=query_model,
+                                results=results,
+                            )
+                        early_stopping_counter = 0
+                    else:
+                        if (
+                            args.use_early_stopping
+                            and args.early_stopping_consider_epochs
+                        ):
+                            if early_stopping_counter < args.early_stopping_patience:
+                                early_stopping_counter += 1
+                                if verbose:
+                                    logger.info(
+                                        f" No improvement in {args.early_stopping_metric}"
+                                    )
+                                    logger.info(
+                                        f" Current step: {early_stopping_counter}"
+                                    )
+                                    logger.info(
+                                        f" Early stopping patience: {args.early_stopping_patience}"
+                                    )
+                            else:
+                                if verbose:
+                                    logger.info(
+                                        f" Patience of {args.early_stopping_patience} steps reached"
+                                    )
+                                    logger.info(" Training terminated.")
+                                    train_iterator.close()
+                                return (
+                                    global_step,
+                                    tr_loss / global_step
+                                    if not self.args.evaluate_during_training
+                                    else training_progress_scores,
+                                )
+                else:
+                    if (
+                        results[args.early_stopping_metric] - best_eval_metric
+                        > args.early_stopping_delta
+                    ):
+                        best_eval_metric = results[args.early_stopping_metric]
+                        if args.save_best_model:
+                            self.save_model(
+                                args.best_model_dir,
+                                optimizer,
+                                scheduler,
+                                context_model=context_model,
+                                query_model=query_model,
+                                results=results,
+                            )
+                        early_stopping_counter = 0
+                    else:
+                        if (
+                            args.use_early_stopping
+                            and args.early_stopping_consider_epochs
+                        ):
+                            if early_stopping_counter < args.early_stopping_patience:
+                                early_stopping_counter += 1
+                                if verbose:
+                                    logger.info(
+                                        f" No improvement in {args.early_stopping_metric}"
+                                    )
+                                    logger.info(
+                                        f" Current step: {early_stopping_counter}"
+                                    )
+                                    logger.info(
+                                        f" Early stopping patience: {args.early_stopping_patience}"
+                                    )
+                            else:
+                                if verbose:
+                                    logger.info(
+                                        f" Patience of {args.early_stopping_patience} steps reached"
+                                    )
+                                    logger.info(" Training terminated.")
+                                    train_iterator.close()
+                                return (
+                                    global_step,
+                                    tr_loss / global_step
+                                    if not self.args.evaluate_during_training
+                                    else training_progress_scores,
+                                )
+
+        return (
+            global_step,
+            tr_loss / global_step
+            if not self.args.evaluate_during_training
+            else training_progress_scores,
+        )
+
+    def eval_model(
+        self,
+        eval_data,
+        evaluate_with_all_passages=True,
+        additional_passages=None,
+        top_k_values=None,
+        output_dir=None,
+        verbose=True,
+        silent=False,
+        **kwargs,
+    ):
+        """
+        Evaluates the model on eval_data. Saves results to output_dir.
+
+        Args:
+            eval_data: Pandas DataFrame containing the 2 columns - `query_text`, 'gold_passage'.
+                        - `query_text`: The Query text sequence
+                        - `gold_passage`: The gold passage text sequence
+                        If `use_hf_datasets` is True, then this may also be the path to a TSV file with the same columns.
+            eval_with_all_passages: If True, evaluate with all passages. If False, evaluate only with in-batch negatives.
+            additional_passages: Additional passages to be used during evaluation.
+                        This may be a list of passages, a pandas DataFrame with the column "passages", or a TSV file with the column "passages".
+            output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
+            verbose: If verbose, results will be printed to the console on completion of evaluation.
+            silent: If silent, tqdm progress bars will be hidden.
+            **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
+                        A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
+                        will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
+        Returns:
+            results: Dictionary containing evaluation results.
+        """  # noqa: ignore flake8"
+
+        if not output_dir:
+            output_dir = self.args.output_dir
+
+        self._move_model_to_device()
+
+        passage_dataset = get_evaluation_passage_dataset(
+            eval_data,
+            additional_passages,
+            self.context_encoder,
+            self.context_tokenizer,
+            self.context_config,
+            self.args,
+            self.device,
+        )
+
+        eval_dataset = load_hf_dataset(
+            eval_data, self.context_tokenizer, self.query_tokenizer, self.args
+        )
+
+        result = self.evaluate(
+            eval_dataset,
+            evaluate_with_all_passages,
+            passage_dataset,
+            top_k_values,
+            output_dir,
+            verbose=verbose,
+            silent=silent,
+            **kwargs,
+        )
+
+        if verbose:
+            logger.info(result)
+
+        return result
+
+    def evaluate(
+        self,
+        eval_dataset,
+        evaluate_with_all_passages=True,
+        passage_dataset=None,
+        top_k_values=None,
+        output_dir=None,
+        verbose=True,
+        silent=False,
+        **kwargs,
+    ):
+        """
+        Evaluates the model on eval_dataset.
+
+        Utility function to be used by the eval_model() method. Not intended to be used directly.
+        """
+
+        context_model = self.context_encoder
+        query_model = self.query_encoder
+        args = self.args
+        eval_output_dir = output_dir
+
+        results = {}
+
+        eval_sampler = SequentialSampler(eval_dataset)
+        eval_dataloader = DataLoader(
+            eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
+        )
+
+        if args.n_gpu > 1:
+            context_model = torch.nn.DataParallel(context_model)
+            query_model = torch.nn.DataParallel(query_model)
+
+        nb_eval_steps = 0
+        eval_loss = 0
+        context_model.eval()
+        query_model.eval()
+
+        criterion = torch.nn.NLLLoss(reduction="mean")
+
+        if self.args.fp16:
+            from torch.cuda import amp
+
+        all_query_embeddings = np.zeros(
+            (len(eval_dataset), self.query_config.hidden_size if not self.query_config.projection_dim else self.query_config.projection_dim)
+        )
+        for i, batch in tqdm(
+            enumerate(eval_dataloader),
+            disable=args.silent or silent,
+            desc="Running Evaluation",
+        ):
+            # batch = tuple(t.to(device) for t in batch)
+
+            context_inputs, query_inputs, labels = self._get_inputs_dict(batch, evaluate=True)
+            with torch.no_grad():
+                if self.args.fp16:
+                    with amp.autocast():
+                        tmp_eval_loss, _, query_outputs, correct_count = self._calculate_loss(
+                            context_model,
+                            query_model,
+                            context_inputs,
+                            query_inputs,
+                            labels,
+                            criterion,
+                        )
+                else:
+                    tmp_eval_loss, _, query_outputs, correct_count = self._calculate_loss(
+                        context_model,
+                        query_model,
+                        context_inputs,
+                        query_inputs,
+                        labels,
+                        criterion,
+                    )
+                if self.args.n_gpu > 1:
+                    tmp_eval_loss = tmp_eval_loss.mean()
+
+                eval_loss += tmp_eval_loss.item()
+                all_query_embeddings[
+                    i * args.eval_batch_size : (i + 1) * args.eval_batch_size
+                ] = (query_outputs.cpu().detach().numpy())
+            nb_eval_steps += 1
+
+        eval_loss = eval_loss / nb_eval_steps
+
+        results["eval_loss"] = eval_loss
+
+        if evaluate_with_all_passages:
+            doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
+                all_query_embeddings, passage_dataset
+            )
+
+            scores = self.compute_metrics(eval_dataset, doc_ids, self.args, top_k_values, **kwargs)
+
+            results.update(scores)
+
+        output_eval_file = os.path.join(eval_output_dir, "eval_results.txt")
+        with open(output_eval_file, "w") as writer:
+            for key in sorted(results.keys()):
+                writer.write("{} = {}\n".format(key, str(results[key])))
+
+        return results
+
+    def compute_metrics(self, eval_samples, doc_ids, args, top_k_values=None, **kwargs):
+        if top_k_values is None:
+            top_k_values = [1, 2, 3, 5, 10]
+
+        top_k_values = [k for k in top_k_values if k <= args.n_docs]
+
+        relevance_list = np.array([[1 if d == i else 0 for d in docs] for i, docs in enumerate(doc_ids)])
+
+        mrr = {
+            f"mrr@{k}": mean_reciprocal_rank_at_k(relevance_list, k) for k in top_k_values
+        }
+
+        top_k_accuracy = {
+            f"top_{k}_accuracy": np.mean(np.sum(relevance_list[:, :k], axis=-1)) for k in top_k_values
+        }
+
+        extra_metrics = {}
+        for metric, func in kwargs.items():
+            extra_metrics[metric] = func(eval_samples, doc_ids)
+
+        results = {**mrr, **top_k_accuracy, **extra_metrics}
+
+        return results
+
+    def retrieve_docs_from_query_embeddings(
+        self,
+        query_embeddings,
+        passage_dataset,
+    ):
+        """
+        Retrieves documents from the index using the given query embeddings.
+        """
+        args = self.args
+
+        query_embeddings_batched = [
+            query_embeddings[i : i + args.retrieval_batch_size]
+            for i in range(0, len(query_embeddings), args.retrieval_batch_size)
+        ]
+
+        ids_batched = []
+        vectors_batched = []
+        for query_embeddings in query_embeddings_batched:
+            ids, vectors = passage_dataset.get_top_docs(query_embeddings.astype(np.float32), args.n_docs)
+            ids_batched.extend(ids)
+            vectors_batched.extend(vectors)
+
+        ids_batched = np.array(ids_batched)
+        vectors_batched = np.array(vectors_batched)
+        doc_dicts = passage_dataset.get_doc_dicts(ids_batched)
+
+        return ids_batched, vectors_batched, doc_dicts
 
     def load_and_cache_examples(
         self, data, evaluate=False, no_cache=False, verbose=True, silent=False
@@ -427,17 +1095,14 @@ class RetrievalModel:
 
         if self.args.use_hf_datasets:
             dataset = load_hf_dataset(
-                data,
-                self.context_tokenizer,
-                self.question_tokenizer,
-                self.args
+                data, self.context_tokenizer, self.query_tokenizer, self.args
             )
 
             return dataset
         else:
             pass
 
-    def get_optimizer_parameters(self, model, args):
+    def get_optimizer_parameters(self, context_model, query_model, args):
         no_decay = ["bias", "LayerNorm.weight"]
 
         optimizer_grouped_parameters = []
@@ -447,8 +1112,11 @@ class RetrievalModel:
             custom_parameter_names.update(params)
             param_group = {**group}
             param_group["params"] = [
-                p for n, p in model.named_parameters() if n in params
+                p for n, p in context_model.named_parameters() if n in params
             ]
+            param_group["params"].extend(
+                [p for n, p in query_model.named_parameters() if n in params]
+            )
             optimizer_grouped_parameters.append(param_group)
 
         for group in self.args.custom_layer_parameters:
@@ -459,7 +1127,14 @@ class RetrievalModel:
             group_nd["weight_decay"] = 0.0
             params_d = []
             params_nd = []
-            for n, p in model.named_parameters():
+            for n, p in context_model.named_parameters():
+                if n not in custom_parameter_names and layer in n:
+                    if any(nd in n for nd in no_decay):
+                        params_nd.append(p)
+                    else:
+                        params_d.append(p)
+                    custom_parameter_names.add(n)
+            for n, p in query_model.named_parameters():
                 if n not in custom_parameter_names and layer in n:
                     if any(nd in n for nd in no_decay):
                         params_nd.append(p)
@@ -478,7 +1153,7 @@ class RetrievalModel:
                     {
                         "params": [
                             p
-                            for n, p in model.named_parameters()
+                            for n, p in context_model.named_parameters()
                             if n not in custom_parameter_names
                             and not any(nd in n for nd in no_decay)
                         ],
@@ -487,7 +1162,29 @@ class RetrievalModel:
                     {
                         "params": [
                             p
-                            for n, p in model.named_parameters()
+                            for n, p in context_model.named_parameters()
+                            if n not in custom_parameter_names
+                            and any(nd in n for nd in no_decay)
+                        ],
+                        "weight_decay": 0.0,
+                    },
+                ]
+            )
+            optimizer_grouped_parameters.extend(
+                [
+                    {
+                        "params": [
+                            p
+                            for n, p in query_model.named_parameters()
+                            if n not in custom_parameter_names
+                            and not any(nd in n for nd in no_decay)
+                        ],
+                        "weight_decay": args.weight_decay,
+                    },
+                    {
+                        "params": [
+                            p
+                            for n, p in query_model.named_parameters()
                             if n not in custom_parameter_names
                             and any(nd in n for nd in no_decay)
                         ],
@@ -543,12 +1240,166 @@ class RetrievalModel:
 
         return scheduler
 
+    def _calculate_loss(
+        self,
+        context_model,
+        query_model,
+        context_inputs,
+        query_inputs,
+        labels,
+        criterion,
+    ):
+        context_outputs = context_model(**context_inputs).pooler_output
+        query_outputs = query_model(**query_inputs).pooler_output
+
+        context_outputs = torch.nn.functional.dropout(context_outputs, p=0.1)
+        query_outputs = torch.nn.functional.dropout(query_outputs, p=0.1)
+
+        similarity_score = torch.matmul(query_outputs, context_outputs.t())
+        similarity_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
+
+        loss = criterion(similarity_score, labels)
+
+        max_score, max_idxs = torch.max(similarity_score, 1)
+        correct_predictions_count = (
+            max_idxs == torch.tensor(labels)
+        ).sum().cpu().detach().numpy().item()
+
+        return loss, context_outputs, query_outputs, correct_predictions_count
+
+    def _get_inputs_dict(self, batch, evaluate=False):
+        device = self.device
+
+        labels = [i for i in range(len(batch["context_ids"]))]
+        labels = torch.tensor(labels, dtype=torch.long)
+
+        if not evaluate:
+            labels = labels.to(device)
+            context_input = {
+                "input_ids": (batch["context_ids"]).to(device),
+                "attention_mask": batch["context_mask"].to(device),
+            }
+            query_input = {
+                "input_ids": batch["query_ids"].to(device),
+                "attention_mask": batch["query_mask"].to(device),
+            }
+        else:
+            shuffled_indices = torch.randperm(len(labels))
+
+            labels = labels[shuffled_indices].to(device)
+
+            if self.args.hard_negatives:
+                context_ids = torch.cat([batch["context_ids"][shuffled_indices], batch["hard_negatives_ids"]], dim=0)
+                context_masks = torch.cat([batch["context_mask"][shuffled_indices], batch["hard_negatives_mask"]], dim=0)
+            else:
+                context_ids = batch["context_ids"][shuffled_indices]
+                context_masks = batch["context_mask"][shuffled_indices]
+
+            context_input = {
+                "input_ids": context_ids.to(device),
+                "attention_mask": context_masks.to(device),
+            }
+            query_input = {
+                "input_ids": batch["query_ids"].to(device),
+                "attention_mask": batch["query_mask"].to(device),
+            }
+
+        return context_input, query_input, labels
+
+    def _create_training_progress_scores(self, **kwargs):
+        # TODO: top_k_values should be part of the model. Probably.
+        top_k_values = [1, 2, 3, 5, 10]
+        extra_metrics = {key: [] for key in kwargs}
+        training_progress_scores = {
+            "global_step": [],
+            "eval_loss": [],
+            "train_loss": [],
+            **extra_metrics,
+        }
+        training_progress_scores = {
+            **training_progress_scores,
+            **{f"mrr@{k}": [] for k in top_k_values}
+        }
+        training_progress_scores = {
+            **training_progress_scores,
+            **{f"top_{k}_accuracy": [] for k in top_k_values}
+        }
+
+        return training_progress_scores
+
+    def _get_last_metrics(self, metric_values):
+        return {metric: values[-1] for metric, values in metric_values.items()}
+
+    def save_model(
+        self,
+        output_dir=None,
+        optimizer=None,
+        scheduler=None,
+        context_model=None,
+        query_model=None,
+        results=None,
+    ):
+        if not output_dir:
+            output_dir = self.args.output_dir
+        os.makedirs(output_dir, exist_ok=True)
+
+        logger.info(f"Saving model into {output_dir}")
+
+        if context_model and query_model and not self.args.no_save:
+            # Take care of distributed/parallel training
+            context_model_to_save = (
+                context_model.module
+                if hasattr(context_model, "module")
+                else context_model
+            )
+            query_model_to_save = (
+                query_model.module if hasattr(query_model, "module") else query_model
+            )
+            self.save_model_args(output_dir)
+
+            os.makedirs(os.path.join(output_dir, "context_encoder"), exist_ok=True)
+            os.makedirs(os.path.join(output_dir, "query_encoder"), exist_ok=True)
+            self.context_config.save_pretrained(
+                os.path.join(output_dir, "context_encoder")
+            )
+            self.query_config.save_pretrained(os.path.join(output_dir, "query_encoder"))
+
+            context_model_to_save.save_pretrained(
+                os.path.join(output_dir, "context_encoder")
+            )
+            query_model_to_save.save_pretrained(
+                os.path.join(output_dir, "query_encoder")
+            )
+
+            self.context_tokenizer.save_pretrained(
+                os.path.join(output_dir, "context_encoder")
+            )
+            self.query_tokenizer.save_pretrained(
+                os.path.join(output_dir, "query_encoder")
+            )
+
+            torch.save(self.args, os.path.join(output_dir, "training_args.bin"))
+            if optimizer and scheduler and self.args.save_optimizer_and_scheduler:
+                torch.save(
+                    optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
+                )
+                torch.save(
+                    scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
+                )
+
+        if results:
+            output_eval_file = os.path.join(output_dir, "eval_results.txt")
+            with open(output_eval_file, "w") as writer:
+                for key in sorted(results.keys()):
+                    writer.write("{} = {}\n".format(key, str(results[key])))
+
     def _move_model_to_device(self):
         self.context_encoder.to(self.device)
-        self.question_encoder.to(self.device)
+        self.query_encoder.to(self.device)
 
-    def save_model(self, output_dir, model):
-        pass
+    def save_model_args(self, output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        self.args.save(output_dir)
 
     def _load_model_args(self, input_dir):
         args = RetrievalArgs()

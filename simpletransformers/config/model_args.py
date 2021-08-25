@@ -355,7 +355,12 @@ class RetrievalArgs(Seq2SeqArgs):
     """
 
     context_config: dict = field(default_factory=dict)
-    question_config: dict = field(default_factory=dict)
+    query_config: dict = field(default_factory=dict)
+    save_passage_dataset: bool = True
+    retrieval_batch_size: bool = 8
+    embed_batch_size: int = 16
+    n_docs: int = 10
+    hard_negatives: bool = False
 
 
 @dataclass

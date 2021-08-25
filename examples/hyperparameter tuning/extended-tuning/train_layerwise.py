@@ -11,7 +11,10 @@ from simpletransformers.classification import ClassificationArgs, Classification
 from utils import load_rte_data_file
 
 prettyprinter.install_extras(
-    include=["dataclasses",], warn_on_error=True,
+    include=[
+        "dataclasses",
+    ],
+    warn_on_error=True,
 )
 
 
@@ -64,7 +67,10 @@ for key, value in best_params.items():
         end_layer = int(layer_keys.split("-")[-1])
         for layer_key in range(start_layer, end_layer):
             layer_params.append(
-                {"layer": layer_key, "lr": value[0],}
+                {
+                    "layer": layer_key,
+                    "lr": value[0],
+                }
             )
     elif key.startswith("params_"):
         params_key = key.split("_")[-1]

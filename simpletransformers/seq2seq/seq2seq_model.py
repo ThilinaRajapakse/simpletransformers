@@ -238,6 +238,7 @@ class Seq2SeqModel:
                         index_name="exact",
                         use_dummy_dataset=True,
                         config=config,
+                        cache_dir=args.dataset_cache_dir,
                     )
                 elif index_name == "legacy":
                     self.retriever = retriever_class.from_pretrained(
@@ -245,13 +246,14 @@ class Seq2SeqModel:
                         index_name="legacy",
                         use_dummy_dataset=False,
                         config=config,
+                        cache_dir=args.dataset_cache_dir,
                     )
             else:
                 if os.path.isdir(knowledge_dataset):
                     self.dataset = load_from_disk(knowledge_dataset)
                     if index_path:
                         self.dataset.load_faiss_index("embeddings", index_path)
-                    elif os.path.isdir(
+                    elif os.path.isfile(
                         os.path.join(knowledge_dataset, "hf_dataset_index.faiss")
                     ):
                         self.dataset.load_faiss_index(
@@ -392,6 +394,7 @@ class Seq2SeqModel:
             train_data: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
                         - `input_text`: The input text sequence.
                         - `target_text`: The target text sequence
+                        If `use_hf_datasets` is True, then this may also be the path to a TSV file with the same columns.
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
@@ -1116,6 +1119,7 @@ class Seq2SeqModel:
             eval_data: Pandas DataFrame containing the 2 columns - `input_text`, `target_text`.
                         - `input_text`: The input text sequence.
                         - `target_text`: The target text sequence.
+                        If `use_hf_datasets` is True, then this may also be the path to a TSV file with the same columns.
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
@@ -1175,9 +1179,6 @@ class Seq2SeqModel:
         eval_dataloader = DataLoader(
             eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
         )
-
-        if args.n_gpu > 1:
-            model = torch.nn.DataParallel(model)
 
         eval_loss = 0.0
         nb_eval_steps = 0
@@ -1491,7 +1492,11 @@ class Seq2SeqModel:
                     )
                 else:
                     return Seq2SeqDataset(
-                        encoder_tokenizer, decoder_tokenizer, self.args, data, mode,
+                        encoder_tokenizer,
+                        decoder_tokenizer,
+                        self.args,
+                        data,
+                        mode,
                     )
 
     def _create_training_progress_scores(self, **kwargs):
@@ -1515,7 +1520,6 @@ class Seq2SeqModel:
         scheduler=None,
         model=None,
         results=None,
-        dataset=None,
     ):
         if not output_dir:
             output_dir = self.args.output_dir
@@ -1668,6 +1672,3 @@ class Seq2SeqModel:
         args = Seq2SeqArgs()
         args.load(input_dir)
         return args
-
-    def get_named_parameters(self):
-        return [n for n, p in self.model.named_parameters()]
