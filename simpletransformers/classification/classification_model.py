@@ -529,6 +529,9 @@ class ClassificationModel:
 
         if args:
             self.args.update_from_dict(args)
+            
+        if kwargs:
+            self.args.update_from_dict(kwargs)
 
         if self.args.silent:
             show_running_loss = False
