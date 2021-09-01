@@ -260,6 +260,7 @@ class QuestionAnsweringModel:
         self.args.model_name = model_name
         self.args.model_type = model_type
 
+        self.wandb_run_id = None
         if self.args.wandb_project and not wandb_available:
             warnings.warn(
                 "wandb_project specified but wandb is not available. Wandb disabled."
@@ -687,6 +688,7 @@ class QuestionAnsweringModel:
             )
             wandb.run._label(repo="simpletransformers")
             wandb.watch(self.model)
+            self.wandb_run_id = wandb.run.id
 
         if args.fp16:
             from torch.cuda import amp
