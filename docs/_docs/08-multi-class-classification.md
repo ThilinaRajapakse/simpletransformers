@@ -15,43 +15,32 @@ The minimal start given below uses a `n` value of `3`. You can change `n` by cha
 ## Minimal Start
 
 ```python
-from simpletransformers.classification import ClassificationModel, ClassificationArgs
 import pandas as pd
-import logging
 
+from simpletransformers.classification import ClassificationModel
 
-logging.basicConfig(level=logging.INFO)
-transformers_logger = logging.getLogger("transformers")
-transformers_logger.setLevel(logging.WARNING)
-
-# Preparing train data
+# Train and Evaluation data needs to be in a Pandas Dataframe containing at least two columns. If the Dataframe has a header, it should contain a 'text' and a 'labels' column. If no header is present, the Dataframe should contain at least two columns, with the first column is the text with type str, and the second column in the label with type int.
 train_data = [
-    ["Aragorn was the heir of Isildur", 1],
-    ["Frodo was the heir of Isildur", 0],
-    ["Pippin is stronger than Merry", 2],
+    ["Example sentence belonging to class 1", 1],
+    ["Example sentence belonging to class 0", 0],
+    ["Example eval senntence belonging to class 2", 2],
 ]
 train_df = pd.DataFrame(train_data)
-train_df.columns = ["text", "labels"]
 
-# Preparing eval data
 eval_data = [
-    ["Aragorn was the heir of Elendil", 1],
-    ["Sam was the heir of Isildur", 0],
-    ["Merrry is stronger than Pippin", 2],
+    ["Example eval sentence belonging to class 1", 1],
+    ["Example eval sentence belonging to class 0", 0],
+    ["Example eval senntence belonging to class 2", 2],
 ]
 eval_df = pd.DataFrame(eval_data)
-eval_df.columns = ["text", "labels"]
-
-# Optional model configuration
-model_args = ClassificationArgs(num_train_epochs=1)
 
 # Create a ClassificationModel
 model = ClassificationModel(
-    'bert',
-    'bert-base-cased',
+    "bert",
+    "bert-base-cased",
     num_labels=3,
-    args=model_args
-) 
+    args={"reprocess_input_data": True, "overwrite_output_dir": True},
+)
 
 # Train the model
 model.train_model(train_df)
@@ -59,9 +48,7 @@ model.train_model(train_df)
 # Evaluate the model
 result, model_outputs, wrong_predictions = model.eval_model(eval_df)
 
-# Make predictions with the model
-predictions, raw_outputs = model.predict(["Sam was a Wizard"])
-
+predictions, raw_outputs = model.predict(["Some arbitary sentence"])
 ```
 
 ## Guides
