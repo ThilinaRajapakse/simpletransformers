@@ -1129,7 +1129,7 @@ class LanguageModelingModel:
                 # XLMRoberta uses sentencepiece.bpe as a vocab model prefix
                 prefix='sentencepiece.bpe'
                 spm.SentencePieceTrainer.Train(
-                    f"--input={files} --user_defined_symbols='<mask>,<s>NOTUSED,</s>NOTUSED' --model_prefix={prefix} --vocab_size={self.args.vocab_size - 2 }")
+                    f"--input={files} --user_defined_symbols='<mask>,<s>NOTUSED,</s>NOTUSED' --model_prefix={prefix} --vocab_size={self.args.vocab_size - 2}")
             else:
                 # </s>,<s>,<unk>,<pad> are built in -- leave as default
                 # BigBird uses spiece as a vocab model prefix
