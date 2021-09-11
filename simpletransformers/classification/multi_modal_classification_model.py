@@ -573,6 +573,7 @@ class MultiModalClassificationModel:
             )
             wandb.run._label(repo="simpletransformers")
             wandb.watch(self.model)
+            self.wandb_run_id = wandb.run.id
 
         if args.fp16:
             from torch.cuda import amp
