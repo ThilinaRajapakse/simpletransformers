@@ -89,6 +89,7 @@ class ModelArgs:
     tokenizer_type: str = None
     train_batch_size: int = 8
     train_custom_parameters_only: bool = False
+    train_epoch_start_num: int = 0
     use_cached_eval_features: bool = False
     use_early_stopping: bool = False
     use_hf_datasets: bool = False

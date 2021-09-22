@@ -460,7 +460,7 @@ class ConvAIModel:
         train_iterator = trange(
             int(args.num_train_epochs), desc="Epoch", disable=args.silent
         )
-        epoch_number = 0
+        epoch_number = args.train_epoch_start_num
         best_eval_metric = None
         early_stopping_counter = 0
 
