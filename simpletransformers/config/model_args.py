@@ -361,6 +361,7 @@ class RetrievalArgs(Seq2SeqArgs):
     embed_batch_size: int = 16
     n_docs: int = 10
     hard_negatives: bool = False
+    remove_duplicates_from_additional_passages: bool = False
 
 
 @dataclass

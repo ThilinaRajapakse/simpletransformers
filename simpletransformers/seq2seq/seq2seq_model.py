@@ -127,6 +127,7 @@ class Seq2SeqModel:
         knowledge_dataset=None,
         index_path=None,
         dpr_ctx_encoder_model_name=None,
+        rag_question_encoder_model_name=None,
         config=None,
         args=None,
         use_cuda=True,
@@ -291,7 +292,10 @@ class Seq2SeqModel:
                 )
 
             self.model = model_class.from_pretrained(
-                encoder_decoder_name, retriever=self.retriever, config=config
+                encoder_decoder_name,
+                retriever=self.retriever,
+                questioni_encoder=rag_question_encoder_model_name,
+                config=config,
             )
             self.config = self.model.config
         else:

@@ -135,6 +135,8 @@ class RetrievalModel:
             self.context_config = config_class.from_pretrained(
                 context_encoder_name, **self.args.context_config
             )
+            if self.args.context_config.get("projection_dim") is not None:
+                context_encoder._keys_to_ignore_on_load_missing.append("encode_proj")
             self.context_encoder = context_encoder.from_pretrained(
                 context_encoder_name, config=self.context_config
             )
@@ -154,18 +156,20 @@ class RetrievalModel:
         else:
             self.context_config = config_class(**self.args.context_config)
             self.context_encoder = context_encoder(config=self.context_config)
-            self.context_tokenizer = context_tokenizer.from_pretrained(context_encoder_tokenizer)
+            self.context_tokenizer = context_tokenizer.from_pretrained(
+                context_encoder_tokenizer
+            )
 
         if query_encoder_name:
             self.query_config = config_class.from_pretrained(
                 query_encoder_name, **self.args.query_config
             )
+            if self.args.query_config.get("projection_dim") is not None:
+                query_encoder._keys_to_ignore_on_load_missing.append("encode_proj")
             self.query_encoder = query_encoder.from_pretrained(
                 query_encoder_name, config=self.query_config
             )
-            self.query_tokenizer = query_tokenizer.from_pretrained(
-                query_encoder_name
-            )
+            self.query_tokenizer = query_tokenizer.from_pretrained(query_encoder_name)
         elif model_name:
             self.query_config = config_class.from_pretrained(
                 os.path.join(model_name, "query_encoder"), **self.args.query_config
@@ -179,7 +183,9 @@ class RetrievalModel:
         else:
             self.query_config = config_class(**self.args.query_config)
             self.query_encoder = query_encoder(config=self.query_config)
-            self.query_tokenizer = query_tokenizer.from_pretrained(query_encoder_tokenizer)
+            self.query_tokenizer = query_tokenizer.from_pretrained(
+                query_encoder_tokenizer
+            )
 
         # TODO: Add support for adding special tokens to the tokenizers
 
@@ -193,6 +199,7 @@ class RetrievalModel:
         show_running_loss=True,
         args=None,
         eval_data=None,
+        additional_eval_passages=None,
         verbose=True,
         **kwargs,
     ):
@@ -253,6 +260,7 @@ class RetrievalModel:
             output_dir,
             show_running_loss=show_running_loss,
             eval_data=eval_data,
+            additional_eval_passages=additional_eval_passages,
             verbose=verbose,
             **kwargs,
         )
@@ -278,6 +286,7 @@ class RetrievalModel:
         output_dir,
         show_running_loss=True,
         eval_data=None,
+        additional_eval_passages=None,
         verbose=True,
         **kwargs,
     ):
@@ -553,8 +562,9 @@ class RetrievalModel:
                         and global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results = self.eval_model(
+                        results, *_ = self.eval_model(
                             eval_data,
+                            additional_passages=additional_eval_passages,
                             verbose=verbose and args.evaluate_during_training_verbose,
                             silent=args.evaluate_during_training_silent,
                             **kwargs,
@@ -720,8 +730,9 @@ class RetrievalModel:
                 )
 
             if args.evaluate_during_training and args.evaluate_each_epoch:
-                results = self.eval_model(
+                results, *_ = self.eval_model(
                     eval_data,
+                    additional_passages=additional_eval_passages,
                     verbose=verbose and args.evaluate_during_training_verbose,
                     silent=args.evaluate_during_training_silent,
                     **kwargs,
@@ -865,6 +876,8 @@ class RetrievalModel:
         output_dir=None,
         verbose=True,
         silent=False,
+        retrieve_n_docs=None,
+        passage_dataset=None,
         **kwargs,
     ):
         """
@@ -881,6 +894,7 @@ class RetrievalModel:
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
+            passage_dataset: Path to a saved Huggingface dataset (containing generated embeddings) for both the eval_data and additional passages
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
                         will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
@@ -901,13 +915,14 @@ class RetrievalModel:
             self.context_config,
             self.args,
             self.device,
+            passage_dataset=passage_dataset,
         )
 
         eval_dataset = load_hf_dataset(
             eval_data, self.context_tokenizer, self.query_tokenizer, self.args
         )
 
-        result = self.evaluate(
+        result, doc_ids, doc_vectors, doc_dicts = self.evaluate(
             eval_dataset,
             evaluate_with_all_passages,
             passage_dataset,
@@ -921,7 +936,7 @@ class RetrievalModel:
         if verbose:
             logger.info(result)
 
-        return result
+        return result, doc_ids, doc_vectors, doc_dicts
 
     def evaluate(
         self,
@@ -932,6 +947,7 @@ class RetrievalModel:
         output_dir=None,
         verbose=True,
         silent=False,
+        retrieve_n_docs=None,
         **kwargs,
     ):
         """
@@ -967,7 +983,12 @@ class RetrievalModel:
             from torch.cuda import amp
 
         all_query_embeddings = np.zeros(
-            (len(eval_dataset), self.query_config.hidden_size if not self.query_config.projection_dim else self.query_config.projection_dim)
+            (
+                len(eval_dataset),
+                self.query_config.hidden_size
+                if not self.query_config.projection_dim
+                else self.query_config.projection_dim,
+            )
         )
         for i, batch in tqdm(
             enumerate(eval_dataloader),
@@ -976,11 +997,18 @@ class RetrievalModel:
         ):
             # batch = tuple(t.to(device) for t in batch)
 
-            context_inputs, query_inputs, labels = self._get_inputs_dict(batch, evaluate=True)
+            context_inputs, query_inputs, labels = self._get_inputs_dict(
+                batch, evaluate=True
+            )
             with torch.no_grad():
                 if self.args.fp16:
                     with amp.autocast():
-                        tmp_eval_loss, _, query_outputs, correct_count = self._calculate_loss(
+                        (
+                            tmp_eval_loss,
+                            _,
+                            query_outputs,
+                            correct_count,
+                        ) = self._calculate_loss(
                             context_model,
                             query_model,
                             context_inputs,
@@ -989,7 +1017,12 @@ class RetrievalModel:
                             criterion,
                         )
                 else:
-                    tmp_eval_loss, _, query_outputs, correct_count = self._calculate_loss(
+                    (
+                        tmp_eval_loss,
+                        _,
+                        query_outputs,
+                        correct_count,
+                    ) = self._calculate_loss(
                         context_model,
                         query_model,
                         context_inputs,
@@ -1012,10 +1045,12 @@ class RetrievalModel:
 
         if evaluate_with_all_passages:
             doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
-                all_query_embeddings, passage_dataset
+                all_query_embeddings, passage_dataset, retrieve_n_docs
             )
 
-            scores = self.compute_metrics(eval_dataset, doc_ids, self.args, top_k_values, **kwargs)
+            scores = self.compute_metrics(
+                eval_dataset, doc_ids, self.args, top_k_values, **kwargs
+            )
 
             results.update(scores)
 
@@ -1024,7 +1059,7 @@ class RetrievalModel:
             for key in sorted(results.keys()):
                 writer.write("{} = {}\n".format(key, str(results[key])))
 
-        return results
+        return results, doc_ids, doc_vectors, doc_dicts
 
     def compute_metrics(self, eval_samples, doc_ids, args, top_k_values=None, **kwargs):
         if top_k_values is None:
@@ -1032,14 +1067,18 @@ class RetrievalModel:
 
         top_k_values = [k for k in top_k_values if k <= args.n_docs]
 
-        relevance_list = np.array([[1 if d == i else 0 for d in docs] for i, docs in enumerate(doc_ids)])
+        relevance_list = np.array(
+            [[1 if d == i else 0 for d in docs] for i, docs in enumerate(doc_ids)]
+        )
 
         mrr = {
-            f"mrr@{k}": mean_reciprocal_rank_at_k(relevance_list, k) for k in top_k_values
+            f"mrr@{k}": mean_reciprocal_rank_at_k(relevance_list, k)
+            for k in top_k_values
         }
 
         top_k_accuracy = {
-            f"top_{k}_accuracy": np.mean(np.sum(relevance_list[:, :k], axis=-1)) for k in top_k_values
+            f"top_{k}_accuracy": np.mean(np.sum(relevance_list[:, :k], axis=-1))
+            for k in top_k_values
         }
 
         extra_metrics = {}
@@ -1054,11 +1093,14 @@ class RetrievalModel:
         self,
         query_embeddings,
         passage_dataset,
+        retrieve_n_docs=None,
     ):
         """
         Retrieves documents from the index using the given query embeddings.
         """
         args = self.args
+        if retrieve_n_docs is None:
+            retrieve_n_docs = args.n_docs
 
         query_embeddings_batched = [
             query_embeddings[i : i + args.retrieval_batch_size]
@@ -1068,7 +1110,9 @@ class RetrievalModel:
         ids_batched = []
         vectors_batched = []
         for query_embeddings in query_embeddings_batched:
-            ids, vectors = passage_dataset.get_top_docs(query_embeddings.astype(np.float32), args.n_docs)
+            ids, vectors = passage_dataset.get_top_docs(
+                query_embeddings.astype(np.float32), retrieve_n_docs
+            )
             ids_batched.extend(ids)
             vectors_batched.extend(vectors)
 
@@ -1077,6 +1121,50 @@ class RetrievalModel:
         doc_dicts = passage_dataset.get_doc_dicts(ids_batched)
 
         return ids_batched, vectors_batched, doc_dicts
+
+    def build_hard_negatives(
+        self,
+        data,
+        additional_passages=None,
+        passage_dataset=None,
+        retrieve_n_docs=None,
+        write_to_disk=True,
+    ):
+        results, doc_ids, doc_vectors, doc_dicts = self.eval_model(
+            eval_data=data,
+            additional_passages=additional_passages,
+            evaluate_with_all_passages=True,
+            verbose=False,
+            retrieve_n_docs=retrieve_n_docs,
+            passage_dataset=passage_dataset,
+        )
+
+        hard_negatives = []
+        # Remove positive passages. ith passage is positive.
+        for i, (ids, doc_dict) in enumerate(zip(doc_ids, doc_dicts)):
+            positive = np.nonzero(ids == i)[0]
+            if positive:
+                del doc_dict["passages"][positive[0]]
+            else:
+                del doc_dict["passages"][-1]
+            hard_negatives.append(doc_dict["passages"])
+
+        if retrieve_n_docs is None:
+            retrieve_n_docs = self.args.n_docs
+
+        column_names = [f"hard_negatives_{i}" for i in range(retrieve_n_docs - 1)]
+
+        # Build hard negative df from list of lists
+        hard_negative_df = pd.DataFrame(hard_negatives, columns=column_names)
+
+        if write_to_disk:
+            hard_negative_df.to_csv(
+                os.path.join(self.args.output_dir, "hard_negatives.tsv"),
+                index=False,
+                sep="\t",
+            )
+
+        return hard_negative_df
 
     def load_and_cache_examples(
         self, data, evaluate=False, no_cache=False, verbose=True, silent=False
@@ -1258,12 +1346,14 @@ class RetrievalModel:
         similarity_score = torch.matmul(query_outputs, context_outputs.t())
         similarity_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
 
+        criterion = torch.nn.NLLLoss(reduction="mean")
+
         loss = criterion(similarity_score, labels)
 
         max_score, max_idxs = torch.max(similarity_score, 1)
         correct_predictions_count = (
-            max_idxs == torch.tensor(labels)
-        ).sum().cpu().detach().numpy().item()
+            (max_idxs == torch.tensor(labels)).sum().cpu().detach().numpy().item()
+        )
 
         return loss, context_outputs, query_outputs, correct_predictions_count
 
@@ -1275,9 +1365,28 @@ class RetrievalModel:
 
         if not evaluate:
             labels = labels.to(device)
+            if self.args.hard_negatives:
+                shuffled_indices = torch.randperm(len(labels))
+                context_ids = torch.cat(
+                    [
+                        batch["context_ids"],
+                        batch["hard_negatives_ids"][shuffled_indices],
+                    ],
+                    dim=0,
+                )
+                context_masks = torch.cat(
+                    [
+                        batch["context_mask"],
+                        batch["hard_negatives_mask"][shuffled_indices],
+                    ],
+                    dim=0,
+                )
+            else:
+                context_ids = batch["context_ids"]
+                context_masks = batch["context_mask"]
             context_input = {
-                "input_ids": (batch["context_ids"]).to(device),
-                "attention_mask": batch["context_mask"].to(device),
+                "input_ids": context_ids.to(device),
+                "attention_mask": context_masks.to(device),
             }
             query_input = {
                 "input_ids": batch["query_ids"].to(device),
@@ -1289,8 +1398,20 @@ class RetrievalModel:
             labels = labels[shuffled_indices].to(device)
 
             if self.args.hard_negatives:
-                context_ids = torch.cat([batch["context_ids"][shuffled_indices], batch["hard_negatives_ids"]], dim=0)
-                context_masks = torch.cat([batch["context_mask"][shuffled_indices], batch["hard_negatives_mask"]], dim=0)
+                context_ids = torch.cat(
+                    [
+                        batch["context_ids"][shuffled_indices],
+                        batch["hard_negatives_ids"],
+                    ],
+                    dim=0,
+                )
+                context_masks = torch.cat(
+                    [
+                        batch["context_mask"][shuffled_indices],
+                        batch["hard_negatives_mask"],
+                    ],
+                    dim=0,
+                )
             else:
                 context_ids = batch["context_ids"][shuffled_indices]
                 context_masks = batch["context_mask"][shuffled_indices]
@@ -1318,11 +1439,11 @@ class RetrievalModel:
         }
         training_progress_scores = {
             **training_progress_scores,
-            **{f"mrr@{k}": [] for k in top_k_values}
+            **{f"mrr@{k}": [] for k in top_k_values},
         }
         training_progress_scores = {
             **training_progress_scores,
-            **{f"top_{k}_accuracy": [] for k in top_k_values}
+            **{f"top_{k}_accuracy": [] for k in top_k_values},
         }
 
         return training_progress_scores
@@ -1341,11 +1462,11 @@ class RetrievalModel:
     ):
         if not output_dir:
             output_dir = self.args.output_dir
-        os.makedirs(output_dir, exist_ok=True)
-
-        logger.info(f"Saving model into {output_dir}")
 
         if context_model and query_model and not self.args.no_save:
+            os.makedirs(output_dir, exist_ok=True)
+
+            logger.info(f"Saving model into {output_dir}")
             # Take care of distributed/parallel training
             context_model_to_save = (
                 context_model.module
@@ -1388,6 +1509,7 @@ class RetrievalModel:
                 )
 
         if results:
+            os.makedirs(output_dir, exist_ok=True)
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
             with open(output_eval_file, "w") as writer:
                 for key in sorted(results.keys()):

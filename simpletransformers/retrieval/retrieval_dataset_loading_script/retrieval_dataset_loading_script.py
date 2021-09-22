@@ -65,7 +65,9 @@ class Retrieval(datasets.GeneratorBasedBuilder):
             examples_to_process = json.load(f)
             for i, example in enumerate(examples_to_process):
                 query_text = example["question"]
-                gold_passage = example["positive_ctxs"][0]["text"]  # For now, just use the first context
+                gold_passage = example["positive_ctxs"][0][
+                    "text"
+                ]  # For now, just use the first context
 
                 if self.config.hard_negatives:
                     if example["hard_negative_ctxs"]:

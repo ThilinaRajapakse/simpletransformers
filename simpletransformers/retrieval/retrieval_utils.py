@@ -3,6 +3,8 @@ import os
 import pickle
 from multiprocessing import Pool
 from functools import partial
+from simpletransformers.seq2seq.seq2seq_utils import add_faiss_index_to_dataset
+from datasets.load import load_from_disk
 
 import torch
 import transformers
@@ -25,7 +27,8 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args):
         if data.endswith(".json"):
             dataset = load_dataset(
                 os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)), "retrieval_dataset_loading_script"
+                    os.path.dirname(os.path.abspath(__file__)),
+                    "retrieval_dataset_loading_script",
                 ),
                 data_files=data,
                 hard_negatives=args.hard_negatives,
@@ -105,13 +108,29 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
     query_mask = query_inputs["attention_mask"].squeeze()
 
     if args.hard_negatives:
-        hard_negatives_inputs = query_tokenizer(
-            dataset["hard_negatives"],
-            max_length=args.max_seq_length,
-            padding="max_length",
-            return_tensors="np",
-            truncation=True,
-        )
+        try:
+            hard_negatives_inputs = query_tokenizer(
+                dataset["hard_negatives"],
+                max_length=args.max_seq_length,
+                padding="max_length",
+                return_tensors="np",
+                truncation=True,
+            )
+        except (TypeError, ValueError) as e:
+            logger.warn(e)
+            logger.warn(
+                """Error encountered while converting target_text.
+            All target_text values have been manually cast to String as a workaround.
+            This may have been caused by NaN values present in the data."""
+            )
+            dataset["hard_negatives"] = [str(p) for p in dataset["hard_negatives"]]
+            hard_negatives_inputs = query_tokenizer(
+                dataset["hard_negatives"],
+                max_length=args.max_seq_length,
+                padding="max_length",
+                return_tensors="np",
+                truncation=True,
+            )
         hard_negatives_ids = hard_negatives_inputs["input_ids"].squeeze()
         hard_negatives_mask = hard_negatives_inputs["attention_mask"].squeeze()
 
@@ -134,90 +153,201 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
 
 def embed(documents, encoder, tokenizer, device):
     """Compute the DPR embeddings of document passages"""
-    input_ids = tokenizer(
-        documents["passages"],
-        truncation=True,
-        padding="longest",
-        return_tensors="pt",
-    )["input_ids"]
-    embeddings = encoder(input_ids.to(device=device), return_dict=True).pooler_output
+    try:
+        input_ids = tokenizer(
+            documents["passages"],
+            truncation=True,
+            padding="longest",
+            return_tensors="pt",
+        )["input_ids"]
+        embeddings = encoder(
+            input_ids.to(device=device), return_dict=True
+        ).pooler_output
+    except (TypeError, ValueError) as e:
+        logger.warn(e)
+        logger.warn(
+            """Error encountered while converting target_text.
+        All target_text values have been manually cast to String as a workaround.
+        This may have been caused by NaN values present in the data."""
+        )
+        documents["passages"] = [str(p) for p in documents["passages"]]
+        input_ids = tokenizer(
+            documents["passages"],
+            truncation=True,
+            padding="longest",
+            return_tensors="pt",
+        )["input_ids"]
+        embeddings = encoder(
+            input_ids.to(device=device), return_dict=True
+        ).pooler_output
+
     return {"embeddings": embeddings.detach().cpu().numpy()}
 
 
 def get_evaluation_passage_dataset(
-    eval_data, additional_passages, encoder, tokenizer, context_config, args, device
+    eval_data,
+    additional_passages,
+    encoder,
+    tokenizer,
+    context_config,
+    args,
+    device,
+    passage_dataset=None,
 ):
     import faiss
 
-    logger.info("Loading evaluation passages to a Huggingface Dataset")
-    if isinstance(eval_data, str):
-        if eval_data.endswith(".json"):
-            passage_dataset = load_dataset(
-                os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)), "retrieval_dataset_loading_script"
-                ),
-                data_files=eval_data,
-                hard_negatives=False,
-                download_mode="force_redownload"
-                if args.reprocess_input_data
-                else "reuse_dataset_if_exists",
-            )
+    if not passage_dataset:
+        logger.info("Loading evaluation passages to a Huggingface Dataset")
+        if isinstance(eval_data, str):
+            if eval_data.endswith(".json"):
+                passage_dataset = load_dataset(
+                    os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)),
+                        "retrieval_dataset_loading_script",
+                    ),
+                    data_files=eval_data,
+                    hard_negatives=False,
+                    download_mode="force_redownload"
+                    if args.reprocess_input_data
+                    else "reuse_dataset_if_exists",
+                )
+            else:
+                passage_dataset = load_dataset(
+                    "csv",
+                    data_files=eval_data,
+                    delimiter="\t",
+                    download_mode="force_redownload"
+                    if args.reprocess_input_data
+                    else "reuse_dataset_if_exists",
+                    cache_dir=args.dataset_cache_dir,
+                )
+            passage_dataset = passage_dataset["train"]
         else:
-            passage_dataset = load_dataset(
-                "csv",
-                data_files=eval_data,
-                delimiter="\t",
-                download_mode="force_redownload"
-                if args.reprocess_input_data
-                else "reuse_dataset_if_exists",
-                cache_dir=args.dataset_cache_dir,
+            passage_dataset = HFDataset.from_pandas(eval_data)
+        try:
+            passage_dataset = passage_dataset.remove_columns("query_text")
+        except ValueError:
+            # It's fine, query_text is not here
+            pass
+        try:
+            if additional_passages is not None:
+                passage_dataset = passage_dataset.remove_columns("hard_negatives")
+        except ValueError:
+            pass
+        passage_dataset = passage_dataset.rename_column("gold_passage", "passages")
+
+        if additional_passages is not None:
+            if isinstance(additional_passages, str):
+                if os.path.isdir(additional_passages):
+                    # To be used if you want to reuse the embeddings from a previous eval but
+                    # with new eval data
+                    additional_passages = load_from_disk(additional_passages)
+                    passage_dataset = passage_dataset.map(
+                        partial(
+                            embed, encoder=encoder, tokenizer=tokenizer, device=device
+                        ),
+                        batched=True,
+                        batch_size=args.embed_batch_size,
+                    )
+                else:
+                    additional_passages = load_dataset(
+                        "csv",
+                        data_files=additional_passages,
+                        delimiter="\t",
+                        column_names=["passages"],
+                        cache_dir=args.dataset_cache_dir,
+                    )
+                    additional_passages = additional_passages["train"]
+                if args.remove_duplicates_from_additional_passages:
+                    additional_passages = HFDataset.from_pandas(
+                        additional_passages.to_pandas().drop_duplicates(
+                            subset=["passages"]
+                        )
+                    )
+                    additional_passages = additional_passages.remove_columns(
+                        "__index_level_0__"
+                    )
+            elif isinstance(additional_passages, list):
+                additional_passages = HFDataset.from_dict(
+                    {"passages": additional_passages}
+                )
+                if args.remove_duplicates_from_additional_passages:
+                    additional_passages = HFDataset.from_pandas(
+                        additional_passages.to_pandas().drop_duplicates(
+                            subset=["passages"]
+                        )
+                    )
+                    additional_passages = additional_passages.remove_columns(
+                        "__index_level_0__"
+                    )
+            else:
+                if args.remove_duplicates_from_additional_passages:
+                    additional_passages = additional_passages.drop_duplicates(
+                        subset=["passages"]
+                    )
+                additional_passages = HFDataset.from_pandas(additional_passages)
+
+            passage_dataset = concatenate_datasets(
+                [passage_dataset, additional_passages]
             )
-        passage_dataset = passage_dataset["train"]
+        logger.info("Loading evaluation passages to a Huggingface Dataset completed.")
+
+        if (
+            "embeddings" not in additional_passages.column_names
+            and "embeddings" not in passage_dataset.column_names
+        ):
+            logger.info("Generating embeddings for evaluation passages")
+            passage_dataset = passage_dataset.map(
+                partial(embed, encoder=encoder, tokenizer=tokenizer, device=device),
+                batched=True,
+                batch_size=args.embed_batch_size,
+            )
+
+            logger.info("Generating embeddings for evaluation passages completed.")
+            if args.save_passage_dataset:
+                output_dataset_directory = os.path.join(
+                    args.output_dir, "passage_dataset"
+                )
+                os.makedirs(output_dataset_directory, exist_ok=True)
+                passage_dataset.save_to_disk(output_dataset_directory)
+
+        logger.info("Adding FAISS index to evaluation passages")
+        index = faiss.IndexHNSWFlat(
+            args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
+        )
+        passage_dataset.add_faiss_index("embeddings", custom_index=index)
+        passage_index = DPRIndex(passage_dataset, context_config.hidden_size)
+        logger.info("Adding FAISS index to evaluation passages completed.")
+        if args.save_passage_dataset:
+            faiss_save_path = os.path.join(
+                output_dataset_directory, "hf_dataset_index.faiss"
+            )
+            passage_dataset.save_faiss_index("embeddings", faiss_save_path)
     else:
-        passage_dataset = HFDataset.from_pandas(eval_data)
-        passage_dataset = passage_dataset.remove_columns("query_text")
-    passage_dataset = passage_dataset.rename_column("gold_passage", "passages")
-
-    if additional_passages is not None:
-        if isinstance(additional_passages, str):
-            additional_passages = load_dataset(
-                "csv",
-                data_files=additional_passages,
-                delimiter="\t",
-                column_names=["passages"],
-                cache_dir=args.dataset_cache_dir,
-            )
-            additional_passages = additional_passages["train"]
-        elif isinstance(additional_passages, list):
-            additional_passages = HFDataset.from_dict({"passages": additional_passages})
+        logger.info(f"Loading passage dataset from {passage_dataset}")
+        passage_data = load_from_disk(passage_dataset)
+        index_path = os.path.join(passage_dataset, "hf_dataset_index.faiss")
+        if os.path.isfile(index_path):
+            passage_data.load_faiss_index("embeddings", index_path)
+            passage_dataset = passage_data
         else:
-            additional_passages = HFDataset.from_pandas(additional_passages)
+            logger.info("Adding FAISS index to evaluation passages")
+            index = faiss.IndexHNSWFlat(
+                args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
+            )
+            passage_dataset.add_faiss_index("embeddings", custom_index=index)
+            logger.info("Adding FAISS index to evaluation passages completed.")
+            if args.save_passage_dataset:
+                output_dataset_directory = os.path.join(
+                    args.output_dir, "passage_dataset"
+                )
+                faiss_save_path = os.path.join(
+                    output_dataset_directory, "hf_dataset_index.faiss"
+                )
+                passage_dataset.save_faiss_index("embeddings", faiss_save_path)
 
-        passage_dataset = concatenate_datasets([passage_dataset, additional_passages])
-    logger.info("Loading evaluation passages to a Huggingface Dataset completed.")
-
-    logger.info("Generating embeddings for evaluation passages")
-    passage_dataset = passage_dataset.map(
-        partial(embed, encoder=encoder, tokenizer=tokenizer, device=device),
-        batched=True,
-        batch_size=args.embed_batch_size,
-    )
-
-    logger.info("Generating embeddings for evaluation passages completed.")
-    if args.save_passage_dataset:
-        output_dataset_directory = os.path.join(args.output_dir, "passage_dataset")
-        os.makedirs(output_dataset_directory, exist_ok=True)
-        passage_dataset.save_to_disk(output_dataset_directory)
-
-    logger.info("Adding FAISS index to evaluation passages")
-    index = faiss.IndexHNSWFlat(args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT)
-    passage_dataset.add_faiss_index("embeddings", custom_index=index)
-    passage_index = DPRIndex(passage_dataset, context_config.hidden_size)
-    logger.info("Adding FAISS index to evaluation passages completed.")
-    if args.save_passage_dataset:
-        faiss_save_path = os.path.join(output_dataset_directory, "index.faiss")
-        passage_dataset.save_faiss_index("embeddings", faiss_save_path)
-
+        logger.info(f"Succesfully loaded passage dataset from {passage_dataset}")
+        passage_index = DPRIndex(passage_dataset, context_config.hidden_size)
     return passage_index
 
 
@@ -259,4 +389,4 @@ def mean_reciprocal_rank_at_k(rs, k):
     """
     rs = rs[:, :k]
     rs = (np.asarray(r).nonzero()[0] for r in rs)
-    return np.mean([1. / (r[0] + 1) if r.size else 0. for r in rs])
+    return np.mean([1.0 / (r[0] + 1) if r.size else 0.0 for r in rs])
