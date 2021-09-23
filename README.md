@@ -161,7 +161,8 @@ predictions, raw_outputs = model.predict(["Sam was a Wizard"])
 
 ### Experiment Tracking with Weights and Biases
 
-- W&B Notebook -
+- Weights and Biases makes it incredibly easy to keep track of all your experiments. Check it out on Colab here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://wandb.me/simpletformers-QA-colab)
+
 
 ---
 
