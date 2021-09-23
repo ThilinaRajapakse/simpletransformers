@@ -876,6 +876,7 @@ class ClassificationModel:
                     **args.wandb_kwargs,
                 )
                 wandb.run._label(repo="simpletransformers")
+                self.wandb_run_id = wandb.run.id
             wandb.watch(self.model)
 
         if self.args.fp16:

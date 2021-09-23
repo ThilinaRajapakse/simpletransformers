@@ -713,6 +713,7 @@ class NERModel:
             )
             wandb.run._label(repo="simpletransformers")
             wandb.watch(self.model)
+            self.wandb_run_id = wandb.run.id
 
         if self.args.fp16:
             from torch.cuda import amp
