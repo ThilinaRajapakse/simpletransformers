@@ -43,6 +43,7 @@ global_args = {
     "silent": False,
     "tensorboard_dir": None,
     "train_batch_size": 8,
+    "train_epoch_start_num": 0,
     "use_cached_eval_features": False,
     "use_early_stopping": False,
     "use_multiprocessing": True,
