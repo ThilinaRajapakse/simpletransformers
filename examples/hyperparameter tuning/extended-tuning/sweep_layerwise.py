@@ -24,7 +24,10 @@ sweep_config = {
         "params_classifier.out_proj.bias": {"min": 0, "max": 1e-3},
         **layer_parameters,
     },
-    "early_terminate": {"type": "hyperband", "min_iter": 6,},
+    "early_terminate": {
+        "type": "hyperband",
+        "min_iter": 6,
+    },
 }
 
 sweep_id = wandb.sweep(sweep_config, project="RTE - Hyperparameter Optimization")
@@ -86,7 +89,10 @@ def train():
             # Add each layer and its value to the list of layer parameters
             for layer_key in range(start_layer, end_layer):
                 layer_params.append(
-                    {"layer": layer_key, "lr": value,}
+                    {
+                        "layer": layer_key,
+                        "lr": value,
+                    }
                 )
         elif key.startswith("params_"):
             # These are parameter groups (classifier)

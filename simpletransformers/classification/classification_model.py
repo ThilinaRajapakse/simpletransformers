@@ -30,6 +30,7 @@ from sklearn.metrics import (
     average_precision_score,
 )
 from tensorboardX import SummaryWriter
+from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
@@ -46,17 +47,20 @@ from transformers.optimization import AdamW, Adafactor
 from transformers import (
     AlbertConfig,
     AlbertTokenizer,
+    AlbertForSequenceClassification,
     AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
     BertConfig,
     BertTokenizerFast,
+    BertForSequenceClassification,
     BertweetTokenizer,
     BigBirdConfig,
     BigBirdTokenizer,
     BigBirdForSequenceClassification,
     CamembertConfig,
     CamembertTokenizerFast,
+    CamembertForSequenceClassification,
     DebertaConfig,
     DebertaForSequenceClassification,
     DebertaTokenizer,
@@ -65,22 +69,29 @@ from transformers import (
     DebertaV2Tokenizer,
     DistilBertConfig,
     DistilBertTokenizerFast,
+    DistilBertForSequenceClassification,
     ElectraConfig,
     ElectraTokenizerFast,
+    ElectraForSequenceClassification,
     FlaubertConfig,
     FlaubertTokenizer,
+    FlaubertForSequenceClassification,
     HerbertTokenizerFast,
     LayoutLMConfig,
     LayoutLMTokenizerFast,
+    LayoutLMForSequenceClassification,
     LongformerConfig,
     LongformerTokenizerFast,
+    LongformerForSequenceClassification,
     MPNetConfig,
     MPNetForSequenceClassification,
     MPNetTokenizerFast,
     MobileBertConfig,
     MobileBertTokenizerFast,
+    MobileBertForSequenceClassification,
     RobertaConfig,
     RobertaTokenizerFast,
+    RobertaForSequenceClassification,
     SqueezeBertConfig,
     SqueezeBertForSequenceClassification,
     SqueezeBertTokenizerFast,
@@ -88,9 +99,12 @@ from transformers import (
     XLMConfig,
     XLMRobertaConfig,
     XLMRobertaTokenizerFast,
+    XLMRobertaForSequenceClassification,
     XLMTokenizer,
+    XLMForSequenceClassification,
     XLNetConfig,
     XLNetTokenizerFast,
+    XLNetForSequenceClassification,
 )
 from transformers.convert_graph_to_onnx import convert, quantize
 
@@ -101,46 +115,11 @@ from simpletransformers.classification.classification_utils import (
     convert_examples_to_features,
     load_hf_dataset,
 )
-from simpletransformers.classification.transformer_models.albert_model import (
-    AlbertForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.bert_model import (
-    BertForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.camembert_model import (
-    CamembertForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.distilbert_model import (
-    DistilBertForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.flaubert_model import (
-    FlaubertForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.layoutlm_model import (
-    LayoutLMForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.longformer_model import (
-    LongformerForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.mobilebert_model import (
-    MobileBertForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.roberta_model import (
-    RobertaForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.xlm_model import (
-    XLMForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.xlm_roberta_model import (
-    XLMRobertaForSequenceClassification,
-)
-from simpletransformers.classification.transformer_models.xlnet_model import (
-    XLNetForSequenceClassification,
-)
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import ClassificationArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
-from simpletransformers.custom_models.models import ElectraForSequenceClassification
+
+# from simpletransformers.custom_models.models import ElectraForSequenceClassification
 
 
 try:
@@ -384,6 +363,13 @@ class ClassificationModel:
         else:
             self.device = "cpu"
 
+        if self.weight:
+            self.loss_fct = CrossEntropyLoss(
+                weight=torch.Tensor(self.weight).to(self.device)
+            )
+        else:
+            self.loss_fct = None
+
         if self.args.onnx:
             from onnxruntime import InferenceSession, SessionOptions
 
@@ -406,32 +392,17 @@ class ClassificationModel:
                 )
         else:
             if not self.args.quantized_model:
-                if self.weight:
-                    self.model = model_class.from_pretrained(
-                        model_name,
-                        config=self.config,
-                        weight=torch.Tensor(self.weight).to(self.device),
-                        **kwargs,
-                    )
-                else:
-                    self.model = model_class.from_pretrained(
-                        model_name, config=self.config, **kwargs
-                    )
+                self.model = model_class.from_pretrained(
+                    model_name, config=self.config, **kwargs
+                )
             else:
                 quantized_weights = torch.load(
                     os.path.join(model_name, "pytorch_model.bin")
                 )
-                if self.weight:
-                    self.model = model_class.from_pretrained(
-                        None,
-                        config=self.config,
-                        state_dict=quantized_weights,
-                        weight=torch.Tensor(self.weight).to(self.device),
-                    )
-                else:
-                    self.model = model_class.from_pretrained(
-                        None, config=self.config, state_dict=quantized_weights
-                    )
+
+                self.model = model_class.from_pretrained(
+                    None, config=self.config, state_dict=quantized_weights
+                )
 
             if self.args.dynamic_quantize:
                 self.model = torch.quantization.quantize_dynamic(
@@ -656,6 +627,17 @@ class ClassificationModel:
             )
 
         return global_step, training_details
+
+    def _calculate_loss(self, model, inputs):
+        outputs = model(**inputs)
+        # model outputs are always tuple in pytorch-transformers (see doc)
+        loss = outputs[0]
+        if self.loss_fct:
+            logits = outputs[1]
+            labels = inputs["labels"]
+
+            loss = self.loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        return (loss, *outputs[1:])
 
     def train(
         self,
@@ -906,13 +888,9 @@ class ClassificationModel:
                 inputs = self._get_inputs_dict(batch)
                 if self.args.fp16:
                     with amp.autocast():
-                        outputs = model(**inputs)
-                        # model outputs are always tuple in pytorch-transformers (see doc)
-                        loss = outputs[0]
+                        loss, *_ = self._calculate_loss(model, inputs)
                 else:
-                    outputs = model(**inputs)
-                    # model outputs are always tuple in pytorch-transformers (see doc)
-                    loss = outputs[0]
+                    loss, *_ = self._calculate_loss(model, inputs)
 
                 if args.n_gpu > 1:
                     loss = (
@@ -1452,10 +1430,10 @@ class ClassificationModel:
 
                 if self.args.fp16:
                     with amp.autocast():
-                        outputs = model(**inputs)
+                        outputs = self._calculate_loss(model, inputs)
                         tmp_eval_loss, logits = outputs[:2]
                 else:
-                    outputs = model(**inputs)
+                    outputs = self._calculate_loss(model, inputs)
                     tmp_eval_loss, logits = outputs[:2]
 
                 if multi_label:
@@ -1563,7 +1541,9 @@ class ClassificationModel:
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
-                truth, [inverse_labels_map[pred] for pred in preds], labels=labels_list,
+                truth,
+                [inverse_labels_map[pred] for pred in preds],
+                labels=labels_list,
             )
 
             if not self.args.sliding_window:
@@ -1967,10 +1947,10 @@ class ClassificationModel:
 
                         if self.args.fp16:
                             with amp.autocast():
-                                outputs = model(**inputs)
+                                outputs = self._calculate_loss(model, inputs)
                                 tmp_eval_loss, logits = outputs[:2]
                         else:
-                            outputs = model(**inputs)
+                            outputs = self._calculate_loss(model, inputs)
                             tmp_eval_loss, logits = outputs[:2]
                         embedding_outputs, layer_hidden_states = (
                             outputs[2][0],
@@ -2029,10 +2009,10 @@ class ClassificationModel:
 
                         if self.args.fp16:
                             with amp.autocast():
-                                outputs = model(**inputs)
+                                outputs = self._calculate_loss(model, inputs)
                                 tmp_eval_loss, logits = outputs[:2]
                         else:
-                            outputs = model(**inputs)
+                            outputs = self._calculate_loss(model, inputs)
                             tmp_eval_loss, logits = outputs[:2]
 
                         if multi_label:

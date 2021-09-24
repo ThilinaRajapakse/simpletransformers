@@ -17,7 +17,10 @@ sweep_config = {
         "num_train_epochs": {"min": 1, "max": 40},
         "learning_rate": {"min": 0, "max": 4e-4},
     },
-    "early_terminate": {"type": "hyperband", "min_iter": 6,},
+    "early_terminate": {
+        "type": "hyperband",
+        "min_iter": 6,
+    },
 }
 
 sweep_id = wandb.sweep(sweep_config, project="RTE - Hyperparameter Optimization")

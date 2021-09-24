@@ -1492,7 +1492,11 @@ class Seq2SeqModel:
                     )
                 else:
                     return Seq2SeqDataset(
-                        encoder_tokenizer, decoder_tokenizer, self.args, data, mode,
+                        encoder_tokenizer,
+                        decoder_tokenizer,
+                        self.args,
+                        data,
+                        mode,
                     )
 
     def _create_training_progress_scores(self, **kwargs):
