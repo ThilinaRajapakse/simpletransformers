@@ -3,7 +3,7 @@
 
 
 from __future__ import absolute_import, division, print_function
-
+import collections
 import logging
 import math
 import os
@@ -29,7 +29,7 @@ from sklearn.metrics import (
     auc,
     average_precision_score,
 )
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
@@ -114,10 +114,12 @@ from simpletransformers.classification.classification_utils import (
     ClassificationDataset,
     convert_examples_to_features,
     load_hf_dataset,
+    flatten_results,
 )
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import ClassificationArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
+from simpletransformers.losses.loss_utils import init_loss
 
 # from simpletransformers.custom_models.models import ElectraForSequenceClassification
 
@@ -363,12 +365,9 @@ class ClassificationModel:
         else:
             self.device = "cpu"
 
-        if self.weight:
-            self.loss_fct = CrossEntropyLoss(
-                weight=torch.Tensor(self.weight).to(self.device)
-            )
-        else:
-            self.loss_fct = None
+        self.loss_fct = init_loss(
+            weight=self.weight, device=self.device, args=self.args
+        )
 
         if self.args.onnx:
             from onnxruntime import InferenceSession, SessionOptions
@@ -628,17 +627,6 @@ class ClassificationModel:
 
         return global_step, training_details
 
-    def _calculate_loss(self, model, inputs):
-        outputs = model(**inputs)
-        # model outputs are always tuple in pytorch-transformers (see doc)
-        loss = outputs[0]
-        if self.loss_fct:
-            logits = outputs[1]
-            labels = inputs["labels"]
-
-            loss = self.loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        return (loss, *outputs[1:])
-
     def train(
         self,
         train_dataloader,
@@ -646,6 +634,7 @@ class ClassificationModel:
         multi_label=False,
         show_running_loss=True,
         eval_df=None,
+        test_df=None,
         verbose=True,
         **kwargs,
     ):
@@ -658,7 +647,7 @@ class ClassificationModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+        tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
 
         t_total = (
             len(train_dataloader)
@@ -888,9 +877,21 @@ class ClassificationModel:
                 inputs = self._get_inputs_dict(batch)
                 if self.args.fp16:
                     with amp.autocast():
-                        loss, *_ = self._calculate_loss(model, inputs)
+                        loss, *_ = self._calculate_loss(
+                            model,
+                            inputs,
+                            loss_fct=self.loss_fct,
+                            num_labels=self.num_labels,
+                            args=self.args,
+                        )
                 else:
-                    loss, *_ = self._calculate_loss(model, inputs)
+                    loss, *_ = self._calculate_loss(
+                        model,
+                        inputs,
+                        loss_fct=self.loss_fct,
+                        num_labels=self.num_labels,
+                        args=self.args,
+                    )
 
                 if args.n_gpu > 1:
                     loss = (
@@ -972,13 +973,6 @@ class ClassificationModel:
                             wandb_log=False,
                             **kwargs,
                         )
-                        for key, value in results.items():
-                            try:
-                                tb_writer.add_scalar(
-                                    "eval_{}".format(key), value, global_step
-                                )
-                            except (NotImplementedError, AssertionError):
-                                pass
 
                         output_dir_current = os.path.join(
                             output_dir, "checkpoint-{}".format(global_step)
@@ -997,6 +991,21 @@ class ClassificationModel:
                         training_progress_scores["train_loss"].append(current_loss)
                         for key in results:
                             training_progress_scores[key].append(results[key])
+
+                        if test_df is not None:
+                            test_results, _, _ = self.eval_model(
+                                test_df,
+                                verbose=verbose
+                                and args.evaluate_during_training_verbose,
+                                silent=args.evaluate_during_training_silent,
+                                wandb_log=False,
+                                **kwargs,
+                            )
+                            for key in test_results:
+                                training_progress_scores["test_" + key].append(
+                                    test_results[key]
+                                )
+
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
                             os.path.join(
@@ -1007,6 +1016,18 @@ class ClassificationModel:
 
                         if args.wandb_project or self.is_sweeping:
                             wandb.log(self._get_last_metrics(training_progress_scores))
+
+                        for key, value in flatten_results(
+                            self._get_last_metrics(training_progress_scores)
+                        ):
+                            try:
+                                tb_writer.add_scalar(key, value, global_step)
+                            except (NotImplementedError, AssertionError):
+                                if verbose:
+                                    logger.warning(
+                                        f"can't log value of type: {type(value)} to tensorboar"
+                                    )
+                        tb_writer.flush()
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
@@ -1135,6 +1156,19 @@ class ClassificationModel:
                 training_progress_scores["train_loss"].append(current_loss)
                 for key in results:
                     training_progress_scores[key].append(results[key])
+                if test_df is not None:
+                    test_results, _, _ = self.eval_model(
+                        test_df,
+                        verbose=verbose and args.evaluate_during_training_verbose,
+                        silent=args.evaluate_during_training_silent,
+                        wandb_log=False,
+                        **kwargs,
+                    )
+                    for key in test_results:
+                        training_progress_scores["test_" + key].append(
+                            test_results[key]
+                        )
+
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(
                     os.path.join(args.output_dir, "training_progress_scores.csv"),
@@ -1143,6 +1177,18 @@ class ClassificationModel:
 
                 if args.wandb_project or self.is_sweeping:
                     wandb.log(self._get_last_metrics(training_progress_scores))
+
+                for key, value in flatten_results(
+                    self._get_last_metrics(training_progress_scores)
+                ):
+                    try:
+                        tb_writer.add_scalar(key, value, global_step)
+                    except (NotImplementedError, AssertionError):
+                        if verbose:
+                            logger.warning(
+                                f"can't log value of type: {type(value)} to tensorboar"
+                            )
+                tb_writer.flush()
 
                 if not best_eval_metric:
                     best_eval_metric = results[args.early_stopping_metric]
@@ -1430,10 +1476,22 @@ class ClassificationModel:
 
                 if self.args.fp16:
                     with amp.autocast():
-                        outputs = self._calculate_loss(model, inputs)
+                        outputs = self._calculate_loss(
+                            model,
+                            inputs,
+                            loss_fct=self.loss_fct,
+                            num_labels=self.num_labels,
+                            args=self.args,
+                        )
                         tmp_eval_loss, logits = outputs[:2]
                 else:
-                    outputs = self._calculate_loss(model, inputs)
+                    outputs = self._calculate_loss(
+                        model,
+                        inputs,
+                        loss_fct=self.loss_fct,
+                        num_labels=self.num_labels,
+                        args=self.args,
+                    )
                     tmp_eval_loss, logits = outputs[:2]
 
                 if multi_label:
@@ -1773,7 +1831,10 @@ class ClassificationModel:
 
         extra_metrics = {}
         for metric, func in kwargs.items():
-            extra_metrics[metric] = func(labels, preds)
+            if metric.startswith("prob_"):
+                extra_metrics[metric] = func(labels, model_outputs)
+            else:
+                extra_metrics[metric] = func(labels, preds)
 
         if multi_label:
             threshold_values = self.args.threshold if self.args.threshold else 0.5
@@ -1947,10 +2008,22 @@ class ClassificationModel:
 
                         if self.args.fp16:
                             with amp.autocast():
-                                outputs = self._calculate_loss(model, inputs)
+                                outputs = self._calculate_loss(
+                                    model,
+                                    inputs,
+                                    loss_fct=self.loss_fct,
+                                    num_labels=self.num_labels,
+                                    args=self.args,
+                                )
                                 tmp_eval_loss, logits = outputs[:2]
                         else:
-                            outputs = self._calculate_loss(model, inputs)
+                            outputs = self._calculate_loss(
+                                model,
+                                inputs,
+                                loss_fct=self.loss_fct,
+                                num_labels=self.num_labels,
+                                args=self.args,
+                            )
                             tmp_eval_loss, logits = outputs[:2]
                         embedding_outputs, layer_hidden_states = (
                             outputs[2][0],
@@ -2009,10 +2082,22 @@ class ClassificationModel:
 
                         if self.args.fp16:
                             with amp.autocast():
-                                outputs = self._calculate_loss(model, inputs)
+                                outputs = self._calculate_loss(
+                                    model,
+                                    inputs,
+                                    loss_fct=self.loss_fct,
+                                    num_labels=self.num_labels,
+                                    args=self.args,
+                                )
                                 tmp_eval_loss, logits = outputs[:2]
                         else:
-                            outputs = self._calculate_loss(model, inputs)
+                            outputs = self._calculate_loss(
+                                model,
+                                inputs,
+                                loss_fct=self.loss_fct,
+                                num_labels=self.num_labels,
+                                args=self.args,
+                            )
                             tmp_eval_loss, logits = outputs[:2]
 
                         if multi_label:
@@ -2034,13 +2119,6 @@ class ClassificationModel:
                     out_label_ids[start_index:end_index] = (
                         inputs["labels"].detach().cpu().numpy()
                     )
-
-                    # if preds is None:
-                    #     preds = logits.detach().cpu().numpy()
-                    #     out_label_ids = inputs["labels"].detach().cpu().numpy()
-                    # else:
-                    #     preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
-                    #     out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
 
             eval_loss = eval_loss / nb_eval_steps
 
@@ -2139,6 +2217,17 @@ class ClassificationModel:
         self.config.save_pretrained(output_dir)
         self.save_model_args(output_dir)
 
+    def _calculate_loss(self, model, inputs, loss_fct, num_labels, args):
+        outputs = model(**inputs)
+        # model outputs are always tuple in pytorch-transformers (see doc)
+        loss = outputs[0]
+        if loss_fct:
+            logits = outputs[1]
+            labels = inputs["labels"]
+
+            loss = loss_fct(logits.view(-1, num_labels), labels.view(-1))
+        return (loss, *outputs[1:])
+
     def _threshold(self, x, threshold):
         if x >= threshold:
             return 1
@@ -2181,7 +2270,8 @@ class ClassificationModel:
         return {metric: values[-1] for metric, values in metric_values.items()}
 
     def _create_training_progress_scores(self, multi_label, **kwargs):
-        extra_metrics = {key: [] for key in kwargs}
+        return collections.defaultdict(list)
+        """extra_metrics = {key: [] for key in kwargs}
         if multi_label:
             training_progress_scores = {
                 "global_step": [],
@@ -2234,7 +2324,7 @@ class ClassificationModel:
                     **extra_metrics,
                 }
 
-        return training_progress_scores
+        return training_progress_scores"""
 
     def save_model(
         self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None

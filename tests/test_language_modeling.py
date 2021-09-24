@@ -54,6 +54,7 @@ def test_language_modeling(model_type, model_name):
             "overwrite_output_dir": True,
             "num_train_epochs": 1,
             "no_save": True,
+            "vocab_size": 100,
         }
 
     model = LanguageModelingModel(

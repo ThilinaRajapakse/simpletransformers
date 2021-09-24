@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.61.15] - 2021-09-24
+
+### Changed
+
+- Deprecated custom classification models. [Zhylkaaa](https://github.com/Zhylkaaa)
+
+
 ## [0.61.14] - 2021-09-23
 
 ### Changed

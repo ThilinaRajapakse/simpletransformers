@@ -17,7 +17,7 @@
 
 from __future__ import absolute_import, division, print_function
 import enum
-
+import collections
 import linecache
 import logging
 import os
@@ -747,3 +747,18 @@ class LazyNERDataset(Dataset):
 
     def __len__(self):
         return self.num_entries
+
+
+def flatten_results(results, parent_key="", sep="/"):
+    out = []
+    if isinstance(results, collections.Mapping):
+        for key, value in results.items():
+            pkey = parent_key + sep + str(key) if parent_key else str(key)
+            out.extend(flatten_results(value, parent_key=pkey).items())
+    elif isinstance(results, collections.Iterable):
+        for key, value in enumerate(results):
+            pkey = parent_key + sep + str(key) if parent_key else str(key)
+            out.extend(flatten_results(value, parent_key=pkey).items())
+    else:
+        out.append((parent_key, results))
+    return dict(out)
