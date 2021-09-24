@@ -1313,7 +1313,9 @@ class NERModel:
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
-                truth, preds, labels=labels_list,
+                truth,
+                preds,
+                labels=labels_list,
             )
 
         return results, model_outputs, preds_list

@@ -30,7 +30,9 @@ def get_prediction(model, input_text):
 
 
 def ner_viewer(model):
-    session_state = get(max_seq_length=model.args.max_seq_length,)
+    session_state = get(
+        max_seq_length=model.args.max_seq_length,
+    )
     model.args.max_seq_length = session_state.max_seq_length
 
     entity_list = model.args.labels_list

@@ -181,4 +181,11 @@ def get_color(i):
     try:
         return str(colors[i])
     except IndexError:
-        return str(tuple(np.random.rand(3,).tolist() + 0.7))
+        return str(
+            tuple(
+                np.random.rand(
+                    3,
+                ).tolist()
+                + 0.7
+            )
+        )

@@ -118,7 +118,8 @@ from simpletransformers.classification.classification_utils import (
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import ClassificationArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
-#from simpletransformers.custom_models.models import ElectraForSequenceClassification
+
+# from simpletransformers.custom_models.models import ElectraForSequenceClassification
 
 
 try:
@@ -1539,7 +1540,9 @@ class ClassificationModel:
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
-                truth, [inverse_labels_map[pred] for pred in preds], labels=labels_list,
+                truth,
+                [inverse_labels_map[pred] for pred in preds],
+                labels=labels_list,
             )
 
             if not self.args.sliding_window:

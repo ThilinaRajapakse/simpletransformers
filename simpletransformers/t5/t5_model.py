@@ -1168,7 +1168,12 @@ class T5Model:
             CustomDataset = args.dataset_class
             return CustomDataset(tokenizer, args, data, mode)
         else:
-            return T5Dataset(tokenizer, self.args, data, mode,)
+            return T5Dataset(
+                tokenizer,
+                self.args,
+                data,
+                mode,
+            )
 
     def _create_training_progress_scores(self, **kwargs):
         extra_metrics = {key: [] for key in kwargs}
