@@ -492,7 +492,7 @@ class LanguageModelingModel:
             )
 
         if self.is_world_master():
-            tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+            tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = (
             RandomSampler(train_dataset)
             if args.local_rank == -1

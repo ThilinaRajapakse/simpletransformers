@@ -30,6 +30,9 @@ types:
 test: clean
 	pytest tests --cov simpletransformers/classification simpletransformers/ner simpletransformers/question_answering simpletransformers/language_modeling simpletransformers/t5 simpletransformers/seq2seq
 
+test-lm: clean
+	pytest tests/language_modeling --cov simpletransformers/language_modeling
+
 # if this runs through we can be sure the readme is properly shown on pypi
 check-readme:
 	python setup.py check --restructuredtext

@@ -397,7 +397,7 @@ class MultiModalClassificationModel:
         args = self.args
         multi_label = self.multi_label
 
-        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+        tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
