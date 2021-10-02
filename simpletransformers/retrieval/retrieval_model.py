@@ -213,7 +213,9 @@ class RetrievalModel:
         self.args.model_name = model_name
 
         if prediction_passages is not None:
-            self.prediction_passages = self.get_updated_prediction_passages(prediction_passages)
+            self.prediction_passages = self.get_updated_prediction_passages(
+                prediction_passages
+            )
         else:
             self.prediction_passages = None
 
@@ -1096,7 +1098,9 @@ class RetrievalModel:
                     "prediction_passages cannot be None if the model does not contain a predicition passage index."
                 )
             else:
-                self.prediction_passages = self.get_updated_prediction_passages(prediction_passages)
+                self.prediction_passages = self.get_updated_prediction_passages(
+                    prediction_passages
+                )
                 self.context_encoder.to("cpu")
 
         all_query_embeddings = np.zeros(
@@ -1155,7 +1159,6 @@ class RetrievalModel:
             ] = (query_outputs.cpu().detach().numpy())
 
         doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
-
             all_query_embeddings, self.prediction_passages, retrieve_n_docs
         )
 

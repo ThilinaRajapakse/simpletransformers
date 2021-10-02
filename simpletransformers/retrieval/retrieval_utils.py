@@ -277,7 +277,12 @@ def get_evaluation_passage_dataset(
                     additional_passages = load_from_disk(additional_passages)
                     passage_dataset = passage_dataset.map(
                         partial(
-                            embed, encoder=encoder, tokenizer=tokenizer, device=device, fp16=args.fp16, amp=amp
+                            embed,
+                            encoder=encoder,
+                            tokenizer=tokenizer,
+                            device=device,
+                            fp16=args.fp16,
+                            amp=amp,
                         ),
                         batched=True,
                         batch_size=args.embed_batch_size,
@@ -333,7 +338,14 @@ def get_evaluation_passage_dataset(
             if args.fp16:
                 from torch.cuda import amp
             passage_dataset = passage_dataset.map(
-                partial(embed, encoder=encoder, tokenizer=tokenizer, device=device, fp16=args.fp16, amp=amp),
+                partial(
+                    embed,
+                    encoder=encoder,
+                    tokenizer=tokenizer,
+                    device=device,
+                    fp16=args.fp16,
+                    amp=amp,
+                ),
                 batched=True,
                 batch_size=args.embed_batch_size,
             )
@@ -354,9 +366,7 @@ def get_evaluation_passage_dataset(
         passage_index = DPRIndex(passage_dataset, context_config.hidden_size)
         logger.info("Adding FAISS index to evaluation passages completed.")
         if args.save_passage_dataset:
-            output_dataset_directory = os.path.join(
-                args.output_dir, "passage_dataset"
-            )
+            output_dataset_directory = os.path.join(args.output_dir, "passage_dataset")
             os.makedirs(output_dataset_directory, exist_ok=True)
             faiss_save_path = os.path.join(
                 output_dataset_directory, "hf_dataset_index.faiss"
@@ -428,7 +438,14 @@ def get_prediction_passage_dataset(
             from torch.cuda import amp
 
         prediction_passages_dataset = prediction_passages_dataset.map(
-            partial(embed, encoder=encoder, tokenizer=tokenizer, device=device, fp16=args.fp16, amp=amp),
+            partial(
+                embed,
+                encoder=encoder,
+                tokenizer=tokenizer,
+                device=device,
+                fp16=args.fp16,
+                amp=amp,
+            ),
             batched=True,
             batch_size=args.embed_batch_size,
         )
@@ -463,9 +480,7 @@ def get_prediction_passage_dataset(
             faiss_save_path = os.path.join(
                 output_dataset_directory, "hf_dataset_index.faiss"
             )
-            prediction_passages_dataset.save_faiss_index(
-                "embeddings", faiss_save_path
-            )
+            prediction_passages_dataset.save_faiss_index("embeddings", faiss_save_path)
 
     passage_index = DPRIndex(prediction_passages_dataset, context_config.hidden_size)
     return passage_index
