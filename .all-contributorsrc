@@ -760,6 +760,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "kongyurui",
+      "name": "kongyurui",
+      "avatar_url": "https://avatars.githubusercontent.com/u/58269794?v=4",
+      "profile": "https://github.com/kongyurui",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
