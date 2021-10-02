@@ -23,7 +23,7 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
 from tokenizers.implementations import SentencePieceBPETokenizer
 from tokenizers.processors import BertProcessing
@@ -1442,14 +1442,14 @@ class LanguageModelingModel:
                 # XLMRoberta uses sentencepiece.bpe as a vocab model prefix
                 prefix = "sentencepiece.bpe"
                 spm.SentencePieceTrainer.Train(
-                    f"--input={files} --user_defined_symbols='<mask>,<s>NOTUSED,</s>NOTUSED' --model_prefix={prefix} --vocab_size={self.args.vocab_size}"
+                    f"--input={files} --user_defined_symbols='<mask>,<s>NOTUSED,</s>NOTUSED' --model_prefix={prefix} --vocab_size={self.args.vocab_size - 2}"
                 )
             else:
                 # </s>,<s>,<unk>,<pad> are built in -- leave as default
                 # BigBird uses spiece as a vocab model prefix
                 prefix = "spiece"
                 spm.SentencePieceTrainer.Train(
-                    f"--input={files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix=spiece --vocab_size={self.args.vocab_size}"
+                    f"--input={files} --user_defined_symbols='[SEP],[CLS],[MASK]' --model_prefix=spiece --vocab_size={self.args.vocab_size - 3}"
                 )
 
             # SentencePiece There is no option for output path https://github.com/google/sentencepiece/blob/master/doc/options.md
