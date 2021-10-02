@@ -1929,14 +1929,19 @@ class ClassificationModel:
 
             if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
                 for i, (input_ids, attention_mask, token_type_ids) in enumerate(
-                    zip(model_inputs["input_ids"], model_inputs["attention_mask"], model_inputs["token_type_ids"])
+                    zip(
+                        model_inputs["input_ids"],
+                        model_inputs["attention_mask"],
+                        model_inputs["token_type_ids"],
+                    )
                 ):
                     input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
                     attention_mask = attention_mask.unsqueeze(0).detach().cpu().numpy()
                     token_type_ids = token_type_ids.unsqueeze(0).detach().cpu().numpy()
                     inputs_onnx = {
-                        "input_ids": input_ids, "attention_mask": attention_mask,
-                        "token_type_ids": token_type_ids
+                        "input_ids": input_ids,
+                        "attention_mask": attention_mask,
+                        "token_type_ids": token_type_ids,
                     }
 
                     # Run the model (None = get all the outputs)
@@ -1950,7 +1955,10 @@ class ClassificationModel:
                 ):
                     input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
                     attention_mask = attention_mask.unsqueeze(0).detach().cpu().numpy()
-                    inputs_onnx = {"input_ids": input_ids, "attention_mask": attention_mask}
+                    inputs_onnx = {
+                        "input_ids": input_ids,
+                        "attention_mask": attention_mask,
+                    }
 
                     # Run the model (None = get all the outputs)
                     output = self.model.run(None, inputs_onnx)
