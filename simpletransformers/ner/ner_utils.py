@@ -713,10 +713,10 @@ class LazyNERDataset(Dataset):
             else:
                 # Examples could have no label for mode = "test"
                 labels.append("O")
-        if words:
-            example = InputExample(
-                guid="%s-%d".format("train", idx), words=words, labels=labels
-            )
+
+        example = InputExample(
+            guid="%s-%d".format("train", idx), words=words, labels=labels
+        )
 
         label_map = {label: i for i, label in enumerate(self.args.labels_list)}
 
