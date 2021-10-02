@@ -15,7 +15,7 @@ from multiprocessing import Pool, cpu_count
 from pprint import pprint
 
 import torch
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import (
     DataLoader,
     Dataset,

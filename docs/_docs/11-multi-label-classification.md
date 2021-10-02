@@ -2,7 +2,7 @@
 title: Multi-Label Classification
 permalink: /docs/multi-label-classification/
 excerpt: "Multi-label text classification."
-last_modified_at: 2020/09/28 22:47:38
+last_modified_at: 2021/10/02 12:31:00
 ---
 
 In multi-label text classification, the target for a single example from the dataset is a list of `n` distinct binary labels. A transformer-based multi-label text classification model typically consists of a transformer model with a classification layer on top of it. The classification layer will have `n` output neurons, corresponding to each label. Each output neuron (and by extension, each label) are considered to be independent of each other.
@@ -75,7 +75,10 @@ model_args = MultiLabelClassificationArgs(num_train_epochs=1)
 
 # Create a MultiLabelClassificationModel
 model = MultiLabelClassificationModel(
-    "roberta", "roberta-base", num_labels=3,
+    "roberta",
+    "roberta-base",
+    num_labels=3,
+    args=model_args,
 )
 
 # Train the model
