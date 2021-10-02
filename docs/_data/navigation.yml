@@ -109,6 +109,16 @@ docs:
         url: /docs/seq2seq-data-formats/
       - title: "Seq2Seq Minimal Start"
         url: /docs/seq2seq-minimal-start/
+  - title: Retrieval
+    children:
+      - title: "Retrieval Specifics"
+        url: /docs/retrieval-specifics/
+      - title: "Retrieval Model"
+        url: /docs/retrieval-model/
+      - title: "Retrieval Data Formats"
+        url: /docs/retrieval-data-formats/
+      - title: "Retrieval Minimal Start"
+        url: /docs/retrieval-minimal-start/
   - title: Conversational AI
     children:
       - title: "Conversational AI Specifics"

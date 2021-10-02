@@ -40,6 +40,7 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import RetrievalArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.retrieval.retrieval_utils import (
+    get_prediction_passage_dataset,
     load_hf_dataset,
     get_evaluation_passage_dataset,
     mean_reciprocal_rank_at_k,
@@ -72,15 +73,34 @@ class RetrievalModel:
         model_name=None,
         context_encoder_name=None,
         query_encoder_name=None,
-        context_config=None,
-        query_config=None,
         context_encoder_tokenizer=None,
         query_encoder_tokenizer=None,
+        prediction_passages=None,
         args=None,
         use_cuda=True,
         cuda_device=-1,
         **kwargs,
     ):
+        """
+        Initializes a RetrievalModel model.
+
+        Args:
+            model_type (str, optional): The type of model architecture. Defaults to None.
+            model_name (str, optional): The exact architecture and trained weights to use for the full model. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files. Defaults to None.
+            context_encoder_name (str, optional): The exact architecture and trained weights to use for the context encoder model. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files. Defaults to None.
+            query_encoder_name (str, optional): The exact architecture and trained weights to use for the query encoder model. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files. Defaults to None.
+            context_encoder_tokenizer (str, optional): The tokenizer to use for the context encoder. This may be a Hugging Face Transformers compatible pre-trained tokenizer, a community tokenizer, or the path to a directory containing tokenizer files. Defaults to None.
+            query_encoder_tokenizer (str, optional): The tokenizer to use for the query encoder. This may be a Hugging Face Transformers compatible pre-trained tokenizer, a community tokenizer, or the path to a directory containing tokenizer files. Defaults to None.
+            prediction_passages (str, optional): The passages to be used as the corpus for retrieval when making predictions. Provide this only when using the model for predictions. Defaults to None.
+            args (dict or RetrievalArgs, optional):  Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args or an instance of RetrievalArgs.
+            use_cuda (bool, optional): Use GPU if available. Setting to False will force model to use CPU only.. Defaults to True.
+            cuda_device (int, optional): Specific GPU that should be used. Will use the first available GPU by default. Defaults to -1.
+            **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
+
+        Raises:
+            ValueError: [description]
+        """  # noqa: ignore flake8"
+
         self.args = self._load_model_args(model_name)
 
         if isinstance(args, dict):
@@ -192,6 +212,11 @@ class RetrievalModel:
         self.args.model_type = model_type
         self.args.model_name = model_name
 
+        if prediction_passages is not None:
+            self.prediction_passages = self.get_updated_prediction_passages(prediction_passages)
+        else:
+            self.prediction_passages = None
+
     def train_model(
         self,
         train_data,
@@ -214,6 +239,8 @@ class RetrievalModel:
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
+            additional_eval_passages: Additional passages to be used during evaluation.
+                        This may be a list of passages, a pandas DataFrame with the column "passages", or a TSV file with the column "passages".
             eval_data (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
@@ -930,6 +957,7 @@ class RetrievalModel:
             output_dir,
             verbose=verbose,
             silent=silent,
+            retrieve_n_docs=retrieve_n_docs,
             **kwargs,
         )
 
@@ -1061,6 +1089,80 @@ class RetrievalModel:
 
         return results, doc_ids, doc_vectors, doc_dicts
 
+    def predict(self, to_predict, prediction_passages=None, retrieve_n_docs=None):
+        if self.prediction_passages is None:
+            if prediction_passages is None:
+                raise ValueError(
+                    "prediction_passages cannot be None if the model does not contain a predicition passage index."
+                )
+            else:
+                self.prediction_passages = self.get_updated_prediction_passages(prediction_passages)
+                self.context_encoder.to("cpu")
+
+        all_query_embeddings = np.zeros(
+            (
+                len(to_predict),
+                self.query_config.hidden_size
+                if not self.query_config.projection_dim
+                else self.query_config.projection_dim,
+            )
+        )
+
+        query_model = self.query_encoder
+        query_model.to(self.device)
+
+        if self.args.n_gpu > 1:
+            query_model = torch.nn.DataParallel(query_model)
+
+        if self.args.fp16:
+            from torch.cuda import amp
+
+        query_model.eval()
+
+        # Batching
+        for i, batch in tqdm(
+            enumerate(
+                [
+                    to_predict[i : i + self.args.eval_batch_size]
+                    for i in range(0, len(to_predict), self.args.eval_batch_size)
+                ]
+            ),
+            desc="Generating query embeddings",
+            disable=self.args.silent,
+        ):
+            query_batch = self.query_tokenizer(
+                batch,
+                max_length=self.args.max_seq_length,
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt",
+            )
+
+            query_inputs = {
+                "input_ids": query_batch["input_ids"].to(self.device),
+                "attention_mask": query_batch["attention_mask"].to(self.device),
+            }
+
+            with torch.no_grad():
+                if self.args.fp16:
+                    with amp.autocast():
+                        query_outputs = query_model(**query_inputs).pooler_output
+                else:
+                    query_outputs = query_model(**query_inputs).pooler_output
+
+            all_query_embeddings[
+                i * self.args.eval_batch_size : (i + 1) * self.args.eval_batch_size
+            ] = (query_outputs.cpu().detach().numpy())
+
+        doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
+
+            all_query_embeddings, self.prediction_passages, retrieve_n_docs
+        )
+
+        passages = [d["passages"] for d in doc_dicts]
+
+        return passages, doc_ids, doc_vectors, doc_dicts
+
     def compute_metrics(self, eval_samples, doc_ids, args, top_k_values=None, **kwargs):
         if top_k_values is None:
             top_k_values = [1, 2, 3, 5, 10]
@@ -1188,7 +1290,8 @@ class RetrievalModel:
 
             return dataset
         else:
-            pass
+            # Retrieval models can only be used with hf datasets
+            raise ValueError("Retrieval models can only be used with hf datasets.")
 
     def get_optimizer_parameters(self, context_model, query_model, args):
         no_decay = ["bias", "LayerNorm.weight"]
@@ -1327,6 +1430,25 @@ class RetrievalModel:
             raise ValueError("{} is not a valid scheduler.".format(args.scheduler))
 
         return scheduler
+
+    def get_updated_prediction_passages(self, prediction_passages):
+        """
+        Update the model passage dataset with a new passage dataset.
+        This is typycally only useful for prediction.
+
+        Args:
+            prediction_passages (str): Path to new passage dataset.
+        """
+        prediction_passages = get_prediction_passage_dataset(
+            prediction_passages,
+            self.context_encoder,
+            self.context_tokenizer,
+            self.context_config,
+            self.args,
+            self.device,
+        )
+
+        return prediction_passages
 
     def _calculate_loss(
         self,

@@ -151,35 +151,66 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
     }
 
 
-def embed(documents, encoder, tokenizer, device):
+def embed(documents, encoder, tokenizer, device, fp16, amp=None):
     """Compute the DPR embeddings of document passages"""
-    try:
-        input_ids = tokenizer(
-            documents["passages"],
-            truncation=True,
-            padding="longest",
-            return_tensors="pt",
-        )["input_ids"]
-        embeddings = encoder(
-            input_ids.to(device=device), return_dict=True
-        ).pooler_output
-    except (TypeError, ValueError) as e:
-        logger.warn(e)
-        logger.warn(
-            """Error encountered while converting target_text.
-        All target_text values have been manually cast to String as a workaround.
-        This may have been caused by NaN values present in the data."""
-        )
-        documents["passages"] = [str(p) for p in documents["passages"]]
-        input_ids = tokenizer(
-            documents["passages"],
-            truncation=True,
-            padding="longest",
-            return_tensors="pt",
-        )["input_ids"]
-        embeddings = encoder(
-            input_ids.to(device=device), return_dict=True
-        ).pooler_output
+    with torch.no_grad():
+        if fp16:
+            with amp.autocast():
+                try:
+                    input_ids = tokenizer(
+                        documents["passages"],
+                        truncation=True,
+                        padding="longest",
+                        return_tensors="pt",
+                    )["input_ids"]
+                    embeddings = encoder(
+                        input_ids.to(device=device), return_dict=True
+                    ).pooler_output
+                except (TypeError, ValueError) as e:
+                    logger.warn(e)
+                    logger.warn(
+                        """Error encountered while converting target_text.
+                    All target_text values have been manually cast to String as a workaround.
+                    This may have been caused by NaN values present in the data."""
+                    )
+                    documents["passages"] = [str(p) for p in documents["passages"]]
+                    input_ids = tokenizer(
+                        documents["passages"],
+                        truncation=True,
+                        padding="longest",
+                        return_tensors="pt",
+                    )["input_ids"]
+                    embeddings = encoder(
+                        input_ids.to(device=device), return_dict=True
+                    ).pooler_output
+        else:
+            try:
+                input_ids = tokenizer(
+                    documents["passages"],
+                    truncation=True,
+                    padding="longest",
+                    return_tensors="pt",
+                )["input_ids"]
+                embeddings = encoder(
+                    input_ids.to(device=device), return_dict=True
+                ).pooler_output
+            except (TypeError, ValueError) as e:
+                logger.warn(e)
+                logger.warn(
+                    """Error encountered while converting target_text.
+                All target_text values have been manually cast to String as a workaround.
+                This may have been caused by NaN values present in the data."""
+                )
+                documents["passages"] = [str(p) for p in documents["passages"]]
+                input_ids = tokenizer(
+                    documents["passages"],
+                    truncation=True,
+                    padding="longest",
+                    return_tensors="pt",
+                )["input_ids"]
+                embeddings = encoder(
+                    input_ids.to(device=device), return_dict=True
+                ).pooler_output
 
     return {"embeddings": embeddings.detach().cpu().numpy()}
 
@@ -237,6 +268,8 @@ def get_evaluation_passage_dataset(
         passage_dataset = passage_dataset.rename_column("gold_passage", "passages")
 
         if additional_passages is not None:
+            if args.fp16:
+                from torch.cuda import amp
             if isinstance(additional_passages, str):
                 if os.path.isdir(additional_passages):
                     # To be used if you want to reuse the embeddings from a previous eval but
@@ -244,7 +277,7 @@ def get_evaluation_passage_dataset(
                     additional_passages = load_from_disk(additional_passages)
                     passage_dataset = passage_dataset.map(
                         partial(
-                            embed, encoder=encoder, tokenizer=tokenizer, device=device
+                            embed, encoder=encoder, tokenizer=tokenizer, device=device, fp16=args.fp16, amp=amp
                         ),
                         batched=True,
                         batch_size=args.embed_batch_size,
@@ -297,8 +330,10 @@ def get_evaluation_passage_dataset(
             and "embeddings" not in passage_dataset.column_names
         ):
             logger.info("Generating embeddings for evaluation passages")
+            if args.fp16:
+                from torch.cuda import amp
             passage_dataset = passage_dataset.map(
-                partial(embed, encoder=encoder, tokenizer=tokenizer, device=device),
+                partial(embed, encoder=encoder, tokenizer=tokenizer, device=device, fp16=args.fp16, amp=amp),
                 batched=True,
                 batch_size=args.embed_batch_size,
             )
@@ -319,6 +354,10 @@ def get_evaluation_passage_dataset(
         passage_index = DPRIndex(passage_dataset, context_config.hidden_size)
         logger.info("Adding FAISS index to evaluation passages completed.")
         if args.save_passage_dataset:
+            output_dataset_directory = os.path.join(
+                args.output_dir, "passage_dataset"
+            )
+            os.makedirs(output_dataset_directory, exist_ok=True)
             faiss_save_path = os.path.join(
                 output_dataset_directory, "hf_dataset_index.faiss"
             )
@@ -348,6 +387,87 @@ def get_evaluation_passage_dataset(
 
         logger.info(f"Succesfully loaded passage dataset from {passage_dataset}")
         passage_index = DPRIndex(passage_dataset, context_config.hidden_size)
+    return passage_index
+
+
+def get_prediction_passage_dataset(
+    prediction_passages,
+    encoder,
+    tokenizer,
+    context_config,
+    args,
+    device,
+):
+    import faiss
+
+    logger.info("Preparing prediction passages started")
+    if isinstance(prediction_passages, str):
+        if os.path.isdir(prediction_passages):
+            prediction_passages_dataset = load_from_disk(prediction_passages)
+        else:
+            prediction_passages_dataset = load_dataset(
+                "csv",
+                data_files=prediction_passages,
+                delimiter="\t",
+                column_names=["passages"],
+                cache_dir=args.dataset_cache_dir,
+            )
+            prediction_passages_dataset = prediction_passages_dataset["train"]
+    elif isinstance(prediction_passages, list):
+        prediction_passages_dataset = HFDataset.from_dict(
+            {"passages": prediction_passages}
+        )
+    else:
+        prediction_passages_dataset = HFDataset.from_pandas(prediction_passages)
+
+    logger.info("Preparing prediction passages completed")
+    if "embeddings" not in prediction_passages_dataset.column_names:
+        logger.info("Generating embeddings for prediction passages started")
+
+        if args.fp16:
+            from torch.cuda import amp
+
+        prediction_passages_dataset = prediction_passages_dataset.map(
+            partial(embed, encoder=encoder, tokenizer=tokenizer, device=device, fp16=args.fp16, amp=amp),
+            batched=True,
+            batch_size=args.embed_batch_size,
+        )
+
+        logger.info("Generating embeddings for prediction passages completed")
+        if args.save_passage_dataset:
+            output_dataset_directory = os.path.join(
+                args.output_dir, "prediction_passage_dataset"
+            )
+            os.makedirs(output_dataset_directory, exist_ok=True)
+            prediction_passages_dataset.save_to_disk(output_dataset_directory)
+
+    index_added = False
+    if isinstance(prediction_passages, str):
+        index_path = os.path.join(prediction_passages, "hf_dataset_index.faiss")
+        if os.path.isfile(index_path):
+            prediction_passages_dataset.load_faiss_index("embeddings", index_path)
+            index_added = True
+
+    if not index_added:
+        logger.info("Adding FAISS index to prediction passages")
+        index = faiss.IndexHNSWFlat(
+            args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
+        )
+        prediction_passages_dataset.add_faiss_index("embeddings", custom_index=index)
+        logger.info("Adding FAISS index to prediction passages completed")
+        if args.save_passage_dataset:
+            output_dataset_directory = os.path.join(
+                args.output_dir, "prediction_passage_dataset"
+            )
+            os.makedirs(output_dataset_directory, exist_ok=True)
+            faiss_save_path = os.path.join(
+                output_dataset_directory, "hf_dataset_index.faiss"
+            )
+            prediction_passages_dataset.save_faiss_index(
+                "embeddings", faiss_save_path
+            )
+
+    passage_index = DPRIndex(prediction_passages_dataset, context_config.hidden_size)
     return passage_index
 
 
