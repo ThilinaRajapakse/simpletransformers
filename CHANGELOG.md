@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed bug when using onnx with ClassificationModel [kongyurui](https://github.com/kongyurui)
 - Fixed potential bug with NERModel when the input text is empty [whr778](https://github.com/whr778)
+- Fixed bug in sentencepiece tokenizer for some models [whr778](https://github.com/whr778)
+- Fixed issue with Seq2SeqModel showing the first training epoch as epoch 0 [dopc](https://github.com/dopc)
 
 ### Changed
 
