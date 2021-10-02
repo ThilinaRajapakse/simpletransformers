@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed bug when using onnx with ClassificationModel [kongyurui](https://github.com/kongyurui)
+- Fixed potential bug with NERModel when the input text is empty [whr778](https://github.com/whr778)
 
+### Changed
+
+- Replaced tensorboardx imports with default torch version
 
 ## [0.62.0] - 2021-09-24
 
