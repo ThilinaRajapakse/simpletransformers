@@ -265,7 +265,9 @@ class ConvAIModel:
 
         if self.args.evaluate_during_training:
             eval_loader, eval_sampler = self.load_and_cache_examples(
-                verbose=verbose, evaluate=True
+                dataset_path=eval_file,
+                verbose=verbose, evaluate=True,
+                no_cache=self.args.no_cache or self.args.reprocess_input_data
             )
         else:
             eval_loader = None
