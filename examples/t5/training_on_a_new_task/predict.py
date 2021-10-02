@@ -7,7 +7,7 @@ model_args = {
     "eval_batch_size": 16,
     "num_train_epochs": 1,
     "save_eval_checkpoints": False,
-    "use_multiprocessed_decoding": False,
+    "use_multiprocessing": False,
     # "silent": True,
     "num_beams": None,
     "do_sample": True,
@@ -20,8 +20,8 @@ model_args = {
 model = T5Model("t5", "outputs/best_model", args=model_args)
 
 query = (
-    "ask_question: "\
-    """ANTIQUE CAST METAL 3 GLOBE CANDLABRA JADITE LAMP.
+    "ask_question: "
+    + """ANTIQUE CAST METAL 3 GLOBE CANDLABRA JADITE LAMP.
 
 Stunning antique lamp with three candle style globes. Cast metal base with jadite green glass insert. Has been rewired with new braided cord. In excellent condition with only one chip (as pictured) on the edge of the glass insert. E9 69 on underside of metal base. Missing finial. New low wattage globes.
 """
