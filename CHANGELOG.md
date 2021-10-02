@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed potential bug with NERModel when the input text is empty [whr778](https://github.com/whr778)
 - Fixed bug in sentencepiece tokenizer for some models [whr778](https://github.com/whr778)
 - Fixed issue with Seq2SeqModel showing the first training epoch as epoch 0 [dopc](https://github.com/dopc)
+- Fixed bug where eval_file was not used with ConvAIModel [cahya-wirawan](https://github.com/cahya-wirawan)
 
 ### Changed
 
@@ -1578,7 +1579,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.62.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/67a2a47...HEAD
+[0.62.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/fe70794...HEAD
+
+[0.62.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/67a2a47...fe70794
 
 [0.61.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a7e7fff...67a2a47
 
