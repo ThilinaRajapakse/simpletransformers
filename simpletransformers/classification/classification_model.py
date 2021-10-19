@@ -2157,16 +2157,24 @@ class ClassificationModel:
                 ]
 
                 model_outputs = preds
-
-                preds = [np.argmax(pred, axis=1) for pred in preds]
-                final_preds = []
-                for pred_row in preds:
-                    mode_pred, counts = mode(pred_row)
-                    if len(counts) > 1 and counts[0] == counts[1]:
-                        final_preds.append(args.tie_value)
-                    else:
-                        final_preds.append(mode_pred[0])
-                preds = np.array(final_preds)
+                if args.regression:
+                    preds = [np.squeeze(pred) for pred in preds]
+                    final_preds = []
+                    for pred_row in preds:
+                        mean_pred = mean(pred_row)
+                        print(mean_pred)
+                        final_preds.append(mean_pred)
+                    preds = np.array(final_preds)
+                else:
+                    preds = [np.argmax(pred, axis=1) for pred in preds]
+                    final_preds = []
+                    for pred_row in preds:
+                        mode_pred, counts = mode(pred_row)
+                        if len(counts) > 1 and counts[0] == counts[1]:
+                            final_preds.append(args.tie_value)
+                        else:
+                            final_preds.append(mode_pred[0])
+                    preds = np.array(final_preds)
             elif not multi_label and args.regression is True:
                 preds = np.squeeze(preds)
                 model_outputs = preds
