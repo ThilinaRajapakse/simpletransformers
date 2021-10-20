@@ -1540,18 +1540,25 @@ class ClassificationModel:
             ]
 
             model_outputs = preds
-
-            preds = [np.argmax(pred, axis=1) for pred in preds]
-            final_preds = []
-            for pred_row in preds:
-                val_freqs_desc = Counter(pred_row).most_common()
-                if (
-                    len(val_freqs_desc) > 1
-                    and val_freqs_desc[0][1] == val_freqs_desc[1][1]
-                ):
-                    final_preds.append(args.tie_value)
-                else:
-                    final_preds.append(val_freqs_desc[0][0])
+            if args.regression is True:
+                preds = [np.squeeze(pred) for pred in preds]
+                final_preds = []
+                for pred_row in preds:
+                    mean_pred = np.mean(pred_row)
+                    print(mean_pred)
+                    final_preds.append(mean_pred)
+            else:
+                preds = [np.argmax(pred, axis=1) for pred in preds]
+                final_preds = []
+                for pred_row in preds:
+                    val_freqs_desc = Counter(pred_row).most_common()
+                    if (
+                        len(val_freqs_desc) > 1
+                        and val_freqs_desc[0][1] == val_freqs_desc[1][1]
+                    ):
+                        final_preds.append(args.tie_value)
+                    else:
+                        final_preds.append(val_freqs_desc[0][0])
             preds = np.array(final_preds)
         elif not multi_label and args.regression is True:
             preds = np.squeeze(preds)
