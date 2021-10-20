@@ -2157,7 +2157,7 @@ class ClassificationModel:
                 ]
 
                 model_outputs = preds
-                if args.regression:
+                if args.regression is True:
                     preds = [np.squeeze(pred) for pred in preds]
                     final_preds = []
                     for pred_row in preds:
