@@ -1019,7 +1019,7 @@ class ClassificationModel:
 
                         for key, value in flatten_results(
                             self._get_last_metrics(training_progress_scores)
-                        ):
+                        ).items():
                             try:
                                 tb_writer.add_scalar(key, value, global_step)
                             except (NotImplementedError, AssertionError):
@@ -1180,7 +1180,7 @@ class ClassificationModel:
 
                 for key, value in flatten_results(
                     self._get_last_metrics(training_progress_scores)
-                ):
+                ).items():
                     try:
                         tb_writer.add_scalar(key, value, global_step)
                     except (NotImplementedError, AssertionError):
