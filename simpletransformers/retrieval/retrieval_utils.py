@@ -22,7 +22,7 @@ from transformers.models.rag.retrieval_rag import Index
 logger = logging.getLogger(__name__)
 
 
-def load_hf_dataset(data, context_tokenizer, query_tokenizer, args):
+def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=False):
     if isinstance(data, str):
         if data.endswith(".json"):
             dataset = load_dataset(
@@ -63,7 +63,7 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args):
         column_names = [
             "context_ids",
             "query_ids",
-            "hard_negatives_ids",
+            "hard_negative_ids",
             "context_mask",
             "query_mask",
             "hard_negatives_mask",
@@ -76,12 +76,17 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args):
             "query_mask",
         ]
 
-    dataset.set_format(type="pt", columns=column_names)
-
     if isinstance(data, str):
         # This is not necessarily a train dataset. The datasets library insists on calling it train.
-        return dataset["train"]
+        dataset = dataset["train"]
+
+    if evaluate:
+        gold_passages = dataset["gold_passage"]
+        dataset.set_format(type="pt", columns=column_names)
+
+        return dataset, gold_passages
     else:
+        dataset.set_format(type="pt", columns=column_names)
         return dataset
 
 
@@ -110,7 +115,7 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
     if args.hard_negatives:
         try:
             hard_negatives_inputs = query_tokenizer(
-                dataset["hard_negatives"],
+                dataset["hard_negative"],
                 max_length=args.max_seq_length,
                 padding="max_length",
                 return_tensors="np",
@@ -123,21 +128,21 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
             All target_text values have been manually cast to String as a workaround.
             This may have been caused by NaN values present in the data."""
             )
-            dataset["hard_negatives"] = [str(p) for p in dataset["hard_negatives"]]
+            dataset["hard_negative"] = [str(p) for p in dataset["hard_negative"]]
             hard_negatives_inputs = query_tokenizer(
-                dataset["hard_negatives"],
+                dataset["hard_negative"],
                 max_length=args.max_seq_length,
                 padding="max_length",
                 return_tensors="np",
                 truncation=True,
             )
-        hard_negatives_ids = hard_negatives_inputs["input_ids"].squeeze()
+        hard_negative_ids = hard_negatives_inputs["input_ids"].squeeze()
         hard_negatives_mask = hard_negatives_inputs["attention_mask"].squeeze()
 
         return {
             "context_ids": context_ids,
             "query_ids": query_ids,
-            "hard_negatives_ids": hard_negatives_ids,
+            "hard_negative_ids": hard_negative_ids,
             "context_mask": context_mask,
             "query_mask": query_mask,
             "hard_negatives_mask": hard_negatives_mask,
@@ -215,6 +220,10 @@ def embed(documents, encoder, tokenizer, device, fp16, amp=None):
     return {"embeddings": embeddings.detach().cpu().numpy()}
 
 
+def add_hard_negatives_to_evaluation_dataset(dataset):
+    return {"passages": [passage for passage in dataset["hard_negative"]]}
+
+
 def get_evaluation_passage_dataset(
     eval_data,
     additional_passages,
@@ -237,7 +246,7 @@ def get_evaluation_passage_dataset(
                         "retrieval_dataset_loading_script",
                     ),
                     data_files=eval_data,
-                    hard_negatives=False,
+                    hard_negatives=args.hard_negatives,
                     download_mode="force_redownload"
                     if args.reprocess_input_data
                     else "reuse_dataset_if_exists",
@@ -260,12 +269,21 @@ def get_evaluation_passage_dataset(
         except ValueError:
             # It's fine, query_text is not here
             pass
-        try:
-            if additional_passages is not None:
-                passage_dataset = passage_dataset.remove_columns("hard_negatives")
-        except ValueError:
-            pass
+
         passage_dataset = passage_dataset.rename_column("gold_passage", "passages")
+
+        if args.hard_negatives:
+            passage_dataset = passage_dataset.map(
+                add_hard_negatives_to_evaluation_dataset,
+                batched=True,
+                remove_columns=["hard_negative"]
+            )
+
+        # try:
+        #     if additional_passages is not None:
+        #         passage_dataset = passage_dataset.remove_columns("hard_negative")
+        # except ValueError:
+        #     pass
 
         if additional_passages is not None:
             if args.fp16:
@@ -296,44 +314,30 @@ def get_evaluation_passage_dataset(
                         cache_dir=args.dataset_cache_dir,
                     )
                     additional_passages = additional_passages["train"]
-                if args.remove_duplicates_from_additional_passages:
-                    additional_passages = HFDataset.from_pandas(
-                        additional_passages.to_pandas().drop_duplicates(
-                            subset=["passages"]
-                        )
-                    )
-                    additional_passages = additional_passages.remove_columns(
-                        "__index_level_0__"
-                    )
             elif isinstance(additional_passages, list):
                 additional_passages = HFDataset.from_dict(
                     {"passages": additional_passages}
                 )
-                if args.remove_duplicates_from_additional_passages:
-                    additional_passages = HFDataset.from_pandas(
-                        additional_passages.to_pandas().drop_duplicates(
-                            subset=["passages"]
-                        )
-                    )
-                    additional_passages = additional_passages.remove_columns(
-                        "__index_level_0__"
-                    )
             else:
-                if args.remove_duplicates_from_additional_passages:
-                    additional_passages = additional_passages.drop_duplicates(
-                        subset=["passages"]
-                    )
                 additional_passages = HFDataset.from_pandas(additional_passages)
 
             passage_dataset = concatenate_datasets(
                 [passage_dataset, additional_passages]
             )
+
+        if args.remove_duplicates_from_eval_passages:
+            passage_dataset = HFDataset.from_pandas(
+                passage_dataset.to_pandas().drop_duplicates(
+                    subset=["passages"]
+                )
+            )
+            passage_dataset = passage_dataset.remove_columns(
+                "__index_level_0__"
+            )
+
         logger.info("Loading evaluation passages to a Huggingface Dataset completed.")
 
-        if (
-            "embeddings" not in additional_passages.column_names
-            and "embeddings" not in passage_dataset.column_names
-        ):
+        if "embeddings" not in passage_dataset.column_names:
             logger.info("Generating embeddings for evaluation passages")
             if args.fp16:
                 from torch.cuda import amp
@@ -506,6 +510,9 @@ class DPRIndex(Index):
         return np.array(ids), np.array(
             vectors
         )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
+
+    def __len__(self):
+        return len(self.dataset)
 
 
 def mean_reciprocal_rank_at_k(rs, k):

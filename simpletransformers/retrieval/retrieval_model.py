@@ -33,6 +33,11 @@ from transformers.models.dpr import (
     DPRContextEncoderTokenizerFast,
     DPRQuestionEncoderTokenizerFast,
 )
+from transformers.models.auto import (
+    AutoConfig,
+    AutoModel,
+    AutoTokenizer,
+)
 import datasets
 from datasets import load_from_disk
 
@@ -63,6 +68,13 @@ MODEL_CLASSES = {
         DPRContextEncoderTokenizerFast,
         DPRQuestionEncoderTokenizerFast,
     ),
+    "custom": (
+        AutoConfig,
+        AutoModel,
+        AutoModel,
+        AutoTokenizer,
+        AutoTokenizer,
+    )
 }
 
 
@@ -142,7 +154,7 @@ class RetrievalModel:
         if not use_cuda:
             self.args.fp16 = False
 
-        if model_type == "dpr":
+        try:
             (
                 config_class,
                 context_encoder,
@@ -150,6 +162,12 @@ class RetrievalModel:
                 context_tokenizer,
                 query_tokenizer,
             ) = MODEL_CLASSES[model_type]
+        except KeyError:
+            raise ValueError(
+                "Model type {} not found. Available options are {}".format(
+                    model_type, list(MODEL_CLASSES.keys())
+                )
+            )
 
         if context_encoder_name:
             self.context_config = config_class.from_pretrained(
@@ -906,6 +924,7 @@ class RetrievalModel:
         verbose=True,
         silent=False,
         retrieve_n_docs=None,
+        return_doc_dicts=True,
         passage_dataset=None,
         **kwargs,
     ):
@@ -917,12 +936,14 @@ class RetrievalModel:
                         - `query_text`: The Query text sequence
                         - `gold_passage`: The gold passage text sequence
                         If `use_hf_datasets` is True, then this may also be the path to a TSV file with the same columns.
-            eval_with_all_passages: If True, evaluate with all passages. If False, evaluate only with in-batch negatives.
+            evaluate_with_all_passages: If True, evaluate with all passages. If False, evaluate only with in-batch negatives.
             additional_passages: Additional passages to be used during evaluation.
                         This may be a list of passages, a pandas DataFrame with the column "passages", or a TSV file with the column "passages".
+            top_k_values: List of top-k values to be used for evaluation.
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
+            return_doc_dicts: If True, return the doc dicts for the retrieved passages. Setting this to False can speed up evaluation.
             passage_dataset: Path to a saved Huggingface dataset (containing generated embeddings) for both the eval_data and additional passages
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
@@ -947,15 +968,17 @@ class RetrievalModel:
             passage_dataset=passage_dataset,
         )
 
-        eval_dataset = load_hf_dataset(
-            eval_data, self.context_tokenizer, self.query_tokenizer, self.args
+        eval_dataset, gold_passages = load_hf_dataset(
+            eval_data, self.context_tokenizer, self.query_tokenizer, self.args, evaluate=True
         )
 
         result, doc_ids, doc_vectors, doc_dicts = self.evaluate(
             eval_dataset,
+            gold_passages,
             evaluate_with_all_passages,
             passage_dataset,
             top_k_values,
+            return_doc_dicts,
             output_dir,
             verbose=verbose,
             silent=silent,
@@ -971,9 +994,11 @@ class RetrievalModel:
     def evaluate(
         self,
         eval_dataset,
+        gold_passages,
         evaluate_with_all_passages=True,
         passage_dataset=None,
         top_k_values=None,
+        return_doc_dicts=True,
         output_dir=None,
         verbose=True,
         silent=False,
@@ -1016,14 +1041,16 @@ class RetrievalModel:
             (
                 len(eval_dataset),
                 self.query_config.hidden_size
-                if not self.query_config.projection_dim
+                if "projection_dim" not in self.query_config.to_dict() or not self.query_config.projection_dim
                 else self.query_config.projection_dim,
             )
         )
-        for i, batch in tqdm(
-            enumerate(eval_dataloader),
-            disable=args.silent or silent,
-            desc="Running Evaluation",
+        for i, batch in enumerate(
+            tqdm(
+                eval_dataloader,
+                disable=args.silent or silent,
+                desc="Running Evaluation",
+            )
         ):
             # batch = tuple(t.to(device) for t in batch)
 
@@ -1075,11 +1102,13 @@ class RetrievalModel:
 
         if evaluate_with_all_passages:
             doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
-                all_query_embeddings, passage_dataset, retrieve_n_docs
+                all_query_embeddings, passage_dataset, retrieve_n_docs, return_doc_dicts=True
             )
 
+            doc_texts = [doc_dict["passages"] for doc_dict in doc_dicts]
+
             scores = self.compute_metrics(
-                eval_dataset, doc_ids, self.args, top_k_values, **kwargs
+                gold_passages, doc_texts, self.args, top_k_values, **kwargs
             )
 
             results.update(scores)
@@ -1092,22 +1121,41 @@ class RetrievalModel:
         return results, doc_ids, doc_vectors, doc_dicts
 
     def predict(self, to_predict, prediction_passages=None, retrieve_n_docs=None):
+        """
+        Retrieve the relevant documents from the prediction passages for a list of queries.
+
+        Args:
+            to_predict (list): A list of strings containing the queries to be predicted.
+            prediction_passages (Union[str, DataFrame], optional): Path to a directory containing a passage dataset, a JSON/TSV file containing the passages, or a Pandas DataFrame. Defaults to None.
+            retrieve_n_docs (int, optional): Number of docs to retrieve per query. Defaults to None.
+
+        Raises:
+            ValueError: [description]
+
+        Returns:
+            passages: List of lists containing the retrieved passages per query. (Shape: [len(to_predict), retrieve_n_docs])
+            doc_ids: List of lists containing the retrieved doc ids per query. (Shape: [len(to_predict), retrieve_n_docs])
+            doc_vectors: List of lists containing the retrieved doc vectors per query. (Shape: [len(to_predict), retrieve_n_docs])
+            doc_dicts: List of dicts containing the retrieved doc dicts per query.
+        """ # noqa: ignore flake8"
         if self.prediction_passages is None:
             if prediction_passages is None:
                 raise ValueError(
                     "prediction_passages cannot be None if the model does not contain a predicition passage index."
                 )
             else:
+                self.context_encoder.to(self.device)
+                self.context_encoder.eval()
                 self.prediction_passages = self.get_updated_prediction_passages(
                     prediction_passages
                 )
-                self.context_encoder.to("cpu")
+                self.context_encoder.to(self.device)
 
         all_query_embeddings = np.zeros(
             (
                 len(to_predict),
                 self.query_config.hidden_size
-                if not self.query_config.projection_dim
+                if "projection_dim" not in self.query_config.to_dict() or not self.query_config.projection_dim
                 else self.query_config.projection_dim,
             )
         )
@@ -1166,15 +1214,21 @@ class RetrievalModel:
 
         return passages, doc_ids, doc_vectors, doc_dicts
 
-    def compute_metrics(self, eval_samples, doc_ids, args, top_k_values=None, **kwargs):
+    def compute_metrics(self, gold_passages, doc_texts, args, top_k_values=None, **kwargs):
+        """
+        Computes the metrics for the evaluation data.
+        """
         if top_k_values is None:
             top_k_values = [1, 2, 3, 5, 10]
 
-        top_k_values = [k for k in top_k_values if k <= args.n_docs]
+        top_k_values = [k for k in top_k_values if k <= args.retrieve_n_docs]
 
-        relevance_list = np.array(
-            [[1 if d == i else 0 for d in docs] for i, docs in enumerate(doc_ids)]
-        )
+        relevance_list = np.zeros((len(gold_passages), args.retrieve_n_docs))
+        for i, (docs, truth) in enumerate(zip(doc_texts, gold_passages)):
+            for j, d in enumerate(docs):
+                if d == truth:
+                    relevance_list[i, j] = 1
+                    break
 
         mrr = {
             f"mrr@{k}": mean_reciprocal_rank_at_k(relevance_list, k)
@@ -1188,7 +1242,7 @@ class RetrievalModel:
 
         extra_metrics = {}
         for metric, func in kwargs.items():
-            extra_metrics[metric] = func(eval_samples, doc_ids)
+            extra_metrics[metric] = func(gold_passages, doc_texts)
 
         results = {**mrr, **top_k_accuracy, **extra_metrics}
 
@@ -1199,13 +1253,14 @@ class RetrievalModel:
         query_embeddings,
         passage_dataset,
         retrieve_n_docs=None,
+        return_doc_dicts=True,
     ):
         """
         Retrieves documents from the index using the given query embeddings.
         """
         args = self.args
         if retrieve_n_docs is None:
-            retrieve_n_docs = args.n_docs
+            retrieve_n_docs = args.retrieve_n_docs
 
         query_embeddings_batched = [
             query_embeddings[i : i + args.retrieval_batch_size]
@@ -1214,57 +1269,49 @@ class RetrievalModel:
 
         ids_batched = []
         vectors_batched = []
-        for query_embeddings in query_embeddings_batched:
+        for query_embeddings in tqdm(query_embeddings_batched, desc="Retrieving docs", disable=args.silent):
             ids, vectors = passage_dataset.get_top_docs(
                 query_embeddings.astype(np.float32), retrieve_n_docs
             )
             ids_batched.extend(ids)
             vectors_batched.extend(vectors)
 
-        ids_batched = np.array(ids_batched)
-        vectors_batched = np.array(vectors_batched)
-        doc_dicts = passage_dataset.get_doc_dicts(ids_batched)
+        if return_doc_dicts:
+            ids_batched = np.array(ids_batched)
+            vectors_batched = np.array(vectors_batched)
+            doc_dicts = passage_dataset.get_doc_dicts(ids_batched)
+        else:
+            doc_dicts = None
 
         return ids_batched, vectors_batched, doc_dicts
 
     def build_hard_negatives(
         self,
-        data,
-        additional_passages=None,
+        queries,
         passage_dataset=None,
         retrieve_n_docs=None,
         write_to_disk=True,
+        hard_negatives_save_path=None,
     ):
-        results, doc_ids, doc_vectors, doc_dicts = self.eval_model(
-            eval_data=data,
-            additional_passages=additional_passages,
-            evaluate_with_all_passages=True,
-            verbose=False,
+        hard_negatives, *_ = self.predict(
+            to_predict=queries,
+            prediction_passages=passage_dataset,
             retrieve_n_docs=retrieve_n_docs,
-            passage_dataset=passage_dataset,
         )
 
-        hard_negatives = []
-        # Remove positive passages. ith passage is positive.
-        for i, (ids, doc_dict) in enumerate(zip(doc_ids, doc_dicts)):
-            positive = np.nonzero(ids == i)[0]
-            if positive:
-                del doc_dict["passages"][positive[0]]
-            else:
-                del doc_dict["passages"][-1]
-            hard_negatives.append(doc_dict["passages"])
-
         if retrieve_n_docs is None:
-            retrieve_n_docs = self.args.n_docs
+            retrieve_n_docs = self.args.retrieve_n_docs
 
-        column_names = [f"hard_negatives_{i}" for i in range(retrieve_n_docs - 1)]
+        column_names = [f"hard_negatives_{i}" for i in range(retrieve_n_docs)]
 
         # Build hard negative df from list of lists
         hard_negative_df = pd.DataFrame(hard_negatives, columns=column_names)
 
         if write_to_disk:
+            if hard_negatives_save_path is None:
+                hard_negatives_save_path = os.path.join(self.args.output_dir, "hard_negatives.tsv")
             hard_negative_df.to_csv(
-                os.path.join(self.args.output_dir, "hard_negatives.tsv"),
+                hard_negatives_save_path,
                 index=False,
                 sep="\t",
             )
@@ -1283,8 +1330,6 @@ class RetrievalModel:
 
         if not no_cache:
             os.makedirs(self.args.cache_dir, exist_ok=True)
-
-        mode = "dev" if evaluate else "train"
 
         if self.args.use_hf_datasets:
             dataset = load_hf_dataset(
@@ -1469,13 +1514,13 @@ class RetrievalModel:
         query_outputs = torch.nn.functional.dropout(query_outputs, p=0.1)
 
         similarity_score = torch.matmul(query_outputs, context_outputs.t())
-        similarity_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
+        softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
 
         criterion = torch.nn.NLLLoss(reduction="mean")
 
-        loss = criterion(similarity_score, labels)
+        loss = criterion(softmax_score, labels)
 
-        max_score, max_idxs = torch.max(similarity_score, 1)
+        max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
             (max_idxs == torch.tensor(labels)).sum().cpu().detach().numpy().item()
         )
@@ -1495,7 +1540,7 @@ class RetrievalModel:
                 context_ids = torch.cat(
                     [
                         batch["context_ids"],
-                        batch["hard_negatives_ids"][shuffled_indices],
+                        batch["hard_negative_ids"][shuffled_indices],
                     ],
                     dim=0,
                 )
@@ -1526,7 +1571,7 @@ class RetrievalModel:
                 context_ids = torch.cat(
                     [
                         batch["context_ids"][shuffled_indices],
-                        batch["hard_negatives_ids"],
+                        batch["hard_negative_ids"],
                     ],
                     dim=0,
                 )

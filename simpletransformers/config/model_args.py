@@ -357,12 +357,13 @@ class RetrievalArgs(Seq2SeqArgs):
     context_config: dict = field(default_factory=dict)
     embed_batch_size: int = 16
     hard_negatives: bool = False
-    n_docs: int = 10
+    retrieve_n_docs: int = 10
     query_config: dict = field(default_factory=dict)
-    remove_duplicates_from_additional_passages: bool = False
-    retrieval_batch_size: bool = 8
+    remove_duplicates_from_eval_passages: bool = False
+    retrieval_batch_size: int = 512
     save_passage_dataset: bool = True
     use_hf_datasets: bool = True
+    multiprocessed_retrieval: bool = True
 
 
 @dataclass

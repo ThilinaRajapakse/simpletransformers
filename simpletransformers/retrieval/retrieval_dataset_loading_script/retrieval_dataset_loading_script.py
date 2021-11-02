@@ -32,7 +32,7 @@ class Retrieval(datasets.GeneratorBasedBuilder):
                     {
                         "query_text": datasets.Value("string"),
                         "gold_passage": datasets.Value("string"),
-                        "hard_negatives": datasets.Value("string"),
+                        "hard_negative": datasets.Value("string"),
                     }
                 ),
                 supervised_keys=None,
@@ -60,7 +60,6 @@ class Retrieval(datasets.GeneratorBasedBuilder):
 
     def _generate_examples(self, filepath):
         """Yields examples."""
-        # TODO(squad_v2): Yields (key, example) tuples from the dataset
         with open(filepath, encoding="utf-8") as f:
             examples_to_process = json.load(f)
             for i, example in enumerate(examples_to_process):
@@ -80,7 +79,7 @@ class Retrieval(datasets.GeneratorBasedBuilder):
                     yield i, {
                         "query_text": query_text,
                         "gold_passage": gold_passage,
-                        "hard_negatives": hard_negatives,
+                        "hard_negative": hard_negatives,
                     }
                 else:
                     yield i, {
