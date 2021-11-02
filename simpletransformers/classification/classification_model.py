@@ -1019,7 +1019,7 @@ class ClassificationModel:
 
                         for key, value in flatten_results(
                             self._get_last_metrics(training_progress_scores)
-                        ):
+                        ).items():
                             try:
                                 tb_writer.add_scalar(key, value, global_step)
                             except (NotImplementedError, AssertionError):
@@ -1180,7 +1180,7 @@ class ClassificationModel:
 
                 for key, value in flatten_results(
                     self._get_last_metrics(training_progress_scores)
-                ):
+                ).items():
                     try:
                         tb_writer.add_scalar(key, value, global_step)
                     except (NotImplementedError, AssertionError):
@@ -1540,18 +1540,25 @@ class ClassificationModel:
             ]
 
             model_outputs = preds
-
-            preds = [np.argmax(pred, axis=1) for pred in preds]
-            final_preds = []
-            for pred_row in preds:
-                val_freqs_desc = Counter(pred_row).most_common()
-                if (
-                    len(val_freqs_desc) > 1
-                    and val_freqs_desc[0][1] == val_freqs_desc[1][1]
-                ):
-                    final_preds.append(args.tie_value)
-                else:
-                    final_preds.append(val_freqs_desc[0][0])
+            if args.regression is True:
+                preds = [np.squeeze(pred) for pred in preds]
+                final_preds = []
+                for pred_row in preds:
+                    mean_pred = np.mean(pred_row)
+                    print(mean_pred)
+                    final_preds.append(mean_pred)
+            else:
+                preds = [np.argmax(pred, axis=1) for pred in preds]
+                final_preds = []
+                for pred_row in preds:
+                    val_freqs_desc = Counter(pred_row).most_common()
+                    if (
+                        len(val_freqs_desc) > 1
+                        and val_freqs_desc[0][1] == val_freqs_desc[1][1]
+                    ):
+                        final_preds.append(args.tie_value)
+                    else:
+                        final_preds.append(val_freqs_desc[0][0])
             preds = np.array(final_preds)
         elif not multi_label and args.regression is True:
             preds = np.squeeze(preds)
@@ -2157,16 +2164,24 @@ class ClassificationModel:
                 ]
 
                 model_outputs = preds
-
-                preds = [np.argmax(pred, axis=1) for pred in preds]
-                final_preds = []
-                for pred_row in preds:
-                    mode_pred, counts = mode(pred_row)
-                    if len(counts) > 1 and counts[0] == counts[1]:
-                        final_preds.append(args.tie_value)
-                    else:
-                        final_preds.append(mode_pred[0])
-                preds = np.array(final_preds)
+                if args.regression is True:
+                    preds = [np.squeeze(pred) for pred in preds]
+                    final_preds = []
+                    for pred_row in preds:
+                        mean_pred = np.mean(pred_row)
+                        print(mean_pred)
+                        final_preds.append(mean_pred)
+                    preds = np.array(final_preds)
+                else:
+                    preds = [np.argmax(pred, axis=1) for pred in preds]
+                    final_preds = []
+                    for pred_row in preds:
+                        mode_pred, counts = mode(pred_row)
+                        if len(counts) > 1 and counts[0] == counts[1]:
+                            final_preds.append(args.tie_value)
+                        else:
+                            final_preds.append(mode_pred[0])
+                    preds = np.array(final_preds)
             elif not multi_label and args.regression is True:
                 preds = np.squeeze(preds)
                 model_outputs = preds
