@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-83-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-84-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -290,6 +290,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     <td align="center"><a href="https://github.com/dopc"><img src="https://avatars.githubusercontent.com/u/29026534?v=4?s=100" width="100px;" alt=""/><br /><sub><b>dopc</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=dopc" title="Code">💻</a></td>
     <td align="center"><a href="https://github.com/anaconda121"><img src="https://avatars.githubusercontent.com/u/38384138?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Tanish Tyagi</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=anaconda121" title="Documentation">📖</a></td>
     <td align="center"><a href="https://github.com/kongyurui"><img src="https://avatars.githubusercontent.com/u/58269794?v=4?s=100" width="100px;" alt=""/><br /><sub><b>kongyurui</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=kongyurui" title="Code">💻</a></td>
+    <td align="center"><a href="https://ecs.victoria.ac.nz/Main/AndrewLensen"><img src="https://avatars.githubusercontent.com/u/4524224?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Andrew Lensen</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=AndLen" title="Code">💻</a></td>
   </tr>
 </table>
 

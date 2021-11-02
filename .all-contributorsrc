@@ -769,6 +769,15 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "AndLen",
+      "name": "Andrew Lensen",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4524224?v=4",
+      "profile": "https://ecs.victoria.ac.nz/Main/AndrewLensen",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
