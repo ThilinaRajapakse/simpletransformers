@@ -2,7 +2,7 @@
 title: "General Usage"
 permalink: /docs/usage/
 excerpt: "General usage instructions applicable to most tasks."
-last_modified_at: 2021/02/12 00:05:44
+last_modified_at: 2021/11/10 21:24:03
 toc: true
 ---
 
@@ -34,6 +34,7 @@ The currently implemented task-specific Simple Transformer models, along with th
 | Regression                                                | `ClassificationModel`           |
 | Sentence-pair classification                              | `ClassificationModel`           |
 | Text Representation Generation                            | `RepresentationModel`           |
+| Document Retrieval                                        | `RetrievalModel`                |
 
 
 

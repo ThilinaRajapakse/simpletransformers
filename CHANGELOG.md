@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.63.0] - 2021-11-10
+
+### Added
+
+- Added support for document retrieval with the `RetrievalModel` class
+
 ## [0.62.1] - 2021-09-24
 
 ### Fixed
@@ -1589,7 +1596,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.62.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/fe70794...HEAD
+[0.63.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a3ce529...HEAD
+
+[0.62.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/fe70794...a3ce529
 
 [0.62.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/67a2a47...fe70794
 

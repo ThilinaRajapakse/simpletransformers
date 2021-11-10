@@ -94,8 +94,8 @@ However, there are necessary differences between the different models to ensure 
 
 The currently implemented task-specific `Simple Transformer` models, along with their task, are given below.
 
-| Task                                                      | Model                             |
-| --------------------------------------------------------- | --------------------------------- |
+| Task                                                      | Model                           |
+| --------------------------------------------------------- | ------------------------------- |
 | Binary and multi-class text classification                | `ClassificationModel`           |
 | Conversational AI (chatbot training)                      | `ConvAIModel`                   |
 | Language generation                                       | `LanguageGenerationModel`       |
@@ -107,6 +107,7 @@ The currently implemented task-specific `Simple Transformer` models, along with 
 | Regression                                                | `ClassificationModel`           |
 | Sentence-pair classification                              | `ClassificationModel`           |
 | Text Representation Generation                            | `RepresentationModel`           |
+| Document Retrieval                                        | `RetrievalModel`                |
 
 - **Please refer to the relevant section in the [docs](https://simpletransformers.ai/) for more information on how to use these models.**
 - Example scripts can be found in the [examples](https://github.com/ThilinaRajapakse/simpletransformers/tree/master/examples) directory.
