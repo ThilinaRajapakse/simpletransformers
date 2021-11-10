@@ -724,6 +724,60 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "gabriben",
+      "name": "gabriben",
+      "avatar_url": "https://avatars.githubusercontent.com/u/37249800?v=4",
+      "profile": "https://github.com/gabriben",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "peacekurella",
+      "name": "Prashanth Kurella",
+      "avatar_url": "https://avatars.githubusercontent.com/u/16362226?v=4",
+      "profile": "https://github.com/peacekurella",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "dopc",
+      "name": "dopc",
+      "avatar_url": "https://avatars.githubusercontent.com/u/29026534?v=4",
+      "profile": "https://github.com/dopc",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "anaconda121",
+      "name": "Tanish Tyagi",
+      "avatar_url": "https://avatars.githubusercontent.com/u/38384138?v=4",
+      "profile": "https://github.com/anaconda121",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "kongyurui",
+      "name": "kongyurui",
+      "avatar_url": "https://avatars.githubusercontent.com/u/58269794?v=4",
+      "profile": "https://github.com/kongyurui",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "AndLen",
+      "name": "Andrew Lensen",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4524224?v=4",
+      "profile": "https://ecs.victoria.ac.nz/Main/AndrewLensen",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

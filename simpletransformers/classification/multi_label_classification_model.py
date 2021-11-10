@@ -200,6 +200,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             self.config = config_class.from_pretrained(model_name, **self.args.config)
             self.num_labels = self.config.num_labels
         self.pos_weight = pos_weight
+        self.loss_fct = None
 
         if use_cuda:
             if torch.cuda.is_available():

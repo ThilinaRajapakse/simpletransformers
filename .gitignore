@@ -139,3 +139,6 @@ dmypy.json
 .pyre/
 #Stale Notebooks
 Untitled.ipynb
+
+# pycharm folders
+.idea

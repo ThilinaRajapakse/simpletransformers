@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.62.1] - 2021-09-24
+
+### Fixed
+
+- Fixed bug when using onnx with ClassificationModel [kongyurui](https://github.com/kongyurui)
+- Fixed potential bug with NERModel when the input text is empty [whr778](https://github.com/whr778)
+- Fixed bug in sentencepiece tokenizer for some models [whr778](https://github.com/whr778)
+- Fixed issue with Seq2SeqModel showing the first training epoch as epoch 0 [dopc](https://github.com/dopc)
+- Fixed bug where eval_file was not used with ConvAIModel [cahya-wirawan](https://github.com/cahya-wirawan)
+
+### Changed
+
+- Replaced tensorboardx imports with default torch version
+
+## [0.62.0] - 2021-09-24
+
+### Added
+
+- Additional loss functions for `ClassificationModel` and `NERModel`. [Zhylkaaa](https://github.com/Zhylkaaa)
+
+### Changed
+
+- Deprecated custom classification models. [Zhylkaaa](https://github.com/Zhylkaaa)
+
+
+## [0.61.14] - 2021-09-23
+
+### Changed
+
+- W&B run id is now assigned as a model attribute
 
 ## [0.70.0] - 2021-08
 
@@ -1559,173 +1589,348 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.61.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a7e7fff...HEAD
+[0.62.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/fe70794...HEAD
+
+[0.62.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/67a2a47...fe70794
+
+[0.61.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a7e7fff...67a2a47
+
 [0.61.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/281ff31...a7e7fff
+
 [0.61.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b49bf28...281ff31
+
 [0.61.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/87eeb0e...b49bf28
+
 [0.61.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/76f1df5...87eeb0e
+
 [0.60.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/de06bfb...76f1df5
+
 [0.60.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/de989b5...de06bfb
+
 [0.60.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6f189e0...de989b5
+
 [0.60.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/5840749...6f189e0
+
 [0.51.16]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b42898e...5840749
+
 [0.51.15]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2af55e9...b42898e
+
 [0.51.14]: https://github.com/ThilinaRajapakse/simpletransformers/compare/278fca1...2af55e9
+
 [0.51.13]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4a5c295...278fca1
+
 [0.51.12]: https://github.com/ThilinaRajapakse/simpletransformers/compare/36fc7a6...4a5c295
+
 [0.51.11]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3ce3651...36fc7a6
+
 [0.51.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3ce3651...3ce3651
+
 [0.51.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3cfc400...3ce3651
+
 [0.51.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3cfc400...3ce3651
+
 [0.51.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/58a563e...3cfc400
+
 [0.51.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0609ccd...58a563e
+
 [0.51.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c733785...0609ccd
+
 [0.51.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d583c6a...c733785
+
 [0.51.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/5f4bc8d...d583c6a
+
 [0.51.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a0f382e...5f4bc8d
+
 [0.50.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2e2c50e...a0f382e
+
 [0.49.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6025b6f...2e2c50e
+
 [0.49.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9440c6e...6025b6f
+
 [0.49.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d4d66d6...9440c6e
+
 [0.49.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/77da311...d4d66d6
+
 [0.48.15]: https://github.com/ThilinaRajapakse/simpletransformers/compare/38d0cd8...77da311
+
 [0.48.14]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3ce9288...38d0cd8
+
 [0.48.13]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6881e5c...3ce9288
+
 [0.48.12]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b908bb5...6881e5c
+
 [0.48.11]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1b59118...b908bb5
+
 [0.48.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6370a1b...1b59118
+
 [0.48.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1c231e1...6370a1b
+
 [0.48.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/edb9fdd...1c231e1
+
 [0.48.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/25fa010...edb9fdd
+
 [0.48.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6f75f8e...25fa010
+
 [0.48.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/39d25d0...6f75f8e
+
 [0.48.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7ef56b0...39d25d0
+
 [0.48.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/8c1ae68...7ef56b0
+
 [0.48.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d62ce56...0f678f2
+
 [0.47.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bd4c397...d62ce56
+
 [0.47.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/78ffa94...bd4c397
+
 [0.47.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d405b4a...78ffa94
+
 [0.46.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2cc77f7...d405b4a
+
 [0.46.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7f37cb7...2cc77f7
+
 [0.46.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b64637c...7f37cb7
+
 [0.46.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/121cba4...b64637c
+
 [0.46.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/120d1e6...121cba4
+
 [0.45.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0ac6b69...120d1e6
+
 [0.45.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ac0f1a0...0ac6b69
+
 [0.45.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e98361...ac0f1a0
+
 [0.45.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/fad190f...3e98361
+
 [0.44.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6a9beca...fad190f
+
 [0.43.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2ee0c0b...6a9beca
+
 [0.43.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e1eb826...2ee0c0b
+
 [0.42.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a8bb887...e1eb826
+
 [0.41.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/eeb69fa...a8bb887
+
 [0.41.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b4e1886...eeb69fa
+
 [0.40.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f4ef3d3...b4e1886
+
 [0.40.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/99ede24...f4ef3d3
+
 [0.40.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cf66100...99ede24
+
 [0.34.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3e112de...cf66100
+
 [0.34.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/19ecd79...3e112de
+
 [0.34.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4789a1d...19ecd79
+
 [0.33.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb83151...4789a1d
+
 [0.33.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f40331b...bb83151
+
 [0.33.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e96aacd...f40331b
+
 [0.32.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f5cee79...e96aacd
+
 [0.32.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d009aa1...f5cee79
+
 [0.32.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b196267...d009aa1
+
 [0.31.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d38e086...b196267
+
 [0.30.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9699a0c...d38e086
+
 [0.29.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/858d2b9...9699a0c
+
 [0.28.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a1a6473...858d2b9
+
 [0.28.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/08a3b4c...a1a6473
+
 [0.28.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4e66cb8...08a3b4c
+
 [0.28.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9077ebb...4e66cb8
+
 [0.28.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/68d62b1...9077ebb
+
 [0.28.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/91866e8...68d62b1
+
 [0.28.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ac097e4...91866e8
+
 [0.28.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ca87582...ac097e4
+
 [0.28.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1695fc4...ca87582
+
 [0.28.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/4d9665d...1695fc4
+
 [0.28.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/402bd8e...4d9665d
+
 [0.27.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bc94b34...402bd8e
+
 [0.27.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d665494...bc94b34
+
 [0.27.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/32d5a1a...d665494
+
 [0.27.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ab1e600...32d5a1a
+
 [0.26.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3d4f616...ab1e600
+
 [0.26.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/aa8e6a6...3d4f616
+
 [0.25.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/445d386...aa8e6a6
+
 [0.24.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/52fea69...445d386
+
 [0.24.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9b1f41...52fea69
+
 [0.24.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/853ca94...e9b1f41
+
 [0.24.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/777f78d...853ca94
+
 [0.24.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/8f1daac...777f78d
+
 [0.24.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ce4b925...8f1daac
+
 [0.24.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/91b7ae1...ce4b925
+
 [0.24.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ae6b6ea...91b7ae1
+
 [0.24.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/17b1c23...ae6b6ea
+
 [0.23.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/3069694...17b1c23
+
 [0.23.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/96bc291...3069694
+
 [0.23.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7529ee1...96bc291
+
 [0.23.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b5cf82c...7529ee1
+
 [0.22.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/51fc7a3...b5cf82c
+
 [0.21.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/27ff44e...51fc7a3
+
 [0.21.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9905a4...27ff44e
+
 [0.21.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/7a9dd6f...e9905a4
+
 [0.21.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d114c50...7a9dd6f
+
 [0.21.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/721c55c...d114c50
+
 [0.21.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f484717...721c55c
+
 [0.20.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/daf5ccd...f484717
+
 [0.20.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/538b8fa...daf5ccd
+
 [0.20.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c466ca6...538b8fa
+
 [0.20.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/61952aa...c466ca6
+
 [0.19.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b5ab978...61952aa
+
 [0.19.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b5ab978...61952aa
+
 [0.19.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d7a5abd...b5ab978
+
 [0.19.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f814874...d7a5abd
+
 [0.19.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9170750...f814874
+
 [0.19.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/337670a...9170750
+
 [0.19.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/337670a...34261a8
+
 [0.19.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb17711...337670a
+
 [0.19.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/489d4f7...bb17711
+
 [0.19.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bb67a2b...489d4f7
+
 [0.19.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/6c6f2e9...bb67a2b
+
 [0.18.12]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f8d0ad2...6c6f2e9
+
 [0.18.11]: https://github.com/ThilinaRajapakse/simpletransformers/compare/65ef805...f8d0ad2
+
 [0.18.10]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ce5afd7...65ef805
+
 [0.18.9]: https://github.com/ThilinaRajapakse/simpletransformers/compare/8ade0f4...ce5afd7
+
 [0.18.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/44afa70...8ade0f4
+
 [0.18.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/aa7f650...44afa70
+
 [0.18.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/ebef6c4...aa7f650
+
 [0.18.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0aa88e4...ebef6c4
+
 [0.18.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/52a488e...0aa88e4
+
 [0.18.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1fb47f1...52a488e
+
 [0.18.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9698fd3...1fb47f1
+
 [0.18.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9c9345f...9698fd3
+
 [0.17.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9a39cab...9c9345f
+
 [0.17.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0e5dd18...9a39cab
+
 [0.16.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c6c1792...0e5dd18
+
 [0.16.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/e9504b5...c6c1792
+
 [0.16.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/5d1eaa9...e9504b5
+
 [0.16.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/f5a7699...5d1eaa9
+
 [0.16.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d589b75...f5a7699
+
 [0.16.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/d8df83f...d589b75
+
 [0.16.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1684fff...d8df83f
+
 [0.15.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/c2f620a...1684fff
+
 [0.15.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/cd24331...c2f620a
+
 [0.15.5]: https://github.com/ThilinaRajapakse/simpletransformers/compare/38cbea5...cd24331
+
 [0.15.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/70e2a19...38cbea5
+
 [0.15.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a65dc73...70e2a19
+
 [0.15.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/268ced8...a65dc73
+
 [0.15.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/2c1e5e0...268ced8
+
 [0.15.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/aa06528...2c1e5e0
+
 [0.14.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/785ee04...aa06528
+
 [0.13.4]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b6e0573...785ee04
+
 [0.13.3]: https://github.com/ThilinaRajapakse/simpletransformers/compare/b3283da...b6e0573
+
 [0.13.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/897ef9f...b3283da
+
 [0.13.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/1ee6093...897ef9f
+
 [0.13.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/04886b5...1ee6093
+
 [0.12.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/04c1c06...04886b5
+
 [0.11.2]: https://github.com/ThilinaRajapakse/simpletransformers/compare/bbc9d22...04c1c06
+
 [0.11.1]: https://github.com/ThilinaRajapakse/simpletransformers/compare/191e2f0...bbc9d22
+
 [0.11.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/92d08ae...191e2f0
+
 [0.10.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/68d359f...92d08ae
+
 [0.10.7]: https://github.com/ThilinaRajapakse/simpletransformers/compare/0.10.6...68d359f
+
+

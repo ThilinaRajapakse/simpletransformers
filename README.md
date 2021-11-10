@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-73-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-84-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -53,7 +53,7 @@ $ conda create -n st python pandas tqdm
 $ conda activate st
 ```
 
-With using Cuda:
+Using Cuda:
 
 ```bash
 $ conda install pytorch>=1.6 cudatoolkit=11.0 -c pytorch
@@ -161,7 +161,8 @@ predictions, raw_outputs = model.predict(["Sam was a Wizard"])
 
 ### Experiment Tracking with Weights and Biases
 
-- W&B Notebook -
+- Weights and Biases makes it incredibly easy to keep track of all your experiments. Check it out on Colab here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://wandb.me/simpletformers-QA-colab)
+
 
 ---
 
@@ -180,11 +181,8 @@ dictionary.
 Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-
 <!-- prettier-ignore-start -->
-
 <!-- markdownlint-disable -->
-
 <table>
   <tr>
     <td align="center"><a href="https://github.com/hawktang"><img src="https://avatars0.githubusercontent.com/u/2004071?v=4?s=100" width="100px;" alt=""/><br /><sub><b>hawktang</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=hawktang" title="Code">💻</a></td>
@@ -287,11 +285,16 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
   </tr>
   <tr>
     <td align="center"><a href="https://github.com/reza-ebrahimi"><img src="https://avatars.githubusercontent.com/u/11276982?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Reza Ebrahimi</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=reza-ebrahimi" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/gabriben"><img src="https://avatars.githubusercontent.com/u/37249800?v=4?s=100" width="100px;" alt=""/><br /><sub><b>gabriben</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=gabriben" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/peacekurella"><img src="https://avatars.githubusercontent.com/u/16362226?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Prashanth Kurella</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=peacekurella" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/dopc"><img src="https://avatars.githubusercontent.com/u/29026534?v=4?s=100" width="100px;" alt=""/><br /><sub><b>dopc</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=dopc" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/anaconda121"><img src="https://avatars.githubusercontent.com/u/38384138?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Tanish Tyagi</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=anaconda121" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/kongyurui"><img src="https://avatars.githubusercontent.com/u/58269794?v=4?s=100" width="100px;" alt=""/><br /><sub><b>kongyurui</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=kongyurui" title="Code">💻</a></td>
+    <td align="center"><a href="https://ecs.victoria.ac.nz/Main/AndrewLensen"><img src="https://avatars.githubusercontent.com/u/4524224?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Andrew Lensen</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=AndLen" title="Code">💻</a></td>
   </tr>
 </table>
 
 <!-- markdownlint-restore -->
-
 <!-- prettier-ignore-end -->
 
 <!-- ALL-CONTRIBUTORS-LIST:END -->

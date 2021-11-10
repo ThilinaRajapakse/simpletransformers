@@ -2,7 +2,7 @@
 title: Retrieval Specifics
 permalink: /docs/retrieval-specifics/
 excerpt: "Specific notes for Retrieval tasks."
-last_modified_at: 2021/10/03 22:00:29
+last_modified_at: 2021/11/10 21:14:59
 toc: true
 ---
 

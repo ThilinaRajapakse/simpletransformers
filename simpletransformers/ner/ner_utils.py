@@ -17,7 +17,7 @@
 
 from __future__ import absolute_import, division, print_function
 import enum
-
+import collections
 import linecache
 import logging
 import os
@@ -280,14 +280,17 @@ def convert_example_to_feature(
                 word_tokens = tokenizer.tokenize(word)
             else:
                 word_tokens = example.tokenized_word_ids[i]
-            tokens.extend(word_tokens)
             # Use the real label id for the first token of the word, and padding ids for the remaining tokens
             if (
                 word_tokens
             ):  # avoid non printable character like '\u200e' which are tokenized as a void token ''
-                label_ids.extend(
-                    [label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1)
-                )
+                tokens.extend(word_tokens)
+            else:
+                word_tokens = tokenizer.tokenize(tokenizer.unk_token)
+                tokens.extend(word_tokens)
+            label_ids.extend(
+                [label_map[label]] + [pad_token_label_id] * (len(word_tokens) - 1)
+            )
 
     # Account for [CLS] and [SEP] with "- 2" and with "- 3" for RoBERTa.
     special_tokens_count = 3 if sep_token_extra else 2
@@ -713,10 +716,10 @@ class LazyNERDataset(Dataset):
             else:
                 # Examples could have no label for mode = "test"
                 labels.append("O")
-        if words:
-            example = InputExample(
-                guid="%s-%d".format("train", idx), words=words, labels=labels
-            )
+
+        example = InputExample(
+            guid="%s-%d".format("train", idx), words=words, labels=labels
+        )
 
         label_map = {label: i for i, label in enumerate(self.args.labels_list)}
 
@@ -747,3 +750,18 @@ class LazyNERDataset(Dataset):
 
     def __len__(self):
         return self.num_entries
+
+
+def flatten_results(results, parent_key="", sep="/"):
+    out = []
+    if isinstance(results, collections.Mapping):
+        for key, value in results.items():
+            pkey = parent_key + sep + str(key) if parent_key else str(key)
+            out.extend(flatten_results(value, parent_key=pkey).items())
+    elif isinstance(results, collections.Iterable):
+        for key, value in enumerate(results):
+            pkey = parent_key + sep + str(key) if parent_key else str(key)
+            out.extend(flatten_results(value, parent_key=pkey).items())
+    else:
+        out.append((parent_key, results))
+    return dict(out)

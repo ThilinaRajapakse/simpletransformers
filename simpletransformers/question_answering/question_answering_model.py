@@ -19,7 +19,7 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
@@ -260,6 +260,7 @@ class QuestionAnsweringModel:
         self.args.model_name = model_name
         self.args.model_type = model_type
 
+        self.wandb_run_id = None
         if self.args.wandb_project and not wandb_available:
             warnings.warn(
                 "wandb_project specified but wandb is not available. Wandb disabled."
@@ -484,7 +485,7 @@ class QuestionAnsweringModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+        tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
@@ -687,6 +688,7 @@ class QuestionAnsweringModel:
             )
             wandb.run._label(repo="simpletransformers")
             wandb.watch(self.model)
+            self.wandb_run_id = wandb.run.id
 
         if args.fp16:
             from torch.cuda import amp

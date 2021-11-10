@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, print_function
-
+import collections
 import logging
 import math
 import os
@@ -20,6 +20,7 @@ from seqeval.metrics import (
 )
 from simpletransformers.config.model_args import NERArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
+from simpletransformers.losses.loss_utils import init_loss
 from simpletransformers.ner.ner_utils import (
     InputExample,
     LazyNERDataset,
@@ -27,8 +28,9 @@ from simpletransformers.ner.ner_utils import (
     get_examples_from_df,
     load_hf_dataset,
     read_examples_from_file,
+    flatten_results,
 )
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from tqdm.auto import tqdm, trange
@@ -141,9 +143,11 @@ class NERModel:
             model_type: The type of model (bert, roberta)
             model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_model.bin).
             labels (optional): A list of all Named Entity labels.  If not given, ["O", "B-MISC", "I-MISC",  "B-PER", "I-PER", "B-ORG", "I-ORG", "B-LOC", "I-LOC"] will be used.
+            weight (optional): A `torch.Tensor`, `numpy.ndarray` or list.  The weight to be applied to each class when computing the loss of the model.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
+            onnx_execution_provider (optional): The execution provider to use for ONNX export.
             **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """  # noqa: ignore flake8"
 
@@ -287,12 +291,9 @@ class NERModel:
         else:
             self.device = "cpu"
 
-        if self.weight:
-            self.loss_fct = CrossEntropyLoss(
-                weight=torch.Tensor(self.weight).to(self.device)
-            )
-        else:
-            self.loss_fct = None
+        self.loss_fct = init_loss(
+            weight=self.weight, device=self.device, args=self.args
+        )
 
         if self.args.onnx:
             from onnxruntime import InferenceSession, SessionOptions
@@ -472,33 +473,13 @@ class NERModel:
 
         return global_step, training_details
 
-    def _calculate_loss(self, model, inputs):
-        outputs = model(**inputs)
-        # model outputs are always tuple in pytorch-transformers (see doc)
-        loss = outputs[0]
-        if self.loss_fct:
-            logits = outputs[1]
-            labels = inputs["labels"]
-            attention_mask = inputs.get("attention_mask")
-            if attention_mask is not None:
-                active_loss = attention_mask.view(-1) == 1
-                active_logits = logits.view(-1, self.num_labels)
-                active_labels = torch.where(
-                    active_loss,
-                    labels.view(-1),
-                    torch.tensor(self.loss_fct.ignore_index).type_as(labels),
-                )
-                loss = self.loss_fct(active_logits, active_labels)
-            else:
-                loss = self.loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        return (loss, *outputs[1:])
-
     def train(
         self,
         train_dataset,
         output_dir,
         show_running_loss=True,
         eval_data=None,
+        test_data=None,
         verbose=True,
         **kwargs,
     ):
@@ -511,7 +492,7 @@ class NERModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+        tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
@@ -713,6 +694,7 @@ class NERModel:
             )
             wandb.run._label(repo="simpletransformers")
             wandb.watch(self.model)
+            self.wandb_run_id = wandb.run.id
 
         if self.args.fp16:
             from torch.cuda import amp
@@ -742,9 +724,21 @@ class NERModel:
 
                 if self.args.fp16:
                     with amp.autocast():
-                        loss, *_ = self._calculate_loss(model, inputs)
+                        loss, *_ = self._calculate_loss(
+                            model,
+                            inputs,
+                            loss_fct=self.loss_fct,
+                            num_labels=self.num_labels,
+                            args=self.args,
+                        )
                 else:
-                    loss, *_ = self._calculate_loss(model, inputs)
+                    loss, *_ = self._calculate_loss(
+                        model,
+                        inputs,
+                        loss_fct=self.loss_fct,
+                        num_labels=self.num_labels,
+                        args=self.args,
+                    )
 
                 if args.n_gpu > 1:
                     loss = (
@@ -833,13 +827,6 @@ class NERModel:
                             output_dir=output_dir_current,
                             **kwargs,
                         )
-                        for key, value in results.items():
-                            try:
-                                tb_writer.add_scalar(
-                                    "eval_{}".format(key), value, global_step
-                                )
-                            except (NotImplementedError, AssertionError):
-                                pass
 
                         if args.save_eval_checkpoints:
                             self.save_model(
@@ -854,6 +841,21 @@ class NERModel:
                         training_progress_scores["train_loss"].append(current_loss)
                         for key in results:
                             training_progress_scores[key].append(results[key])
+
+                        if test_data is not None:
+                            test_results, _, _ = self.eval_model(
+                                test_data,
+                                verbose=verbose
+                                and args.evaluate_during_training_verbose,
+                                silent=args.evaluate_during_training_silent,
+                                wandb_log=False,
+                                **kwargs,
+                            )
+                            for key in test_results:
+                                training_progress_scores["test_" + key].append(
+                                    test_results[key]
+                                )
+
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
                             os.path.join(
@@ -864,6 +866,18 @@ class NERModel:
 
                         if args.wandb_project or self.is_sweeping:
                             wandb.log(self._get_last_metrics(training_progress_scores))
+
+                        for key, value in flatten_results(
+                            self._get_last_metrics(training_progress_scores)
+                        ).items():
+                            try:
+                                tb_writer.add_scalar(key, value, global_step)
+                            except (NotImplementedError, AssertionError):
+                                if verbose:
+                                    logger.warning(
+                                        f"can't log value of type: {type(value)} to tensorboar"
+                                    )
+                        tb_writer.flush()
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
@@ -991,6 +1005,20 @@ class NERModel:
                 training_progress_scores["train_loss"].append(current_loss)
                 for key in results:
                     training_progress_scores[key].append(results[key])
+
+                if test_data is not None:
+                    test_results, _, _ = self.eval_model(
+                        test_data,
+                        verbose=verbose and args.evaluate_during_training_verbose,
+                        silent=args.evaluate_during_training_silent,
+                        wandb_log=False,
+                        **kwargs,
+                    )
+                    for key in test_results:
+                        training_progress_scores["test_" + key].append(
+                            test_results[key]
+                        )
+
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(
                     os.path.join(args.output_dir, "training_progress_scores.csv"),
@@ -999,6 +1027,18 @@ class NERModel:
 
                 if args.wandb_project or self.is_sweeping:
                     wandb.log(self._get_last_metrics(training_progress_scores))
+
+                for key, value in flatten_results(
+                    self._get_last_metrics(training_progress_scores)
+                ).items():
+                    try:
+                        tb_writer.add_scalar(key, value, global_step)
+                    except (NotImplementedError, AssertionError):
+                        if verbose:
+                            logger.warning(
+                                f"can't log value of type: {type(value)} to tensorboar"
+                            )
+                tb_writer.flush()
 
                 if not best_eval_metric:
                     best_eval_metric = results[args.early_stopping_metric]
@@ -1205,10 +1245,22 @@ class NERModel:
 
                 if self.args.fp16:
                     with amp.autocast():
-                        outputs = self._calculate_loss(model, inputs)
+                        outputs = self._calculate_loss(
+                            model,
+                            inputs,
+                            loss_fct=self.loss_fct,
+                            num_labels=self.num_labels,
+                            args=self.args,
+                        )
                         tmp_eval_loss, logits = outputs[:2]
                 else:
-                    outputs = self._calculate_loss(model, inputs)
+                    outputs = self._calculate_loss(
+                        model,
+                        inputs,
+                        loss_fct=self.loss_fct,
+                        num_labels=self.num_labels,
+                        args=self.args,
+                    )
                     tmp_eval_loss, logits = outputs[:2]
 
                 if self.args.n_gpu > 1:
@@ -1268,7 +1320,10 @@ class NERModel:
 
         extra_metrics = {}
         for metric, func in kwargs.items():
-            extra_metrics[metric] = func(out_label_list, preds_list)
+            if metric.startswith("prob_"):
+                extra_metrics[metric] = func(out_label_list, model_outputs)
+            else:
+                extra_metrics[metric] = func(out_label_list, preds_list)
 
         result = {
             "eval_loss": eval_loss,
@@ -1295,7 +1350,6 @@ class NERModel:
                 config={**asdict(args)},
                 **args.wandb_kwargs,
             )
-            labels_list = sorted(self.args.labels_list)
 
             labels_list = sorted(self.args.labels_list)
 
@@ -1490,10 +1544,22 @@ class NERModel:
 
                     if self.args.fp16:
                         with amp.autocast():
-                            outputs = self._calculate_loss(model, inputs)
+                            outputs = self._calculate_loss(
+                                model,
+                                inputs,
+                                loss_fct=self.loss_fct,
+                                num_labels=self.num_labels,
+                                args=self.args,
+                            )
                             tmp_eval_loss, logits = outputs[:2]
                     else:
-                        outputs = self._calculate_loss(model, inputs)
+                        outputs = self._calculate_loss(
+                            model,
+                            inputs,
+                            loss_fct=self.loss_fct,
+                            num_labels=self.num_labels,
+                            args=self.args,
+                        )
                         tmp_eval_loss, logits = outputs[:2]
 
                     if self.args.n_gpu > 1:
@@ -1819,6 +1885,27 @@ class NERModel:
         self.config.save_pretrained(output_dir)
         self._save_model_args(output_dir)
 
+    def _calculate_loss(self, model, inputs, loss_fct, num_labels, args):
+        outputs = model(**inputs)
+        # model outputs are always tuple in pytorch-transformers (see doc)
+        loss = outputs[0]
+        if loss_fct:
+            logits = outputs[1]
+            labels = inputs["labels"]
+            attention_mask = inputs.get("attention_mask")
+            if attention_mask is not None:
+                active_loss = attention_mask.view(-1) == 1
+                active_logits = logits.view(-1, num_labels)
+                active_labels = torch.where(
+                    active_loss,
+                    labels.view(-1),
+                    torch.tensor(loss_fct.ignore_index).type_as(labels),
+                )
+                loss = loss_fct(active_logits, active_labels)
+            else:
+                loss = loss_fct(logits.view(-1, num_labels), labels.view(-1))
+        return (loss, *outputs[1:])
+
     def _move_model_to_device(self):
         self.model.to(self.device)
 
@@ -1845,7 +1932,8 @@ class NERModel:
             return inputs
 
     def _create_training_progress_scores(self, **kwargs):
-        extra_metrics = {key: [] for key in kwargs}
+        return collections.defaultdict(list)
+        """extra_metrics = {key: [] for key in kwargs}
         training_progress_scores = {
             "global_step": [],
             "precision": [],
@@ -1856,7 +1944,7 @@ class NERModel:
             **extra_metrics,
         }
 
-        return training_progress_scores
+        return training_progress_scores"""
 
     def save_model(
         self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None

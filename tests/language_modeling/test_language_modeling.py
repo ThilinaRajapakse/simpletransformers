@@ -57,9 +57,6 @@ def test_language_modeling(model_type, model_name):
         if model_name is None:
             model_args["vocab_size"] = 100
 
-    if model_name is None:
-        model_args["vocab_size"] = 100
-
     model = LanguageModelingModel(
         model_type,
         model_name,

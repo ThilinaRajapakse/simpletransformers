@@ -28,7 +28,7 @@ from sklearn.metrics import (
     matthews_corrcoef,
     mean_squared_error,
 )
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from tqdm.auto import tqdm, trange
@@ -265,7 +265,10 @@ class ConvAIModel:
 
         if self.args.evaluate_during_training:
             eval_loader, eval_sampler = self.load_and_cache_examples(
-                verbose=verbose, evaluate=True
+                dataset_path=eval_file,
+                verbose=verbose,
+                evaluate=True,
+                no_cache=self.args.no_cache or self.args.reprocess_input_data,
             )
         else:
             eval_loader = None
@@ -309,7 +312,7 @@ class ConvAIModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+        tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
 
         t_total = (
             len(train_dataloader)
@@ -475,6 +478,7 @@ class ConvAIModel:
             )
             wandb.run._label(repo="simpletransformers")
             wandb.watch(self.model)
+            self.wandb_run_id = wandb.run.id
 
         if args.fp16:
             from torch.cuda import amp
