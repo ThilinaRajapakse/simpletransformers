@@ -2,7 +2,7 @@
 title: T5 Minimal Start
 permalink: /docs/t5-minimal-start/
 excerpt: "Minimal start for T5."
-last_modified_at: 2020/12/04 22:16:51
+last_modified_at: 2021/11/10 16:36:19
 ---
 
 ```python
@@ -25,14 +25,14 @@ train_data = [
 train_df = pd.DataFrame(train_data)
 train_df.columns = ["prefix", "input_text", "target_text"]
 
-train_data = [
+eval_data = [
     ["binary classification", "Leia was Luke's sister" , 1],
     ["binary classification", "Han was a Sith Lord" , 0],
     ["generate question", "In 2020, the Star Wars franchise's total value was estimated at US$70 billion, and it is currently the fifth-highest-grossing media franchise of all time.", "What is the total value of the Star Wars franchise?"],
     ["generate question", "Leia was Luke's sister" , "Who was Luke's sister?"],
 ]
-train_df = pd.DataFrame(train_data)
-train_df.columns = ["prefix", "input_text", "target_text"]
+eval_df = pd.DataFrame(eval_data)
+eval_df.columns = ["prefix", "input_text", "target_text"]
 
 # Configure the model
 model_args = T5Args()

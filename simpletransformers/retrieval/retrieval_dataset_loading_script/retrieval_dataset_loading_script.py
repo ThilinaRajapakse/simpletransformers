@@ -13,13 +13,14 @@ Adapted from the Huggingface code at https://github.com/huggingface/datasets/blo
 class RetrievalConfig(datasets.BuilderConfig):
     """BuilderConfig for DPR style JSON."""
 
-    def __init__(self, hard_negatives, **kwargs):
+    def __init__(self, hard_negatives, include_title, **kwargs):
         """BuilderConfig for DPR style JSON.
         Args:
           **kwargs: keyword arguments forwarded to super.
         """
         super(RetrievalConfig, self).__init__(**kwargs)
         self.hard_negatives = hard_negatives
+        self.include_title = include_title
 
 
 class Retrieval(datasets.GeneratorBasedBuilder):
@@ -64,15 +65,25 @@ class Retrieval(datasets.GeneratorBasedBuilder):
             examples_to_process = json.load(f)
             for i, example in enumerate(examples_to_process):
                 query_text = example["question"]
-                gold_passage = example["positive_ctxs"][0][
-                    "text"
-                ]  # For now, just use the first context
+                if self.config.include_title:
+                    passage = example["positive_ctxs"][0]["title"] + " " + example["positive_ctxs"][0]["text"]
+                else:
+                    passage = example["positive_ctxs"][0]["text"]
+                gold_passage = passage
 
                 if self.config.hard_negatives:
                     if example["hard_negative_ctxs"]:
-                        hard_negatives = example["hard_negative_ctxs"][0]["text"]
+                        if self.config.include_title:
+                            hard_passage = example["hard_negative_ctxs"][0]["title"] + " " + example["hard_negative_ctxs"][0]["text"]
+                        else:
+                            hard_passage = example["hard_negative_ctxs"][0]["text"]
+                        hard_negatives = hard_passage
                     elif example["negative_ctxs"]:
-                        hard_negatives = example["negative_ctxs"][0]["text"]
+                        if self.config.include_title:
+                            hard_passage = example["negative_ctxs"][0]["title"] + " " + example["negative_ctxs"][0]["text"]
+                        else:
+                            hard_passage = example["negative_ctxs"][0]["text"]
+                        hard_negatives = hard_passage
                     else:
                         continue
 

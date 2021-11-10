@@ -252,15 +252,16 @@ class RetrievalModel:
         Trains the model using 'train_data'
 
         Args:
-            train_data: Pandas DataFrame containing the 2 columns - `query_text`, 'gold_passage'.
+            train_data: Pandas DataFrame containing the 3 columns - `query_text`, `gold_passage`, and `title`. (Title is optional)
                         - `query_text`: The Query text sequence
                         - `gold_passage`: The gold passage text sequence
+                        - `title`: The title of the gold passage
                         If `use_hf_datasets` is True, then this may also be the path to a TSV file with the same columns.
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             additional_eval_passages: Additional passages to be used during evaluation.
-                        This may be a list of passages, a pandas DataFrame with the column "passages", or a TSV file with the column "passages".
+                        This may be a list of passages, a pandas DataFrame with the column `passages`, or a TSV file with the column `passages`.
             eval_data (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
@@ -920,12 +921,12 @@ class RetrievalModel:
         evaluate_with_all_passages=True,
         additional_passages=None,
         top_k_values=None,
-        output_dir=None,
-        verbose=True,
-        silent=False,
         retrieve_n_docs=None,
         return_doc_dicts=True,
         passage_dataset=None,
+        output_dir=None,
+        verbose=True,
+        silent=False,
         **kwargs,
     ):
         """
@@ -940,11 +941,12 @@ class RetrievalModel:
             additional_passages: Additional passages to be used during evaluation.
                         This may be a list of passages, a pandas DataFrame with the column "passages", or a TSV file with the column "passages".
             top_k_values: List of top-k values to be used for evaluation.
+            retrieve_n_docs: Number of documents to retrieve for each query. Overrides `args.retrieve_n_docs` for this evaluation.
+            return_doc_dicts: If True, return the doc dicts for the retrieved passages. Setting this to False can speed up evaluation.
+            passage_dataset: Path to a saved Huggingface dataset (containing generated embeddings) for both the eval_data and additional passages
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
-            return_doc_dicts: If True, return the doc dicts for the retrieved passages. Setting this to False can speed up evaluation.
-            passage_dataset: Path to a saved Huggingface dataset (containing generated embeddings) for both the eval_data and additional passages
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
                         will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
@@ -1133,9 +1135,9 @@ class RetrievalModel:
             ValueError: [description]
 
         Returns:
-            passages: List of lists containing the retrieved passages per query. (Shape: [len(to_predict), retrieve_n_docs])
-            doc_ids: List of lists containing the retrieved doc ids per query. (Shape: [len(to_predict), retrieve_n_docs])
-            doc_vectors: List of lists containing the retrieved doc vectors per query. (Shape: [len(to_predict), retrieve_n_docs])
+            passages: List of lists containing the retrieved passages per query. (Shape: `(len(to_predict), retrieve_n_docs)`)
+            doc_ids: List of lists containing the retrieved doc ids per query. (Shape: `(len(to_predict), retrieve_n_docs)`)
+            doc_vectors: List of lists containing the retrieved doc vectors per query. (Shape: `(len(to_predict), retrieve_n_docs)`)
             doc_dicts: List of dicts containing the retrieved doc dicts per query.
         """ # noqa: ignore flake8"
         if self.prediction_passages is None:
@@ -1267,18 +1269,30 @@ class RetrievalModel:
             for i in range(0, len(query_embeddings), args.retrieval_batch_size)
         ]
 
-        ids_batched = []
-        vectors_batched = []
-        for query_embeddings in tqdm(query_embeddings_batched, desc="Retrieving docs", disable=args.silent):
+        # ids_batched = []
+        # vectors_batched = []
+
+        ids_batched = np.zeros((len(passage_dataset), retrieve_n_docs))
+        vectors_batched = np.zeros(
+            (
+                len(passage_dataset),
+                retrieve_n_docs,
+                self.context_config.hidden_size
+                if "projection_dim" not in self.context_config.to_dict() or not self.context_config.projection_dim
+                else self.context_config.projection_dim
+            )
+        )
+
+        for i, query_embeddings in enumerate(tqdm(query_embeddings_batched, desc="Retrieving docs", disable=args.silent)):
             ids, vectors = passage_dataset.get_top_docs(
                 query_embeddings.astype(np.float32), retrieve_n_docs
             )
-            ids_batched.extend(ids)
-            vectors_batched.extend(vectors)
+            ids_batched[i * args.retrieval_batch_size : (i * args.retrieval_batch_size) + len(ids)] = ids
+            vectors_batched[i * args.retrieval_batch_size : (i * args.retrieval_batch_size) + len(ids)] = vectors
+            # ids_batched.extend(ids)
+            # vectors_batched.extend(vectors)
 
         if return_doc_dicts:
-            ids_batched = np.array(ids_batched)
-            vectors_batched = np.array(vectors_batched)
             doc_dicts = passage_dataset.get_doc_dicts(ids_batched)
         else:
             doc_dicts = None

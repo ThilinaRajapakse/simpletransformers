@@ -354,16 +354,17 @@ class RetrievalArgs(Seq2SeqArgs):
     Model args for a RetrievalModel
     """
 
+    model_class: str = "RetrievalModel"
     context_config: dict = field(default_factory=dict)
     embed_batch_size: int = 16
     hard_negatives: bool = False
-    retrieve_n_docs: int = 10
+    include_title: bool = True
     query_config: dict = field(default_factory=dict)
     remove_duplicates_from_eval_passages: bool = False
     retrieval_batch_size: int = 512
+    retrieve_n_docs: int = 10
     save_passage_dataset: bool = True
     use_hf_datasets: bool = True
-    multiprocessed_retrieval: bool = True
 
 
 @dataclass
