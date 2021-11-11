@@ -48,19 +48,27 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
                 cache_dir=args.dataset_cache_dir,
             )
             if args.include_title:
-                if "title" not in dataset.columns:
+                if "title" not in dataset:
                     raise ValueError(
                         "The dataset must contain a column named 'title' if args.include_title is True."
                     )
-                dataset = dataset.map(lambda example: {"gold_passage": example["title"] + " " + example["gold_passage"]})
+                dataset = dataset.map(
+                    lambda example: {
+                        "gold_passage": example["title"] + " " + example["gold_passage"]
+                    }
+                )
     else:
         dataset = HFDataset.from_pandas(data)
         if args.include_title:
-            if "title" not in dataset.columns:
+            if "title" not in dataset:
                 raise ValueError(
                     "The dataset must contain a column named 'title' if args.include_title is True."
                 )
-            dataset = dataset.map(lambda example: {"gold_passage": example["title"] + " " + example["gold_passage"]})
+            dataset = dataset.map(
+                lambda example: {
+                    "gold_passage": example["title"] + " " + example["gold_passage"]
+                }
+            )
 
     dataset = dataset.map(
         lambda x: preprocess_batch_for_hf_dataset(
@@ -276,21 +284,31 @@ def get_evaluation_passage_dataset(
                     cache_dir=args.dataset_cache_dir,
                 )
                 if args.include_title:
-                    if "title" not in passage_dataset.columns:
+                    if "title" not in passage_dataset:
                         raise ValueError(
                             "The dataset must contain a column named 'title' if args.include_title is True."
                         )
-                    passage_dataset = passage_dataset.map(lambda example: {"gold_passage": example["title"] + " " + example["gold_passage"]})
+                    passage_dataset = passage_dataset.map(
+                        lambda example: {
+                            "gold_passage": example["title"]
+                            + " "
+                            + example["gold_passage"]
+                        }
+                    )
 
             passage_dataset = passage_dataset["train"]
         else:
             passage_dataset = HFDataset.from_pandas(eval_data)
             if args.include_title:
-                if "title" not in passage_dataset.columns:
+                if "title" not in passage_dataset:
                     raise ValueError(
                         "The dataset must contain a column named 'title' if args.include_title is True."
                     )
-                passage_dataset = passage_dataset.map(lambda example: {"gold_passage": example["title"] + " " + example["gold_passage"]})
+                passage_dataset = passage_dataset.map(
+                    lambda example: {
+                        "gold_passage": example["title"] + " " + example["gold_passage"]
+                    }
+                )
 
         try:
             passage_dataset = passage_dataset.remove_columns("query_text")
@@ -304,7 +322,7 @@ def get_evaluation_passage_dataset(
             passage_dataset = passage_dataset.map(
                 add_hard_negatives_to_evaluation_dataset,
                 batched=True,
-                remove_columns=["hard_negative"]
+                remove_columns=["hard_negative"],
             )
 
         # try:
@@ -342,11 +360,17 @@ def get_evaluation_passage_dataset(
                         cache_dir=args.dataset_cache_dir,
                     )
                     if args.include_title:
-                        if "title" not in passage_dataset.columns:
+                        if "title" not in passage_dataset:
                             raise ValueError(
                                 "The dataset must contain a column named 'title' if args.include_title is True."
                             )
-                        passage_dataset = passage_dataset.map(lambda example: {"gold_passage": example["title"] + " " + example["gold_passage"]})
+                        passage_dataset = passage_dataset.map(
+                            lambda example: {
+                                "gold_passage": example["title"]
+                                + " "
+                                + example["gold_passage"]
+                            }
+                        )
                     additional_passages = additional_passages["train"]
             elif isinstance(additional_passages, list):
                 additional_passages = HFDataset.from_dict(
@@ -355,18 +379,26 @@ def get_evaluation_passage_dataset(
             else:
                 additional_passages = HFDataset.from_pandas(additional_passages)
                 if args.include_title:
-                    if "title" not in passage_dataset.columns:
+                    if "title" not in passage_dataset:
                         raise ValueError(
                             "The dataset must contain a column named 'title' if args.include_title is True."
                         )
-                    passage_dataset = passage_dataset.map(lambda example: {"gold_passage": example["title"] + " " + example["gold_passage"]})
+                    passage_dataset = passage_dataset.map(
+                        lambda example: {
+                            "gold_passage": example["title"]
+                            + " "
+                            + example["gold_passage"]
+                        }
+                    )
             try:
                 passage_dataset = concatenate_datasets(
                     [passage_dataset, additional_passages]
                 )
             except ValueError:
                 # Log the features in the two datasets
-                logger.warning("Mismatched features (columns) in the passage dataset and additional passages.")
+                logger.warning(
+                    "Mismatched features (columns) in the passage dataset and additional passages."
+                )
                 logger.info(
                     "The following features are in the first dataset:\n{}".format(
                         "\n".join(passage_dataset.column_names)
@@ -393,13 +425,9 @@ def get_evaluation_passage_dataset(
 
         if args.remove_duplicates_from_eval_passages:
             passage_dataset = HFDataset.from_pandas(
-                passage_dataset.to_pandas().drop_duplicates(
-                    subset=["passages"]
-                )
+                passage_dataset.to_pandas().drop_duplicates(subset=["passages"])
             )
-            passage_dataset = passage_dataset.remove_columns(
-                "__index_level_0__"
-            )
+            passage_dataset = passage_dataset.remove_columns("__index_level_0__")
 
         logger.info("Loading evaluation passages to a Huggingface Dataset completed.")
 
@@ -493,11 +521,15 @@ def get_prediction_passage_dataset(
                 cache_dir=args.dataset_cache_dir,
             )
             if args.include_title:
-                if "title" not in prediction_passages_dataset.columns:
+                if "title" not in prediction_passages_dataset:
                     raise ValueError(
                         "The dataset must contain a column named 'title' if args.include_title is True."
                     )
-                prediction_passages_dataset = prediction_passages_dataset.map(lambda example: {"gold_passage": example["title"] + " " + example["gold_passage"]})
+                prediction_passages_dataset = prediction_passages_dataset.map(
+                    lambda example: {
+                        "gold_passage": example["title"] + " " + example["gold_passage"]
+                    }
+                )
             prediction_passages_dataset = prediction_passages_dataset["train"]
     elif isinstance(prediction_passages, list):
         prediction_passages_dataset = HFDataset.from_dict(
@@ -505,11 +537,15 @@ def get_prediction_passage_dataset(
         )
     else:
         prediction_passages_dataset = HFDataset.from_pandas(prediction_passages)
-        if "title" not in prediction_passages_dataset.columns:
+        if "title" not in prediction_passages_dataset:
             raise ValueError(
                 "The dataset must contain a column named 'title' if args.include_title is True."
             )
-        prediction_passages_dataset = prediction_passages_dataset.map(lambda example: {"gold_passage": example["title"] + " " + example["gold_passage"]})
+        prediction_passages_dataset = prediction_passages_dataset.map(
+            lambda example: {
+                "gold_passage": example["title"] + " " + example["gold_passage"]
+            }
+        )
 
     logger.info("Preparing prediction passages completed")
     if "embeddings" not in prediction_passages_dataset.column_names:
@@ -573,7 +609,10 @@ class DPRIndex(Index):
         self.vector_size = vector_size
 
     def get_doc_dicts(self, doc_ids):
-        return [self.dataset[doc_ids[i].tolist()] for i in tqdm(range(doc_ids.shape[0]), desc="Retrieving doc dicts")]
+        return [
+            self.dataset[doc_ids[i].tolist()]
+            for i in tqdm(range(doc_ids.shape[0]), desc="Retrieving doc dicts")
+        ]
 
     def get_top_docs(self, question_hidden_states, n_docs=5):
         _, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)

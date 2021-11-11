@@ -74,7 +74,7 @@ MODEL_CLASSES = {
         AutoModel,
         AutoTokenizer,
         AutoTokenizer,
-    )
+    ),
 }
 
 
@@ -971,7 +971,11 @@ class RetrievalModel:
         )
 
         eval_dataset, gold_passages = load_hf_dataset(
-            eval_data, self.context_tokenizer, self.query_tokenizer, self.args, evaluate=True
+            eval_data,
+            self.context_tokenizer,
+            self.query_tokenizer,
+            self.args,
+            evaluate=True,
         )
 
         result, doc_ids, doc_vectors, doc_dicts = self.evaluate(
@@ -1043,7 +1047,8 @@ class RetrievalModel:
             (
                 len(eval_dataset),
                 self.query_config.hidden_size
-                if "projection_dim" not in self.query_config.to_dict() or not self.query_config.projection_dim
+                if "projection_dim" not in self.query_config.to_dict()
+                or not self.query_config.projection_dim
                 else self.query_config.projection_dim,
             )
         )
@@ -1104,7 +1109,10 @@ class RetrievalModel:
 
         if evaluate_with_all_passages:
             doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
-                all_query_embeddings, passage_dataset, retrieve_n_docs, return_doc_dicts=True
+                all_query_embeddings,
+                passage_dataset,
+                retrieve_n_docs,
+                return_doc_dicts=True,
             )
 
             doc_texts = [doc_dict["passages"] for doc_dict in doc_dicts]
@@ -1139,7 +1147,7 @@ class RetrievalModel:
             doc_ids: List of lists containing the retrieved doc ids per query. (Shape: `(len(to_predict), retrieve_n_docs)`)
             doc_vectors: List of lists containing the retrieved doc vectors per query. (Shape: `(len(to_predict), retrieve_n_docs)`)
             doc_dicts: List of dicts containing the retrieved doc dicts per query.
-        """ # noqa: ignore flake8"
+        """  # noqa: ignore flake8"
         if self.prediction_passages is None:
             if prediction_passages is None:
                 raise ValueError(
@@ -1157,7 +1165,8 @@ class RetrievalModel:
             (
                 len(to_predict),
                 self.query_config.hidden_size
-                if "projection_dim" not in self.query_config.to_dict() or not self.query_config.projection_dim
+                if "projection_dim" not in self.query_config.to_dict()
+                or not self.query_config.projection_dim
                 else self.query_config.projection_dim,
             )
         )
@@ -1216,7 +1225,9 @@ class RetrievalModel:
 
         return passages, doc_ids, doc_vectors, doc_dicts
 
-    def compute_metrics(self, gold_passages, doc_texts, args, top_k_values=None, **kwargs):
+    def compute_metrics(
+        self, gold_passages, doc_texts, args, top_k_values=None, **kwargs
+    ):
         """
         Computes the metrics for the evaluation data.
         """
@@ -1278,17 +1289,26 @@ class RetrievalModel:
                 len(passage_dataset),
                 retrieve_n_docs,
                 self.context_config.hidden_size
-                if "projection_dim" not in self.context_config.to_dict() or not self.context_config.projection_dim
-                else self.context_config.projection_dim
+                if "projection_dim" not in self.context_config.to_dict()
+                or not self.context_config.projection_dim
+                else self.context_config.projection_dim,
             )
         )
 
-        for i, query_embeddings in enumerate(tqdm(query_embeddings_batched, desc="Retrieving docs", disable=args.silent)):
+        for i, query_embeddings in enumerate(
+            tqdm(query_embeddings_batched, desc="Retrieving docs", disable=args.silent)
+        ):
             ids, vectors = passage_dataset.get_top_docs(
                 query_embeddings.astype(np.float32), retrieve_n_docs
             )
-            ids_batched[i * args.retrieval_batch_size : (i * args.retrieval_batch_size) + len(ids)] = ids
-            vectors_batched[i * args.retrieval_batch_size : (i * args.retrieval_batch_size) + len(ids)] = vectors
+            ids_batched[
+                i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                + len(ids)
+            ] = ids
+            vectors_batched[
+                i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                + len(ids)
+            ] = vectors
             # ids_batched.extend(ids)
             # vectors_batched.extend(vectors)
 
@@ -1323,7 +1343,9 @@ class RetrievalModel:
 
         if write_to_disk:
             if hard_negatives_save_path is None:
-                hard_negatives_save_path = os.path.join(self.args.output_dir, "hard_negatives.tsv")
+                hard_negatives_save_path = os.path.join(
+                    self.args.output_dir, "hard_negatives.tsv"
+                )
             hard_negative_df.to_csv(
                 hard_negatives_save_path,
                 index=False,

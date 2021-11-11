@@ -66,7 +66,11 @@ class Retrieval(datasets.GeneratorBasedBuilder):
             for i, example in enumerate(examples_to_process):
                 query_text = example["question"]
                 if self.config.include_title:
-                    passage = example["positive_ctxs"][0]["title"] + " " + example["positive_ctxs"][0]["text"]
+                    passage = (
+                        example["positive_ctxs"][0]["title"]
+                        + " "
+                        + example["positive_ctxs"][0]["text"]
+                    )
                 else:
                     passage = example["positive_ctxs"][0]["text"]
                 gold_passage = passage
@@ -74,13 +78,21 @@ class Retrieval(datasets.GeneratorBasedBuilder):
                 if self.config.hard_negatives:
                     if example["hard_negative_ctxs"]:
                         if self.config.include_title:
-                            hard_passage = example["hard_negative_ctxs"][0]["title"] + " " + example["hard_negative_ctxs"][0]["text"]
+                            hard_passage = (
+                                example["hard_negative_ctxs"][0]["title"]
+                                + " "
+                                + example["hard_negative_ctxs"][0]["text"]
+                            )
                         else:
                             hard_passage = example["hard_negative_ctxs"][0]["text"]
                         hard_negatives = hard_passage
                     elif example["negative_ctxs"]:
                         if self.config.include_title:
-                            hard_passage = example["negative_ctxs"][0]["title"] + " " + example["negative_ctxs"][0]["text"]
+                            hard_passage = (
+                                example["negative_ctxs"][0]["title"]
+                                + " "
+                                + example["negative_ctxs"][0]["text"]
+                            )
                         else:
                             hard_passage = example["negative_ctxs"][0]["text"]
                         hard_negatives = hard_passage
