@@ -48,7 +48,7 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
                 cache_dir=args.dataset_cache_dir,
             )
             if args.include_title:
-                if "title" not in dataset:
+                if "title" not in dataset.column_names:
                     raise ValueError(
                         "The dataset must contain a column named 'title' if args.include_title is True."
                     )
@@ -60,7 +60,7 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
     else:
         dataset = HFDataset.from_pandas(data)
         if args.include_title:
-            if "title" not in dataset:
+            if "title" not in dataset.column_names:
                 raise ValueError(
                     "The dataset must contain a column named 'title' if args.include_title is True."
                 )
@@ -284,7 +284,7 @@ def get_evaluation_passage_dataset(
                     cache_dir=args.dataset_cache_dir,
                 )
                 if args.include_title:
-                    if "title" not in passage_dataset:
+                    if "title" not in passage_dataset.column_names:
                         raise ValueError(
                             "The dataset must contain a column named 'title' if args.include_title is True."
                         )
@@ -300,7 +300,7 @@ def get_evaluation_passage_dataset(
         else:
             passage_dataset = HFDataset.from_pandas(eval_data)
             if args.include_title:
-                if "title" not in passage_dataset:
+                if "title" not in passage_dataset.column_names:
                     raise ValueError(
                         "The dataset must contain a column named 'title' if args.include_title is True."
                     )
@@ -360,7 +360,7 @@ def get_evaluation_passage_dataset(
                         cache_dir=args.dataset_cache_dir,
                     )
                     if args.include_title:
-                        if "title" not in passage_dataset:
+                        if "title" not in passage_dataset.column_names:
                             raise ValueError(
                                 "The dataset must contain a column named 'title' if args.include_title is True."
                             )
@@ -379,7 +379,7 @@ def get_evaluation_passage_dataset(
             else:
                 additional_passages = HFDataset.from_pandas(additional_passages)
                 if args.include_title:
-                    if "title" not in passage_dataset:
+                    if "title" not in passage_dataset.column_names:
                         raise ValueError(
                             "The dataset must contain a column named 'title' if args.include_title is True."
                         )
@@ -521,7 +521,7 @@ def get_prediction_passage_dataset(
                 cache_dir=args.dataset_cache_dir,
             )
             if args.include_title:
-                if "title" not in prediction_passages_dataset:
+                if "title" not in prediction_passages_dataset.column_names:
                     raise ValueError(
                         "The dataset must contain a column named 'title' if args.include_title is True."
                     )
@@ -537,7 +537,7 @@ def get_prediction_passage_dataset(
         )
     else:
         prediction_passages_dataset = HFDataset.from_pandas(prediction_passages)
-        if "title" not in prediction_passages_dataset:
+        if "title" not in prediction_passages_dataset.column_names:
             raise ValueError(
                 "The dataset must contain a column named 'title' if args.include_title is True."
             )
