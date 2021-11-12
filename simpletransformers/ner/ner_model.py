@@ -1350,6 +1350,7 @@ class NERModel:
                 config={**asdict(args)},
                 **args.wandb_kwargs,
             )
+            wandb.run._label(repo="simpletransformers")
 
             labels_list = sorted(self.args.labels_list)
 

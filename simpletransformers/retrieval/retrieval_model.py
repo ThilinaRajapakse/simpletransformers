@@ -1128,6 +1128,18 @@ class RetrievalModel:
             for key in sorted(results.keys()):
                 writer.write("{} = {}\n".format(key, str(results[key])))
 
+        if args.wandb_project:
+            if not wandb.setup().settings.sweep_id:
+                logger.info(" Initializing WandB run for evaluation.")
+                wandb.init(
+                    project=args.wandb_project,
+                    config={**asdict(args)},
+                    **args.wandb_kwargs,
+                )
+                wandb.run._label(repo="simpletransformers")
+                self.wandb_run_id = wandb.run.id
+            wandb.log(results)
+
         return results, doc_ids, doc_vectors, doc_dicts
 
     def predict(self, to_predict, prediction_passages=None, retrieve_n_docs=None):
@@ -1294,11 +1306,12 @@ class RetrievalModel:
                 else self.context_config.projection_dim,
             )
         )
+        doc_dicts = []
 
         for i, query_embeddings in enumerate(
             tqdm(query_embeddings_batched, desc="Retrieving docs", disable=args.silent)
         ):
-            ids, vectors = passage_dataset.get_top_docs(
+            ids, vectors, doc_dicts_batch = passage_dataset.get_top_docs(
                 query_embeddings.astype(np.float32), retrieve_n_docs
             )
             ids_batched[
@@ -1309,12 +1322,11 @@ class RetrievalModel:
                 i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
                 + len(ids)
             ] = vectors
-            # ids_batched.extend(ids)
-            # vectors_batched.extend(vectors)
 
-        if return_doc_dicts:
-            doc_dicts = passage_dataset.get_doc_dicts(ids_batched)
-        else:
+            if return_doc_dicts:
+                doc_dicts.extend(doc_dicts_batch)
+
+        if not return_doc_dicts:
             doc_dicts = None
 
         return ids_batched, vectors_batched, doc_dicts

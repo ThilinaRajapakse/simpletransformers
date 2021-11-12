@@ -37,6 +37,7 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
                 if args.reprocess_input_data
                 else "reuse_dataset_if_exists",
             )
+            dataset = dataset["train"]
         else:
             dataset = load_dataset(
                 "csv",
@@ -47,6 +48,7 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
                 else "reuse_dataset_if_exists",
                 cache_dir=args.dataset_cache_dir,
             )
+            dataset = dataset["train"]
             if args.include_title:
                 if "title" not in dataset.column_names:
                     raise ValueError(
@@ -96,10 +98,6 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
             "context_mask",
             "query_mask",
         ]
-
-    if isinstance(data, str):
-        # This is not necessarily a train dataset. The datasets library insists on calling it train.
-        dataset = dataset["train"]
 
     if evaluate:
         gold_passages = dataset["gold_passage"]
@@ -273,6 +271,7 @@ def get_evaluation_passage_dataset(
                     if args.reprocess_input_data
                     else "reuse_dataset_if_exists",
                 )
+                passage_dataset = passage_dataset["train"]
             else:
                 passage_dataset = load_dataset(
                     "csv",
@@ -283,6 +282,7 @@ def get_evaluation_passage_dataset(
                     else "reuse_dataset_if_exists",
                     cache_dir=args.dataset_cache_dir,
                 )
+                passage_dataset = passage_dataset["train"]
                 if args.include_title:
                     if "title" not in passage_dataset.column_names:
                         raise ValueError(
@@ -296,7 +296,6 @@ def get_evaluation_passage_dataset(
                         }
                     )
 
-            passage_dataset = passage_dataset["train"]
         else:
             passage_dataset = HFDataset.from_pandas(eval_data)
             if args.include_title:
@@ -520,6 +519,7 @@ def get_prediction_passage_dataset(
                 column_names=["passages"],
                 cache_dir=args.dataset_cache_dir,
             )
+            prediction_passages_dataset = prediction_passages_dataset["train"]
             if args.include_title:
                 if "title" not in prediction_passages_dataset.column_names:
                     raise ValueError(
@@ -530,7 +530,6 @@ def get_prediction_passage_dataset(
                         "gold_passage": example["title"] + " " + example["gold_passage"]
                     }
                 )
-            prediction_passages_dataset = prediction_passages_dataset["train"]
     elif isinstance(prediction_passages, list):
         prediction_passages_dataset = HFDataset.from_dict(
             {"passages": prediction_passages}
@@ -623,8 +622,10 @@ class DPRIndex(Index):
                 vectors[i] = np.vstack(
                     [vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))]
                 )
-        return np.array(ids), np.array(
-            vectors
+        return (
+            np.array(ids),
+            np.array(vectors),
+            docs,
         )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
     def __len__(self):
