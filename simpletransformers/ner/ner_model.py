@@ -1448,7 +1448,7 @@ class NERModel:
 
             # Encode
             model_inputs = self.tokenizer.batch_encode_plus(
-                to_predict, return_tensors="pt", padding=True, truncation=True
+                to_predict, return_tensors="pt", padding=True, truncation=True, is_split_into_words=(not split_on_space)
             )
 
             # Change shape for batching
