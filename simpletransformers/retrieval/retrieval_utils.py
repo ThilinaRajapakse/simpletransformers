@@ -333,6 +333,8 @@ def get_evaluation_passage_dataset(
         if additional_passages is not None:
             if args.fp16:
                 from torch.cuda import amp
+            else:
+                amp = None
             if isinstance(additional_passages, str):
                 if os.path.isdir(additional_passages):
                     # To be used if you want to reuse the embeddings from a previous eval but
@@ -434,6 +436,8 @@ def get_evaluation_passage_dataset(
             logger.info("Generating embeddings for evaluation passages")
             if args.fp16:
                 from torch.cuda import amp
+            else:
+                amp = None
             passage_dataset = passage_dataset.map(
                 partial(
                     embed,
@@ -552,6 +556,8 @@ def get_prediction_passage_dataset(
 
         if args.fp16:
             from torch.cuda import amp
+        else:
+            amp = None
 
         prediction_passages_dataset = prediction_passages_dataset.map(
             partial(
