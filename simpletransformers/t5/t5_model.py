@@ -132,7 +132,7 @@ class T5Model:
         if isinstance(tokenizer, T5Tokenizer):
             self.tokenizer = tokenizer
             self.model.resize_token_embeddings(len(self.tokenizer))
-        elif model_type=='byt5':
+        elif model_type == "byt5":
             self.tokenizer = ByT5Tokenizer.from_pretrained(model_name, truncate=True)
         else:
             self.tokenizer = T5Tokenizer.from_pretrained(model_name, truncate=True)
