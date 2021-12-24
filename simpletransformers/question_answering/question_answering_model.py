@@ -132,7 +132,7 @@ class QuestionAnsweringModel:
 
         MODEL_CLASSES = {
             "albert": (AlbertConfig, AlbertForQuestionAnswering, AlbertTokenizer),
-            "auto": (AutoConfig, AutoTokenizer, AutoModelForQuestionAnswering),
+            "auto": (AutoConfig, AutoModelForQuestionAnswering, AutoTokenizer),
             "bart": (BartConfig, BartForQuestionAnswering, BartTokenizer),
             "bert": (BertConfig, BertForQuestionAnswering, BertTokenizer),
             "camembert": (
