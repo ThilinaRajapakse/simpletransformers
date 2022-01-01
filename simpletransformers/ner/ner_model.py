@@ -1507,10 +1507,18 @@ class NERModel:
                     out_attention_mask = np.append(
                         out_attention_mask, inputs_onnx["attention_mask"], axis=0
                     )
-            out_label_ids = np.zeros_like(out_input_ids)
-            for index in range(len(out_label_ids)):
-                out_label_ids[index][0] = -100
-                out_label_ids[index][-1] = -100
+
+            pad_token_label_id = -100
+            out_label_ids = []
+            for word in to_predict[0].split():
+                word_tokens = self.tokenizer.tokenize(word)
+
+                out_label_ids.extend(
+                    [0] + [pad_token_label_id] * (len(word_tokens) - 1)
+                )
+            out_label_ids.insert(0, -100)
+            out_label_ids.append(-100)
+            out_label_ids = np.array(out_label_ids).reshape(1, len(out_label_ids))
         else:
 
             eval_dataset = self.load_and_cache_examples(
