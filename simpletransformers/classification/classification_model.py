@@ -1862,7 +1862,12 @@ class ClassificationModel:
             mismatched = labels != preds
 
         if eval_examples:
-            wrong = [i for (i, v) in zip(eval_examples, mismatched) if v.any()]
+            if instanceof(eval_examples, list):
+                wrong = [i for (i, v) in zip(eval_examples, mismatched) if v.any()]
+            elif len(eval_examples) == 2:
+                wrong = [i for (i, v) in zip(eval_examples[0], mismatched) if v.any()]
+            else:
+                wrong = [i for (i, v) in zip(zip(eval_examples[0], eval_examples[1]), mismatched) if v.any()]
         else:
             wrong = ["NA"]
 
