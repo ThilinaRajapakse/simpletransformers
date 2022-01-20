@@ -25,7 +25,10 @@ from sklearn.metrics import (
 )
 from torch.utils.tensorboard import SummaryWriter
 from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
-from tokenizers.implementations import SentencePieceBPETokenizer, SentencePieceUnigramTokenizer
+from tokenizers.implementations import (
+    SentencePieceBPETokenizer,
+    SentencePieceUnigramTokenizer,
+)
 from tokenizers.processors import BertProcessing
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
@@ -1347,10 +1350,10 @@ class LanguageModelingModel:
                     if bool(args.model_type in ["roberta", "camembert", "xlmroberta"])
                     else 2
                 )
-                if (
-                    self.args.max_seq_length > 509
-                    and self.args.model_type not in ["longformer", "bigbird"]
-                ):
+                if self.args.max_seq_length > 509 and self.args.model_type not in [
+                    "longformer",
+                    "bigbird",
+                ]:
                     self.args.max_seq_length = (
                         509
                         if bool(
@@ -1441,7 +1444,14 @@ class LanguageModelingModel:
                 # </s>,<s>,<unk>,<pad> are built in -- leave as default
                 # XLMRoberta uses sentencepiece.bpe as a vocab model prefix
                 prefix = "sentencepiece.bpe"
-                self.args.special_tokens = ["<s>","</s>","<pad>","<mask>","<s>NOTUSED","</s>NOTUSED"]
+                self.args.special_tokens = [
+                    "<s>",
+                    "</s>",
+                    "<pad>",
+                    "<mask>",
+                    "<s>NOTUSED",
+                    "</s>NOTUSED",
+                ]
                 spm.SentencePieceTrainer.Train(
                     f"--input={files} --user_defined_symbols=<pad>,<mask>,<s>NOTUSED,</s>NOTUSED --model_type=bpe --model_prefix={prefix} --vocab_size={self.args.vocab_size - 2} --shuffle_input_sentence=true --max_sentence_length=10000"
                 )
@@ -1449,7 +1459,14 @@ class LanguageModelingModel:
                 # </s>,<s>,<unk>,<pad> are built in -- leave as default
                 # BigBird uses spiece as a vocab model prefix
                 prefix = "spiece"
-                self.args.special_tokens = ['<s>','</s>','<pad>','[SEP]','[CLS]','[MASK]']
+                self.args.special_tokens = [
+                    "<s>",
+                    "</s>",
+                    "<pad>",
+                    "[SEP]",
+                    "[CLS]",
+                    "[MASK]",
+                ]
                 spm.SentencePieceTrainer.Train(
                     f"--input={files} --user_defined_symbols=<pad>,[SEP],[CLS],[MASK] --model_type=bpe --model_prefix=spiece --vocab_size={self.args.vocab_size} --shuffle_input_sentence=true --max_sentence_length=10000"
                 )

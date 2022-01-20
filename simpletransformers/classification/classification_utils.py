@@ -81,6 +81,27 @@ class InputExample(object):
         else:
             self.bboxes = [[a, b, c, d] for a, b, c, d in zip(x0, y0, x1, y1)]
 
+    def __repr__(self):
+        if self.bboxes:
+            return str(
+                {
+                    "guid": self.guid,
+                    "text_a": self.text_a,
+                    "text_b": self.text_b,
+                    "label": self.label,
+                    "bboxes": self.bboxes,
+                }
+            )
+        else:
+            return str(
+                {
+                    "guid": self.guid,
+                    "text_a": self.text_a,
+                    "text_b": self.text_b,
+                    "label": self.label,
+                }
+            )
+
 
 class InputFeatures(object):
     """A single set of features of data."""

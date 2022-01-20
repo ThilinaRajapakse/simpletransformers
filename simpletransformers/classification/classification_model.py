@@ -1862,6 +1862,33 @@ class ClassificationModel:
             mismatched = labels != preds
 
         if eval_examples:
+            if not isinstance(eval_examples[0], InputExample):
+                if len(eval_examples) == 2:
+                    # Single sentence task
+                    eval_examples = [
+                        InputExample(
+                            guid=i,
+                            text_a=example,
+                            text_b=None,
+                            label=label,
+                        )
+                        for i, (example, label) in enumerate(
+                            zip(eval_examples[0], eval_examples[1])
+                        )
+                    ]
+                elif len(eval_examples) == 3:
+                    # Sentence pair task
+                    eval_examples = [
+                        InputExample(
+                            guid=i,
+                            text_a=example_a,
+                            text_b=example_b,
+                            label=label,
+                        )
+                        for i, (example_a, example_b, label) in enumerate(
+                            zip(eval_examples[0], eval_examples[1], eval_examples[2])
+                        )
+                    ]
             wrong = [i for (i, v) in zip(eval_examples, mismatched) if v.any()]
         else:
             wrong = ["NA"]

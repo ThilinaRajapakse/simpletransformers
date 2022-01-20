@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.63.4] - 2021-11-20
+
+### Added
+
+- Added support for individual training of context/query encoders in `RetrievalModel`.
+
+### Fixed
+
+- Fixed a bug for pre-tokenized input to ONNX models. [whr778](https://github.com/whr778)
+- BigBird bugfix where training dataset samples were being truncated at 510 token. [whr778](https://github.com/whr778)
+- Fixed bug when FP16 is not used with `RetrievalModel`. [tiena2cva](https://github.com/tiena2cva)
+- Fixed bug in auto model for `QuestionAnsweringModel`. [lekhang4497](https://github.com/lekhang4497)
 
 ## [0.63.0] - 2021-11-10
 
