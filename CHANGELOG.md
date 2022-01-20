@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - BigBird bugfix where training dataset samples were being truncated at 510 token. [whr778](https://github.com/whr778)
 - Fixed bug when FP16 is not used with `RetrievalModel`. [tiena2cva](https://github.com/tiena2cva)
 - Fixed bug in auto model for `QuestionAnsweringModel`. [lekhang4497](https://github.com/lekhang4497)
+- Fixed bug where wrong predictions weren't returned in `ClassificationModel` [jinschoi](https://github.com/jinschoi)
 
 ## [0.63.0] - 2021-11-10
 
