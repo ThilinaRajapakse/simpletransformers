@@ -4,6 +4,7 @@ import math
 import os
 import random
 import warnings
+import string
 from dataclasses import asdict
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
@@ -16,6 +17,7 @@ from tensorboardX import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
+from torch.nn.parallel import DistributedDataParallel as DDP
 from tqdm.auto import tqdm, trange
 from transformers.optimization import (
     get_constant_schedule,
@@ -297,7 +299,16 @@ class RetrievalModel:
                 " Set args.overwrite_output_dir = True to overcome.".format(output_dir)
             )
 
-        self._move_model_to_device()
+        if self.args.ddp_training:
+            self.context_encoder = self.context_encoder.to(kwargs["rank"])
+            self.query_encoder = self.query_encoder.to(kwargs["rank"])
+            self.context_encoder = DDP(
+                self.context_encoder, device_ids=[kwargs["rank"]]
+            )
+            self.query_encoder = DDP(self.query_encoder, device_ids=[kwargs["rank"]])
+            self.device = kwargs["rank"]
+        else:
+            self._move_model_to_device()
 
         train_dataset = self.load_and_cache_examples(train_data, verbose=verbose)
 
@@ -490,8 +501,14 @@ class RetrievalModel:
             scaler = amp.GradScaler()
 
         for current_epoch in train_iterator:
-            context_model.train()
-            query_model.train()
+            if args.train_context_encoder:
+                context_model.train()
+            else:
+                context_model.eval()
+            if args.train_query_encoder:
+                query_model.train()
+            else:
+                query_model.eval()
             if epochs_trained > 0:
                 epochs_trained -= 1
                 continue
@@ -924,6 +941,7 @@ class RetrievalModel:
         retrieve_n_docs=None,
         return_doc_dicts=True,
         passage_dataset=None,
+        qa_evaluation=False,
         output_dir=None,
         verbose=True,
         silent=False,
@@ -944,6 +962,7 @@ class RetrievalModel:
             retrieve_n_docs: Number of documents to retrieve for each query. Overrides `args.retrieve_n_docs` for this evaluation.
             return_doc_dicts: If True, return the doc dicts for the retrieved passages. Setting this to False can speed up evaluation.
             passage_dataset: Path to a saved Huggingface dataset (containing generated embeddings) for both the eval_data and additional passages
+            qa_evaluation: If True, evaluation is done by checking if the retrieved passages contain the gold passage.
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
@@ -959,16 +978,19 @@ class RetrievalModel:
 
         self._move_model_to_device()
 
-        passage_dataset = get_evaluation_passage_dataset(
-            eval_data,
-            additional_passages,
-            self.context_encoder,
-            self.context_tokenizer,
-            self.context_config,
-            self.args,
-            self.device,
-            passage_dataset=passage_dataset,
-        )
+        if self.prediction_passages is None:
+            passage_dataset = get_evaluation_passage_dataset(
+                eval_data,
+                additional_passages,
+                self.context_encoder,
+                self.context_tokenizer,
+                self.context_config,
+                self.args,
+                self.device,
+                passage_dataset=passage_dataset,
+            )
+        else:
+            passage_dataset = self.prediction_passages
 
         eval_dataset, gold_passages = load_hf_dataset(
             eval_data,
@@ -983,6 +1005,7 @@ class RetrievalModel:
             gold_passages,
             evaluate_with_all_passages,
             passage_dataset,
+            qa_evaluation,
             top_k_values,
             return_doc_dicts,
             output_dir,
@@ -1003,6 +1026,7 @@ class RetrievalModel:
         gold_passages,
         evaluate_with_all_passages=True,
         passage_dataset=None,
+        qa_evaluation=False,
         top_k_values=None,
         return_doc_dicts=True,
         output_dir=None,
@@ -1118,7 +1142,12 @@ class RetrievalModel:
             doc_texts = [doc_dict["passages"] for doc_dict in doc_dicts]
 
             scores = self.compute_metrics(
-                gold_passages, doc_texts, self.args, top_k_values, **kwargs
+                gold_passages,
+                doc_texts,
+                self.args,
+                qa_evaluation,
+                top_k_values,
+                **kwargs,
             )
 
             results.update(scores)
@@ -1142,7 +1171,13 @@ class RetrievalModel:
 
         return results, doc_ids, doc_vectors, doc_dicts
 
-    def predict(self, to_predict, prediction_passages=None, retrieve_n_docs=None):
+    def predict(
+        self,
+        to_predict,
+        prediction_passages=None,
+        retrieve_n_docs=None,
+        passages_only=False,
+    ):
         """
         Retrieve the relevant documents from the prediction passages for a list of queries.
 
@@ -1229,16 +1264,30 @@ class RetrievalModel:
                 i * self.args.eval_batch_size : (i + 1) * self.args.eval_batch_size
             ] = (query_outputs.cpu().detach().numpy())
 
-        doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
-            all_query_embeddings, self.prediction_passages, retrieve_n_docs
-        )
+        if not passages_only:
+            doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
+                all_query_embeddings, self.prediction_passages, retrieve_n_docs
+            )
+            passages = [d["passages"] for d in doc_dicts]
 
-        passages = [d["passages"] for d in doc_dicts]
-
-        return passages, doc_ids, doc_vectors, doc_dicts
+            return passages, doc_ids, doc_vectors, doc_dicts
+        else:
+            passages = self.retrieve_docs_from_query_embeddings(
+                all_query_embeddings,
+                self.prediction_passages,
+                retrieve_n_docs,
+                passages_only=True,
+            )
+            return passages
 
     def compute_metrics(
-        self, gold_passages, doc_texts, args, top_k_values=None, **kwargs
+        self,
+        gold_passages,
+        doc_texts,
+        args,
+        qa_evaluation=False,
+        top_k_values=None,
+        **kwargs,
     ):
         """
         Computes the metrics for the evaluation data.
@@ -1251,9 +1300,22 @@ class RetrievalModel:
         relevance_list = np.zeros((len(gold_passages), args.retrieve_n_docs))
         for i, (docs, truth) in enumerate(zip(doc_texts, gold_passages)):
             for j, d in enumerate(docs):
-                if d == truth:
-                    relevance_list[i, j] = 1
-                    break
+                if qa_evaluation:
+                    if truth.strip().lower().replace(" ", "").translate(
+                        str.maketrans("", "", string.punctuation)
+                    ) in d.strip().lower().replace(" ", "").translate(
+                        str.maketrans("", "", string.punctuation)
+                    ):
+                        relevance_list[i, j] = 1
+                        break
+                else:
+                    if d.strip().lower().translate(
+                        str.maketrans("", "", string.punctuation)
+                    ) == truth.strip().lower().translate(
+                        str.maketrans("", "", string.punctuation)
+                    ):
+                        relevance_list[i, j] = 1
+                        break
 
         mrr = {
             f"mrr@{k}": mean_reciprocal_rank_at_k(relevance_list, k)
@@ -1279,6 +1341,7 @@ class RetrievalModel:
         passage_dataset,
         retrieve_n_docs=None,
         return_doc_dicts=True,
+        passages_only=False,
     ):
         """
         Retrieves documents from the index using the given query embeddings.
@@ -1292,44 +1355,62 @@ class RetrievalModel:
             for i in range(0, len(query_embeddings), args.retrieval_batch_size)
         ]
 
-        # ids_batched = []
-        # vectors_batched = []
+        if passages_only:
+            passages = []
+            for i, query_embeddings in enumerate(
+                tqdm(
+                    query_embeddings_batched,
+                    desc="Retrieving docs",
+                    disable=args.silent,
+                )
+            ):
+                _, _, doc_dicts_batch = passage_dataset.get_top_docs(
+                    query_embeddings.astype(np.float32), retrieve_n_docs
+                )
 
-        ids_batched = np.zeros((len(passage_dataset), retrieve_n_docs))
-        vectors_batched = np.zeros(
-            (
-                len(passage_dataset),
-                retrieve_n_docs,
-                self.context_config.hidden_size
-                if "projection_dim" not in self.context_config.to_dict()
-                or not self.context_config.projection_dim
-                else self.context_config.projection_dim,
+                passages.extend([d["passages"] for d in doc_dicts_batch])
+
+            return passages
+        else:
+            ids_batched = np.zeros((len(query_embeddings), retrieve_n_docs))
+            vectors_batched = np.zeros(
+                (
+                    len(query_embeddings),
+                    retrieve_n_docs,
+                    self.context_config.hidden_size
+                    if "projection_dim" not in self.context_config.to_dict()
+                    or not self.context_config.projection_dim
+                    else self.context_config.projection_dim,
+                )
             )
-        )
-        doc_dicts = []
+            doc_dicts = []
 
-        for i, query_embeddings in enumerate(
-            tqdm(query_embeddings_batched, desc="Retrieving docs", disable=args.silent)
-        ):
-            ids, vectors, doc_dicts_batch = passage_dataset.get_top_docs(
-                query_embeddings.astype(np.float32), retrieve_n_docs
-            )
-            ids_batched[
-                i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
-                + len(ids)
-            ] = ids
-            vectors_batched[
-                i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
-                + len(ids)
-            ] = vectors
+            for i, query_embeddings in enumerate(
+                tqdm(
+                    query_embeddings_batched,
+                    desc="Retrieving docs",
+                    disable=args.silent,
+                )
+            ):
+                ids, vectors, doc_dicts_batch = passage_dataset.get_top_docs(
+                    query_embeddings.astype(np.float32), retrieve_n_docs
+                )
+                ids_batched[
+                    i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                    + len(ids)
+                ] = ids
+                vectors_batched[
+                    i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                    + len(ids)
+                ] = vectors
 
-            if return_doc_dicts:
-                doc_dicts.extend(doc_dicts_batch)
+                if return_doc_dicts:
+                    doc_dicts.extend(doc_dicts_batch)
 
-        if not return_doc_dicts:
-            doc_dicts = None
+            if not return_doc_dicts:
+                doc_dicts = None
 
-        return ids_batched, vectors_batched, doc_dicts
+            return ids_batched, vectors_batched, doc_dicts
 
     def build_hard_negatives(
         self,
@@ -1337,7 +1418,7 @@ class RetrievalModel:
         passage_dataset=None,
         retrieve_n_docs=None,
         write_to_disk=True,
-        hard_negatives_save_path=None,
+        hard_negatives_save_file_path=None,
     ):
         hard_negatives, *_ = self.predict(
             to_predict=queries,
@@ -1354,12 +1435,13 @@ class RetrievalModel:
         hard_negative_df = pd.DataFrame(hard_negatives, columns=column_names)
 
         if write_to_disk:
-            if hard_negatives_save_path is None:
-                hard_negatives_save_path = os.path.join(
+            if hard_negatives_save_file_path is None:
+                os.makedirs(self.args.output_dir, exist_ok=True)
+                hard_negatives_save_file_path = os.path.join(
                     self.args.output_dir, "hard_negatives.tsv"
                 )
             hard_negative_df.to_csv(
-                hard_negatives_save_path,
+                hard_negatives_save_file_path,
                 index=False,
                 sep="\t",
             )
@@ -1435,50 +1517,52 @@ class RetrievalModel:
             optimizer_grouped_parameters.append(group_nd)
 
         if not self.args.train_custom_parameters_only:
-            optimizer_grouped_parameters.extend(
-                [
-                    {
-                        "params": [
-                            p
-                            for n, p in context_model.named_parameters()
-                            if n not in custom_parameter_names
-                            and not any(nd in n for nd in no_decay)
-                        ],
-                        "weight_decay": args.weight_decay,
-                    },
-                    {
-                        "params": [
-                            p
-                            for n, p in context_model.named_parameters()
-                            if n not in custom_parameter_names
-                            and any(nd in n for nd in no_decay)
-                        ],
-                        "weight_decay": 0.0,
-                    },
-                ]
-            )
-            optimizer_grouped_parameters.extend(
-                [
-                    {
-                        "params": [
-                            p
-                            for n, p in query_model.named_parameters()
-                            if n not in custom_parameter_names
-                            and not any(nd in n for nd in no_decay)
-                        ],
-                        "weight_decay": args.weight_decay,
-                    },
-                    {
-                        "params": [
-                            p
-                            for n, p in query_model.named_parameters()
-                            if n not in custom_parameter_names
-                            and any(nd in n for nd in no_decay)
-                        ],
-                        "weight_decay": 0.0,
-                    },
-                ]
-            )
+            if self.args.train_context_encoder:
+                optimizer_grouped_parameters.extend(
+                    [
+                        {
+                            "params": [
+                                p
+                                for n, p in context_model.named_parameters()
+                                if n not in custom_parameter_names
+                                and not any(nd in n for nd in no_decay)
+                            ],
+                            "weight_decay": args.weight_decay,
+                        },
+                        {
+                            "params": [
+                                p
+                                for n, p in context_model.named_parameters()
+                                if n not in custom_parameter_names
+                                and any(nd in n for nd in no_decay)
+                            ],
+                            "weight_decay": 0.0,
+                        },
+                    ]
+                )
+            if self.args.train_query_encoder:
+                optimizer_grouped_parameters.extend(
+                    [
+                        {
+                            "params": [
+                                p
+                                for n, p in query_model.named_parameters()
+                                if n not in custom_parameter_names
+                                and not any(nd in n for nd in no_decay)
+                            ],
+                            "weight_decay": args.weight_decay,
+                        },
+                        {
+                            "params": [
+                                p
+                                for n, p in query_model.named_parameters()
+                                if n not in custom_parameter_names
+                                and any(nd in n for nd in no_decay)
+                            ],
+                            "weight_decay": 0.0,
+                        },
+                    ]
+                )
 
         return optimizer_grouped_parameters
 
@@ -1745,3 +1829,8 @@ class RetrievalModel:
         args = RetrievalArgs()
         args.load(input_dir)
         return args
+
+    def get_named_parameters(self):
+        return [n for n, p in self.context_encoder.named_parameters()] + [
+            n for n, p in self.query_encoder.named_parameters()
+        ]

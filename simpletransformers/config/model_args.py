@@ -360,6 +360,7 @@ class RetrievalArgs(Seq2SeqArgs):
 
     model_class: str = "RetrievalModel"
     context_config: dict = field(default_factory=dict)
+    ddp_training: bool = False
     embed_batch_size: int = 16
     hard_negatives: bool = False
     include_title: bool = True
@@ -369,6 +370,8 @@ class RetrievalArgs(Seq2SeqArgs):
     retrieve_n_docs: int = 10
     save_passage_dataset: bool = True
     use_hf_datasets: bool = True
+    train_context_encoder: bool = True
+    train_query_encoder: bool = True
 
 
 @dataclass

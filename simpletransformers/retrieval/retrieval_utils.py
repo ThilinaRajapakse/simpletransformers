@@ -133,7 +133,7 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
 
     if args.hard_negatives:
         try:
-            hard_negatives_inputs = query_tokenizer(
+            hard_negatives_inputs = context_tokenizer(
                 dataset["hard_negative"],
                 max_length=args.max_seq_length,
                 padding="max_length",
@@ -148,7 +148,7 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
             This may have been caused by NaN values present in the data."""
             )
             dataset["hard_negative"] = [str(p) for p in dataset["hard_negative"]]
-            hard_negatives_inputs = query_tokenizer(
+            hard_negatives_inputs = context_tokenizer(
                 dataset["hard_negative"],
                 max_length=args.max_seq_length,
                 padding="max_length",
@@ -338,6 +338,7 @@ def get_evaluation_passage_dataset(
                     # To be used if you want to reuse the embeddings from a previous eval but
                     # with new eval data
                     additional_passages = load_from_disk(additional_passages)
+                    encoder = encoder.to(device)
                     passage_dataset = passage_dataset.map(
                         partial(
                             embed,
@@ -434,6 +435,7 @@ def get_evaluation_passage_dataset(
             logger.info("Generating embeddings for evaluation passages")
             if args.fp16:
                 from torch.cuda import amp
+            encoder = encoder.to(device)
             passage_dataset = passage_dataset.map(
                 partial(
                     embed,
@@ -553,6 +555,7 @@ def get_prediction_passage_dataset(
         if args.fp16:
             from torch.cuda import amp
 
+        encoder = encoder.to(device)
         prediction_passages_dataset = prediction_passages_dataset.map(
             partial(
                 embed,
