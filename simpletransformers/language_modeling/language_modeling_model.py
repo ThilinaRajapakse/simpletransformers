@@ -1349,7 +1349,7 @@ class LanguageModelingModel:
                 )
                 if (
                     self.args.max_seq_length > 509
-                    and self.args.model_type != "longformer"
+                    and self.args.model_type not in ["longformer", "bigbird"]
                 ):
                     self.args.max_seq_length = (
                         509
@@ -1449,7 +1449,7 @@ class LanguageModelingModel:
                 # BigBird uses spiece as a vocab model prefix
                 prefix = "spiece"
                 spm.SentencePieceTrainer.Train(
-                    f"--input={files} --user_defined_symbols=[SEP],[CLS],[MASK] --model_prefix=spiece --vocab_size={self.args.vocab_size - 3}"
+                    f"--input={files} --user_defined_symbols=<pad>,[SEP],[CLS],[MASK] --model_prefix=spiece --vocab_size={self.args.vocab_size - 3}"
                 )
 
             # SentencePiece There is no option for output path https://github.com/google/sentencepiece/blob/master/doc/options.md
