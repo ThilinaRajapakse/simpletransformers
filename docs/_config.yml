@@ -32,7 +32,7 @@ social:
     - "https://twitter.com/t_rajapakse"
     - "https://www.linkedin.com/in/t-rajapakse/"
     - "https://medium.com/@chaturangarajapakshe"
-  
+
 # Site Author
 author:
   name             : *name # *name is a YAML reference pointing to the &anchor earlier
@@ -167,10 +167,10 @@ timezone: 	Asia/Colombo # https://en.wikipedia.org/wiki/List_of_tz_database_time
 
 # Analytics
 analytics:
-  provider               : "google-universal" # false (default), "google", "google-universal", "custom"
-  google:
-    tracking_id          : "UA-80427548-2" # Replace this with your ID, or delete
-    anonymize_ip         : true
+  provider               : false # "google-universal" # false (default), "google", "google-universal", "custom"
+  # google:
+  #   tracking_id          : "UA-80427548-2" # Replace this with your ID, or delete
+  #   anonymize_ip         : true
 
 # Plugins (previously gems:)
 plugins:
