@@ -472,7 +472,6 @@ def convert_examples_to_features(
                     p.imap(
                         convert_examples_with_multiprocessing,
                         examples,
-                        chunksize=chunksize,
                     ),
                     total=len(examples),
                     disable=silent,
