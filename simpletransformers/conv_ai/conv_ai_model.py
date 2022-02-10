@@ -63,6 +63,9 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import ConvAIArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.conv_ai.conv_ai_utils import get_dataset
+import torch.multiprocessing
+
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 try:
     import wandb

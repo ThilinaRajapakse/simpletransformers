@@ -70,6 +70,9 @@ from simpletransformers.experimental.classification.transformer_models.xlm_model
 from simpletransformers.experimental.classification.transformer_models.xlnet_model import (
     XLNetForSequenceClassification,
 )
+import torch.multiprocessing
+
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 
 class ClassificationModel:

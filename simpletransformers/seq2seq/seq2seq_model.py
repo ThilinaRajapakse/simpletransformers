@@ -84,6 +84,10 @@ from simpletransformers.seq2seq.seq2seq_utils import (
     load_hf_dataset,
 )
 
+import torch.multiprocessing
+
+torch.multiprocessing.set_sharing_strategy('file_system')
+
 try:
     import wandb
 

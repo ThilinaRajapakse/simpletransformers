@@ -59,6 +59,9 @@ from simpletransformers.classification.transformer_models.mmbt_model import (
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import MultiModalClassificationArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
+import torch.multiprocessing
+
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 try:
     import wandb

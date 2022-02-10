@@ -123,6 +123,9 @@ from simpletransformers.losses.loss_utils import init_loss
 
 # from simpletransformers.custom_models.models import ElectraForSequenceClassification
 
+import torch.multiprocessing
+
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 try:
     import wandb

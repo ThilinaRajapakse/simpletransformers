@@ -96,6 +96,9 @@ from simpletransformers.language_modeling.language_modeling_utils import (
     load_hf_dataset,
     mask_tokens,
 )
+import torch.multiprocessing
+
+torch.multiprocessing.set_sharing_strategy('file_system')
 
 try:
     import wandb
