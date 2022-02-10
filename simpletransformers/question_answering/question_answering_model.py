@@ -101,9 +101,6 @@ from simpletransformers.question_answering.question_answering_utils import (
     write_predictions,
     write_predictions_extended,
 )
-import torch.multiprocessing
-
-torch.multiprocessing.set_sharing_strategy('file_system')
 
 try:
     import wandb
@@ -236,6 +233,9 @@ class QuestionAnsweringModel:
                 )
         else:
             self.device = "cpu"
+            if "sharing_strategy" in kwargs:
+                import torch.multiprocessing
+                torch.multiprocessing.set_sharing_strategy(kwargs.pop("sweep_config"))
 
         self.results = {}
 

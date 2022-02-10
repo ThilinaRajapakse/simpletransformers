@@ -59,9 +59,6 @@ from simpletransformers.classification.transformer_models.mmbt_model import (
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import MultiModalClassificationArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
-import torch.multiprocessing
-
-torch.multiprocessing.set_sharing_strategy('file_system')
 
 try:
     import wandb
@@ -169,6 +166,9 @@ class MultiModalClassificationModel:
                 )
         else:
             self.device = "cpu"
+            if "sharing_strategy" in kwargs:
+                import torch.multiprocessing
+                torch.multiprocessing.set_sharing_strategy(kwargs.pop("sweep_config"))
 
         self.transformer = model_class.from_pretrained(
             model_name, config=self.transformer_config, **kwargs

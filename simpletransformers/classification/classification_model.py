@@ -123,10 +123,6 @@ from simpletransformers.losses.loss_utils import init_loss
 
 # from simpletransformers.custom_models.models import ElectraForSequenceClassification
 
-import torch.multiprocessing
-
-torch.multiprocessing.set_sharing_strategy('file_system')
-
 try:
     import wandb
 
@@ -367,6 +363,10 @@ class ClassificationModel:
                 )
         else:
             self.device = "cpu"
+
+            if "sharing_strategy" in kwargs:
+                import torch.multiprocessing
+                torch.multiprocessing.set_sharing_strategy(kwargs.pop("sweep_config"))
 
         self.loss_fct = init_loss(
             weight=self.weight, device=self.device, args=self.args

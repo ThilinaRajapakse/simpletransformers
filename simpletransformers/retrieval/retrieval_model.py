@@ -53,10 +53,6 @@ from simpletransformers.retrieval.retrieval_utils import (
     mean_reciprocal_rank_at_k,
 )
 
-import torch.multiprocessing
-
-torch.multiprocessing.set_sharing_strategy('file_system')
-
 try:
     import wandb
 
@@ -154,6 +150,9 @@ class RetrievalModel:
                 )
         else:
             self.device = "cpu"
+            if "sharing_strategy" in kwargs:
+                import torch.multiprocessing
+                torch.multiprocessing.set_sharing_strategy(kwargs.pop("sweep_config"))
 
         self.results = {}
 

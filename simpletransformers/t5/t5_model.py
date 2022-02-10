@@ -33,9 +33,6 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import T5Args
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.t5.t5_utils import T5Dataset, load_hf_dataset
-import torch.multiprocessing
-
-torch.multiprocessing.set_sharing_strategy('file_system')
 
 try:
     import wandb
@@ -118,6 +115,9 @@ class T5Model:
                 )
         else:
             self.device = "cpu"
+            if "sharing_strategy" in kwargs:
+                import torch.multiprocessing
+                torch.multiprocessing.set_sharing_strategy(kwargs.pop("sweep_config"))
 
         self.results = {}
 

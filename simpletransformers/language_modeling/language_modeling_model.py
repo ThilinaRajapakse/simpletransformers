@@ -96,9 +96,6 @@ from simpletransformers.language_modeling.language_modeling_utils import (
     load_hf_dataset,
     mask_tokens,
 )
-import torch.multiprocessing
-
-torch.multiprocessing.set_sharing_strategy('file_system')
 
 try:
     import wandb
@@ -193,6 +190,9 @@ class LanguageModelingModel:
                 )
         else:
             self.device = "cpu"
+            if "sharing_strategy" in kwargs:
+                import torch.multiprocessing
+                torch.multiprocessing.set_sharing_strategy(kwargs.pop("sweep_config"))
 
         self.results = {}
 

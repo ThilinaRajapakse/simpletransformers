@@ -102,9 +102,6 @@ from transformers.optimization import (
     get_cosine_with_hard_restarts_schedule_with_warmup,
     get_polynomial_decay_schedule_with_warmup,
 )
-import torch.multiprocessing
-
-torch.multiprocessing.set_sharing_strategy('file_system')
 
 try:
     import wandb
@@ -293,6 +290,9 @@ class NERModel:
                 )
         else:
             self.device = "cpu"
+            if "sharing_strategy" in kwargs:
+                import torch.multiprocessing
+                torch.multiprocessing.set_sharing_strategy(kwargs.pop("sweep_config"))
 
         self.loss_fct = init_loss(
             weight=self.weight, device=self.device, args=self.args
