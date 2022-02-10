@@ -102,6 +102,7 @@ from transformers.optimization import (
     get_cosine_with_hard_restarts_schedule_with_warmup,
     get_polynomial_decay_schedule_with_warmup,
 )
+from scipy.special import softmax
 
 try:
     import wandb
@@ -1375,6 +1376,20 @@ class NERModel:
 
         return results, model_outputs, preds_list
 
+    
+     def multiple_label_map(self, softmax_output_for_token):
+        label_map = {i: label for i, label in enumerate(self.args.labels_list)}
+        str_result = ''
+        for i, prob in enumerate(softmax_output_for_token):
+            label = label_map[i]
+            probability = prob
+            str = f'{label}: {probability:.4f}'
+            str_result = str_result + ' ' + str + ';'
+
+        if str_result[-1] == ';':
+            str_result = str_result[:-1]
+        return str_result
+
     def predict(self, to_predict, split_on_space=True):
         """
         Performs predictions on a list of text.
@@ -1388,6 +1403,7 @@ class NERModel:
 
         Returns:
             preds: A Python list of lists with dicts containing each word mapped to its NER tag.
+            complete_preds: A Python lists of lists with dicts containings each word and his probability for each possible NER (using softmax)
             model_outputs: A Python list of lists with dicts containing each word mapped to its list with raw model output.
         """  # noqa: ignore flake8"
 
@@ -1595,19 +1611,25 @@ class NERModel:
                     )
 
             eval_loss = eval_loss / nb_eval_steps
+
         token_logits = preds
         preds = np.argmax(preds, axis=2)
+        # teste_preds = softmax(preds, axis=2)
+        complete_preds = softmax(token_logits, axis=2)
 
         label_map = {i: label for i, label in enumerate(self.args.labels_list)}
 
         out_label_list = [[] for _ in range(out_label_ids.shape[0])]
         preds_list = [[] for _ in range(out_label_ids.shape[0])]
+        complete_preds_list = [[] for _ in range(out_label_ids.shape[0])]
 
         for i in range(out_label_ids.shape[0]):
             for j in range(out_label_ids.shape[1]):
                 if out_label_ids[i, j] != pad_token_label_id:
                     out_label_list[i].append(label_map[out_label_ids[i][j]])
                     preds_list[i].append(label_map[preds[i][j]])
+                    fullPred = self.multiple_label_map(complete_preds[i][j])
+                    complete_preds_list[i].append(fullPred)
 
         if split_on_space:
             preds = [
@@ -1617,11 +1639,27 @@ class NERModel:
                 ]
                 for i, sentence in enumerate(to_predict)
             ]
+            complete_preds = [
+                [
+                    {word: complete_preds_list[i][j]}
+                    for j, word in enumerate(sentence.split()[: len(complete_preds_list[i])])
+                ]
+                for i, sentence in enumerate(to_predict)
+            ]
+
         else:
             preds = [
                 [
                     {word: preds_list[i][j]}
                     for j, word in enumerate(sentence[: len(preds_list[i])])
+                ]
+                for i, sentence in enumerate(to_predict)
+            ]
+
+            complete_preds = [
+                [
+                    {word: complete_preds_list[i][j]}
+                    for j, word in enumerate(sentence[: len(complete_preds_list[i])])
                 ]
                 for i, sentence in enumerate(to_predict)
             ]
@@ -1641,6 +1679,7 @@ class NERModel:
                 [
                     {word: word_tokens[i][j]}
                     for j, word in enumerate(sentence.split()[: len(preds_list[i])])
+                    #for k, word in enumerate(sentence.split()[: len(complete_preds_list[i])])
                 ]
                 for i, sentence in enumerate(to_predict)
             ]
@@ -1649,11 +1688,14 @@ class NERModel:
                 [
                     {word: word_tokens[i][j]}
                     for j, word in enumerate(sentence[: len(preds_list[i])])
+                    #for k, word in enumerate(sentence[: len(complete_preds_list[i])])
                 ]
                 for i, sentence in enumerate(to_predict)
             ]
 
-        return preds, model_outputs
+        return preds, complete_preds, model_outputs
+    
+    
 
     def _convert_tokens_to_word_logits(
         self, input_ids, label_ids, attention_mask, logits
