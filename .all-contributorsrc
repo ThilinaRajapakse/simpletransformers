@@ -796,7 +796,17 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "bashar94",
+      "name": "Bashar Bhuiyan",
+      "avatar_url": "https://avatars.githubusercontent.com/u/13801112?v=4",
+      "profile": "https://github.com/bashar94",
+      "contributions": [
+        "code"
+      ]
     }
+
   ],
   "contributorsPerLine": 7,
   "projectName": "simpletransformers",
