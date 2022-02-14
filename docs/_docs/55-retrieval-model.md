@@ -186,7 +186,7 @@ Trains the model using 'train_data'
 * **additional_eval_passages** *(optional)* - Additional passages to be used during evaluation.
 This may be a list of passages, a pandas DataFrame with the column `passages`, or a TSV file with the column `passages`.
 
-* **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
+* **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/tips-and-tricks/#additional-evaluation-metrics) section.
 E.g. `f1=sklearn.metrics.f1_score`.
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 {: .parameter-list}
@@ -251,7 +251,7 @@ This may be a list of passages, a pandas DataFrame with the column `passages`, o
 
 * **silent** *(`bool`, optional)* - If silent, tqdm progress bars will be hidden.
 
-* **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/usage/#additional-evaluation-metrics) section.
+* **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/tips-and-tricks/#additional-evaluation-metrics) section.
 E.g. `f1=sklearn.metrics.f1_score`.
 A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 {: .parameter-list}
