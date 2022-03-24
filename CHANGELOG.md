@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added support for ByT5 models [@djstrong](https://github.com/djstrong)
 
+### Fixed
+
+- Fixed bug in NER ONNX prediction [gaganmanku96](https://github.com/gaganmanku96)
+- Fixed bug in NER tokenization which prevented multiprocessing being used correctly [mxa4646](https://github.com/mxa4646)
+
 
 ## [0.63.5] - 2022-02-25
 
