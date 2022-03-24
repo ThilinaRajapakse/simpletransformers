@@ -47,6 +47,7 @@ Using a T5 Model in Simple Transformers follows the [standard pattern](/docs/usa
 | ----- | ------------------------- |
 | T5    | t5                        |
 | MT5   | mt5                       |
+| ByT5  | byt5                      |
 
 **Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
 {: .notice--success}
