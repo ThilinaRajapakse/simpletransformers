@@ -805,6 +805,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "mxa4646",
+      "name": "mxa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/37767536?v=4",
+      "profile": "https://github.com/mxa4646",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
