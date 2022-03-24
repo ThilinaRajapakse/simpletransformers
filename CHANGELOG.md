@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed bug in NER ONNX prediction [gaganmanku96](https://github.com/gaganmanku96)
 - Fixed bug in NER tokenization which prevented multiprocessing being used correctly [mxa4646](https://github.com/mxa4646)
+- Fixed some broken links in docs [jordimas](https://github.com/jordimas)
 
 
 ## [0.63.5] - 2022-02-25
