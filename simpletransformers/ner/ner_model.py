@@ -1511,10 +1511,24 @@ class NERModel:
                     out_attention_mask = np.append(
                         out_attention_mask, inputs_onnx["attention_mask"], axis=0
                     )
-            out_label_ids = np.zeros_like(out_input_ids)
-            for index in range(len(out_label_ids)):
-                out_label_ids[index][0] = -100
-                out_label_ids[index][-1] = -100
+
+            pad_token_label_id = -100
+            out_label_ids = [[] for _ in range(len(to_predict))]
+            max_len = len(out_input_ids[0])
+
+            for index, sentence in enumerate(to_predict):
+                for word in sentence.split():
+                    word_tokens = self.tokenizer.tokenize(word)
+                    out_label_ids[index].extend(
+                    [0] + [pad_token_label_id] * (len(word_tokens) - 1)
+                )
+                out_label_ids[index].insert(0,pad_token_label_id)
+                out_label_ids[index].append(pad_token_label_id)
+
+                if len(out_label_ids[index]) < max_len:
+                    out_label_ids[index].extend([-100] * (max_len-len(out_label_ids[index])))
+
+            out_label_ids = np.array(out_label_ids).reshape(len(out_label_ids), max_len)
         else:
 
             eval_dataset = self.load_and_cache_examples(
