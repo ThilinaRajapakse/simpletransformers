@@ -1666,6 +1666,7 @@ class RetrievalModel:
         labels = torch.tensor(labels, dtype=torch.long)
 
         if not evaluate:
+            # Training
             labels = labels.to(device)
             if self.args.hard_negatives:
                 shuffled_indices = torch.randperm(len(labels))
@@ -1695,6 +1696,7 @@ class RetrievalModel:
                 "attention_mask": batch["query_mask"].to(device),
             }
         else:
+            # Evaluation
             shuffled_indices = torch.randperm(len(labels))
 
             labels = labels[shuffled_indices].to(device)

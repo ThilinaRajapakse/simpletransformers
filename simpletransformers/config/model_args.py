@@ -372,6 +372,7 @@ class RetrievalArgs(Seq2SeqArgs):
     use_hf_datasets: bool = True
     train_context_encoder: bool = True
     train_query_encoder: bool = True
+    faiss_index_type: str = "IndexFlatIP"
 
 
 @dataclass
