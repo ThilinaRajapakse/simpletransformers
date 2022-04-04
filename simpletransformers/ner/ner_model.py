@@ -1517,11 +1517,18 @@ class NERModel:
             max_len = len(out_input_ids[0])
 
             for index, sentence in enumerate(to_predict):
-                for word in sentence.split():
-                    word_tokens = self.tokenizer.tokenize(word)
-                    out_label_ids[index].extend(
-                    [0] + [pad_token_label_id] * (len(word_tokens) - 1)
-                )
+                if split_on_space:
+                    for word in sentence.split():
+                        word_tokens = self.tokenizer.tokenize(word)
+                        out_label_ids[index].extend(
+                        [0] + [pad_token_label_id] * (len(word_tokens) - 1)
+                    )
+                else:
+                    for word in sentence:
+                        word_tokens = self.tokenizer.tokenize(word)
+                        out_label_ids[index].extend(
+                        [0] + [pad_token_label_id] * (len(word_tokens) - 1)
+
                 out_label_ids[index].insert(0,pad_token_label_id)
                 out_label_ids[index].append(pad_token_label_id)
 
