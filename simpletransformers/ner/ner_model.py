@@ -1528,6 +1528,7 @@ class NERModel:
                         word_tokens = self.tokenizer.tokenize(word)
                         out_label_ids[index].extend(
                         [0] + [pad_token_label_id] * (len(word_tokens) - 1)
+                    )
 
                 out_label_ids[index].insert(0,pad_token_label_id)
                 out_label_ids[index].append(pad_token_label_id)
