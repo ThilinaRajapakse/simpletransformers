@@ -75,6 +75,9 @@ from transformers import (
     OpenAIGPTTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
+    RemBertConfig,
+    RemBertForMaskedLM,
+    RemBertTokenizer,
     RobertaConfig,
     RobertaForMaskedLM,
     RobertaTokenizer,
@@ -116,6 +119,7 @@ MODEL_CLASSES = {
     "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
     "longformer": (LongformerConfig, LongformerForMaskedLM, LongformerTokenizer),
     "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
+    "rembert": (RemBertConfig, RemBertForMaskedLM, RemBertTokenizer),
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
     "xlmroberta": (XLMRobertaConfig, XLMRobertaForMaskedLM, XLMRobertaTokenizer),
 }
