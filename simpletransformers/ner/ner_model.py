@@ -276,6 +276,8 @@ class NERModel:
                 "I-LOC",
             ]
         self.num_labels = len(self.args.labels_list)
+        self.id2label = {i: label for i, label in enumerate(self.args.labels_list)}
+        self.label2id = {label: i for i, label in enumerate(self.args.labels_list)}
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if self.num_labels:
@@ -286,6 +288,9 @@ class NERModel:
         else:
             self.config = config_class.from_pretrained(model_name, **self.args.config)
             self.num_labels = self.config.num_labels
+
+        self.config.id2label = self.id2label
+        self.config.label2id = self.label2id
 
         if model_type in MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT and weight is not None:
             raise ValueError(
