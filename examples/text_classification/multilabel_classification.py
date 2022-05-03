@@ -14,21 +14,10 @@ eval_data = [
 ]
 eval_df = pd.DataFrame(eval_data)
 
-# # Create a MultiLabelClassificationModel
-# model = MultiLabelClassificationModel(
-#     "roberta",
-#     "roberta-base",
-#     num_labels=6,
-#     args={
-#         "reprocess_input_data": True,
-#         "overwrite_output_dir": True,
-#         "num_train_epochs": 5,
-#     },
-# )
 # Create a MultiLabelClassificationModel
 model = MultiLabelClassificationModel(
-    "rembert",
-    "google/rembert",
+    "roberta",
+    "roberta-base",
     num_labels=6,
     args={
         "reprocess_input_data": True,
@@ -36,6 +25,7 @@ model = MultiLabelClassificationModel(
         "num_train_epochs": 5,
     },
 )
+
 # You can set class weights by using the optional weight argument
 print(train_df.head())
 

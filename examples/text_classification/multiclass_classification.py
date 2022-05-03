@@ -18,21 +18,12 @@ eval_data = [
 eval_df = pd.DataFrame(eval_data)
 
 # Create a ClassificationModel
-# model = ClassificationModel(
-#     "bert",
-#     "bert-base-cased",
-#     num_labels=3,
-#     args={"reprocess_input_data": True, "overwrite_output_dir": True},
-# )
-
 model = ClassificationModel(
-    "rembert",
-    "google/rembert",
+    "bert",
+    "bert-base-cased",
     num_labels=3,
-    args={"reprocess_input_data": True, "overwrite_output_dir": True}, use_cuda=True,
+    args={"reprocess_input_data": True, "overwrite_output_dir": True},
 )
-
-
 
 # Train the model
 model.train_model(train_df)
