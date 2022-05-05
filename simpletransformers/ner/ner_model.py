@@ -30,6 +30,12 @@ from simpletransformers.ner.ner_utils import (
     read_examples_from_file,
     flatten_results,
 )
+class NystromformerTokenizer(metaclass=DummyObject):
+    _backends = ["sentencepiece"]
+
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["sentencepiece"])
+
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -60,6 +66,7 @@ from transformers import (
     DistilBertConfig,
     DistilBertForTokenClassification,
     DistilBertTokenizer,
+    DummyObject,
     ElectraConfig,
     ElectraForTokenClassification,
     ElectraTokenizer,
@@ -79,6 +86,9 @@ from transformers import (
     MobileBertConfig,
     MobileBertForTokenClassification,
     MobileBertTokenizer,
+    NystromformerConfig,
+    NystromformerForTokenClassification,
+    NystromformerTokenizer,
     RemBertConfig,
     RemBertForTokenClassification,
     RemBertTokenizer,
@@ -98,6 +108,7 @@ from transformers import (
     XLNetConfig,
     XLNetForTokenClassification,
     XLNetTokenizerFast,
+    requires_backends,
 )
 from transformers.convert_graph_to_onnx import convert, quantize
 from transformers.optimization import AdamW, Adafactor
@@ -207,6 +218,11 @@ class NERModel:
                 MobileBertTokenizer,
             ),
             "mpnet": (MPNetConfig, MPNetForTokenClassification, MPNetTokenizer),
+            "nystromformer": (
+                NystromformerConfig,
+                NystromformerForTokenClassification,
+                NystromformerTokenizer,
+            ),
             "rembert": (
                 RemBertConfig,
                 RemBertForTokenClassification,
