@@ -90,7 +90,6 @@ from transformers import (
     MobileBertTokenizer,
     NystromformerConfig,
     NystromformerForTokenClassification,
-    NystromformerTokenizer,
     RemBertConfig,
     RemBertForTokenClassification,
     RemBertTokenizer,
