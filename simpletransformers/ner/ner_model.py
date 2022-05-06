@@ -30,6 +30,9 @@ from simpletransformers.ner.ner_utils import (
     read_examples_from_file,
     flatten_results,
 )
+
+from transformers import DummyObject, requires_backends
+
 class NystromformerTokenizer(metaclass=DummyObject):
     _backends = ["sentencepiece"]
 
@@ -66,7 +69,6 @@ from transformers import (
     DistilBertConfig,
     DistilBertForTokenClassification,
     DistilBertTokenizer,
-    DummyObject,
     ElectraConfig,
     ElectraForTokenClassification,
     ElectraTokenizer,
@@ -108,7 +110,6 @@ from transformers import (
     XLNetConfig,
     XLNetForTokenClassification,
     XLNetTokenizerFast,
-    requires_backends,
 )
 from transformers.convert_graph_to_onnx import convert, quantize
 from transformers.optimization import AdamW, Adafactor
@@ -221,7 +222,7 @@ class NERModel:
             "nystromformer": (
                 NystromformerConfig,
                 NystromformerForTokenClassification,
-                NystromformerTokenizer,
+                BigBirdTokenizer,
             ),
             "rembert": (
                 RemBertConfig,
