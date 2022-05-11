@@ -15,7 +15,7 @@ The `ClassificationModel` class is used for all text classification tasks except
 
 To create a `ClassificationModel`, you must specify a `model_type` and a `model_name`.
 
-- `model_type` should be one of the model types from the [supported models](/docs/classification-specifics/) (e.g. bert, electra, xlnet)
+- `model_type` should be one of the model types from the [supported models](/docs/classification-specifics/#supported-model-types) (e.g. bert, electra, xlnet)
 - `model_name` specifies the exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
 
     **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
@@ -165,7 +165,7 @@ The `MultiLabelClassificationModel` is used for multi-label classification tasks
 
 To create a `MultiLabelClassificationModel`, you must specify a `model_type` and a `model_name`.
 
-- `model_type` should be one of the model types from the [supported models](/docs/intro-classification/) (e.g. bert, electra, xlnet)
+- `model_type` should be one of the model types from the [supported models](/docs/classification-specifics/#supported-model-types) (e.g. bert, electra, xlnet)
 - `model_name` specifies the exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
 
     **Note:** For a list of standard pre-trained models, see [here](https://huggingface.co/transformers/pretrained_models.html).
