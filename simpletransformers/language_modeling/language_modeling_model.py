@@ -87,6 +87,10 @@ from transformers.data.datasets.language_modeling import (
     TextDataset,
 )
 
+from examples.language_modeling.longformer_electra.configuration_longformer_electra import LongformerElectraConfig
+from examples.language_modeling.longformer_electra.modeling_longformer_electra import LongformerElectraForMaskedLM, \
+    LongformerElectraForPreTraining
+from examples.language_modeling.longformer_electra.tokenization_longformer_electra import LongformerElectraTokenizer
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import LanguageModelingArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
@@ -123,16 +127,16 @@ MODEL_CLASSES = {
 
 class LanguageModelingModel:
     def __init__(
-        self,
-        model_type,
-        model_name,
-        generator_name=None,
-        discriminator_name=None,
-        train_files=None,
-        args=None,
-        use_cuda=True,
-        cuda_device=-1,
-        **kwargs,
+            self,
+            model_type,
+            model_name,
+            generator_name=None,
+            discriminator_name=None,
+            train_files=None,
+            args=None,
+            use_cuda=True,
+            cuda_device=-1,
+            **kwargs,
     ):
 
         """
@@ -200,6 +204,11 @@ class LanguageModelingModel:
         self.args.model_type = model_type
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
+
+        if self.args.model_type == "electra" and self.args.use_longformer_electra:
+            config_class = LongformerElectraConfig
+            tokenizer_class = LongformerElectraTokenizer
+
         self.tokenizer_class = tokenizer_class
         new_tokenizer = False
 
@@ -245,30 +254,30 @@ class LanguageModelingModel:
 
         if self.args.model_type == "electra":
             if generator_name:
-                self.generator_config = ElectraConfig.from_pretrained(generator_name)
+                self.generator_config = config_class.from_pretrained(generator_name)
             elif self.args.model_name:
-                self.generator_config = ElectraConfig.from_pretrained(
+                self.generator_config = config_class.from_pretrained(
                     os.path.join(self.args.model_name, "generator_config"),
                     **kwargs,
                 )
             else:
-                self.generator_config = ElectraConfig(
+                self.generator_config = config_class(
                     **self.args.generator_config, **kwargs
                 )
                 if new_tokenizer:
                     self.generator_config.vocab_size = len(self.tokenizer)
 
             if discriminator_name:
-                self.discriminator_config = ElectraConfig.from_pretrained(
+                self.discriminator_config = config_class.from_pretrained(
                     discriminator_name
                 )
             elif self.args.model_name:
-                self.discriminator_config = ElectraConfig.from_pretrained(
+                self.discriminator_config = config_class.from_pretrained(
                     os.path.join(self.args.model_name, "discriminator_config"),
                     **kwargs,
                 )
             else:
-                self.discriminator_config = ElectraConfig(
+                self.discriminator_config = config_class(
                     **self.args.discriminator_config, **kwargs
                 )
                 if new_tokenizer:
@@ -285,11 +294,18 @@ class LanguageModelingModel:
                 self.args.max_seq_length,
             )
 
+        if self.args.model_type == "electra" and self.args.use_longformer_electra:
+            generator_class = LongformerElectraForMaskedLM
+            discriminator_class = LongformerElectraForPreTraining
+        else:
+            generator_class = ElectraForMaskedLM
+            discriminator_class = ElectraForPreTraining
+
         if self.args.model_name:
             if self.args.model_type == "electra":
                 if self.args.model_name == "electra":
-                    generator_model = ElectraForMaskedLM.from_pretrained(generator_name)
-                    discriminator_model = ElectraForPreTraining.from_pretrained(
+                    generator_model = generator_class.from_pretrained(generator_name)
+                    discriminator_model = discriminator_class.from_pretrained(
                         discriminator_name
                     )
                     self.model = ElectraForLanguageModelingModel(
@@ -340,8 +356,8 @@ class LanguageModelingModel:
         else:
             logger.info(" Training language model from scratch")
             if self.args.model_type == "electra":
-                generator_model = ElectraForMaskedLM(config=self.generator_config)
-                discriminator_model = ElectraForPreTraining(
+                generator_model = generator_class(config=self.generator_config)
+                discriminator_model = discriminator_class(
                     config=self.discriminator_config
                 )
                 self.model = ElectraForLanguageModelingModel(
@@ -386,14 +402,14 @@ class LanguageModelingModel:
             self.args.wandb_project = None
 
     def train_model(
-        self,
-        train_file,
-        output_dir=None,
-        show_running_loss=True,
-        args=None,
-        eval_file=None,
-        verbose=True,
-        **kwargs,
+            self,
+            train_file,
+            output_dir=None,
+            show_running_loss=True,
+            args=None,
+            eval_file=None,
+            verbose=True,
+            **kwargs,
     ):
         """
         Trains the model using 'train_file'
@@ -426,9 +442,9 @@ class LanguageModelingModel:
             output_dir = self.args.output_dir
 
         if (
-            os.path.exists(output_dir)
-            and os.listdir(output_dir)
-            and not self.args.overwrite_output_dir
+                os.path.exists(output_dir)
+                and os.listdir(output_dir)
+                and not self.args.overwrite_output_dir
         ):
             raise ValueError(
                 "Output directory ({}) already exists and is not empty."
@@ -469,13 +485,13 @@ class LanguageModelingModel:
         return global_step, training_details
 
     def train(
-        self,
-        train_dataset,
-        output_dir,
-        show_running_loss=True,
-        eval_file=None,
-        verbose=True,
-        **kwargs,
+            self,
+            train_dataset,
+            output_dir,
+            show_running_loss=True,
+            eval_file=None,
+            verbose=True,
+            **kwargs,
     ):
         """
         Trains the model on train_dataset.
@@ -517,15 +533,15 @@ class LanguageModelingModel:
         if args.max_steps > 0:
             t_total = args.max_steps
             args.num_train_epochs = (
-                args.max_steps
-                // (len(train_dataloader) // args.gradient_accumulation_steps)
-                + 1
+                    args.max_steps
+                    // (len(train_dataloader) // args.gradient_accumulation_steps)
+                    + 1
             )
         else:
             t_total = (
-                len(train_dataloader)
-                // args.gradient_accumulation_steps
-                * args.num_train_epochs
+                    len(train_dataloader)
+                    // args.gradient_accumulation_steps
+                    * args.num_train_epochs
             )
 
         no_decay = ["bias", "LayerNorm.weight"]
@@ -570,7 +586,7 @@ class LanguageModelingModel:
                             p
                             for n, p in model.named_parameters()
                             if n not in custom_parameter_names
-                            and not any(nd in n for nd in no_decay)
+                               and not any(nd in n for nd in no_decay)
                         ],
                         "weight_decay": args.weight_decay,
                     },
@@ -579,7 +595,7 @@ class LanguageModelingModel:
                             p
                             for n, p in model.named_parameters()
                             if n not in custom_parameter_names
-                            and any(nd in n for nd in no_decay)
+                               and any(nd in n for nd in no_decay)
                         ],
                         "weight_decay": 0.0,
                     },
@@ -662,9 +678,9 @@ class LanguageModelingModel:
             raise ValueError("{} is not a valid scheduler.".format(args.scheduler))
 
         if (
-            args.model_name
-            and os.path.isfile(os.path.join(args.model_name, "optimizer.pt"))
-            and os.path.isfile(os.path.join(args.model_name, "scheduler.pt"))
+                args.model_name
+                and os.path.isfile(os.path.join(args.model_name, "optimizer.pt"))
+                and os.path.isfile(os.path.join(args.model_name, "scheduler.pt"))
         ):
             # Load in optimizer and scheduler states
             optimizer.load_state_dict(
@@ -711,10 +727,10 @@ class LanguageModelingModel:
                     checkpoint_suffix = checkpoint_suffix[-1]
                 global_step = int(checkpoint_suffix)
                 epochs_trained = global_step // (
-                    len(train_dataloader) // args.gradient_accumulation_steps
+                        len(train_dataloader) // args.gradient_accumulation_steps
                 )
                 steps_trained_in_current_epoch = global_step % (
-                    len(train_dataloader) // args.gradient_accumulation_steps
+                        len(train_dataloader) // args.gradient_accumulation_steps
                 )
 
                 logger.info(
@@ -748,7 +764,7 @@ class LanguageModelingModel:
         for current_epoch in train_iterator:
             model.train()
             if isinstance(train_dataloader, DataLoader) and isinstance(
-                train_dataloader.sampler, DistributedSampler
+                    train_dataloader.sampler, DistributedSampler
             ):
                 train_dataloader.sampler.set_epoch(current_epoch)
             if epochs_trained > 0:
@@ -886,8 +902,8 @@ class LanguageModelingModel:
                         )
 
                     if args.evaluate_during_training and (
-                        args.evaluate_during_training_steps > 0
-                        and global_step % args.evaluate_during_training_steps == 0
+                            args.evaluate_during_training_steps > 0
+                            and global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results = self.eval_model(
@@ -945,8 +961,8 @@ class LanguageModelingModel:
                             )
                         if best_eval_metric and args.early_stopping_metric_minimize:
                             if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                < args.early_stopping_delta
+                                    results[args.early_stopping_metric] - best_eval_metric
+                                    < args.early_stopping_delta
                             ):
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self.save_model(
@@ -960,8 +976,8 @@ class LanguageModelingModel:
                             else:
                                 if args.use_early_stopping:
                                     if (
-                                        early_stopping_counter
-                                        < args.early_stopping_patience
+                                            early_stopping_counter
+                                            < args.early_stopping_patience
                                     ):
                                         early_stopping_counter += 1
                                         if verbose:
@@ -989,8 +1005,8 @@ class LanguageModelingModel:
                                         )
                         else:
                             if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                > args.early_stopping_delta
+                                    results[args.early_stopping_metric] - best_eval_metric
+                                    > args.early_stopping_delta
                             ):
                                 best_eval_metric = results[args.early_stopping_metric]
                                 self.save_model(
@@ -1004,8 +1020,8 @@ class LanguageModelingModel:
                             else:
                                 if args.use_early_stopping:
                                     if (
-                                        early_stopping_counter
-                                        < args.early_stopping_patience
+                                            early_stopping_counter
+                                            < args.early_stopping_patience
                                     ):
                                         early_stopping_counter += 1
                                         if verbose:
@@ -1088,8 +1104,8 @@ class LanguageModelingModel:
                     )
                 if best_eval_metric and args.early_stopping_metric_minimize:
                     if (
-                        results[args.early_stopping_metric] - best_eval_metric
-                        < args.early_stopping_delta
+                            results[args.early_stopping_metric] - best_eval_metric
+                            < args.early_stopping_delta
                     ):
                         best_eval_metric = results[args.early_stopping_metric]
                         self.save_model(
@@ -1102,8 +1118,8 @@ class LanguageModelingModel:
                         early_stopping_counter = 0
                     else:
                         if (
-                            args.use_early_stopping
-                            and args.early_stopping_consider_epochs
+                                args.use_early_stopping
+                                and args.early_stopping_consider_epochs
                         ):
                             if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
@@ -1132,8 +1148,8 @@ class LanguageModelingModel:
                                 )
                 else:
                     if (
-                        results[args.early_stopping_metric] - best_eval_metric
-                        > args.early_stopping_delta
+                            results[args.early_stopping_metric] - best_eval_metric
+                            > args.early_stopping_delta
                     ):
                         best_eval_metric = results[args.early_stopping_metric]
                         self.save_model(
@@ -1146,8 +1162,8 @@ class LanguageModelingModel:
                         early_stopping_counter = 0
                     else:
                         if (
-                            args.use_early_stopping
-                            and args.early_stopping_consider_epochs
+                                args.use_early_stopping
+                                and args.early_stopping_consider_epochs
                         ):
                             if early_stopping_counter < args.early_stopping_patience:
                                 early_stopping_counter += 1
@@ -1191,7 +1207,7 @@ class LanguageModelingModel:
         )
 
     def eval_model(
-        self, eval_file, output_dir=None, verbose=True, silent=False, **kwargs
+            self, eval_file, output_dir=None, verbose=True, silent=False, **kwargs
     ):
         """
         Evaluates the model on eval_df. Saves results to args.output_dir
@@ -1219,14 +1235,14 @@ class LanguageModelingModel:
         return result
 
     def evaluate(
-        self,
-        eval_dataset,
-        output_dir,
-        multi_label=False,
-        prefix="",
-        verbose=True,
-        silent=False,
-        **kwargs,
+            self,
+            eval_dataset,
+            output_dir,
+            multi_label=False,
+            prefix="",
+            verbose=True,
+            silent=False,
+            **kwargs,
     ):
         """
         Evaluates the model on eval_dataset.
@@ -1270,7 +1286,7 @@ class LanguageModelingModel:
         model.eval()
 
         for batch in tqdm(
-            eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"
+                eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"
         ):
             if self.args.use_hf_datasets:
                 batch = batch["input_ids"]
@@ -1311,7 +1327,7 @@ class LanguageModelingModel:
         return results
 
     def load_and_cache_examples(
-        self, file_path, evaluate=False, no_cache=False, verbose=True, silent=False
+            self, file_path, evaluate=False, no_cache=False, verbose=True, silent=False
     ):
         """
         Reads a text file from file_path and creates training features.
@@ -1379,11 +1395,11 @@ class LanguageModelingModel:
                 )
 
     def train_tokenizer(
-        self,
-        train_files,
-        tokenizer_name=None,
-        output_dir=None,
-        use_trained_tokenizer=True,
+            self,
+            train_files,
+            tokenizer_name=None,
+            output_dir=None,
+            use_trained_tokenizer=True,
     ):
         """
         Train a new tokenizer on `train_files`.
@@ -1414,7 +1430,7 @@ class LanguageModelingModel:
         if not output_dir:
             output_dir = self.args.output_dir
 
-        if self.args.model_type in ["bert", "electra"]:
+        if self.args.model_type in ["bert", "electra"] and not self.args.use_longformer_electra:
             tokenizer = BertWordPieceTokenizer(
                 clean_text=self.args.clean_text,
                 handle_chinese_chars=self.args.handle_chinese_chars,
@@ -1499,8 +1515,7 @@ class LanguageModelingModel:
                 )
             )
 
-        _, _, tokenizer_class = MODEL_CLASSES[self.args.model_type]
-        tokenizer = tokenizer_class.from_pretrained(output_dir)
+        tokenizer = self.tokenizer_class.from_pretrained(output_dir)
 
         if use_trained_tokenizer:
             self.tokenizer = tokenizer
@@ -1587,7 +1602,7 @@ class LanguageModelingModel:
         return {metric: values[-1] for metric, values in metric_values.items()}
 
     def save_model(
-        self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None
+            self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None
     ):
         if not self.is_world_master():
             return

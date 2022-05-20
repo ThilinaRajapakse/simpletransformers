@@ -257,6 +257,7 @@ class LanguageModelingArgs(ModelArgs):
     discriminator_config: dict = field(default_factory=dict)
     discriminator_loss_weight: float = 50.0
     generator_config: dict = field(default_factory=dict)
+    use_longformer_electra: bool = True
     max_steps: int = -1
     min_frequency: int = 2
     mlm: bool = True
