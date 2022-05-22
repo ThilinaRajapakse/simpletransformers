@@ -1,3 +1,4 @@
+.jekyll-cache/*
 *.lock
 
 # Wandb
@@ -140,5 +141,6 @@ dmypy.json
 #Stale Notebooks
 Untitled.ipynb
 
-# pycharm folders
+# IDE folders
 .idea
+.vscode/
