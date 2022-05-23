@@ -32,6 +32,7 @@ if __name__ == '__main__':
 
     model_args.reprocess_input_data = True
     model_args.overwrite_output_dir = True
+    model_args.evaluate_during_training = True
     model_args.num_train_epochs = 1
     model_args.dataset_type = "simple"
     model_args.vocab_size = 30000
