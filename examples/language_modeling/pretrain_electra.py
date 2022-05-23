@@ -15,6 +15,9 @@ if __name__ == '__main__':
     transformers_logger = logging.getLogger("transformers")
     transformers_logger.setLevel(logging.WARNING)
 
+    cuda_available = torch.cuda.is_available()
+    num_gpus = torch.cuda.device_count()
+
     # IMPORTANT if we set the embedding_size to 128 instead of 768 we get problems if we run the tie_weights() function,
     # the weights of the generator_lm_head (in_features) are changing leading to dimension errors in matrix multiplication
     # Thus all calls to tie_weights have been disabled. Is this a problem?
@@ -35,7 +38,7 @@ if __name__ == '__main__':
     model_args.reprocess_input_data = True
     model_args.overwrite_output_dir = True
     model_args.evaluate_during_training = True
-    model_args.n_gpu = torch.cuda.device_count()  # run with python -m torch.distributed.launch pretrain_electra.py
+    model_args.n_gpu = num_gpus  # run with python -m torch.distributed.launch pretrain_electra.py
     model_args.num_train_epochs = 1
     model_args.dataset_type = "simple"
     model_args.vocab_size = 30000
@@ -50,7 +53,7 @@ if __name__ == '__main__':
         None,
         args=model_args,
         train_files=train_file,
-        use_cuda=False
+        use_cuda=cuda_available
     )
 
     # Train the model
