@@ -1,6 +1,8 @@
 import logging
 import os
 
+import torch
+
 from simpletransformers.language_modeling import (
     LanguageModelingModel,
     LanguageModelingArgs,
@@ -33,6 +35,7 @@ if __name__ == '__main__':
     model_args.reprocess_input_data = True
     model_args.overwrite_output_dir = True
     model_args.evaluate_during_training = True
+    model_args.n_gpu = torch.cuda.device_count()  # run with python -m torch.distributed.launch pretrain_electra.py
     model_args.num_train_epochs = 1
     model_args.dataset_type = "simple"
     model_args.vocab_size = 30000
