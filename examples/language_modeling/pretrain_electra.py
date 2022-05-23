@@ -24,36 +24,34 @@ if __name__ == '__main__':
     # IMPORTANT if we set the embedding_size to 128 instead of 768 we get problems if we run the tie_weights() function,
     # the weights of the generator_lm_head (in_features) are changing leading to dimension errors in matrix multiplication
     # Thus all calls to tie_weights have been disabled. Is this a problem?
-    model_args = LanguageModelingArgs()
-    model_args.generator_config = {
-        "max_position_embeddings": 4096,
-        "embedding_size": 768,
-        "hidden_size": 768,
-        "num_hidden_layers": 3,
-    }
-    model_args.discriminator_config = {
-        "max_position_embeddings": 4096,
-        "embedding_size": 768,
-        "hidden_size": 768,
-        "num_hidden_layers": 12,
-    }
+    model_args = LanguageModelingArgs(
+        generator_config={
+            "max_position_embeddings": 4096,
+            "embedding_size": 768,
+            "hidden_size": 768,
+            "num_hidden_layers": 3,
+        },
+        discriminator_config={
+            "max_position_embeddings": 4096,
+            "embedding_size": 768,
+            "hidden_size": 768,
+            "num_hidden_layers": 12,
+        },
+        reprocess_input_data=False,
+        overwrite_output_dir=True,
+        evaluate_during_training=True,
+        n_gpu=num_gpus,  # run with python -m torch.distributed.launch pretrain_electra.py
+        num_train_epochs=1,
+        eval_batch_size=max_batch_size_for_gpu,
+        train_batch_size=max_batch_size_for_gpu,
+        gradient_accumulation_steps=int(total_batch_size / max_batch_size_for_gpu),
+        learning_rate=2e-4,  # ELECTRA paper searched in 1e-4, 2e-4, 3e-4, 5e-4
+        dataset_type="simple",
+        vocab_size=30000,
+        use_longformer_electra=True,
+    )
 
-    model_args.reprocess_input_data = False
-    model_args.overwrite_output_dir = True
-    model_args.evaluate_during_training = True
-    model_args.n_gpu = num_gpus  # run with python -m torch.distributed.launch pretrain_electra.py
-    model_args.num_train_epochs = 1
-    model_args.eval_batch_size = max_batch_size_for_gpu
-    model_args.train_batch_size = max_batch_size_for_gpu
-    model_args.gradient_accumulation_steps = total_batch_size / max_batch_size_for_gpu
-    model_args.learning_rate = 2e-4  # ELECTRA paper searched in 1e-4, 2e-4, 3e-4, 5e-4
-    model_args.dataset_type = "simple"
-    model_args.vocab_size = 30000
-    model_args.use_longformer_electra = True
-    model_args.tie_generator_and_discriminator_embeddings = True
-
-    train_file = "data/train.txt"
-    test_file = "data/test.txt"
+    train_file, test_file = "data/train.txt", "data/test.txt"
 
     model = LanguageModelingModel(
         "electra",
