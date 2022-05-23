@@ -19,10 +19,11 @@ if __name__ == '__main__':
     num_gpus = torch.cuda.device_count()
 
     total_batch_size = 256  # ELECTRA: 256 for base, 2048 for large
-    max_batch_size_for_gpu = 256  # 16GB V100
+    max_batch_size_for_gpu = 32  # 16GB V100
 
     # IMPORTANT if we set the embedding_size to 128 instead of 768 we get problems if we run the tie_weights() function,
-    # the weights of the generator_lm_head (in_features) are changing leading to dimension errors in matrix multiplication
+    # the weights of the generator_lm_head (in_features) are changing,
+    # leading to dimension errors in matrix multiplication
     # Thus all calls to tie_weights have been disabled. Is this a problem?
     model_args = LanguageModelingArgs(
         generator_config={
@@ -46,6 +47,7 @@ if __name__ == '__main__':
         train_batch_size=max_batch_size_for_gpu,
         gradient_accumulation_steps=int(total_batch_size / max_batch_size_for_gpu),
         learning_rate=2e-4,  # ELECTRA paper searched in 1e-4, 2e-4, 3e-4, 5e-4
+        warmup_steps=10_000,  # as specified in ELECTRA paper
         dataset_type="simple",
         vocab_size=30000,
         use_longformer_electra=True,
