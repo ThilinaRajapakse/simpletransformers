@@ -30,6 +30,15 @@ from simpletransformers.ner.ner_utils import (
     read_examples_from_file,
     flatten_results,
 )
+
+from transformers import DummyObject, requires_backends
+
+class NystromformerTokenizer(metaclass=DummyObject):
+    _backends = ["sentencepiece"]
+
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["sentencepiece"])
+
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
@@ -67,6 +76,9 @@ from transformers import (
     LayoutLMConfig,
     LayoutLMForTokenClassification,
     LayoutLMTokenizer,
+    LayoutLMv2Config,
+    LayoutLMv2ForTokenClassification, 
+    LayoutLMv2Tokenizer, 
     LongformerConfig,
     LongformerForTokenClassification,
     LongformerTokenizer,
@@ -76,6 +88,12 @@ from transformers import (
     MobileBertConfig,
     MobileBertForTokenClassification,
     MobileBertTokenizer,
+    NystromformerConfig,
+    NystromformerForTokenClassification,
+    RemBertConfig,
+    RemBertForTokenClassification,
+    RemBertTokenizer,
+    RemBertTokenizerFast,
     RobertaConfig,
     RobertaForTokenClassification,
     RobertaTokenizerFast,
@@ -184,6 +202,11 @@ class NERModel:
                 LayoutLMForTokenClassification,
                 LayoutLMTokenizer,
             ),
+            "layoutlmv2": (
+                LayoutLMv2Config,
+                LayoutLMv2ForTokenClassification,
+                LayoutLMv2Tokenizer,
+            ),
             "longformer": (
                 LongformerConfig,
                 LongformerForTokenClassification,
@@ -195,6 +218,16 @@ class NERModel:
                 MobileBertTokenizer,
             ),
             "mpnet": (MPNetConfig, MPNetForTokenClassification, MPNetTokenizer),
+            "nystromformer": (
+                NystromformerConfig,
+                NystromformerForTokenClassification,
+                BigBirdTokenizer,
+            ),
+            "rembert": (
+                RemBertConfig,
+                RemBertForTokenClassification,
+                RemBertTokenizerFast,
+            ),
             "roberta": (
                 RobertaConfig,
                 RobertaForTokenClassification,
@@ -259,6 +292,8 @@ class NERModel:
                 "I-LOC",
             ]
         self.num_labels = len(self.args.labels_list)
+        self.id2label = {i: label for i, label in enumerate(self.args.labels_list)}
+        self.label2id = {label: i for i, label in enumerate(self.args.labels_list)}
 
         config_class, model_class, tokenizer_class = MODEL_CLASSES[model_type]
         if self.num_labels:
@@ -269,6 +304,9 @@ class NERModel:
         else:
             self.config = config_class.from_pretrained(model_name, **self.args.config)
             self.num_labels = self.config.num_labels
+
+        self.config.id2label = self.id2label
+        self.config.label2id = self.label2id
 
         if model_type in MODELS_WITHOUT_CLASS_WEIGHTS_SUPPORT and weight is not None:
             raise ValueError(
@@ -1398,7 +1436,7 @@ class NERModel:
         preds = None
 
         if split_on_space:
-            if self.args.model_type == "layoutlm":
+            if self.args.model_type in ["layoutlm","layoutlmv2"]:
                 predict_examples = [
                     InputExample(
                         i,
@@ -1422,7 +1460,7 @@ class NERModel:
                     for i, sentence in enumerate(to_predict)
                 ]
         else:
-            if self.args.model_type == "layoutlm":
+            if self.args.model_type in ["layoutlm","layoutlmv2"]:
                 predict_examples = [
                     InputExample(
                         i,
@@ -1457,7 +1495,7 @@ class NERModel:
 
             # Change shape for batching
             encoded_model_inputs = []
-            if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+            if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
                 for (input_ids, attention_mask, token_type_ids) in tqdm(
                     zip(
                         model_inputs["input_ids"],
@@ -1484,7 +1522,7 @@ class NERModel:
             for batch in tqdm(
                 eval_dataloader, disable=args.silent, desc="Running Prediction"
             ):
-                if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+                if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
                     inputs_onnx = {
                         "input_ids": batch[0].detach().cpu().numpy(),
                         "attention_mask": batch[1].detach().cpu().numpy(),
@@ -1735,7 +1773,7 @@ class NERModel:
 
         mode = "dev" if evaluate else "train"
         if self.args.use_hf_datasets and data is not None:
-            if self.args.model_type == "layoutlm":
+            if self.args.model_type in ["layoutlm","layoutlmv2"]:
                 raise NotImplementedError(
                     "HuggingFace Datasets support is not implemented for LayoutLM models"
                 )
@@ -1772,7 +1810,7 @@ class NERModel:
                         examples = read_examples_from_file(
                             data,
                             mode,
-                            bbox=True if self.args.model_type == "layoutlm" else False,
+                            bbox=True if self.args.model_type in ["layoutlm","layoutlmv2"] else False,
                         )
                     else:
                         if self.args.lazy_loading:
@@ -1781,7 +1819,7 @@ class NERModel:
                             )
                         examples = get_examples_from_df(
                             data,
-                            bbox=True if self.args.model_type == "layoutlm" else False,
+                            bbox=True if self.args.model_type in ["layoutlm","layoutlmv2"] else False,
                         )
 
                 cached_features_file = os.path.join(
@@ -1851,7 +1889,7 @@ class NERModel:
                     [f.label_ids for f in features], dtype=torch.long
                 )
 
-                if self.args.model_type == "layoutlm":
+                if self.args.model_type in ["layoutlm","layoutlmv2"]:
                     all_bboxes = torch.tensor(
                         [f.bboxes for f in features], dtype=torch.long
                     )
@@ -1859,7 +1897,7 @@ class NERModel:
                 if self.args.onnx:
                     return all_label_ids
 
-                if self.args.model_type == "layoutlm":
+                if self.args.model_type in ["layoutlm","layoutlmv2"]:
                     dataset = TensorDataset(
                         all_input_ids,
                         all_input_mask,
@@ -1950,10 +1988,10 @@ class NERModel:
                 "labels": batch[3],
             }
             # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
-            if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+            if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
                 inputs["token_type_ids"] = batch[2]
 
-            if self.args.model_type == "layoutlm":
+            if self.args.model_type in ["layoutlm","layoutlmv2"]:
                 inputs["bbox"] = batch[4]
 
             return inputs

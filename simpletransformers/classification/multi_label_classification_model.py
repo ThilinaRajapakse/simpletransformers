@@ -26,6 +26,9 @@ from transformers import (
     FlaubertTokenizer,
     LongformerConfig,
     LongformerTokenizer,
+    RemBertConfig,
+    RemBertForSequenceClassification,
+    RemBertTokenizer,
     RobertaConfig,
     RobertaTokenizer,
     XLMConfig,
@@ -50,6 +53,7 @@ from simpletransformers.custom_models.models import (
     ElectraForMultiLabelSequenceClassification,
     FlaubertForMultiLabelSequenceClassification,
     LongformerForMultiLabelSequenceClassification,
+    RemBertForMultiLabelSequenceClassification,
     RobertaForMultiLabelSequenceClassification,
     XLMForMultiLabelSequenceClassification,
     XLMRobertaForMultiLabelSequenceClassification,
@@ -143,6 +147,11 @@ class MultiLabelClassificationModel(ClassificationModel):
                 LongformerConfig,
                 LongformerForMultiLabelSequenceClassification,
                 LongformerTokenizer,
+            ),
+            "rembert": (
+                RemBertConfig,
+                RemBertForMultiLabelSequenceClassification,
+                RemBertTokenizer
             ),
             "roberta": (
                 RobertaConfig,
