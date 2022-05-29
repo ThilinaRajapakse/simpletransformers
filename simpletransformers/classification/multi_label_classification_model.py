@@ -151,7 +151,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             "rembert": (
                 RemBertConfig,
                 RemBertForMultiLabelSequenceClassification,
-                RemBertTokenizer
+                RemBertTokenizer,
             ),
             "roberta": (
                 RobertaConfig,

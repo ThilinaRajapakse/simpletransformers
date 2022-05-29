@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.63.7] - 2022-05-29
+
+### Added
+
+- Added support for LayoutLMV2 and RemBERT [whr778](https://github.com/whr778)
+
+### Fixed
+
+- Fixed issue with ner_utils lazy_loading_start_line not being set correctly. [whr778](https://github.com/whr778)
+- Lazy loading bug fixes [sainttttt](https://github.com/sainttttt)
+- Fixed seq2seq and T5 preprocessing [MichelBartels](https://github.com/MichelBartels)
+
 ## [0.63.6] - 2022-03-24
 
 ### Added

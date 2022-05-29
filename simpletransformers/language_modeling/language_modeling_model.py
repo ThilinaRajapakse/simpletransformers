@@ -45,6 +45,8 @@ from transformers.optimization import (
 from transformers.optimization import AdamW, Adafactor
 
 from transformers import DummyObject, requires_backends
+
+
 class NystromformerTokenizer(metaclass=DummyObject):
     _backends = ["sentencepiece"]
 
@@ -130,7 +132,7 @@ MODEL_CLASSES = {
     "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
     "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
     "longformer": (LongformerConfig, LongformerForMaskedLM, LongformerTokenizer),
-    "nystromformer": (NystromformerConfig,NystromformerForMaskedLM, BigBirdTokenizer),
+    "nystromformer": (NystromformerConfig, NystromformerForMaskedLM, BigBirdTokenizer),
     "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
     "rembert": (RemBertConfig, RemBertForMaskedLM, RemBertTokenizer),
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
@@ -1370,7 +1372,7 @@ class LanguageModelingModel:
                 if self.args.max_seq_length > 509 and self.args.model_type not in [
                     "longformer",
                     "bigbird",
-                    "nystromformer"
+                    "nystromformer",
                 ]:
                     self.args.max_seq_length = (
                         509

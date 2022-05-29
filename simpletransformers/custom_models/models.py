@@ -9,8 +9,8 @@ from transformers import (
     ElectraForPreTraining,
     FlaubertModel,
     LongformerModel,
-    RemBertModel,  
-    RemBertPreTrainedModel,  
+    RemBertModel,
+    RemBertPreTrainedModel,
     RobertaModel,
     XLMModel,
     XLMPreTrainedModel,
@@ -110,6 +110,7 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
             outputs = (loss,) + outputs
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
+
 
 class RemBertForMultiLabelSequenceClassification(RemBertPreTrainedModel):
     """

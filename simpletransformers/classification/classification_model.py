@@ -268,7 +268,7 @@ class ClassificationModel:
             "rembert": (
                 RemBertConfig,
                 RemBertForSequenceClassification,
-                RemBertTokenizerFast
+                RemBertTokenizerFast,
             ),
             "roberta": (
                 RobertaConfig,
@@ -546,7 +546,7 @@ class ClassificationModel:
                 raise ValueError(
                     "HuggingFace Datasets cannot be used with sliding window."
                 )
-            if self.args.model_type in ["layoutlm","layoutlmv2"]:
+            if self.args.model_type in ["layoutlm", "layoutlmv2"]:
                 raise NotImplementedError(
                     "HuggingFace Datasets support is not implemented for LayoutLM models"
                 )
@@ -556,7 +556,7 @@ class ClassificationModel:
         elif isinstance(train_df, str) and self.args.lazy_loading:
             if self.args.sliding_window:
                 raise ValueError("Lazy loading cannot be used with sliding window.")
-            if self.args.model_type in ["layoutlm","layoutlmv2"]:
+            if self.args.model_type in ["layoutlm", "layoutlmv2"]:
                 raise NotImplementedError(
                     "Lazy loading is not implemented for LayoutLM models"
                 )
@@ -569,7 +569,7 @@ class ClassificationModel:
                     "Input must be given as a path to a file when using lazy loading"
                 )
             if "text" in train_df.columns and "labels" in train_df.columns:
-                if self.args.model_type in ["layoutlm","layoutlmv2"]:
+                if self.args.model_type in ["layoutlm", "layoutlmv2"]:
                     train_examples = [
                         InputExample(i, text, None, label, x0, y0, x1, y1)
                         for i, (text, label, x0, y0, x1, y1) in enumerate(
@@ -589,7 +589,7 @@ class ClassificationModel:
                         train_df["labels"].tolist(),
                     )
             elif "text_a" in train_df.columns and "text_b" in train_df.columns:
-                if self.args.model_type in ["layoutlm","layoutlmv2"]:
+                if self.args.model_type in ["layoutlm", "layoutlmv2"]:
                     raise ValueError("LayoutLM cannot be used with sentence-pair tasks")
                 else:
                     train_examples = (
@@ -1701,7 +1701,7 @@ class ClassificationModel:
                     if args.sliding_window:
                         logger.info(" Sliding window enabled")
 
-                if self.args.model_type not in ["layoutlm","layoutlmv2"]:
+                if self.args.model_type not in ["layoutlm", "layoutlmv2"]:
                     if len(examples) == 3:
                         examples = [
                             InputExample(i, text_a, text_b, label)
@@ -1780,7 +1780,7 @@ class ClassificationModel:
                 [f.segment_ids for f in features], dtype=torch.long
             )
 
-            if self.args.model_type in ["layoutlm","layoutlmv2"]:
+            if self.args.model_type in ["layoutlm", "layoutlmv2"]:
                 all_bboxes = torch.tensor(
                     [f.bboxes for f in features], dtype=torch.long
                 )
@@ -1794,7 +1794,7 @@ class ClassificationModel:
                     [f.label_id for f in features], dtype=torch.float
                 )
 
-            if self.args.model_type in ["layoutlm","layoutlmv2"]:
+            if self.args.model_type in ["layoutlm", "layoutlmv2"]:
                 dataset = TensorDataset(
                     all_input_ids,
                     all_input_mask,
@@ -1977,7 +1977,13 @@ class ClassificationModel:
                 to_predict, return_tensors="pt", padding=True, truncation=True
             )
 
-            if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
+            if self.args.model_type in [
+                "bert",
+                "xlnet",
+                "albert",
+                "layoutlm",
+                "layoutlmv2",
+            ]:
                 for i, (input_ids, attention_mask, token_type_ids) in enumerate(
                     zip(
                         model_inputs["input_ids"],
@@ -2337,7 +2343,8 @@ class ClassificationModel:
             if self.args.model_type != "distilbert":
                 inputs["token_type_ids"] = (
                     batch[2]
-                    if self.args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]
+                    if self.args.model_type
+                    in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]
                     else None
                 )
 
