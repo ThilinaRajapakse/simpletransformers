@@ -306,7 +306,7 @@ class ClassificationModel:
             if self.args.n_gpu > 0:
                 torch.cuda.manual_seed_all(self.args.manual_seed)
 
-        if self.args.labels_list:
+        if self.args.labels_list and not self.args.lazy_loading:
             if num_labels:
                 assert num_labels == len(self.args.labels_list)
             if self.args.labels_map:
@@ -2303,7 +2303,7 @@ class ClassificationModel:
     def _get_inputs_dict(self, batch, no_hf=False):
         if self.args.use_hf_datasets and not no_hf:
             return {key: value.to(self.device) for key, value in batch.items()}
-        if isinstance(batch[0], dict):
+        if isinstance(batch[0], dict) or isinstance(batch[0].data, dict):
             inputs = {
                 key: value.squeeze(1).to(self.device) for key, value in batch[0].items()
             }
