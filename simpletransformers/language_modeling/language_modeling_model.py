@@ -43,6 +43,15 @@ from transformers.optimization import (
     get_polynomial_decay_schedule_with_warmup,
 )
 from transformers.optimization import AdamW, Adafactor
+
+from transformers import DummyObject, requires_backends
+class NystromformerTokenizer(metaclass=DummyObject):
+    _backends = ["sentencepiece"]
+
+    def __init__(self, *args, **kwargs):
+        requires_backends(self, ["sentencepiece"])
+
+
 from transformers import (
     WEIGHTS_NAME,
     AutoConfig,
@@ -70,11 +79,17 @@ from transformers import (
     LongformerConfig,
     LongformerForMaskedLM,
     LongformerTokenizer,
+    NystromformerConfig,
+    NystromformerForMaskedLM,
+    # NystromformerTokenizer,
     OpenAIGPTConfig,
     OpenAIGPTLMHeadModel,
     OpenAIGPTTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
+    RemBertConfig,
+    RemBertForMaskedLM,
+    RemBertTokenizer,
     RobertaConfig,
     RobertaForMaskedLM,
     RobertaTokenizer,
@@ -115,7 +130,9 @@ MODEL_CLASSES = {
     "electra": (ElectraConfig, ElectraForLanguageModelingModel, ElectraTokenizer),
     "gpt2": (GPT2Config, GPT2LMHeadModel, GPT2Tokenizer),
     "longformer": (LongformerConfig, LongformerForMaskedLM, LongformerTokenizer),
+    "nystromformer": (NystromformerConfig,NystromformerForMaskedLM, BigBirdTokenizer),
     "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
+    "rembert": (RemBertConfig, RemBertForMaskedLM, RemBertTokenizer),
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
     "xlmroberta": (XLMRobertaConfig, XLMRobertaForMaskedLM, XLMRobertaTokenizer),
 }
@@ -1353,6 +1370,7 @@ class LanguageModelingModel:
                 if self.args.max_seq_length > 509 and self.args.model_type not in [
                     "longformer",
                     "bigbird",
+                    "nystromformer"
                 ]:
                     self.args.max_seq_length = (
                         509
@@ -1431,7 +1449,7 @@ class LanguageModelingModel:
                 special_tokens=self.args.special_tokens,
                 wordpieces_prefix="##",
             )
-        elif self.args.model_type in ["bigbird", "xlmroberta"]:
+        elif self.args.model_type in ["bigbird", "xlmroberta", "nystromformer"]:
             # The google BigBird way
             # Tokenizers sentencepiece does not build a BigBird compatible vocabulary model
             import sentencepiece as spm
@@ -1458,6 +1476,7 @@ class LanguageModelingModel:
             else:
                 # </s>,<s>,<unk>,<pad> are built in -- leave as default
                 # BigBird uses spiece as a vocab model prefix
+                # Nystromformer uses spiece as a vocab model prefix
                 prefix = "spiece"
                 self.args.special_tokens = [
                     "<s>",
@@ -1489,7 +1508,7 @@ class LanguageModelingModel:
                 special_tokens=self.args.special_tokens,
             )
 
-        if self.args.model_type not in ["bigbird", "xlmroberta"]:
+        if self.args.model_type not in ["bigbird", "xlmroberta", "nystromformer"]:
             os.makedirs(output_dir, exist_ok=True)
 
             tokenizer.save_model(output_dir)

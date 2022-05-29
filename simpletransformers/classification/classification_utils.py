@@ -321,7 +321,7 @@ def load_hf_dataset(data, tokenizer, args, multi_label):
         batched=True,
     )
 
-    if args.model_type in ["bert", "xlnet", "albert", "layoutlm"]:
+    if args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
         dataset.set_format(
             type="pt",
             columns=["input_ids", "token_type_ids", "attention_mask", "labels"],
