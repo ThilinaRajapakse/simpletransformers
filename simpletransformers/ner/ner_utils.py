@@ -680,7 +680,7 @@ class LazyNERDataset(Dataset):
     def __init__(self, data_file, tokenizer, args):
         self.data_file = data_file
         self.lazy_loading_start_line = (
-            args.lazy_loading_start_line if args.lazy_loading_start_line else 0
+            args.lazy_loading_start_line if args.lazy_loading_start_line else 1
         )
         self.example_lines, self.num_entries = self._get_examples(
             self.data_file, self.lazy_loading_start_line

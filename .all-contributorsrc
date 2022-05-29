@@ -805,6 +805,42 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "mxa4646",
+      "name": "mxa",
+      "avatar_url": "https://avatars.githubusercontent.com/u/37767536?v=4",
+      "profile": "https://github.com/mxa4646",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "MichelBartels",
+      "name": "MichelBartels",
+      "avatar_url": "https://avatars.githubusercontent.com/u/17650521?v=4",
+      "profile": "https://github.com/MichelBartels",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "luketudge",
+      "name": "Luke Tudge",
+      "avatar_url": "https://avatars.githubusercontent.com/u/17992458?v=4",
+      "profile": "https://github.com/luketudge",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "sainttttt",
+      "name": "Saint",
+      "avatar_url": "https://avatars.githubusercontent.com/u/58609876?v=4",
+      "profile": "https://github.com/sainttttt",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

@@ -37,9 +37,11 @@ New model types are regularly added to the library. Named Entity Recognition tas
 | ELECTRA     | electra                   |
 | HerBERT     | herbert                   |
 | LayoutLM    | layoutlm                  |
+| LayoutLMv2  | layoutlmv2                |
 | Longformer  | longformer                |
 | MobileBERT  | mobilebert                |
 | MPNet       | mpnet                     |
+| RemBERT     | rembert                   |
 | RoBERTa     | roberta                   |
 | SqueezeBert | squeezebert               |
 | XLM         | xlm                       |
