@@ -37,6 +37,7 @@ train_args = {
     "lazy_labels_column": 2,
     "lazy_header_row": True,
     "regression": True,
+    "lazy_loading": True,
 }
 
 # Create a TransformerModel
