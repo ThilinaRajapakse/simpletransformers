@@ -86,6 +86,7 @@ from transformers.data.datasets.language_modeling import (
     LineByLineTextDataset,
     TextDataset,
 )
+from transformers.trainer_utils import is_main_process
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import LanguageModelingArgs
@@ -231,7 +232,8 @@ class LanguageModelingModel:
                     "You must specify train_files to train a Tokenizer."
                 )
             else:
-                self.train_tokenizer(train_files)
+                if is_main_process(self.args.local_rank):
+                    self.train_tokenizer(train_files)
                 new_tokenizer = True
 
         if self.args.config_name:
