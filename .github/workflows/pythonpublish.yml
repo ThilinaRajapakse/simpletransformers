@@ -2,6 +2,9 @@ name: Upload Python Package
 
 on: push
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
