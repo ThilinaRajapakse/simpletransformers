@@ -72,7 +72,8 @@ if __name__ == '__main__':
         cache_dir=args.output_data_dir + "/cache_dir",
     )
 
-    prepare_data()
+    if torch.distributed.get_rank() == 0: # only do this in the main process
+        prepare_data()
 
     train_file, test_file = "data/train.txt", "data/test.txt"
 
