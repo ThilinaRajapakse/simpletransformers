@@ -69,7 +69,8 @@ if __name__ == '__main__':
         dataset_type="simple",
         vocab_size=30000,
         use_longformer_electra=True,
-        output_dir=args.output_data_dir,
+        output_dir=args.output_data_dir + "/outputs",
+        cache_dir=args.output_data_dir + "/cache_dir",
     )
 
     prepare_data()
