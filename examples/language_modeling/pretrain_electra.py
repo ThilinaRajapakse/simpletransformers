@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 
@@ -13,7 +14,20 @@ from simpletransformers.language_modeling import (
 # TODO consider using unigram lm tokenizer: SentencePieceUnigramTokenizer
 
 if __name__ == '__main__':
-    prepare_data()
+    parser = argparse.ArgumentParser()
+
+    # hyperparameters sent by the client are passed as command-line arguments to the script
+    parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--per_device_train_batch_size", type=int, default=32)
+    parser.add_argument("--model_name_or_path", type=str)
+
+    # data, model, and output directories
+    parser.add_argument("--output_data_dir", type=str, default=os.environ["SM_OUTPUT_DATA_DIR"])
+    parser.add_argument("--model-dir", type=str, default=os.environ["SM_MODEL_DIR"])
+    parser.add_argument("--training_dir", type=str, default=os.environ["SM_CHANNEL_TRAIN"])
+    parser.add_argument("--test_dir", type=str, default=os.environ["SM_CHANNEL_TEST"])
+
+    args, _ = parser.parse_known_args()
 
     os.environ['TOKENIZERS_PARALLELISM'] = "true"
 
@@ -48,7 +62,7 @@ if __name__ == '__main__':
         overwrite_output_dir=True,
         evaluate_during_training=True,
         n_gpu=num_gpus,  # run with python -m torch.distributed.launch pretrain_electra.py
-        num_train_epochs=1,
+        num_train_epochs=args.epochs,
         eval_batch_size=max_batch_size_for_gpu,
         train_batch_size=max_batch_size_for_gpu,
         gradient_accumulation_steps=int(total_batch_size / max_batch_size_for_gpu),
@@ -57,7 +71,10 @@ if __name__ == '__main__':
         dataset_type="simple",
         vocab_size=30000,
         use_longformer_electra=True,
+        output_dir=args.output_data_dir,
     )
+
+    prepare_data()
 
     train_file, test_file = "data/train.txt", "data/test.txt"
 
