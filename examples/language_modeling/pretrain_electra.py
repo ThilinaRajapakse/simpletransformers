@@ -18,7 +18,8 @@ if __name__ == '__main__':
 
     # hyperparameters sent by the client are passed as command-line arguments to the script
     parser.add_argument("--epochs", type=int, default=3)
-    parser.add_argument("--per_device_train_batch_size", type=int, default=32)
+    parser.add_argument("--total_batch_size", type=int, default=256)
+    parser.add_argument("--per_device_batch_size", type=int, default=32)
     parser.add_argument("--model_name_or_path", type=str)
 
     # data, model, and output directories
@@ -36,8 +37,6 @@ if __name__ == '__main__':
     cuda_available = torch.cuda.is_available()
     num_gpus = torch.cuda.device_count()
 
-    total_batch_size = 256  # ELECTRA: 256 for base, 2048 for large
-    max_batch_size_for_gpu = 32  # 16GB V100
 
     # IMPORTANT if we set the embedding_size to 128 instead of 768 we get problems if we run the tie_weights() function,
     # the weights of the generator_lm_head (in_features) are changing,
@@ -61,9 +60,9 @@ if __name__ == '__main__':
         evaluate_during_training=True,
         n_gpu=num_gpus,  # run with python -m torch.distributed.launch pretrain_electra.py
         num_train_epochs=args.epochs,
-        eval_batch_size=max_batch_size_for_gpu,
-        train_batch_size=max_batch_size_for_gpu,
-        gradient_accumulation_steps=int(total_batch_size / max_batch_size_for_gpu),
+        eval_batch_size=args.per_device_batch_size,
+        train_batch_size=args.per_device_batch_size,
+        gradient_accumulation_steps=int(args.total_batch_size / args.per_device_batch_size),
         learning_rate=2e-4,  # ELECTRA paper searched in 1e-4, 2e-4, 3e-4, 5e-4
         warmup_steps=10_000,  # as specified in ELECTRA paper
         dataset_type="simple",
