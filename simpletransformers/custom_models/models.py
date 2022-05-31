@@ -1,3 +1,6 @@
+from abc import ABC
+from typing import Union, List
+
 import torch
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
@@ -13,7 +16,7 @@ from transformers import (
     XLMModel,
     XLMPreTrainedModel,
     XLNetModel,
-    XLNetPreTrainedModel,
+    XLNetPreTrainedModel, LongformerConfig, LongformerTokenizer,
 )
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
 from transformers.models.albert.modeling_albert import (
@@ -39,7 +42,7 @@ from transformers.models.electra.modeling_electra import (
     ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
     ElectraConfig,
     ElectraModel,
-    ElectraPreTrainedModel,
+    ElectraPreTrainedModel, ElectraGeneratorPredictions, ElectraDiscriminatorPredictions,
 )
 from transformers.models.longformer.modeling_longformer import (
     LongformerClassificationHead,
@@ -400,7 +403,6 @@ class AlbertForMultiLabelSequenceClassification(AlbertPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-
         outputs = self.albert(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -901,3 +903,75 @@ class DualEncoderModel(PreTrainedModel):
         super().__init__(
             config=context_config
         )  # Initialize with context_config for now
+
+
+class LongformerElectraConfig(LongformerConfig, ElectraConfig):
+    r"""
+    This is the configuration class to store the configuration of a [`LongformerModel`] or a [`TFLongformerModel`]. It
+    is used to instantiate a Longformer model according to the specified arguments, defining the model architecture.
+
+    This is the configuration class to store the configuration of a [`LongformerModel`]. It is used to instantiate an
+    Longformer model according to the specified arguments, defining the model architecture. Instantiating a
+    configuration with the defaults will yield a similar configuration to that of the LongFormer
+    [allenai/longformer-base-4096](https://huggingface.co/allenai/longformer-base-4096) architecture with a sequence
+    length 4,096.
+
+    The [`LongformerConfig`] class directly inherits [`RobertaConfig`]. It reuses the same defaults. Please check the
+    parent class for more information.
+
+    Args:
+        attention_window (`int` or `List[int]`, *optional*, defaults to 512):
+            Size of an attention window around each token. If an `int`, use the same size for all layers. To specify a
+            different window size for each layer, use a `List[int]` where `len(attention_window) == num_hidden_layers`.
+
+    Example:
+
+    ```python
+    >>> from transformers import LongformerConfig, LongformerModel
+
+    >>> # Initializing a Longformer configuration
+    >>> configuration = LongformerConfig()
+
+    >>> # Initializing a model from the configuration
+    >>> model = LongformerModel(configuration)
+
+    >>> # Accessing the model configuration
+    >>> configuration = model.config
+    ```"""
+    model_type = "longformer_electra"
+
+    def __init__(self, attention_window: Union[List[int], int] = 512, sep_token_id: int = 2, **kwargs):
+        super().__init__(sep_token_id=sep_token_id, **kwargs)
+        self.attention_window = attention_window
+
+
+class LongformerElectraForPreTraining(ElectraForPreTraining, ABC):
+    def __init__(self, config):
+        super().__init__(config)
+
+        self.electra = LongformerModel(config)
+        self.discriminator_predictions = ElectraDiscriminatorPredictions(config)
+        # Initialize weights and apply final processing
+        self.post_init()
+
+
+class LongformerElectraForMaskedLM(ElectraForMaskedLM, ABC):
+    def __init__(self, config):
+        super().__init__(config)
+
+        self.electra = LongformerModel(config)
+        self.generator_predictions = ElectraGeneratorPredictions(config)
+
+        self.generator_lm_head = nn.Linear(config.embedding_size, config.vocab_size)
+        # Initialize weights and apply final processing
+        self.post_init()
+
+
+class LongformerElectraTokenizer(LongformerTokenizer):
+    r"""
+    Construct a Longformer tokenizer.
+
+    [`LongformerTokenizer`] is identical to [`RobertaTokenizer`]. Refer to the superclass for usage examples and
+    documentation concerning parameters.
+    """
+    vocab_files_names = {"vocab_file": "vocab.json", "merges_file": "merges.txt"}

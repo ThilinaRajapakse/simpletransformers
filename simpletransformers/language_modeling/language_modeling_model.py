@@ -87,16 +87,11 @@ from transformers.data.datasets.language_modeling import (
     TextDataset,
 )
 
-from simpletransformers.language_modeling.longformer_electra.configuration_longformer_electra import \
-    LongformerElectraConfig
-from simpletransformers.language_modeling.longformer_electra.modeling_longformer_electra import \
-    LongformerElectraForMaskedLM, LongformerElectraForPreTraining
-from simpletransformers.language_modeling.longformer_electra.tokenization_longformer_electra import \
-    LongformerElectraTokenizer
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import LanguageModelingArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
-from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
+from simpletransformers.custom_models.models import ElectraForLanguageModelingModel, \
+    LongformerElectraTokenizer, LongformerElectraConfig, LongformerElectraForMaskedLM, LongformerElectraForPreTraining
 from simpletransformers.language_modeling.language_modeling_utils import (
     SimpleDataset,
     load_hf_dataset,
