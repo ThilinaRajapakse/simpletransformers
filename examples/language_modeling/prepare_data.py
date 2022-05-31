@@ -10,9 +10,8 @@ def prepare_data(overwrite_cache=False):
         print("data folder already exists. Set the flag overwrite_cache to True to download the data again.")
         return
 
-    dataset = load_dataset("cuad")
-
     Path(folder).mkdir(parents=True, exist_ok=True)
+    dataset = load_dataset("cuad")
 
     for split in ['train', 'test']:
         text = dataset[split]['context']

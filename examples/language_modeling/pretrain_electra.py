@@ -3,7 +3,7 @@ import os
 
 import torch
 
-from examples.language_modeling.prepare_data import prepare_data
+from prepare_data import prepare_data
 from simpletransformers.language_modeling import (
     LanguageModelingModel,
     LanguageModelingArgs,
