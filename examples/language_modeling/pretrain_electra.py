@@ -3,12 +3,18 @@ import os
 
 import torch
 
+from examples.language_modeling.prepare_data import prepare_data
 from simpletransformers.language_modeling import (
     LanguageModelingModel,
     LanguageModelingArgs,
 )
 
+# TODO consider using methods from DeBERTa to improve it
+# TODO consider using unigram lm tokenizer: SentencePieceUnigramTokenizer
+
 if __name__ == '__main__':
+    prepare_data()
+
     os.environ['TOKENIZERS_PARALLELISM'] = "true"
 
     logging.basicConfig(level=logging.INFO)

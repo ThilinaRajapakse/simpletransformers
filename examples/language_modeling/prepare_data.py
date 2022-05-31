@@ -3,14 +3,26 @@ from pathlib import Path
 
 from datasets import load_dataset
 
-dataset = load_dataset("cuad")
 
-Path("data").mkdir(parents=True, exist_ok=True)
+def prepare_data(overwrite_cache=False):
+    folder = "data"
+    if Path(folder).exists() and not overwrite_cache:
+        print("data folder already exists. Set the flag overwrite_cache to True to download the data again.")
+        return
 
-for split in ['train', 'test']:
-    text = dataset[split]['context']
+    dataset = load_dataset("cuad")
 
-    with open(f"data/{split}.txt", 'w+') as output:
-        for row in text[:10]:
-            row = re.sub(r'\n+', '\n', row).strip()
-            output.write(str(row) + '\n')
+    Path(folder).mkdir(parents=True, exist_ok=True)
+
+    for split in ['train', 'test']:
+        text = dataset[split]['context']
+
+        with open(f"data/{split}.txt", 'w+') as output:
+            for row in text[:10]:
+                row = re.sub(r'\n+', '\n', row).strip()
+                output.write(str(row) + '\n')
+    print(f"Saved the data to the folder {folder}")
+
+
+if __name__ == '__main__':
+    prepare_data()
