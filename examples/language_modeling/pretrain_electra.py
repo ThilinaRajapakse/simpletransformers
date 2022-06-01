@@ -23,7 +23,7 @@ if __name__ == '__main__':
     parser.add_argument("--model_name_or_path", type=str)
 
     # data, model, and output directories
-    parser.add_argument("--output_data_dir", type=str)
+    parser.add_argument("--output_data_dir", type=str, default="")  # default "" for local development
     parser.add_argument("--model-dir", type=str)
 
     args, _ = parser.parse_known_args()
@@ -36,7 +36,6 @@ if __name__ == '__main__':
 
     cuda_available = torch.cuda.is_available()
     num_gpus = torch.cuda.device_count()
-
 
     # IMPORTANT if we set the embedding_size to 128 instead of 768 we get problems if we run the tie_weights() function,
     # the weights of the generator_lm_head (in_features) are changing,
@@ -71,8 +70,8 @@ if __name__ == '__main__':
         output_dir=args.output_data_dir + "/outputs",
         cache_dir=args.output_data_dir + "/cache_dir",
     )
-
-    train_file, test_file = "data/train.txt", "data/test.txt"
+    data_dir = os.path.join(args.output_data_dir, "data")
+    train_file, test_file = data_dir + "/train.txt", data_dir + "/test.txt"
 
     model = LanguageModelingModel(
         "electra",
