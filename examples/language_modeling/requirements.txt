@@ -1,0 +1,17 @@
+numpy
+requests
+tqdm>=4.47.0
+regex
+transformers>=4.6.0
+datasets
+scipy
+scikit-learn
+seqeval
+tensorboard
+pandas
+tokenizers
+wandb>=0.10.32
+streamlit
+sentencepiece
+setuptools==59.5.0
+simpletransformers-le==0.0.1.dev5
