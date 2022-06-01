@@ -91,7 +91,7 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import LanguageModelingArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.custom_models.models import ElectraForLanguageModelingModel, \
-    LongformerElectraTokenizer, LongformerElectraConfig, LongformerElectraForMaskedLM, LongformerElectraForPreTraining
+    LongformerElectraConfig, LongformerElectraForMaskedLM, LongformerElectraForPreTraining
 from simpletransformers.language_modeling.language_modeling_utils import (
     SimpleDataset,
     load_hf_dataset,
