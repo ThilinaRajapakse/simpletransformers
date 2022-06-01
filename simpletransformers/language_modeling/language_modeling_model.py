@@ -204,7 +204,7 @@ class LanguageModelingModel:
 
         if self.args.model_type == "electra" and self.args.use_longformer_electra:
             config_class = LongformerElectraConfig
-            tokenizer_class = LongformerElectraTokenizer
+            tokenizer_class = LongformerTokenizer
 
         self.tokenizer_class = tokenizer_class
         new_tokenizer = False

@@ -966,12 +966,3 @@ class LongformerElectraForMaskedLM(ElectraForMaskedLM, ABC):
         # Initialize weights and apply final processing
         self.post_init()
 
-
-class LongformerElectraTokenizer(LongformerTokenizer):
-    r"""
-    Construct a Longformer tokenizer.
-
-    [`LongformerTokenizer`] is identical to [`RobertaTokenizer`]. Refer to the superclass for usage examples and
-    documentation concerning parameters.
-    """
-    vocab_files_names = {"vocab_file": "vocab.json", "merges_file": "merges.txt"}
