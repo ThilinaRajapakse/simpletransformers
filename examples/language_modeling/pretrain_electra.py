@@ -24,7 +24,8 @@ if __name__ == '__main__':
 
     # data, model, and output directories
     parser.add_argument("--output_data_dir", type=str, default="")  # default "" for local development
-    parser.add_argument("--model-dir", type=str)
+    parser.add_argument("--bucket_name", type=str)
+    parser.add_argument("--model_dir", type=str)
 
     args, _ = parser.parse_known_args()
 
@@ -42,11 +43,12 @@ if __name__ == '__main__':
     # leading to dimension errors in matrix multiplication
     # Thus all calls to tie_weights have been disabled. Is this a problem?
     model_args = LanguageModelingArgs(
+        # for base version: electra paper says that the generator should be 1/3 of the discriminator's size
         generator_config={
             "max_position_embeddings": 4096,
             "embedding_size": 768,
             "hidden_size": 768,
-            "num_hidden_layers": 3,
+            "num_hidden_layers": 4,
         },
         discriminator_config={
             "max_position_embeddings": 4096,
@@ -66,9 +68,10 @@ if __name__ == '__main__':
         warmup_steps=10_000,  # as specified in ELECTRA paper
         dataset_type="simple",
         vocab_size=30000,
+        block_size=4096,
         use_longformer_electra=True,
-        output_dir=args.output_data_dir + "/outputs",
-        cache_dir=args.output_data_dir + "/cache_dir",
+        output_dir=os.path.join(args.output_data_dir, "outputs"),
+        cache_dir=os.path.join(args.output_data_dir, "cache_dir"),
     )
     data_dir = os.path.join(args.output_data_dir, "data")
     train_file, test_file = data_dir + "/train.txt", data_dir + "/test.txt"
