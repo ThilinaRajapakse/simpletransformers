@@ -46,8 +46,8 @@ if __name__ == '__main__':
         # for base version: electra paper says that the generator should be 1/3 of the discriminator's size
         generator_config={
             "max_position_embeddings": 4096,
-            "embedding_size": 768,
-            "hidden_size": 768,
+            "embedding_size": 768,  # TODO try with 256 here
+            "hidden_size": 768,  # TODO try with 256 here
             "num_hidden_layers": 4,
         },
         discriminator_config={
@@ -59,6 +59,9 @@ if __name__ == '__main__':
         reprocess_input_data=False,
         overwrite_output_dir=True,
         evaluate_during_training=True,
+        evaluate_during_training_silent=False,
+        evaluate_during_training_steps=1000,
+        evaluate_during_training_verbose=True,
         n_gpu=num_gpus,  # run with python -m torch.distributed.launch pretrain_electra.py
         num_train_epochs=args.epochs,
         eval_batch_size=args.per_device_batch_size,
@@ -68,13 +71,22 @@ if __name__ == '__main__':
         warmup_steps=10_000,  # as specified in ELECTRA paper
         dataset_type="simple",
         vocab_size=30000,
-        block_size=4096,
+        max_seq_length=4096,
         use_longformer_electra=True,
         output_dir=os.path.join(args.output_data_dir, "outputs"),
         cache_dir=os.path.join(args.output_data_dir, "cache_dir"),
     )
-    data_dir = os.path.join(args.output_data_dir, "data")
+
+    data_dir = "data"
+    os.makedirs(data_dir, exist_ok=True)
     train_file, test_file = data_dir + "/train.txt", data_dir + "/test.txt"
+
+    run_on_sagemaker = True
+    if run_on_sagemaker:
+        import boto3
+        s3 = boto3.resource('s3')
+        s3.Bucket(args.bucket_name).download_file(os.path.join(args.model_dir, train_file), train_file)
+        s3.Bucket(args.bucket_name).download_file(os.path.join(args.model_dir, test_file), test_file)
 
     model = LanguageModelingModel(
         "electra",
