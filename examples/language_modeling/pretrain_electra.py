@@ -38,21 +38,13 @@ if __name__ == '__main__':
     cuda_available = torch.cuda.is_available()
     num_gpus = torch.cuda.device_count()
 
-    generator_config_hidden_layers = {
-        "max_position_embeddings": 4096,
-        "embedding_size": 768,
-        "hidden_size": 768,
-        "num_hidden_layers": 4,
-        "num_attention_heads": 12,
-    }
-    # does not work yet so far
-    generator_config_hidden_size = {
-        "max_position_embeddings": 4096,
-        "embedding_size": 256,
-        "hidden_size": 256,
-        "num_hidden_layers": 12,
-        "num_attention_heads": 8,
-    }
+    model = "small"
+    generator_divisor = 3
+
+    hidden_size = {"small": 512, "base": 768}
+    hidden_layers = {"small": 6, "base": 12}
+    attention_heads = {"small": 8, "base": 12}
+
     # It is easier to just use an existing one, but we may get better performance when training our own later
     train_own_tokenizer = False
 
@@ -62,12 +54,19 @@ if __name__ == '__main__':
     # Thus all calls to tie_weights have been disabled. Is this a problem?
     model_args = LanguageModelingArgs(
         # for base version: electra paper says that the generator should be 1/3 of the discriminator's size
-        generator_config=generator_config_hidden_layers,
+        generator_config={
+            "max_position_embeddings": 4096,
+            "embedding_size": hidden_size[model],
+            "hidden_size": hidden_size[model],
+            "num_hidden_layers": hidden_layers[model] // generator_divisor,
+            "num_attention_heads": attention_heads[model],
+        },
         discriminator_config={
             "max_position_embeddings": 4096,
-            "embedding_size": 768,
-            "hidden_size": 768,
-            "num_hidden_layers": 12,
+            "embedding_size": hidden_size[model],
+            "hidden_size": hidden_size[model],
+            "num_hidden_layers": hidden_layers[model],
+            "num_attention_heads": attention_heads[model],
         },
         reprocess_input_data=False,
         overwrite_output_dir=True,
