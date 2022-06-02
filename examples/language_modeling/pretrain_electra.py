@@ -53,6 +53,8 @@ if __name__ == '__main__':
         "num_hidden_layers": 12,
         "num_attention_heads": 8,
     }
+    # It is easier to just use an existing one, but we may get better performance when training our own later
+    train_own_tokenizer = False
 
     # IMPORTANT if we set the embedding_size to 128 instead of 768 we get problems if we run the tie_weights() function,
     # the weights of the generator_lm_head (in_features) are changing,
@@ -78,7 +80,7 @@ if __name__ == '__main__':
         evaluate_during_training_verbose=True,
         n_gpu=num_gpus,  # run with python -m torch.distributed.launch pretrain_electra.py
         num_train_epochs=args.epochs,
-        eval_batch_size=args.per_device_batch_size*2,
+        eval_batch_size=args.per_device_batch_size * 2,
         train_batch_size=args.per_device_batch_size,
         gradient_accumulation_steps=int(args.total_batch_size / args.per_device_batch_size),
         learning_rate=2e-4,  # ELECTRA paper searched in 1e-4, 2e-4, 3e-4, 5e-4
@@ -89,8 +91,11 @@ if __name__ == '__main__':
         max_seq_length=4096,
         use_longformer_electra=True,
         tensorboard_dir="tensorboard",
+        wandb_project="Longformer-Electra",
+        wandb_kwargs={"name": "Electra-Base"},
         output_dir=os.path.join(args.output_data_dir, "outputs"),
         cache_dir=os.path.join(args.output_data_dir, "cache_dir"),
+        tokenizer_name="allenai/longformer-base-4096" if not train_own_tokenizer else None,
     )
 
     data_dir = "data"
@@ -111,7 +116,7 @@ if __name__ == '__main__':
         "electra",
         None,
         args=model_args,
-        train_files=train_file,
+        train_files=train_file if train_own_tokenizer else None,
         use_cuda=cuda_available
     )
 
