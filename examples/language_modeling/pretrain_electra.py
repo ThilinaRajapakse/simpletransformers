@@ -38,6 +38,12 @@ if __name__ == '__main__':
     cuda_available = torch.cuda.is_available()
     num_gpus = torch.cuda.device_count()
 
+    use_longformer_electra = True
+    if use_longformer_electra:
+        sequence_length = 4096
+    else:
+        sequence_length = 512
+
     model = "small"
     generator_divisor = 3
 
@@ -55,14 +61,14 @@ if __name__ == '__main__':
     model_args = LanguageModelingArgs(
         # for base version: electra paper says that the generator should be 1/3 of the discriminator's size
         generator_config={
-            "max_position_embeddings": 4096,
+            "max_position_embeddings": sequence_length,
             "embedding_size": hidden_size[model],
             "hidden_size": hidden_size[model],
             "num_hidden_layers": hidden_layers[model] // generator_divisor,
             "num_attention_heads": attention_heads[model],
         },
         discriminator_config={
-            "max_position_embeddings": 4096,
+            "max_position_embeddings": sequence_length,
             "embedding_size": hidden_size[model],
             "hidden_size": hidden_size[model],
             "num_hidden_layers": hidden_layers[model],
@@ -86,9 +92,9 @@ if __name__ == '__main__':
         warmup_steps=10_000,  # as specified in ELECTRA paper
         dataset_type="simple",
         vocab_size=30000,
-        block_size=4096,
-        max_seq_length=4096,
-        use_longformer_electra=True,
+        block_size=sequence_length,
+        max_seq_length=sequence_length,
+        use_longformer_electra=use_longformer_electra,
         tensorboard_dir="tensorboard",
         wandb_project="Longformer-Electra",
         wandb_kwargs={"name": "Electra-Base"},

@@ -1494,14 +1494,24 @@ class LanguageModelingModel:
                 os.remove(output_dir + "/" + f"{prefix}.vocab")
             shutil.move(src=f"{prefix}.vocab", dst=output_dir)
         else:
-            tokenizer = ByteLevelBPETokenizer(lowercase=self.args.do_lower_case)
+            if self.args.use_longformer_electra and False:
+                self.args.special_tokens = ["<cls>", "<sep>", "<unk>", "<pad>", "<mask>", "<s>", "</s>"]
+                tokenizer = SentencePieceUnigramTokenizer()
 
-            tokenizer.train(
-                files=train_files,
-                vocab_size=self.args.vocab_size,
-                min_frequency=self.args.min_frequency,
-                special_tokens=self.args.special_tokens,
-            )
+                tokenizer.train(
+                    files=train_files,
+                    vocab_size=self.args.vocab_size,
+                    special_tokens=self.args.special_tokens,
+                )
+            else:
+                tokenizer = ByteLevelBPETokenizer(lowercase=self.args.do_lower_case)
+
+                tokenizer.train(
+                    files=train_files,
+                    vocab_size=self.args.vocab_size,
+                    min_frequency=self.args.min_frequency,
+                    special_tokens=self.args.special_tokens,
+                )
 
         if self.args.model_type not in ["bigbird", "xlmroberta"]:
             os.makedirs(output_dir, exist_ok=True)
