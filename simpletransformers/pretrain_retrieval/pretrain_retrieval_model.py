@@ -43,8 +43,6 @@ from transformers.models.auto import (
 from simpletransformers.custom_models.pretrain_retrieval_model import (
     PretrainRetrievalContextEncoder,
 )
-import datasets
-from datasets import load_from_disk
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import RetrievalArgs
@@ -69,9 +67,9 @@ MODEL_CLASSES = {
     "dpr": (
         DPRConfig,
         PretrainRetrievalContextEncoder,
-        DPRQuestionEncoder,
-        DPRContextEncoderTokenizerFast,
-        DPRQuestionEncoderTokenizerFast,
+        AutoModel,
+        AutoTokenizer,
+        AutoTokenizer,
     ),
     "custom": (
         AutoConfig,
@@ -568,7 +566,7 @@ class PretrainRetrievalModel:
 
                 current_loss = loss.item()
                 similarity_loss = similarity_loss.item()
-                length_loss = -1  # length_loss.item() / 250
+                length_loss = length_loss.item()
 
                 if show_running_loss:
                     epoch_str = f"Epochs {epoch_number}/{args.num_train_epochs}. "
@@ -1676,35 +1674,6 @@ class PretrainRetrievalModel:
         context_outputs, span_outputs = context_model(**context_inputs)
         context_outputs = context_outputs.pooler_output
 
-        # start_positions = span_outputs.start_idx
-        # end_positions = span_outputs.end_idx
-
-        # # Clamp the end positions to be greater than the start positions
-        # end_positions = torch.where(
-        #     end_positions >= start_positions, end_positions, start_positions
-        # )
-
-        # # Span lengths
-        # span_lengths = end_positions - start_positions
-        # average_span_length = torch.mean(span_lengths.float()).item()
-
-        # # query_inputs is a tensor of zeros with the same shape as context_inputs.input_ids
-        # query_inputs = {
-        #     "input_ids": torch.zeros_like(context_inputs["input_ids"]),
-        #     "attention_mask": torch.zeros_like(context_inputs["attention_mask"]),
-        # }
-
-        # # query_inputs.input_ids are the spans selected from the context_inputs.input_ids
-        # for i in range(len(start_positions)):
-        #     query_inputs["input_ids"][i][
-        #         : end_positions[i] - start_positions[i] + 1
-        #     ] = context_inputs["input_ids"][
-        #         i, start_positions[i] : end_positions[i] + 1
-        #     ]
-        #     query_inputs["attention_mask"][i][
-        #         : end_positions[i] - start_positions[i] + 1
-        #     ] = 1
-
         query_inputs = {
             "input_ids": span_outputs.query_input_ids,
             "attention_mask": span_outputs.query_attention_mask,
@@ -1722,12 +1691,14 @@ class PretrainRetrievalModel:
 
         similarity_loss = criterion(softmax_score, labels)
 
-        # length_criterion = torch.nn.MSELoss()
-        # length_loss = length_criterion(
-        #     span_lengths, torch.ones_like(span_lengths).float() * 25
-        # )
+        length_criterion = torch.nn.MSELoss()
+        span_lengths = span_outputs.span_lengths
+        length_loss = length_criterion(
+            span_lengths, torch.ones_like(span_lengths).float() * 25
+        )
 
-        loss = similarity_loss  # + (length_loss / 250)
+        length_loss_weight = 1 / 250
+        loss = similarity_loss + (length_loss / length_loss_weight)
 
         max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
@@ -1741,7 +1712,7 @@ class PretrainRetrievalModel:
             correct_predictions_count,
             span_outputs.average_span_length.item(),
             similarity_loss,
-            -1,
+            length_loss / length_loss_weight,
         )
 
     def _get_inputs_dict(self, batch, evaluate=False):

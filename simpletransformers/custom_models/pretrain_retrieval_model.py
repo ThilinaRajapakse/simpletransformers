@@ -10,6 +10,7 @@ from transformers.models.bert.modeling_bert import (
     BertPreTrainedModel,
     BertEmbeddings,
     BertEncoder,
+    BertPooler,
 )
 from transformers.models.dpr.modeling_dpr import (
     DPRPretrainedContextEncoder,
@@ -26,10 +27,13 @@ class PretrainRetrievalContextEncoder(BertPreTrainedModel):
         self.embeddings = BertEmbeddings(config)
         self.encoder = BertEncoder(config)
 
-        self.span_prediction_head = nn.Linear(config.hidden_size, 2)
+        self.start_idx_prediction_head = nn.Linear(config.hidden_size, 1)
+
+        self.pooler = BertPooler(config)
+        self.length_prediction_head = nn.Linear(config.hidden_size, 1)
         self.span_selector = STESpanSelect()
 
-        self.init_weights()  # Does this work?
+        self.init_weights()
 
     def forward(
         self,
@@ -46,6 +50,7 @@ class PretrainRetrievalContextEncoder(BertPreTrainedModel):
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
+        indexing=False,
     ):
         output_attentions = (
             output_attentions
@@ -154,24 +159,41 @@ class PretrainRetrievalContextEncoder(BertPreTrainedModel):
 
         sequence_output = outputs[0]
 
-        logits = self.span_prediction_head(sequence_output)
-        start_logits, end_logits = logits.split(1, dim=-1)
-        start_logits = start_logits.squeeze(-1).contiguous()
-        end_logits = end_logits.squeeze(-1).contiguous()
+        if indexing:
+            if return_dict:
+                representation_outputs = DPRContextEncoderOutput(
+                    pooler_output=sequence_output[:, 0, :],
+                    hidden_states=outputs.hidden_states,
+                    attentions=outputs.attentions,
+                )
+            else:
+                representation_outputs = outputs[1:]
+            return representation_outputs
+
+        logits = self.start_idx_prediction_head(sequence_output)
+        start_logits = logits.squeeze(-1).contiguous()
+
+        pooled_output = self.pooler(sequence_output)
+        span_lengths = (
+            self.length_prediction_head(pooled_output).squeeze(-1).contiguous()
+        )
 
         (
             query_input_ids,
             query_attention_mask,
             average_span_length,
         ) = self.span_selector.apply(
-            start_logits, end_logits, input_ids, attention_mask
+            start_logits, span_lengths, input_ids, attention_mask
         )
 
         if not return_dict:
             representation_outputs = outputs[1:]
-            span_prediction_outputs = (query_input_ids, query_attention_mask) + outputs[
-                1:
-            ]
+            span_prediction_outputs = (
+                query_input_ids,
+                query_attention_mask,
+                span_lengths,
+                average_span_length,
+            )
             return representation_outputs, span_prediction_outputs
 
         representation_outputs = DPRContextEncoderOutput(
@@ -183,6 +205,7 @@ class PretrainRetrievalContextEncoder(BertPreTrainedModel):
         span_prediction_outputs = SpanPredictionLayerOutput(
             query_input_ids=query_input_ids,
             query_attention_mask=query_attention_mask,
+            span_lengths=span_lengths,
             average_span_length=average_span_length,
         )
 
@@ -191,17 +214,12 @@ class PretrainRetrievalContextEncoder(BertPreTrainedModel):
 
 class STESpanSelect(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, start_logits, end_logits, input_ids, attention_mask):
-        ctx.save_for_backward(start_logits, end_logits)
+    def forward(ctx, start_logits, span_lengths, input_ids, attention_mask):
+        ctx.save_for_backward(start_logits, span_lengths)
         start_positions = start_logits.argmax(dim=-1)
-        end_positions = end_logits.argmax(dim=-1)
-
-        end_positions = torch.where(
-            end_positions >= start_positions, end_positions, start_positions
-        )
-
-        span_lengths = end_positions - start_positions
-        average_span_length = torch.mean(span_lengths.float())
+        span_lengths = span_lengths.clamp(min=1)
+        average_span_length = torch.mean(span_lengths)
+        span_lengths = span_lengths.int()
 
         query_inputs = {
             "input_ids": torch.zeros_like(input_ids),
@@ -210,12 +228,14 @@ class STESpanSelect(torch.autograd.Function):
 
         # query_inputs.input_ids are the spans selected from the context_inputs.input_ids
         for i in range(len(start_positions)):
-            query_inputs["input_ids"][i][
-                : end_positions[i] - start_positions[i] + 1
-            ] = input_ids[i, start_positions[i] : end_positions[i] + 1]
-            query_inputs["attention_mask"][i][
-                : end_positions[i] - start_positions[i] + 1
-            ] = 1
+            selected_span = input_ids[
+                i,
+                start_positions[i] : torch.clamp(
+                    start_positions[i] + span_lengths[i], max=500
+                ),
+            ]
+            query_inputs["input_ids"][i][: len(selected_span)] = selected_span
+            query_inputs["attention_mask"][i][: len(selected_span)] = 1
 
         return (
             query_inputs["input_ids"],
@@ -232,4 +252,5 @@ class STESpanSelect(torch.autograd.Function):
 class SpanPredictionLayerOutput(ModelOutput):
     query_input_ids = None
     query_attention_mask = None
+    span_lengths = None
     average_span_length = None

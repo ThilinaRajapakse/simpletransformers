@@ -125,11 +125,12 @@ def embed(documents, encoder, tokenizer, device, fp16, amp=None):
                         documents["passages"],
                         truncation=True,
                         padding="longest",
+                        max_length=512,  # TODO: Fix hardcoded value
                         return_tensors="pt",
                     )["input_ids"]
-                    embeddings = encoder(input_ids.to(device=device), return_dict=True)[
-                        0
-                    ].pooler_output
+                    embeddings = encoder(
+                        input_ids.to(device=device), return_dict=True, indexing=True
+                    ).pooler_output
                 except (TypeError, ValueError) as e:
                     logger.warn(e)
                     logger.warn(
@@ -142,11 +143,12 @@ def embed(documents, encoder, tokenizer, device, fp16, amp=None):
                         documents["passages"],
                         truncation=True,
                         padding="longest",
+                        max_length=512,  # TODO: Fix hardcoded value
                         return_tensors="pt",
                     )["input_ids"]
-                    embeddings = encoder(input_ids.to(device=device), return_dict=True)[
-                        0
-                    ].pooler_output
+                    embeddings = encoder(
+                        input_ids.to(device=device), return_dict=True, indexing=True
+                    ).pooler_output
             # Embeddings need to be float32 for indexing
             embeddings = embeddings.float()
         else:
@@ -155,11 +157,12 @@ def embed(documents, encoder, tokenizer, device, fp16, amp=None):
                     documents["passages"],
                     truncation=True,
                     padding="longest",
+                    max_length=512,  # TODO: Fix hardcoded value
                     return_tensors="pt",
                 )["input_ids"]
-                embeddings = encoder(input_ids.to(device=device), return_dict=True)[
-                    0
-                ].pooler_output
+                embeddings = encoder(
+                    input_ids.to(device=device), return_dict=True, indexing=True
+                ).pooler_output
             except (TypeError, ValueError) as e:
                 logger.warn(e)
                 logger.warn(
@@ -172,11 +175,12 @@ def embed(documents, encoder, tokenizer, device, fp16, amp=None):
                     documents["passages"],
                     truncation=True,
                     padding="longest",
+                    max_length=512,  # TODO: Fix hardcoded value
                     return_tensors="pt",
                 )["input_ids"]
-                embeddings = encoder(input_ids.to(device=device), return_dict=True)[
-                    0
-                ].pooler_output
+                embeddings = encoder(
+                    input_ids.to(device=device), return_dict=True, indexing=True
+                ).pooler_output
 
     return {"embeddings": embeddings.detach().cpu().numpy()}
 
