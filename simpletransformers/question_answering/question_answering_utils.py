@@ -24,8 +24,8 @@ from torch.utils.data import (
     TensorDataset,
 )
 from tqdm import tqdm, trange
+from torch.optim import AdamW
 from transformers import (
-    AdamW,
     SquadExample,
     XLMTokenizer,
     get_linear_schedule_with_warmup,
