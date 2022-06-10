@@ -117,7 +117,8 @@ from transformers import (
     XLNetTokenizerFast,
 )
 from transformers.convert_graph_to_onnx import convert, quantize
-from transformers.optimization import AdamW, Adafactor
+from torch.optim import AdamW
+from transformers.optimization import Adafactor
 from transformers.optimization import (
     get_constant_schedule,
     get_constant_schedule_with_warmup,
