@@ -2,6 +2,8 @@ import sys
 from multiprocessing import cpu_count
 
 global_args = {
+    "adam_beta1": 0.98,
+    "adam_beta2": 0.98,
     "adam_epsilon": 1e-8,
     "best_model_dir": "outputs/best_model",
     "cache_dir": "cache_dir/",
