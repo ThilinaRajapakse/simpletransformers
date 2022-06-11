@@ -29,6 +29,8 @@ class ModelArgs:
     adafactor_relative_step: bool = True
     adafactor_scale_parameter: bool = True
     adafactor_warmup_init: bool = True
+    adam_beta1: float = 0.98
+    adam_beta2: float = 0.98
     adam_epsilon: float = 1e-8
     best_model_dir: str = "outputs/best_model"
     cache_dir: str = "cache_dir/"
