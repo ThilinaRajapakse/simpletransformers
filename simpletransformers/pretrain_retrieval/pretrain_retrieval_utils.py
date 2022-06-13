@@ -72,6 +72,9 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
                 }
             )
 
+    if "passages" in dataset.column_names and "gold_passage" not in dataset.column_names:
+        dataset = dataset.rename_column("passages", "gold_passage")
+
     dataset = dataset.map(
         lambda x: preprocess_batch_for_hf_dataset(
             x,

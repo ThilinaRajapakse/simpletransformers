@@ -18,6 +18,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
+import torch.distributed as dist
 from tqdm.auto import tqdm, trange
 from transformers.optimization import (
     get_constant_schedule,
@@ -301,6 +302,14 @@ class PretrainRetrievalModel:
             )
 
         if self.args.ddp_training:
+            # os.environ['MASTER_ADDR'] = '127.0.0.1'
+            # os.environ['MASTER_PORT'] = ''
+            # torch.distributed.init_process_group(
+            #     backend="nccl",
+            #     init_method="file:///home/thilina/PhD/qe_probing/pretrain_dpr/sfs/shared_file",
+            #     world_size=kwargs["world_size"],
+            #     rank=kwargs["rank"],
+            # )
             self.context_encoder = self.context_encoder.to(kwargs["rank"])
             self.query_encoder = self.query_encoder.to(kwargs["rank"])
             self.context_encoder = DDP(
@@ -325,11 +334,12 @@ class PretrainRetrievalModel:
             **kwargs,
         )
 
-        self.save_model(
-            self.args.output_dir,
-            context_model=self.context_encoder,
-            query_model=self.query_encoder,
-        )
+        if "rank" not in kwargs or kwargs["rank"] == 0:
+            self.save_model(
+                self.args.output_dir,
+                context_model=self.context_encoder,
+                query_model=self.query_encoder,
+            )
 
         if verbose:
             logger.info(
@@ -361,7 +371,12 @@ class PretrainRetrievalModel:
         args = self.args
 
         tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
-        train_sampler = RandomSampler(train_dataset)
+        if args.ddp_training:
+            train_sampler = torch.utils.data.distributed.DistributedSampler(
+                train_dataset, num_replicas=kwargs["world_size"], rank=kwargs["rank"]
+            )
+        else:
+            train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
             sampler=train_sampler,
@@ -454,6 +469,9 @@ class PretrainRetrievalModel:
         early_stopping_counter = 0
         steps_trained_in_current_epoch = 0
         epochs_trained = 0
+        max_span_length = 25
+        min_span_length = 5
+        current_span_length_target = max_span_length
 
         if args.model_name and os.path.exists(args.model_name):
             try:
@@ -486,7 +504,12 @@ class PretrainRetrievalModel:
         if args.evaluate_during_training:
             training_progress_scores = self._create_training_progress_scores(**kwargs)
 
-        if args.wandb_project:
+        if args.wandb_project and ("rank" not in kwargs or kwargs["rank"] == 0):
+            log_to_wandb = True
+        else:
+            log_to_wandb = False
+
+        if log_to_wandb:
             wandb.init(
                 project=args.wandb_project,
                 config={**asdict(args)},
@@ -529,6 +552,15 @@ class PretrainRetrievalModel:
                 # batch = tuple(t.to(device) for t in batch)
 
                 context_inputs, labels = self._get_inputs_dict(batch)
+
+                # span_length_target decays linearly from max to min
+                # t_total is the total number of steps in the training
+                # global_step is the number of steps taken so far
+                current_span_length_target = (
+                    max_span_length
+                    - (max_span_length - min_span_length) * global_step / t_total
+                )
+
                 if args.fp16:
                     with amp.autocast():
                         (
@@ -544,6 +576,7 @@ class PretrainRetrievalModel:
                             context_inputs,
                             labels,
                             criterion,
+                            current_span_length_target,
                         )
                 else:
                     (
@@ -559,6 +592,7 @@ class PretrainRetrievalModel:
                         context_inputs,
                         labels,
                         criterion,
+                        current_span_length_target,
                     )
 
                 if args.n_gpu > 1:
@@ -574,7 +608,7 @@ class PretrainRetrievalModel:
                     similarity_loss_str = f"Similarity Loss: {similarity_loss:9.4f} "
                     length_loss_str = f"Length Loss: {length_loss:9.4f} "
                     correct_count_str = f"Correct count: {correct_count} "
-                    average_span_length_str = f"Avg span length: {average_span_length}"
+                    average_span_length_str = f"Length: {average_span_length} -> {current_span_length_target:2.2f}"
 
                     description_str = (
                         epoch_str
@@ -627,7 +661,7 @@ class PretrainRetrievalModel:
                             global_step,
                         )
                         logging_loss = tr_loss
-                        if args.wandb_project or self.is_sweeping:
+                        if log_to_wandb or self.is_sweeping:
                             wandb.log(
                                 {
                                     "Training loss": current_loss,
@@ -637,22 +671,24 @@ class PretrainRetrievalModel:
                                     "average_span_length": average_span_length,
                                     "similarity_loss": similarity_loss,
                                     "length_loss": length_loss,
+                                    "current_span_length_target": current_span_length_target,
                                 }
                             )
 
                     if args.save_steps > 0 and global_step % args.save_steps == 0:
-                        # Save model checkpoint
-                        output_dir_current = os.path.join(
-                            output_dir, "checkpoint-{}".format(global_step)
-                        )
+                        if "rank" not in kwargs or kwargs["rank"] == 0:
+                            # Save model checkpoint
+                            output_dir_current = os.path.join(
+                                output_dir, "checkpoint-{}".format(global_step)
+                            )
 
-                        self.save_model(
-                            output_dir_current,
-                            optimizer,
-                            scheduler,
-                            context_model=context_model,
-                            query_model=query_model,
-                        )
+                            self.save_model(
+                                output_dir_current,
+                                optimizer,
+                                scheduler,
+                                context_model=context_model,
+                                query_model=query_model,
+                            )
 
                     if args.evaluate_during_training and (
                         args.evaluate_during_training_steps > 0
@@ -679,14 +715,15 @@ class PretrainRetrievalModel:
                         )
 
                         if args.save_eval_checkpoints:
-                            self.save_model(
-                                output_dir_current,
-                                optimizer,
-                                scheduler,
-                                context_model=context_model,
-                                query_model=query_model,
-                                results=results,
-                            )
+                            if "rank" not in kwargs or kwargs["rank"] == 0:
+                                self.save_model(
+                                    output_dir_current,
+                                    optimizer,
+                                    scheduler,
+                                    context_model=context_model,
+                                    query_model=query_model,
+                                    results=results,
+                                )
 
                         training_progress_scores["global_step"].append(global_step)
                         training_progress_scores["train_loss"].append(current_loss)
@@ -700,27 +737,13 @@ class PretrainRetrievalModel:
                             index=False,
                         )
 
-                        if args.wandb_project or self.is_sweeping:
+                        if log_to_wandb or self.is_sweeping:
                             wandb.log(self._get_last_metrics(training_progress_scores))
 
                         if not best_eval_metric:
                             best_eval_metric = results[args.early_stopping_metric]
                             if args.save_best_model:
-                                self.save_model(
-                                    args.best_model_dir,
-                                    optimizer,
-                                    scheduler,
-                                    context_model=context_model,
-                                    query_model=query_model,
-                                    results=results,
-                                )
-                        if best_eval_metric and args.early_stopping_metric_minimize:
-                            if (
-                                results[args.early_stopping_metric] - best_eval_metric
-                                < args.early_stopping_delta
-                            ):
-                                best_eval_metric = results[args.early_stopping_metric]
-                                if args.save_best_model:
+                                if "rank" not in kwargs or kwargs["rank"] == 0:
                                     self.save_model(
                                         args.best_model_dir,
                                         optimizer,
@@ -729,6 +752,22 @@ class PretrainRetrievalModel:
                                         query_model=query_model,
                                         results=results,
                                     )
+                        if best_eval_metric and args.early_stopping_metric_minimize:
+                            if (
+                                results[args.early_stopping_metric] - best_eval_metric
+                                < args.early_stopping_delta
+                            ):
+                                best_eval_metric = results[args.early_stopping_metric]
+                                if args.save_best_model:
+                                    if "rank" not in kwargs or kwargs["rank"] == 0:
+                                        self.save_model(
+                                            args.best_model_dir,
+                                            optimizer,
+                                            scheduler,
+                                            context_model=context_model,
+                                            query_model=query_model,
+                                            results=results,
+                                        )
                                 early_stopping_counter = 0
                             else:
                                 if args.use_early_stopping:
@@ -767,14 +806,15 @@ class PretrainRetrievalModel:
                             ):
                                 best_eval_metric = results[args.early_stopping_metric]
                                 if args.save_best_model:
-                                    self.save_model(
-                                        args.best_model_dir,
-                                        optimizer,
-                                        scheduler,
-                                        context_model=context_model,
-                                        query_model=query_model,
-                                        results=results,
-                                    )
+                                    if "rank" not in kwargs or kwargs["rank"] == 0:
+                                        self.save_model(
+                                            args.best_model_dir,
+                                            optimizer,
+                                            scheduler,
+                                            context_model=context_model,
+                                            query_model=query_model,
+                                            results=results,
+                                        )
                                 early_stopping_counter = 0
                             else:
                                 if args.use_early_stopping:
@@ -818,13 +858,14 @@ class PretrainRetrievalModel:
                 os.makedirs(output_dir_current, exist_ok=True)
 
             if args.save_model_every_epoch:
-                self.save_model(
-                    output_dir_current,
-                    optimizer,
-                    scheduler,
-                    context_model=context_model,
-                    query_model=query_model,
-                )
+                if "rank" not in kwargs or kwargs["rank"] == 0:
+                    self.save_model(
+                        output_dir_current,
+                        optimizer,
+                        scheduler,
+                        context_model=context_model,
+                        query_model=query_model,
+                    )
 
             if args.evaluate_during_training and args.evaluate_each_epoch:
                 results, *_ = self.eval_model(
@@ -836,9 +877,10 @@ class PretrainRetrievalModel:
                 )
 
                 if args.save_eval_checkpoints:
-                    self.save_model(
-                        output_dir_current, optimizer, scheduler, results=results
-                    )
+                    if "rank" not in kwargs or kwargs["rank"] == 0:
+                        self.save_model(
+                            output_dir_current, optimizer, scheduler, results=results
+                        )
 
                 training_progress_scores["global_step"].append(global_step)
                 training_progress_scores["train_loss"].append(current_loss)
@@ -850,27 +892,13 @@ class PretrainRetrievalModel:
                     index=False,
                 )
 
-                if args.wandb_project or self.is_sweeping:
+                if log_to_wandb or self.is_sweeping:
                     wandb.log(self._get_last_metrics(training_progress_scores))
 
                 if not best_eval_metric:
                     best_eval_metric = results[args.early_stopping_metric]
                     if args.save_best_model:
-                        self.save_model(
-                            args.best_model_dir,
-                            optimizer,
-                            scheduler,
-                            context_model=context_model,
-                            query_model=query_model,
-                            results=results,
-                        )
-                if best_eval_metric and args.early_stopping_metric_minimize:
-                    if (
-                        results[args.early_stopping_metric] - best_eval_metric
-                        < args.early_stopping_delta
-                    ):
-                        best_eval_metric = results[args.early_stopping_metric]
-                        if args.save_best_model:
+                        if "rank" not in kwargs or kwargs["rank"] == 0:
                             self.save_model(
                                 args.best_model_dir,
                                 optimizer,
@@ -879,6 +907,22 @@ class PretrainRetrievalModel:
                                 query_model=query_model,
                                 results=results,
                             )
+                if best_eval_metric and args.early_stopping_metric_minimize:
+                    if (
+                        results[args.early_stopping_metric] - best_eval_metric
+                        < args.early_stopping_delta
+                    ):
+                        best_eval_metric = results[args.early_stopping_metric]
+                        if args.save_best_model:
+                            if "rank" not in kwargs or kwargs["rank"] == 0:
+                                self.save_model(
+                                    args.best_model_dir,
+                                    optimizer,
+                                    scheduler,
+                                    context_model=context_model,
+                                    query_model=query_model,
+                                    results=results,
+                                )
                         early_stopping_counter = 0
                     else:
                         if (
@@ -917,14 +961,15 @@ class PretrainRetrievalModel:
                     ):
                         best_eval_metric = results[args.early_stopping_metric]
                         if args.save_best_model:
-                            self.save_model(
-                                args.best_model_dir,
-                                optimizer,
-                                scheduler,
-                                context_model=context_model,
-                                query_model=query_model,
-                                results=results,
-                            )
+                            if "rank" not in kwargs or kwargs["rank"] == 0:
+                                self.save_model(
+                                    args.best_model_dir,
+                                    optimizer,
+                                    scheduler,
+                                    context_model=context_model,
+                                    query_model=query_model,
+                                    results=results,
+                                )
                         early_stopping_counter = 0
                     else:
                         if (
@@ -1669,6 +1714,7 @@ class PretrainRetrievalModel:
         context_inputs,
         labels,
         criterion,
+        current_span_length_target,
     ):
 
         context_outputs, span_outputs = context_model(**context_inputs)
@@ -1694,11 +1740,12 @@ class PretrainRetrievalModel:
         length_criterion = torch.nn.MSELoss()
         span_lengths = span_outputs.span_lengths
         length_loss = length_criterion(
-            span_lengths, torch.ones_like(span_lengths).float() * 25
+            span_lengths,
+            torch.ones_like(span_lengths).float() * current_span_length_target,
         )
 
         length_loss_weight = 1 / 250
-        loss = similarity_loss + (length_loss / length_loss_weight)
+        loss = similarity_loss + (length_loss * length_loss_weight)
 
         max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
@@ -1712,7 +1759,7 @@ class PretrainRetrievalModel:
             correct_predictions_count,
             span_outputs.average_span_length.item(),
             similarity_loss,
-            length_loss / length_loss_weight,
+            length_loss * length_loss_weight,
         )
 
     def _get_inputs_dict(self, batch, evaluate=False):

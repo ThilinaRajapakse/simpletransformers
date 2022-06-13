@@ -216,7 +216,20 @@ class STESpanSelect(torch.autograd.Function):
     @staticmethod
     def forward(ctx, start_logits, span_lengths, input_ids, attention_mask):
         ctx.save_for_backward(start_logits, span_lengths)
-        start_positions = start_logits.argmax(dim=-1)
+
+        # Get top 3 positions
+        sorted_positions = torch.argsort(start_logits, descending=True)
+        top_positions = sorted_positions[:, :3]
+
+        # Randomly shuffle top_positions independently for each row
+        start_positions = torch.zeros(
+            (top_positions.size(0), 1), dtype=torch.long, device=input_ids.device
+        )
+        for i in range(top_positions.size(0)):
+            start_positions[i] = top_positions[
+                i, torch.randperm(top_positions.size(1))[0]
+            ]
+
         span_lengths = span_lengths.clamp(min=1)
         average_span_length = torch.mean(span_lengths)
         span_lengths = span_lengths.int()
