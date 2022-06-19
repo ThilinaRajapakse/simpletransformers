@@ -313,9 +313,9 @@ class PretrainRetrievalModel:
             self.context_encoder = self.context_encoder.to(kwargs["rank"])
             self.query_encoder = self.query_encoder.to(kwargs["rank"])
             self.context_encoder = DDP(
-                self.context_encoder, device_ids=[kwargs["rank"]]
+                self.context_encoder, device_ids=[kwargs["rank"]], find_unused_parameters=True
             )
-            self.query_encoder = DDP(self.query_encoder, device_ids=[kwargs["rank"]])
+            self.query_encoder = DDP(self.query_encoder, device_ids=[kwargs["rank"]], find_unused_parameters=True)
             self.device = kwargs["rank"]
         else:
             self._move_model_to_device()
@@ -370,12 +370,17 @@ class PretrainRetrievalModel:
         query_model = self.query_encoder
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
         if args.ddp_training:
+            if kwargs["rank"] == 0:
+                tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+            else:
+                tb_writer = None
+
             train_sampler = torch.utils.data.distributed.DistributedSampler(
                 train_dataset, num_replicas=kwargs["world_size"], rank=kwargs["rank"]
             )
         else:
+            tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
             train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
@@ -650,7 +655,7 @@ class PretrainRetrievalModel:
                     query_model.zero_grad()
                     global_step += 1
 
-                    if args.logging_steps > 0 and global_step % args.logging_steps == 0:
+                    if args.logging_steps > 0 and global_step % args.logging_steps == 0 and tb_writer is not None:
                         # Log metrics
                         tb_writer.add_scalar(
                             "lr", scheduler.get_last_lr()[0], global_step
@@ -693,6 +698,7 @@ class PretrainRetrievalModel:
                     if args.evaluate_during_training and (
                         args.evaluate_during_training_steps > 0
                         and global_step % args.evaluate_during_training_steps == 0
+                        and tb_writer is not None
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
                         results, *_ = self.eval_model(
@@ -1757,7 +1763,7 @@ class PretrainRetrievalModel:
             context_outputs,
             query_outputs,
             correct_predictions_count,
-            span_outputs.average_span_length.item(),
+            torch.mean(span_outputs.span_lengths).item(),
             similarity_loss,
             length_loss * length_loss_weight,
         )

@@ -181,7 +181,7 @@ class PretrainRetrievalContextEncoder(BertPreTrainedModel):
         (
             query_input_ids,
             query_attention_mask,
-            average_span_length,
+            # average_span_length,
         ) = self.span_selector.apply(
             start_logits, span_lengths, input_ids, attention_mask
         )
@@ -192,7 +192,7 @@ class PretrainRetrievalContextEncoder(BertPreTrainedModel):
                 query_input_ids,
                 query_attention_mask,
                 span_lengths,
-                average_span_length,
+                # average_span_length,
             )
             return representation_outputs, span_prediction_outputs
 
@@ -206,7 +206,7 @@ class PretrainRetrievalContextEncoder(BertPreTrainedModel):
             query_input_ids=query_input_ids,
             query_attention_mask=query_attention_mask,
             span_lengths=span_lengths,
-            average_span_length=average_span_length,
+            # average_span_length=average_span_length,
         )
 
         return representation_outputs, span_prediction_outputs
@@ -231,7 +231,7 @@ class STESpanSelect(torch.autograd.Function):
             ]
 
         span_lengths = span_lengths.clamp(min=1)
-        average_span_length = torch.mean(span_lengths)
+        # average_span_length = torch.mean(span_lengths)
         span_lengths = span_lengths.int()
 
         query_inputs = {
@@ -253,7 +253,7 @@ class STESpanSelect(torch.autograd.Function):
         return (
             query_inputs["input_ids"],
             query_inputs["attention_mask"],
-            average_span_length,
+            # average_span_length,
         )
 
     @staticmethod
