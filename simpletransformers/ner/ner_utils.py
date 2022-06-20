@@ -17,12 +17,16 @@
 
 from __future__ import absolute_import, division, print_function
 import enum
-import collections
 import linecache
 import logging
 import os
 from io import open
 from multiprocessing import Pool, cpu_count
+
+try:
+    from collections import Iterable, Mapping
+except ImportError:
+    from collections.abc import Iterable, Mapping
 
 import pandas as pd
 import torch
@@ -753,11 +757,11 @@ class LazyNERDataset(Dataset):
 
 def flatten_results(results, parent_key="", sep="/"):
     out = []
-    if isinstance(results, collections.Mapping):
+    if isinstance(results, Mapping):
         for key, value in results.items():
             pkey = parent_key + sep + str(key) if parent_key else str(key)
             out.extend(flatten_results(value, parent_key=pkey).items())
-    elif isinstance(results, collections.Iterable):
+    elif isinstance(results, Iterable):
         for key, value in enumerate(results):
             pkey = parent_key + sep + str(key) if parent_key else str(key)
             out.extend(flatten_results(value, parent_key=pkey).items())

@@ -1,10 +1,14 @@
 from typing import Optional, Union
-from collections import Iterable
 from numbers import Real
 import warnings
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+try:
+    from collections import Iterable
+except ImportError:
+    from collections.abc import Iterable
 
 # based on:
 # https://github.com/zhezh/focalloss/blob/master/focalloss.py
