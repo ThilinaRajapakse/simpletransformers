@@ -1302,7 +1302,7 @@ class Seq2SeqModel:
                 )["input_ids"]
             input_ids = input_ids.to(self.device)
 
-            if self.args.model_type in ["bart", "marian"]:
+            if self.args.model_type in ["bart", "marian", "pegasus"]:
                 outputs = self.model.generate(
                     input_ids=input_ids,
                     num_beams=self.args.num_beams,
@@ -1496,7 +1496,7 @@ class Seq2SeqModel:
                     encoder_tokenizer, decoder_tokenizer, args, data, mode
                 )
             else:
-                if args.model_type in ["bart", "mbart", "marian"]:
+                if args.model_type in ["bart", "mbart", "marian", "pegasus"]:
                     return SimpleSummarizationDataset(
                         encoder_tokenizer, self.args, data, mode
                     )
@@ -1548,6 +1548,7 @@ class Seq2SeqModel:
                 "marian",
                 "rag-token",
                 "rag-sequence",
+                "pegasus"
             ]:
                 os.makedirs(os.path.join(output_dir), exist_ok=True)
                 model_to_save.save_pretrained(output_dir)
@@ -1558,6 +1559,7 @@ class Seq2SeqModel:
                     "mbart",
                     "rag-token",
                     "rag-sequence",
+                    "pegasus"
                 ]:
                     self.encoder_tokenizer.save_pretrained(output_dir)
 
@@ -1618,7 +1620,7 @@ class Seq2SeqModel:
 
     def _get_inputs_dict(self, batch):
         device = self.device
-        if self.args.model_type in ["bart", "marian"]:
+        if self.args.model_type in ["bart", "marian", "pegasus"]:
             pad_token_id = self.encoder_tokenizer.pad_token_id
             source_ids, source_mask, labels = (
                 batch["source_ids"],
