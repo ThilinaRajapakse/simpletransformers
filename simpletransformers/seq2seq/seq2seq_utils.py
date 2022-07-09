@@ -39,7 +39,7 @@ else:
 def preprocess_batch_for_hf_dataset(
     dataset, encoder_tokenizer, decoder_tokenizer, args
 ):
-    if args.model_type == "bart":
+    if args.model_type == "bart" or args.model_type == "pegasus":
         input_ids = encoder_tokenizer.batch_encode_plus(
             dataset["input_text"],
             max_length=args.max_seq_length,
@@ -179,7 +179,7 @@ def load_hf_dataset(data, encoder_tokenizer, decoder_tokenizer, args):
         batched=True,
     )
 
-    if args.model_type == "bart":
+    if args.model_type == "bart" or args.model_type == "pegasus":
         column_names = [
             "source_ids",
             "source_mask",
