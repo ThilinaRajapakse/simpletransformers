@@ -69,6 +69,10 @@ from transformers import (
     RobertaConfig,
     RobertaModel,
     RobertaTokenizerFast,
+    PegasusConfig,
+    PegasusTokenizerFast,
+    PegasusForConditionalGeneration
+
 )
 import datasets
 from datasets import load_from_disk
@@ -110,6 +114,7 @@ MODEL_CLASSES = {
     "rag-token": (RagConfig, RagTokenForGeneration, RagTokenizer, RagRetriever),
     "rag-sequence": (RagConfig, RagSequenceForGeneration, RagTokenizer, RagRetriever),
     "roberta": (RobertaConfig, RobertaModel, RobertaTokenizerFast),
+    "pegasus": (PegasusConfig, PegasusForConditionalGeneration, PegasusTokenizerFast)
 }
 
 
