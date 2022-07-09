@@ -311,9 +311,9 @@ class Seq2SeqModel:
             else:
                 config_class, model_class, tokenizer_class = MODEL_CLASSES[encoder_type]
 
-            if encoder_decoder_type in ["bart", "mbart", "marian"]:
+            if encoder_decoder_type in ["bart", "mbart", "marian", "pegasus"]:
                 self.model = model_class.from_pretrained(encoder_decoder_name)
-                if encoder_decoder_type in ["bart", "mbart"]:
+                if encoder_decoder_type in ["bart", "mbart", "pegasus"]:
                     self.encoder_tokenizer = tokenizer_class.from_pretrained(
                         encoder_decoder_name
                     )
