@@ -38,6 +38,13 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
                 else "reuse_dataset_if_exists",
             )
             dataset = dataset["train"]
+        # If data is a directory, then it should be a HF dataset
+        elif os.path.isdir(data):
+            dataset = load_from_disk(data)
+            try:
+                dataset = dataset["train"]
+            except KeyError:
+                pass
         else:
             dataset = load_dataset(
                 "csv",
@@ -72,7 +79,10 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
                 }
             )
 
-    if "passages" in dataset.column_names and "gold_passage" not in dataset.column_names:
+    if (
+        "passages" in dataset.column_names
+        and "gold_passage" not in dataset.column_names
+    ):
         dataset = dataset.rename_column("passages", "gold_passage")
 
     dataset = dataset.map(

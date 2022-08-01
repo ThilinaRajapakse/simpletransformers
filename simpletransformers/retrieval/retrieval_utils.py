@@ -38,6 +38,13 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
                 else "reuse_dataset_if_exists",
             )
             dataset = dataset["train"]
+        # If data is a directory, then it should be a HF dataset
+        elif os.path.isdir(data):
+            dataset = load_from_disk(data)
+            try:
+                dataset = dataset["train"]
+            except KeyError:
+                pass
         else:
             dataset = load_dataset(
                 "csv",
@@ -649,6 +656,17 @@ class DPRIndex(Index):
 
     def __len__(self):
         return len(self.dataset)
+
+
+class PrecomputedEmbeddingsDataset(Dataset):
+    def __init__(self, embeddings_path):
+        self.embeddings = torch.load(embeddings_path)
+
+    def __getitem__(self, index):
+        return self.embeddings[index]
+
+    def __len__(self):
+        return len(self.embeddings)
 
 
 def mean_reciprocal_rank_at_k(rs, k):

@@ -313,9 +313,15 @@ class PretrainRetrievalModel:
             self.context_encoder = self.context_encoder.to(kwargs["rank"])
             self.query_encoder = self.query_encoder.to(kwargs["rank"])
             self.context_encoder = DDP(
-                self.context_encoder, device_ids=[kwargs["rank"]], find_unused_parameters=True
+                self.context_encoder,
+                device_ids=[kwargs["rank"]],
+                find_unused_parameters=True,
             )
-            self.query_encoder = DDP(self.query_encoder, device_ids=[kwargs["rank"]], find_unused_parameters=True)
+            self.query_encoder = DDP(
+                self.query_encoder,
+                device_ids=[kwargs["rank"]],
+                find_unused_parameters=True,
+            )
             self.device = kwargs["rank"]
         else:
             self._move_model_to_device()
@@ -475,7 +481,7 @@ class PretrainRetrievalModel:
         steps_trained_in_current_epoch = 0
         epochs_trained = 0
         max_span_length = 25
-        min_span_length = 5
+        min_span_length = 10
         current_span_length_target = max_span_length
 
         if args.model_name and os.path.exists(args.model_name):
@@ -655,7 +661,11 @@ class PretrainRetrievalModel:
                     query_model.zero_grad()
                     global_step += 1
 
-                    if args.logging_steps > 0 and global_step % args.logging_steps == 0 and tb_writer is not None:
+                    if (
+                        args.logging_steps > 0
+                        and global_step % args.logging_steps == 0
+                        and tb_writer is not None
+                    ):
                         # Log metrics
                         tb_writer.add_scalar(
                             "lr", scheduler.get_last_lr()[0], global_step

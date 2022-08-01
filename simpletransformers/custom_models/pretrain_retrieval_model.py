@@ -181,10 +181,34 @@ class PretrainRetrievalContextEncoder(BertPreTrainedModel):
         (
             query_input_ids,
             query_attention_mask,
+            masked_input_ids
             # average_span_length,
         ) = self.span_selector.apply(
             start_logits, span_lengths, input_ids, attention_mask
         )
+
+        # Recompute context output with masked span
+        embedding_output = self.embeddings(
+            input_ids=masked_input_ids,
+            position_ids=position_ids,
+            token_type_ids=token_type_ids,
+            inputs_embeds=inputs_embeds,
+            past_key_values_length=past_key_values_length,
+        )
+        outputs = self.encoder(
+            embedding_output,
+            attention_mask=extended_attention_mask,
+            head_mask=head_mask,
+            encoder_hidden_states=encoder_hidden_states,
+            encoder_attention_mask=encoder_extended_attention_mask,
+            past_key_values=past_key_values,
+            use_cache=use_cache,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        sequence_output = outputs[0]
 
         if not return_dict:
             representation_outputs = outputs[1:]
@@ -238,8 +262,11 @@ class STESpanSelect(torch.autograd.Function):
             "input_ids": torch.zeros_like(input_ids),
             "attention_mask": torch.zeros_like(attention_mask),
         }
+        query_inputs["input_ids"][:, 0] = 101  # [CLS]
 
         # query_inputs.input_ids are the spans selected from the context_inputs.input_ids
+        # Mask out the selected spans in the input_ids
+        masked_input_ids = input_ids.clone()
         for i in range(len(start_positions)):
             selected_span = input_ids[
                 i,
@@ -247,12 +274,18 @@ class STESpanSelect(torch.autograd.Function):
                     start_positions[i] + span_lengths[i], max=500
                 ),
             ]
-            query_inputs["input_ids"][i][: len(selected_span)] = selected_span
-            query_inputs["attention_mask"][i][: len(selected_span)] = 1
+            query_inputs["input_ids"][i][1 : len(selected_span) + 1] = selected_span
+            query_inputs["input_ids"][i][len(selected_span) + 1] = 102  # [SEP]
+            query_inputs["attention_mask"][i][: len(selected_span) + 2] = 1
+
+            masked_input_ids[i, start_positions[i] : torch.clamp(
+                start_positions[i] + span_lengths[i], max=500
+            )] = 103  # [MASK]
 
         return (
             query_inputs["input_ids"],
             query_inputs["attention_mask"],
+            masked_input_ids
             # average_span_length,
         )
 
