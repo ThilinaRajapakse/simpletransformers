@@ -24,6 +24,8 @@ from transformers import (
     HerbertTokenizer,
     FlaubertConfig,
     FlaubertTokenizer,
+    LayoutLMConfig,
+    LayoutLMTokenizerFast,
     LongformerConfig,
     LongformerTokenizer,
     RemBertConfig,
@@ -52,6 +54,7 @@ from simpletransformers.custom_models.models import (
     DistilBertForMultiLabelSequenceClassification,
     ElectraForMultiLabelSequenceClassification,
     FlaubertForMultiLabelSequenceClassification,
+    LayoutLMForMultiLabelSequenceClassification,
     LongformerForMultiLabelSequenceClassification,
     RemBertForMultiLabelSequenceClassification,
     RobertaForMultiLabelSequenceClassification,
@@ -143,6 +146,11 @@ class MultiLabelClassificationModel(ClassificationModel):
                 FlaubertConfig,
                 FlaubertForMultiLabelSequenceClassification,
                 FlaubertTokenizer,
+            ),
+            "layoutlm": (
+                LayoutLMConfig,
+                LayoutLMForMultiLabelSequenceClassification,
+                LayoutLMTokenizerFast,
             ),
             "longformer": (
                 LongformerConfig,
