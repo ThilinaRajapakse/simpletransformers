@@ -47,6 +47,7 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import RetrievalArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.retrieval.retrieval_utils import (
+    get_clustered_passage_dataset,
     get_prediction_passage_dataset,
     load_hf_dataset,
     get_evaluation_passage_dataset,
@@ -247,6 +248,7 @@ class RetrievalModel:
         args=None,
         eval_data=None,
         additional_eval_passages=None,
+        clustered_training=False,
         verbose=True,
         **kwargs,
     ):
@@ -310,7 +312,9 @@ class RetrievalModel:
         else:
             self._move_model_to_device()
 
-        train_dataset = self.load_and_cache_examples(train_data, verbose=verbose)
+        train_dataset = self.load_and_cache_examples(
+            train_data, verbose=verbose, clustered_training=clustered_training
+        )
 
         os.makedirs(output_dir, exist_ok=True)
 
@@ -320,6 +324,8 @@ class RetrievalModel:
             show_running_loss=show_running_loss,
             eval_data=eval_data,
             additional_eval_passages=additional_eval_passages,
+            clustered_training=clustered_training,
+            train_data=train_data,
             verbose=verbose,
             **kwargs,
         )
@@ -346,6 +352,8 @@ class RetrievalModel:
         show_running_loss=True,
         eval_data=None,
         additional_eval_passages=None,
+        clustered_training=False,
+        train_data=None,
         verbose=True,
         **kwargs,
     ):
@@ -367,6 +375,9 @@ class RetrievalModel:
             batch_size=args.train_batch_size,
             num_workers=self.args.dataloader_num_workers,
         )
+
+        if clustered_training:
+            train_dataloader = train_dataset
 
         if args.max_steps > 0:
             t_total = args.max_steps
@@ -781,6 +792,13 @@ class RetrievalModel:
             output_dir_current = os.path.join(
                 output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
             )
+
+            if clustered_training:
+                train_dataset = self.load_and_cache_examples(
+                    train_data, verbose=verbose, clustered_training=clustered_training
+                )
+                train_sampler = RandomSampler(train_dataset)
+                train_dataloader = train_dataset
 
             if args.save_model_every_epoch or args.evaluate_during_training:
                 os.makedirs(output_dir_current, exist_ok=True)
@@ -1449,7 +1467,13 @@ class RetrievalModel:
         return hard_negative_df
 
     def load_and_cache_examples(
-        self, data, evaluate=False, no_cache=False, verbose=True, silent=False
+        self,
+        data,
+        evaluate=False,
+        no_cache=False,
+        verbose=True,
+        silent=False,
+        clustered_training=False,
     ):
         """
         Creates a IRDataset from data
@@ -1465,6 +1489,16 @@ class RetrievalModel:
             dataset = load_hf_dataset(
                 data, self.context_tokenizer, self.query_tokenizer, self.args
             )
+
+            if clustered_training:
+                return get_clustered_passage_dataset(
+                    dataset,
+                    self.args.train_batch_size,
+                    self.context_encoder,
+                    self.context_tokenizer,
+                    self.args,
+                    self.device,
+                )
 
             return dataset
         else:

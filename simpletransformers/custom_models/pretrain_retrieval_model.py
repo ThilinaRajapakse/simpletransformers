@@ -278,9 +278,12 @@ class STESpanSelect(torch.autograd.Function):
             query_inputs["input_ids"][i][len(selected_span) + 1] = 102  # [SEP]
             query_inputs["attention_mask"][i][: len(selected_span) + 2] = 1
 
-            masked_input_ids[i, start_positions[i] : torch.clamp(
-                start_positions[i] + span_lengths[i], max=500
-            )] = 103  # [MASK]
+            masked_input_ids[
+                i,
+                start_positions[i] : torch.clamp(
+                    start_positions[i] + span_lengths[i], max=500
+                ),
+            ] = 103  # [MASK]
 
         return (
             query_inputs["input_ids"],

@@ -361,7 +361,7 @@ class RetrievalArgs(Seq2SeqArgs):
     model_class: str = "RetrievalModel"
     context_config: dict = field(default_factory=dict)
     ddp_training: bool = False
-    embed_batch_size: int = 64
+    embed_batch_size: int = 128
     faiss_index_type: str = "IndexFlatIP"
     hard_negatives: bool = False
     include_title: bool = True

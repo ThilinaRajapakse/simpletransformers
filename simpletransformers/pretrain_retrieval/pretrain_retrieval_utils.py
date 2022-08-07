@@ -9,6 +9,7 @@ from datasets.load import load_from_disk
 import torch
 import transformers
 import numpy as np
+from sklearn.cluster import MiniBatchKMeans
 
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
@@ -128,11 +129,51 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
     }
 
 
-def embed(documents, encoder, tokenizer, device, fp16, amp=None):
+def embed(documents, encoder, tokenizer, device, fp16, amp=None, pretokenized=False):
     """Compute the DPR embeddings of document passages"""
     with torch.no_grad():
         if fp16:
             with amp.autocast():
+                if not pretokenized:
+                    try:
+                        input_ids = tokenizer(
+                            documents["passages"],
+                            truncation=True,
+                            padding="longest",
+                            max_length=512,  # TODO: Fix hardcoded value
+                            return_tensors="pt",
+                        )["input_ids"]
+                        embeddings = encoder(
+                            input_ids.to(device=device), return_dict=True, indexing=True
+                        ).pooler_output
+                    except (TypeError, ValueError) as e:
+                        logger.warn(e)
+                        logger.warn(
+                            """Error encountered while converting target_text.
+                        All target_text values have been manually cast to String as a workaround.
+                        This may have been caused by NaN values present in the data."""
+                        )
+                        documents["passages"] = [str(p) for p in documents["passages"]]
+                        input_ids = tokenizer(
+                            documents["passages"],
+                            truncation=True,
+                            padding="longest",
+                            max_length=512,  # TODO: Fix hardcoded value
+                            return_tensors="pt",
+                        )["input_ids"]
+                        embeddings = encoder(
+                            input_ids.to(device=device), return_dict=True, indexing=True
+                        ).pooler_output
+                else:
+                    embeddings = encoder(
+                        documents["context_ids"].to(device=device),
+                        documents["context_mask"].to(device=device),
+                        return_dict=True,
+                    )[0].pooler_output
+            # Embeddings need to be float32 for indexing
+            embeddings = embeddings.float()
+        else:
+            if not pretokenized:
                 try:
                     input_ids = tokenizer(
                         documents["passages"],
@@ -162,38 +203,12 @@ def embed(documents, encoder, tokenizer, device, fp16, amp=None):
                     embeddings = encoder(
                         input_ids.to(device=device), return_dict=True, indexing=True
                     ).pooler_output
-            # Embeddings need to be float32 for indexing
-            embeddings = embeddings.float()
-        else:
-            try:
-                input_ids = tokenizer(
-                    documents["passages"],
-                    truncation=True,
-                    padding="longest",
-                    max_length=512,  # TODO: Fix hardcoded value
-                    return_tensors="pt",
-                )["input_ids"]
+            else:
                 embeddings = encoder(
-                    input_ids.to(device=device), return_dict=True, indexing=True
-                ).pooler_output
-            except (TypeError, ValueError) as e:
-                logger.warn(e)
-                logger.warn(
-                    """Error encountered while converting target_text.
-                All target_text values have been manually cast to String as a workaround.
-                This may have been caused by NaN values present in the data."""
-                )
-                documents["passages"] = [str(p) for p in documents["passages"]]
-                input_ids = tokenizer(
-                    documents["passages"],
-                    truncation=True,
-                    padding="longest",
-                    max_length=512,  # TODO: Fix hardcoded value
-                    return_tensors="pt",
-                )["input_ids"]
-                embeddings = encoder(
-                    input_ids.to(device=device), return_dict=True, indexing=True
-                ).pooler_output
+                    documents["context_ids"].to(device=device),
+                    documents["context_mask"].to(device=device),
+                    return_dict=True,
+                )[0].pooler_output
 
     return {"embeddings": embeddings.detach().cpu().numpy()}
 
@@ -625,3 +640,113 @@ def mean_reciprocal_rank_at_k(rs, k):
     rs = rs[:, :k]
     rs = (np.asarray(r).nonzero()[0] for r in rs)
     return np.mean([1.0 / (r[0] + 1) if r.size else 0.0 for r in rs])
+
+
+class ClusteredDataset(Dataset):
+    def __init__(self, clusters):
+        self.clusters = clusters
+
+    def __getitem__(self, index):
+        return self.clusters[index]
+
+    def __len__(self):
+        return len(self.clusters)
+
+
+def get_clustered_passage_dataset(
+    passage_dataset,
+    train_batch_size,
+    encoder,
+    tokenizer,
+    args,
+    device,
+):
+    logger.info("Generating embeddings for passage clustering started")
+
+    if args.fp16:
+        from torch.cuda import amp
+    else:
+        amp = None
+
+    encoder = encoder.to(device)
+    passage_dataset = passage_dataset.rename_column("gold_passage", "passages")
+    passage_dataset = passage_dataset.map(
+        partial(
+            embed,
+            encoder=encoder,
+            tokenizer=tokenizer,
+            device=device,
+            fp16=args.fp16,
+            amp=amp,
+            pretokenized=True,
+        ),
+        batched=True,
+        batch_size=args.embed_batch_size,
+    )
+    passage_dataset = passage_dataset.rename_column("passages", "gold_passage")
+    logger.info("Generating embeddings for passage clustering completed")
+
+    logger.info("Clustering passages started")
+
+    k = int(len(passage_dataset["embeddings"]) / train_batch_size)
+    km = MiniBatchKMeans(
+        n_clusters=k,
+        init="k-means++",
+    )
+    km.fit(passage_dataset["embeddings"])
+    passage_dataset = passage_dataset.add_column("cluster_id", km.labels_)
+
+    logger.info("Clustering passages completed")
+
+    clusters = passage_dataset["cluster_id"].tolist()
+    clustered_batches = {i: [[]] for i in range(k)}
+    for i, cluster in enumerate(clusters):
+        mini_batch_num = len(clustered_batches[cluster]) - 1
+        if len(clustered_batches[cluster][mini_batch_num]) < train_batch_size:
+            clustered_batches[cluster][mini_batch_num].append(i)
+        else:
+            clustered_batches[cluster].append([i])
+
+    clustered_batches = [
+        batch for batch_list in clustered_batches.values() for batch in batch_list
+    ]
+
+    clustered_batches = sorted(clustered_batches, key=lambda x: len(x), reverse=True)
+
+    final_batches = []
+    remaining_batches = []
+    for batch in clustered_batches:
+        if len(batch) == train_batch_size:
+            final_batches.append(batch)
+        else:
+            remaining_batches.append(batch)
+    for _ in range(len(remaining_batches)):
+        combined_batches = []
+        for i, batch in enumerate(remaining_batches):
+            if len(batch) == 0:
+                continue
+            else:
+                for j in range(i + 1, len(remaining_batches)):
+                    if (
+                        len(batch) + len(remaining_batches[j]) <= train_batch_size
+                        and i != j
+                    ):
+                        combined_batches.append(batch + remaining_batches[j])
+                        remaining_batches[j] = []
+                        remaining_batches[i] = []
+                        break
+        remaining_batches = combined_batches + [
+            batch for batch in remaining_batches if len(batch) > 0
+        ]
+        if not combined_batches:
+            final_batches.extend(
+                [batch for batch in remaining_batches if len(batch) > 0]
+            )
+            break
+
+    passage_dataset = passage_dataset.remove_columns(
+        ["gold_passage", "embeddings", "cluster_id"]
+    )
+    batch_datasets = [passage_dataset.select(batch) for batch in final_batches]
+
+    return ClusteredDataset(batch_datasets)
