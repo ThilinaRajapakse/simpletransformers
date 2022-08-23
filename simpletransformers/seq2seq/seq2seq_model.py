@@ -1551,6 +1551,7 @@ class Seq2SeqModel:
                 if self.args.model_type in [
                     "bart",
                     "mbart",
+                    "marian",
                     "rag-token",
                     "rag-sequence",
                 ]:
