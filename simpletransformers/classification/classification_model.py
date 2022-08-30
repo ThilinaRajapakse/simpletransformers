@@ -93,6 +93,9 @@ from transformers import (
     MobileBertConfig,
     MobileBertTokenizerFast,
     MobileBertForSequenceClassification,
+    NystromformerConfig,
+    # NystromformerTokenizer,
+    NystromformerForSequenceClassification,
     RemBertConfig,
     RemBertTokenizerFast,
     RemBertForSequenceClassification,
@@ -149,6 +152,7 @@ MODELS_WITH_EXTRA_SEP_TOKEN = [
     "xlmroberta",
     "longformer",
     "mpnet",
+    "nystromformer",
 ]
 
 MODELS_WITH_ADD_PREFIX_SPACE = [
@@ -157,6 +161,7 @@ MODELS_WITH_ADD_PREFIX_SPACE = [
     "xlmroberta",
     "longformer",
     "mpnet",
+    "nystromformer",
 ]
 
 MODELS_WITHOUT_SLIDING_WINDOW_SUPPORT = ["squeezebert"]
@@ -266,6 +271,11 @@ class ClassificationModel:
                 MobileBertTokenizerFast,
             ),
             "mpnet": (MPNetConfig, MPNetForSequenceClassification, MPNetTokenizerFast),
+            "nystromformer": (
+                NystromformerConfig,
+                NystromformerForSequenceClassification,
+                BigBirdTokenizer,
+            ),
             "rembert": (
                 RemBertConfig,
                 RemBertForSequenceClassification,

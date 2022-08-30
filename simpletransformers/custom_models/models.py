@@ -47,6 +47,11 @@ from transformers.models.longformer.modeling_longformer import (
     LongformerClassificationHead,
     LongformerPreTrainedModel,
 )
+from transformers.models.nystromformer.modeling_nystromformer import (
+    NystromformerClassificationHead,
+    NystromformerModel,
+    NystromformerPreTrainedModel,
+)
 from transformers.models.rembert.configuration_rembert import RemBertConfig
 from transformers.models.roberta.configuration_roberta import RobertaConfig
 from transformers.models.roberta.modeling_roberta import (
@@ -900,6 +905,55 @@ class BigBirdForMultiLabelSequenceClassification(BigBirdPreTrainedModel):
         self.config = config
         self.bert = BigBirdModel(config)
         self.classifier = BigBirdClassificationHead(config)
+        self.pos_weight = pos_weight
+
+        self.init_weights()
+
+    def forward(
+        self,
+        input_ids,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        labels=None,
+    ):
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+        )
+
+        sequence_output = outputs[0]
+        logits = self.classifier(sequence_output)
+
+        outputs = (logits,) + outputs[
+            2:
+        ]  # add hidden states and attention if they are here
+
+        if labels is not None:
+            loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
+            labels = labels.float()
+            loss = loss_fct(
+                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
+            )
+            outputs = (loss,) + outputs
+
+        return outputs  # (loss), logits, (hidden_states), (attentions)
+
+class NystromformerForMultiLabelSequenceClassification(NystromformerPreTrainedModel):
+    """
+    Bert model adapted for multi-label sequence classification
+    """
+
+    def __init__(self, config, pos_weight=None):
+        super(NystromformerForMultiLabelSequenceClassification, self).__init__(config)
+        self.num_labels = config.num_labels
+        self.config = config
+        self.bert = NystromformerModel(config)
+        self.classifier = NystromformerClassificationHead(config)
         self.pos_weight = pos_weight
 
         self.init_weights()
