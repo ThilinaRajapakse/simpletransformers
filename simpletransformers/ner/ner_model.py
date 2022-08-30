@@ -1501,41 +1501,25 @@ class NERModel:
                 is_split_into_words=(not split_on_space),
             )
 
-            # Change shape for batching
-            encoded_model_inputs = []
-            if self.args.model_type in [
-                "bert",
-                "xlnet",
-                "albert",
-                "layoutlm",
-                "layoutlmv2",
-            ]:
-                for (input_ids, attention_mask, token_type_ids) in tqdm(
-                    zip(
-                        model_inputs["input_ids"],
-                        model_inputs["attention_mask"],
-                        model_inputs["token_type_ids"],
-                    )
-                ):
-                    encoded_model_inputs.append(
-                        (input_ids, attention_mask, token_type_ids)
-                    )
-            else:
-                for (input_ids, attention_mask) in tqdm(
-                    zip(model_inputs["input_ids"], model_inputs["attention_mask"])
-                ):
-                    encoded_model_inputs.append((input_ids, attention_mask))
-
-            # Setup batches
-            eval_sampler = SequentialSampler(encoded_model_inputs)
+            eval_dataset = self.load_and_cache_examples(None, evaluate=True, no_cache=True, to_predict=predict_examples)
+            eval_sampler = SequentialSampler(eval_dataset)
             eval_dataloader = DataLoader(
-                encoded_model_inputs,
-                sampler=eval_sampler,
-                batch_size=args.eval_batch_size,
+                eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
             )
+
+            eval_loss = 0.0
+            nb_eval_steps = 0
+            preds = None
+            out_label_ids = None
+
             for batch in tqdm(
                 eval_dataloader, disable=args.silent, desc="Running Prediction"
             ):
+                with torch.no_grad():
+                    inputs = self._get_inputs_dict(batch)
+
+
+                encoded_model_inputs = []
                 if self.args.model_type in [
                     "bert",
                     "xlnet",
@@ -1544,14 +1528,14 @@ class NERModel:
                     "layoutlmv2",
                 ]:
                     inputs_onnx = {
-                        "input_ids": batch[0].detach().cpu().numpy(),
-                        "attention_mask": batch[1].detach().cpu().numpy(),
-                        "token_type_ids": batch[2].detach().cpu().numpy(),
+                        "input_ids": inputs['input_ids'].detach().cpu().numpy(),
+                        "attention_mask": inputs['attention_mask'].detach().cpu().numpy(),
+                        "token_type_ids": inputs['token_type_ids'].detach().cpu().numpy(),
                     }
                 else:
                     inputs_onnx = {
-                        "input_ids": batch[0].detach().cpu().numpy(),
-                        "attention_mask": batch[1].detach().cpu().numpy(),
+                        "input_ids": inputs['input_ids'].detach().cpu().numpy(),
+                        "attention_mask": inputs['attention_mask'].detach().cpu().numpy(),
                     }
 
                 # Run the model (None = get all the outputs)
@@ -1572,7 +1556,7 @@ class NERModel:
 
             pad_token_label_id = -100
             out_label_ids = [[] for _ in range(len(to_predict))]
-            max_len = len(out_input_ids[0])
+            max_len = np.max([len(x) for x in out_input_ids])
 
             for index, sentence in enumerate(to_predict):
                 if split_on_space:
@@ -1595,10 +1579,12 @@ class NERModel:
                     out_label_ids[index].extend(
                         [-100] * (max_len - len(out_label_ids[index]))
                     )
-
-            out_label_ids = np.array(out_label_ids).reshape(len(out_label_ids), max_len)
+            xfer_label_ids = np.zeros((len(out_label_ids), max_len))
+            for i, out_label_id in enumerate(out_label_ids):
+                for j, label in enumerate(out_label_id):
+                    xfer_label_ids[i][j] = np.int32(label)
+            out_label_ids = np.array([list(x) for x in out_label_ids], np.int32).reshape(len(out_label_ids), max_len)
         else:
-
             eval_dataset = self.load_and_cache_examples(
                 None, to_predict=predict_examples
             )
@@ -1920,8 +1906,8 @@ class NERModel:
                         [f.bboxes for f in features], dtype=torch.long
                     )
 
-                if self.args.onnx:
-                    return all_label_ids
+                # if self.args.onnx:
+                #     return all_label_ids
 
                 if self.args.model_type in ["layoutlm", "layoutlmv2"]:
                     dataset = TensorDataset(
