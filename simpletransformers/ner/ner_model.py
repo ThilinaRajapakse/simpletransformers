@@ -1919,9 +1919,6 @@ class NERModel:
                         [f.bboxes for f in features], dtype=torch.long
                     )
 
-                # if self.args.onnx:
-                #     return all_label_ids
-
                 if self.args.model_type in ["layoutlm", "layoutlmv2"]:
                     dataset = TensorDataset(
                         all_input_ids,
