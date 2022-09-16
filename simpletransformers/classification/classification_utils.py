@@ -22,7 +22,7 @@ import logging
 import linecache
 import os
 import sys
-import collections
+import collections.abc
 from collections import Counter
 from io import open
 from multiprocessing import Pool, cpu_count
@@ -999,11 +999,11 @@ class LazyClassificationDataset(Dataset):
 
 def flatten_results(results, parent_key="", sep="/"):
     out = []
-    if isinstance(results, collections.Mapping):
+    if isinstance(results, collections.abc.Mapping):
         for key, value in results.items():
             pkey = parent_key + sep + str(key) if parent_key else str(key)
             out.extend(flatten_results(value, parent_key=pkey).items())
-    elif isinstance(results, collections.Iterable):
+    elif isinstance(results, collections.abc.Iterable):
         for key, value in enumerate(results):
             pkey = parent_key + sep + str(key) if parent_key else str(key)
             out.extend(flatten_results(value, parent_key=pkey).items())

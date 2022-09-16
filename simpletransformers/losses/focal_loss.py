@@ -1,5 +1,5 @@
 from typing import Optional, Union
-from collections import Iterable
+from collections.abc import Iterable
 from numbers import Real
 import warnings
 import torch
