@@ -4,6 +4,7 @@ import sys
 from dataclasses import asdict, dataclass, field, fields
 from multiprocessing import cpu_count
 import warnings
+from typing import Union
 
 from torch.utils.data import Dataset
 
@@ -359,6 +360,7 @@ class RetrievalArgs(Seq2SeqArgs):
     """
 
     model_class: str = "RetrievalModel"
+    cluster_train_size: Union[int, float] = None
     context_config: dict = field(default_factory=dict)
     ddp_training: bool = False
     embed_batch_size: int = 128

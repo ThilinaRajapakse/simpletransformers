@@ -52,6 +52,7 @@ from simpletransformers.retrieval.retrieval_utils import (
     load_hf_dataset,
     get_evaluation_passage_dataset,
     mean_reciprocal_rank_at_k,
+    get_recall_at_k,
 )
 
 try:
@@ -248,6 +249,7 @@ class RetrievalModel:
         args=None,
         eval_data=None,
         additional_eval_passages=None,
+        relevant_docs=None,
         clustered_training=False,
         verbose=True,
         **kwargs,
@@ -266,6 +268,7 @@ class RetrievalModel:
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             additional_eval_passages: Additional passages to be used during evaluation.
                         This may be a list of passages, a pandas DataFrame with the column `passages`, or a TSV file with the column `passages`.
+            relevant_docs: A list of lists or path to a JSON file of relevant documents for each query.
             eval_data (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
@@ -324,6 +327,7 @@ class RetrievalModel:
             show_running_loss=show_running_loss,
             eval_data=eval_data,
             additional_eval_passages=additional_eval_passages,
+            relevant_docs=relevant_docs,
             clustered_training=clustered_training,
             train_data=train_data,
             verbose=verbose,
@@ -352,6 +356,7 @@ class RetrievalModel:
         show_running_loss=True,
         eval_data=None,
         additional_eval_passages=None,
+        relevant_docs=None,
         clustered_training=False,
         train_data=None,
         verbose=True,
@@ -494,7 +499,9 @@ class RetrievalModel:
                 logger.info("   Starting fine-tuning.")
 
         if args.evaluate_during_training:
-            training_progress_scores = self._create_training_progress_scores(**kwargs)
+            training_progress_scores = self._create_training_progress_scores(
+                calculate_recall=relevant_docs is not None, **kwargs
+            )
 
         if args.wandb_project:
             wandb.init(
@@ -641,8 +648,10 @@ class RetrievalModel:
                         results, *_ = self.eval_model(
                             eval_data,
                             additional_passages=additional_eval_passages,
+                            relevant_docs=relevant_docs,
                             verbose=verbose and args.evaluate_during_training_verbose,
                             silent=args.evaluate_during_training_silent,
+                            evaluating_during_training=True,
                             **kwargs,
                         )
                         for key, value in results.items():
@@ -816,8 +825,10 @@ class RetrievalModel:
                 results, *_ = self.eval_model(
                     eval_data,
                     additional_passages=additional_eval_passages,
+                    relevant_docs=relevant_docs,
                     verbose=verbose and args.evaluate_during_training_verbose,
                     silent=args.evaluate_during_training_silent,
+                    evaluating_during_training=True,
                     **kwargs,
                 )
 
@@ -955,6 +966,7 @@ class RetrievalModel:
         eval_data,
         evaluate_with_all_passages=True,
         additional_passages=None,
+        relevant_docs=None,
         top_k_values=None,
         retrieve_n_docs=None,
         return_doc_dicts=True,
@@ -963,6 +975,7 @@ class RetrievalModel:
         output_dir=None,
         verbose=True,
         silent=False,
+        evaluating_during_training=False,
         **kwargs,
     ):
         """
@@ -976,6 +989,7 @@ class RetrievalModel:
             evaluate_with_all_passages: If True, evaluate with all passages. If False, evaluate only with in-batch negatives.
             additional_passages: Additional passages to be used during evaluation.
                         This may be a list of passages, a pandas DataFrame with the column "passages", or a TSV file with the column "passages".
+            relevant_docs: A list of lists or path to a JSON file of relevant documents for each query.
             top_k_values: List of top-k values to be used for evaluation.
             retrieve_n_docs: Number of documents to retrieve for each query. Overrides `args.retrieve_n_docs` for this evaluation.
             return_doc_dicts: If True, return the doc dicts for the retrieved passages. Setting this to False can speed up evaluation.
@@ -988,7 +1002,12 @@ class RetrievalModel:
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
                         will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
         Returns:
-            results: Dictionary containing evaluation results.
+            result: Dictionary containing evaluation results.
+            doc_ids: List of retrieved document IDs.
+            doc_dicts: List of retrieved document dictionaries.
+            top_k_accuracy_each_query: List of top-k accuracy for each query.
+            recall_at_k_each_query: List of recall at k for each query.
+            relevance_list: Array of relevance hits for each query.
         """  # noqa: ignore flake8"
 
         if not output_dir:
@@ -996,7 +1015,7 @@ class RetrievalModel:
 
         self._move_model_to_device()
 
-        if self.prediction_passages is None:
+        if self.prediction_passages is None or evaluating_during_training:
             passage_dataset = get_evaluation_passage_dataset(
                 eval_data,
                 additional_passages,
@@ -1018,11 +1037,30 @@ class RetrievalModel:
             evaluate=True,
         )
 
-        result, doc_ids, doc_vectors, doc_dicts = self.evaluate(
+        if relevant_docs is not None:
+            if isinstance(relevant_docs, str):
+                relevant_docs = json.load(open(relevant_docs, "r"))
+            elif isinstance(relevant_docs[0], list):
+                pass
+            else:
+                raise ValueError(
+                    "relevant_docs must be a list of lists or a path to a JSON file"
+                )
+
+        (
+            result,
+            doc_ids,
+            doc_vectors,
+            doc_dicts,
+            top_k_accuracy_each_query,
+            recall_at_k_each_query,
+            relevance_list
+        ) = self.evaluate(
             eval_dataset,
             gold_passages,
             evaluate_with_all_passages,
             passage_dataset,
+            relevant_docs,
             qa_evaluation,
             top_k_values,
             return_doc_dicts,
@@ -1036,7 +1074,15 @@ class RetrievalModel:
         if verbose:
             logger.info(result)
 
-        return result, doc_ids, doc_vectors, doc_dicts
+        return (
+            result,
+            doc_ids,
+            doc_vectors,
+            doc_dicts,
+            top_k_accuracy_each_query,
+            recall_at_k_each_query,
+            relevance_list
+        )
 
     def evaluate(
         self,
@@ -1044,6 +1090,7 @@ class RetrievalModel:
         gold_passages,
         evaluate_with_all_passages=True,
         passage_dataset=None,
+        relevant_docs=None,
         qa_evaluation=False,
         top_k_values=None,
         return_doc_dicts=True,
@@ -1159,14 +1206,37 @@ class RetrievalModel:
 
             doc_texts = [doc_dict["passages"] for doc_dict in doc_dicts]
 
-            scores = self.compute_metrics(
-                gold_passages,
-                doc_texts,
-                self.args,
-                qa_evaluation,
-                top_k_values,
-                **kwargs,
-            )
+            top_k_accuracy_each_query = None
+            recall_at_k_each_query = None
+            if relevant_docs is not None:
+                (
+                    scores,
+                    top_k_accuracy_each_query,
+                    recall_at_k_each_query,
+                    relevance_list,
+                ) = self.compute_metrics(
+                    gold_passages,
+                    doc_texts,
+                    relevant_docs,
+                    self.args,
+                    qa_evaluation,
+                    top_k_values,
+                    **kwargs,
+                )
+            else:
+                (
+                    scores,
+                    top_k_accuracy_each_query,
+                    relevance_list,
+                ) = self.compute_metrics(
+                    gold_passages,
+                    doc_texts,
+                    relevant_docs,
+                    self.args,
+                    qa_evaluation,
+                    top_k_values,
+                    **kwargs,
+                )
 
             results.update(scores)
 
@@ -1187,7 +1257,15 @@ class RetrievalModel:
                 self.wandb_run_id = wandb.run.id
             wandb.log(results)
 
-        return results, doc_ids, doc_vectors, doc_dicts
+        return (
+            results,
+            doc_ids,
+            doc_vectors,
+            doc_dicts,
+            top_k_accuracy_each_query,
+            recall_at_k_each_query,
+            relevance_list
+        )
 
     def predict(
         self,
@@ -1302,6 +1380,7 @@ class RetrievalModel:
         self,
         gold_passages,
         doc_texts,
+        relevant_docs,
         args,
         qa_evaluation=False,
         top_k_values=None,
@@ -1313,45 +1392,109 @@ class RetrievalModel:
         if top_k_values is None:
             top_k_values = [1, 2, 3, 5, 10]
 
+        if max(top_k_values) > args.retrieve_n_docs:
+            raise ValueError(
+                "retrieve_n_docs must be >= max(top_k_values). top_k_values: {}, retrieve_n_docs: {}".format(
+                    top_k_values, args.retrieve_n_docs
+                )
+            )
+
         top_k_values = [k for k in top_k_values if k <= args.retrieve_n_docs]
 
-        relevance_list = np.zeros((len(gold_passages), args.retrieve_n_docs))
-        for i, (docs, truth) in enumerate(zip(doc_texts, gold_passages)):
-            for j, d in enumerate(docs):
-                if qa_evaluation:
-                    if truth.strip().lower().replace(" ", "").translate(
-                        str.maketrans("", "", string.punctuation)
-                    ) in d.strip().lower().replace(" ", "").translate(
-                        str.maketrans("", "", string.punctuation)
-                    ):
-                        relevance_list[i, j] = 1
-                        break
-                else:
-                    if d.strip().lower().translate(
-                        str.maketrans("", "", string.punctuation)
-                    ) == truth.strip().lower().translate(
-                        str.maketrans("", "", string.punctuation)
-                    ):
-                        relevance_list[i, j] = 1
-                        break
+        relevance_list_first_hit = np.zeros((len(gold_passages), args.retrieve_n_docs))
+        relevance_list_all_hits = np.zeros((len(gold_passages), args.retrieve_n_docs))
+
+        if relevant_docs is None:
+            for i, (docs, truth) in enumerate(zip(doc_texts, gold_passages)):
+                for j, d in enumerate(docs):
+                    if qa_evaluation:
+                        if truth.strip().lower().replace(" ", "").translate(
+                            str.maketrans("", "", string.punctuation)
+                        ) in d.strip().lower().replace(" ", "").translate(
+                            str.maketrans("", "", string.punctuation)
+                        ):
+                            relevance_list_first_hit[i, j] = 1
+                            break
+                    else:
+                        if d.strip().lower().translate(
+                            str.maketrans("", "", string.punctuation)
+                        ) == truth.strip().lower().translate(
+                            str.maketrans("", "", string.punctuation)
+                        ):
+                            relevance_list_first_hit[i, j] = 1
+                            break
+            relevance_list_all_hits = relevance_list_first_hit
+        else:
+            total_relevant = [
+                len(relevant_doc_set) for relevant_doc_set in relevant_docs
+            ]
+            for i, (docs, relevant_doc_set) in enumerate(zip(doc_texts, relevant_docs)):
+                for j, d in enumerate(docs):
+                    for relevant in relevant_doc_set:
+                        if qa_evaluation:
+                            if relevant.strip().lower().replace(" ", "").translate(
+                                str.maketrans("", "", string.punctuation)
+                            ) in d.strip().lower().replace(" ", "").translate(
+                                str.maketrans("", "", string.punctuation)
+                            ):
+                                relevance_list_all_hits[i, j] = 1
+                                if sum(relevance_list_first_hit[i]) == 0:
+                                    relevance_list_first_hit[i, j] = 1
+                                break
+                        else:
+                            if d.strip().lower().translate(
+                                str.maketrans("", "", string.punctuation)
+                            ) == relevant.strip().lower().translate(
+                                str.maketrans("", "", string.punctuation)
+                            ):
+                                relevance_list_all_hits[i, j] = 1
+                                if sum(relevance_list_first_hit[i]) == 0:
+                                    relevance_list_first_hit[i, j] = 1
+                                break
 
         mrr = {
-            f"mrr@{k}": mean_reciprocal_rank_at_k(relevance_list, k)
+            f"mrr_at_{k}": mean_reciprocal_rank_at_k(relevance_list_first_hit, k)
             for k in top_k_values
         }
 
-        top_k_accuracy = {
-            f"top_{k}_accuracy": np.mean(np.sum(relevance_list[:, :k], axis=-1))
-            for k in top_k_values
-        }
+        top_k_accuracy_dict = {}
+        top_k_accuracy_each_query_dict = {}
+        recall_at_k_dict = {}
+        recall_at_k_each_query_dict = {}
+
+        for k in top_k_values:
+            top_k_accuracy_each_query = np.sum(relevance_list_first_hit[:, :k], axis=1)
+            top_k_accuracy_dict[f"top_{k}_accuracy"] = np.mean(
+                top_k_accuracy_each_query
+            )
+            top_k_accuracy_each_query_dict[
+                f"top_{k}_accuracy"
+            ] = top_k_accuracy_each_query.tolist()
+
+            if relevant_docs is not None:
+                recall_at_k, recall_at_k_each_query = get_recall_at_k(
+                    relevance_list_all_hits, total_relevant, k
+                )
+                recall_at_k_dict[f"recall_at_{k}"] = recall_at_k
+                recall_at_k_each_query_dict[f"recall_at_{k}"] = recall_at_k_each_query
 
         extra_metrics = {}
         for metric, func in kwargs.items():
             extra_metrics[metric] = func(gold_passages, doc_texts)
 
-        results = {**mrr, **top_k_accuracy, **extra_metrics}
-
-        return results
+        if relevant_docs is not None:
+            return (
+                {**mrr, **top_k_accuracy_dict, **recall_at_k_dict, **extra_metrics},
+                top_k_accuracy_each_query_dict,
+                recall_at_k_each_query_dict,
+                relevance_list_all_hits,
+            )
+        else:
+            return (
+                {**mrr, **top_k_accuracy_dict, **extra_metrics},
+                top_k_accuracy_each_query_dict,
+                relevance_list_all_hits,
+            )
 
     def retrieve_docs_from_query_embeddings(
         self,
@@ -1765,7 +1908,7 @@ class RetrievalModel:
 
         return context_input, query_input, labels
 
-    def _create_training_progress_scores(self, **kwargs):
+    def _create_training_progress_scores(self, calculate_recall=False, **kwargs):
         # TODO: top_k_values should be part of the model. Probably.
         top_k_values = [1, 2, 3, 5, 10]
         extra_metrics = {key: [] for key in kwargs}
@@ -1777,12 +1920,18 @@ class RetrievalModel:
         }
         training_progress_scores = {
             **training_progress_scores,
-            **{f"mrr@{k}": [] for k in top_k_values},
+            **{f"mrr_at_{k}": [] for k in top_k_values},
         }
         training_progress_scores = {
             **training_progress_scores,
             **{f"top_{k}_accuracy": [] for k in top_k_values},
         }
+
+        if calculate_recall:
+            training_progress_scores = {
+                **training_progress_scores,
+                **{f"recall_at_{k}": [] for k in top_k_values},
+            }
 
         return training_progress_scores
 

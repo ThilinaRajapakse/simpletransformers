@@ -10,6 +10,7 @@ import torch
 import transformers
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans
+from sklearn.model_selection import train_test_split
 
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
@@ -118,13 +119,29 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
 
 
 def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer, args):
-    context_inputs = context_tokenizer(
-        dataset["gold_passage"],
-        max_length=args.max_seq_length,
-        padding="max_length",
-        return_tensors="np",
-        truncation=True,
-    )
+    try:
+        context_inputs = context_tokenizer(
+            dataset["gold_passage"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+    except (TypeError, ValueError) as e:
+        logger.warn(e)
+        logger.warn(
+            """Error encountered while converting target_text.
+        All target_text values have been manually cast to String as a workaround.
+        This may have been caused by NaN values present in the data."""
+        )
+        dataset["gold_passage"] = [str(p) for p in dataset["gold_passage"]]
+        context_inputs = context_tokenizer(
+            dataset["gold_passage"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
 
     query_inputs = query_tokenizer(
         dataset["query_text"],
@@ -183,8 +200,20 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
     }
 
 
-def embed(documents, encoder, tokenizer, device, fp16, amp=None, pretokenized=False):
+def embed(
+    documents,
+    rank=None,
+    encoder=None,
+    tokenizer=None,
+    device=None,
+    fp16=None,
+    amp=None,
+    pretokenized=False,
+):
     """Compute the DPR embeddings of document passages"""
+    if rank is not None:
+        device = torch.device("cuda", rank)
+        encoder = encoder.to(device)
     with torch.no_grad():
         if fp16:
             with amp.autocast():
@@ -294,7 +323,7 @@ def get_evaluation_passage_dataset(
                     "retrieval_dataset_loading_script",
                     data_files=eval_data,
                     hard_negatives=args.hard_negatives,
-                    include_title=args.include_title,
+                    include_title=args.include_title_in_knowledge_dataset,
                     download_mode="force_redownload"
                     if args.reprocess_input_data
                     else "reuse_dataset_if_exists",
@@ -311,10 +340,10 @@ def get_evaluation_passage_dataset(
                     cache_dir=args.dataset_cache_dir,
                 )
                 passage_dataset = passage_dataset["train"]
-                if args.include_title:
+                if args.include_title_in_knowledge_dataset:
                     if "title" not in passage_dataset.column_names:
                         raise ValueError(
-                            "The dataset must contain a column named 'title' if args.include_title is True."
+                            "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
                         )
                     passage_dataset = passage_dataset.map(
                         lambda example: {
@@ -326,10 +355,10 @@ def get_evaluation_passage_dataset(
 
         else:
             passage_dataset = HFDataset.from_pandas(eval_data)
-            if args.include_title:
+            if args.include_title_in_knowledge_dataset:
                 if "title" not in passage_dataset.column_names:
                     raise ValueError(
-                        "The dataset must contain a column named 'title' if args.include_title is True."
+                        "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
                     )
                 passage_dataset = passage_dataset.map(
                     lambda example: {
@@ -389,10 +418,10 @@ def get_evaluation_passage_dataset(
                         column_names=["passages"],
                         cache_dir=args.dataset_cache_dir,
                     )
-                    if args.include_title:
+                    if args.include_title_in_knowledge_dataset:
                         if "title" not in passage_dataset.column_names:
                             raise ValueError(
-                                "The dataset must contain a column named 'title' if args.include_title is True."
+                                "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
                             )
                         passage_dataset = passage_dataset.map(
                             lambda example: {
@@ -408,10 +437,10 @@ def get_evaluation_passage_dataset(
                 )
             else:
                 additional_passages = HFDataset.from_pandas(additional_passages)
-                if args.include_title:
+                if args.include_title_in_knowledge_dataset:
                     if "title" not in passage_dataset.column_names:
                         raise ValueError(
-                            "The dataset must contain a column named 'title' if args.include_title is True."
+                            "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
                         )
                     passage_dataset = passage_dataset.map(
                         lambda example: {
@@ -554,15 +583,15 @@ def get_prediction_passage_dataset(
                 cache_dir=args.dataset_cache_dir,
             )
             prediction_passages_dataset = prediction_passages_dataset["train"]
-            if args.include_title:
+            if args.include_title_in_knowledge_dataset:
                 if "title" not in prediction_passages_dataset.column_names:
                     raise ValueError(
-                        "The dataset must contain a column named 'title' if args.include_title is True."
+                        "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
                     )
                 prediction_passages_dataset = prediction_passages_dataset.map(
                     lambda example: {
                         "gold_passage": example["title"] + " " + example["gold_passage"]
-                    }
+                    }  # Should these be "passage" instead of "gold_passage"?
                 )
     elif isinstance(prediction_passages, list):
         prediction_passages_dataset = HFDataset.from_dict(
@@ -572,7 +601,7 @@ def get_prediction_passage_dataset(
         prediction_passages_dataset = HFDataset.from_pandas(prediction_passages)
         if "title" not in prediction_passages_dataset.column_names:
             raise ValueError(
-                "The dataset must contain a column named 'title' if args.include_title is True."
+                "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
             )
         prediction_passages_dataset = prediction_passages_dataset.map(
             lambda example: {
@@ -601,6 +630,8 @@ def get_prediction_passage_dataset(
             ),
             batched=True,
             batch_size=args.embed_batch_size,
+            with_rank=args.n_gpu > 1,
+            num_proc=args.n_gpu,
         )
 
         logger.info("Generating embeddings for prediction passages completed")
@@ -710,6 +741,14 @@ def mean_reciprocal_rank_at_k(rs, k):
     return np.mean([1.0 / (r[0] + 1) if r.size else 0.0 for r in rs])
 
 
+def get_recall_at_k(rs, rt, k):
+    rs = rs[:, :k]
+    recall_scores = []
+    for r, t in zip(rs, rt):
+        recall_scores.append(np.sum(r) / min(t, k))
+    return np.mean(recall_scores), recall_scores
+
+
 class ClusteredDataset(Dataset):
     def __init__(self, clusters):
         self.clusters = clusters
@@ -761,8 +800,17 @@ def get_clustered_passage_dataset(
         n_clusters=k,
         init="k-means++",
     )
-    km.fit(passage_dataset["embeddings"])
-    passage_dataset = passage_dataset.add_column("cluster_id", km.labels_)
+
+    if args.cluster_train_size is not None:
+        clustering_subset, _ = train_test_split(
+            passage_dataset, train_size=args.cluster_train_size
+        )
+    else:
+        clustering_subset = passage_dataset
+    km.fit(clustering_subset["embeddings"])
+    passage_dataset = passage_dataset.add_column(
+        "cluster_id", km.predict(passage_dataset["embeddings"])
+    )
 
     logger.info("Clustering passages completed")
 
