@@ -30,7 +30,7 @@ from transformers import (
     LongformerTokenizer,
     NystromformerConfig,
     # NystromformerTokenizer,
-    NystromformerForSequenceClassification,    
+    NystromformerForSequenceClassification,
     RemBertConfig,
     RemBertForSequenceClassification,
     RemBertTokenizer,

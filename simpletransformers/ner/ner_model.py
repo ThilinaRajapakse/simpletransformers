@@ -1497,7 +1497,9 @@ class NERModel:
                 is_split_into_words=(not split_on_space),
             )
 
-            eval_dataset = self.load_and_cache_examples(None, evaluate=True, no_cache=True, to_predict=predict_examples)
+            eval_dataset = self.load_and_cache_examples(
+                None, evaluate=True, no_cache=True, to_predict=predict_examples
+            )
             eval_sampler = SequentialSampler(eval_dataset)
             eval_dataloader = DataLoader(
                 eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
@@ -1514,7 +1516,6 @@ class NERModel:
                 with torch.no_grad():
                     inputs = self._get_inputs_dict(batch)
 
-
                 encoded_model_inputs = []
                 if self.args.model_type in [
                     "bert",
@@ -1524,14 +1525,23 @@ class NERModel:
                     "layoutlmv2",
                 ]:
                     inputs_onnx = {
-                        "input_ids": inputs['input_ids'].detach().cpu().numpy(),
-                        "attention_mask": inputs['attention_mask'].detach().cpu().numpy(),
-                        "token_type_ids": inputs['token_type_ids'].detach().cpu().numpy(),
+                        "input_ids": inputs["input_ids"].detach().cpu().numpy(),
+                        "attention_mask": inputs["attention_mask"]
+                        .detach()
+                        .cpu()
+                        .numpy(),
+                        "token_type_ids": inputs["token_type_ids"]
+                        .detach()
+                        .cpu()
+                        .numpy(),
                     }
                 else:
                     inputs_onnx = {
-                        "input_ids": inputs['input_ids'].detach().cpu().numpy(),
-                        "attention_mask": inputs['attention_mask'].detach().cpu().numpy(),
+                        "input_ids": inputs["input_ids"].detach().cpu().numpy(),
+                        "attention_mask": inputs["attention_mask"]
+                        .detach()
+                        .cpu()
+                        .numpy(),
                     }
 
                 # Run the model (None = get all the outputs)
@@ -1579,7 +1589,9 @@ class NERModel:
             for i, out_label_id in enumerate(out_label_ids):
                 for j, label in enumerate(out_label_id):
                     xfer_label_ids[i][j] = np.int32(label)
-            out_label_ids = np.array([list(x) for x in out_label_ids], np.int32).reshape(len(out_label_ids), max_len)
+            out_label_ids = np.array(
+                [list(x) for x in out_label_ids], np.int32
+            ).reshape(len(out_label_ids), max_len)
         else:
             eval_dataset = self.load_and_cache_examples(
                 None, to_predict=predict_examples
