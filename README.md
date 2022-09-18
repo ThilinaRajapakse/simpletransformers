@@ -1,6 +1,10 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
+<<<<<<< HEAD
 [![All Contributors](https://img.shields.io/badge/all_contributors-93-orange.svg?style=flat-square)](#contributors-)
+=======
+[![All Contributors](https://img.shields.io/badge/all_contributors-92-orange.svg?style=flat-square)](#contributors-)
+>>>>>>> 009f595 (update README.md [skip ci])
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -305,7 +309,10 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
     </tr>
     <tr>
       <td align="center"><a href="https://github.com/deltaxrg"><img src="https://avatars.githubusercontent.com/u/110563031?v=4?s=100" width="100px;" alt=""/><br /><sub><b>deltaxrg</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=deltaxrg" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=deltaxrg" title="Documentation">📖</a></td>
+<<<<<<< HEAD
       <td align="center"><a href="https://github.com/Fortune-Adekogbe"><img src="https://avatars.githubusercontent.com/u/53936357?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Fortune Adekogbe</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Fortune-Adekogbe" title="Code">💻</a></td>
+=======
+>>>>>>> 009f595 (update README.md [skip ci])
     </tr>
   </tbody>
 </table>
