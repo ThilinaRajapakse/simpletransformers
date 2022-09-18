@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Downloads](https://pepy.tech/badge/simpletransformers)](https://pepy.tech/project/simpletransformers)
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
-[![All Contributors](https://img.shields.io/badge/all_contributors-91-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-92-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
 # Simple Transformers
@@ -302,6 +302,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center"><a href="https://github.com/MichelBartels"><img src="https://avatars.githubusercontent.com/u/17650521?v=4?s=100" width="100px;" alt=""/><br /><sub><b>MichelBartels</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=MichelBartels" title="Code">💻</a></td>
       <td align="center"><a href="https://github.com/luketudge"><img src="https://avatars.githubusercontent.com/u/17992458?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Luke Tudge</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=luketudge" title="Documentation">📖</a></td>
       <td align="center"><a href="https://github.com/sainttttt"><img src="https://avatars.githubusercontent.com/u/58609876?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Saint</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=sainttttt" title="Code">💻</a></td>
+    </tr>
+    <tr>
+      <td align="center"><a href="https://github.com/deltaxrg"><img src="https://avatars.githubusercontent.com/u/110563031?v=4?s=100" width="100px;" alt=""/><br /><sub><b>deltaxrg</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=deltaxrg" title="Code">💻</a> <a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=deltaxrg" title="Documentation">📖</a></td>
     </tr>
   </tbody>
 </table>
