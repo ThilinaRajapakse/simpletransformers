@@ -842,6 +842,16 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "deltaxrg",
+      "name": "deltaxrg",
+      "avatar_url": "https://avatars.githubusercontent.com/u/110563031?v=4",
+      "profile": "https://github.com/deltaxrg",
+      "contributions": [
+        "code",
+        "doc"
+      ]
     }
   ],
   "contributorsPerLine": 7,
