@@ -161,7 +161,25 @@ The evaluation data format is identical to the train data format.
 | Pippin is stronger than Merry   | [1, 1] |
 
 
+#### Data format for LayoutLM models
+
+[LayoutLM](https://arxiv.org/pdf/1912.13318.pdf) model (LayoutLM: Pre-training of Text and Layout for
+Document Image Understanding) is pre-trained to consider both the text and layout information for document image understanding and information extraction tasks.
+
+Although the paper discusses using combinations of text, layout, and image features, Simple Transformers currently only supports text + layout as inputs.
+
+The data format for LayoutLM is similar to the default format described above but it also includes the bounding box information (`x0`, `y0`, `x1`, `y1`) in addition to the text. Here, `x0` and `y0` is the list of coordinates of the top-left vertices of the bounding boxes and `x1` and `y1` is the list of coordinates of the bottom-right vertices of the bounding boxes. Each list contains the list of coordinates for each word in `text`.
+
+**Note:** The bounding box coordinates must be normalized to between 0-1000 where (0,0) is the top-left corner of the image.
+{: .notice--info}
+
+| text                            | labels | x0                       | y0                       | x1                       | y1                       |
+|---------------------------------|--------|--------------------------|--------------------------|--------------------------|--------------------------|
+| Aragorn was the heir of Isildur | 1      | [10, 20, 30, 40, 50, 60] | [10, 10, 10, 10, 20, 20] | [20, 30, 40, 50, 60, 70] | [20, 20, 20, 20, 30, 40] |
+| Frodo was the heir of Isildur   | 0      | [15, 20, 30, 40, 50, 60] | [10, 10, 10, 10, 20, 20] | [20, 30, 45, 50, 60, 70] | [20, 20, 20, 20, 30, 40] |
+
 ## Prediction Data Format
+
 *Used with `predict()`*
 
 The prediction data must be a list of strings.
@@ -174,6 +192,32 @@ to_predict = [
 ```
 
 Identical for binary classification, multi-class classification, regression, and multi-label classification.
+
+### Data format for LayoutLM models
+
+The prediction data must be a list of lists. For example,
+
+```python
+to_predict = [
+    [
+        "OCR text from long page one",
+        [1, 2, 3, 4, 5, 6], # x0 values for each word
+        [11, 12, 13, 14, 15, 16], # y0 values for each word
+        [21, 22, 23, 24, 25, 26], # x1 values for each word
+        [31, 32, 33, 34, 35, 36], # y1 values for each word
+    ],
+    [
+        "OCR text from long page two",
+        [1, 2, 3, 4, 5, 6], # x0 values for each word
+        [11, 12, 13, 14, 15, 16], # y0 values for each word
+        [21, 22, 23, 24, 25, 26], # x1 values for each word
+        [31, 32, 33, 34, 35, 36], # y1 values for each word
+    ],
+]
+```
+
+Identical for binary classification, multi-class classification, regression, and multi-label classification. **Note**: The bounding box coordinates must be normalized to between 0-1000 where (0,0) is the top-left corner of the image.
+{: .notice--info}
 
 
 ## Sentence-Pair Data Format
