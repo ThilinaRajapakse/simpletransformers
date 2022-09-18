@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.special import softmax
+from simpletransformers.config.model_args import NERArgs
 
 from simpletransformers.ner import NERModel
 
@@ -39,18 +40,26 @@ eval_data = [
 ]
 eval_df = pd.DataFrame(eval_data, columns=["sentence_id", "words", "labels"])
 
+args = NERArgs()
+args.use_multiprocessing=False
+args.use_multiprocessing_for_evaluation=False
+args.reprocess_input_data=True
+args.overwrite_output_dir=True
+
 # Create a NERModel
 model = NERModel(
     "bert",
     "bert-base-cased",
-    args={"overwrite_output_dir": True, "reprocess_input_data": True},
+    use_cuda=False,
+    use_mps=True,
+    args=args,
 )
 
 # # Train the model
-# model.train_model(train_df)
+model.train_model(train_df)
 
 # # Evaluate the model
-# result, model_outputs, predictions = model.eval_model(eval_df)
+result, model_outputs, predictions = model.eval_model(eval_df)
 
 
 # Predictions on arbitary text strings

@@ -75,6 +75,8 @@ train_args = {
     # "use_multiprocessing": False,
     "train_batch_size": 128,
     "eval_batch_size": 64,
+    "use_multiprocessing": False,
+    "use_multiprocessing_for_evaluation": False,    
     # "config": {
     #     "output_hidden_states": True
     # }
@@ -86,7 +88,7 @@ if model_type == "xlnet":
 
 
 # Create a ClassificationModel
-model = ClassificationModel(model_type, model_name, args=train_args)
+model = ClassificationModel(model_type, model_name, use_cuda=False, use_mps=True, args=train_args)
 
 # Train the model
 model.train_model(train_df, eval_df=eval_df)

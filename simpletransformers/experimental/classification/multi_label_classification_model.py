@@ -37,6 +37,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         pos_weight=None,
         args=None,
         use_cuda=True,
+        use_mps=False,
     ):
         """
         Initializes a MultiLabelClassification model.
@@ -48,6 +49,7 @@ class MultiLabelClassificationModel(ClassificationModel):
             pos_weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
+            use_mps (optional): Use an apple M1 MPS metal GPU.
         """
         MODEL_CLASSES = {
             "bert": (
@@ -100,6 +102,8 @@ class MultiLabelClassificationModel(ClassificationModel):
                 raise ValueError(
                     "'use_cuda' set to True when cuda is unavailable. Make sure CUDA is available or set use_cuda=False."
                 )
+        elif torch.has_mps and use_mps:
+            self.device = "mps"
         else:
             self.device = "cpu"
 

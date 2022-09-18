@@ -115,7 +115,7 @@ logger = logging.getLogger(__name__)
 
 class QuestionAnsweringModel:
     def __init__(
-        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, **kwargs
+        self, model_type, model_name, args=None, use_cuda=True, cuda_device=-1, use_mps=False, **kwargs
     ):
 
         """
@@ -128,6 +128,8 @@ class QuestionAnsweringModel:
                 it should be a dict containing the args that should be changed in the default args'
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
+            use_mps (optional): Use an apple M1 MPS metal GPU.
+            **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """  # noqa: ignore flake8"
 
         MODEL_CLASSES = {
@@ -231,6 +233,8 @@ class QuestionAnsweringModel:
                     "'use_cuda' set to True when cuda is unavailable."
                     " Make sure CUDA is available or set use_cuda=False."
                 )
+        elif torch.has_mps and use_mps:
+            self.device = "mps"
         else:
             self.device = "cpu"
 

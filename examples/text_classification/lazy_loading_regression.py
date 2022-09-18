@@ -41,7 +41,7 @@ train_args = {
 }
 
 # Create a TransformerModel
-model = ClassificationModel("bert", "bert-base-cased", num_labels=1, args=train_args)
+model = ClassificationModel("bert", "bert-base-cased", num_labels=1, use_cuda=False, use_mps=True, args=train_args)
 # print(train_df.head())
 
 # Train the model

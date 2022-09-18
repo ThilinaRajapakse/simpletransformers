@@ -80,6 +80,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         args=None,
         use_cuda=True,
         cuda_device=-1,
+        use_mps=False,
         **kwargs,
     ):
 
@@ -222,6 +223,8 @@ class MultiLabelClassificationModel(ClassificationModel):
                     "'use_cuda' set to True when cuda is unavailable."
                     " Make sure CUDA is available or set use_cuda=False."
                 )
+        elif torch.has_mps and use_mps:
+            self.device = "mps"
         else:
             self.device = "cpu"
 

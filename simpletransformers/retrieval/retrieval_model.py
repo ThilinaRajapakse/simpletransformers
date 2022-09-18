@@ -93,6 +93,7 @@ class RetrievalModel:
         args=None,
         use_cuda=True,
         cuda_device=-1,
+        use_mps=False,
         **kwargs,
     ):
         """
@@ -109,6 +110,7 @@ class RetrievalModel:
             args (dict or RetrievalArgs, optional):  Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args or an instance of RetrievalArgs.
             use_cuda (bool, optional): Use GPU if available. Setting to False will force model to use CPU only.. Defaults to True.
             cuda_device (int, optional): Specific GPU that should be used. Will use the first available GPU by default. Defaults to -1.
+            use_mps (optional): Use an apple M1 MPS metal GPU.
             **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
 
         Raises:
@@ -148,6 +150,8 @@ class RetrievalModel:
                     "'use_cuda' set to True when cuda is unavailable."
                     "Make sure CUDA is available or set `use_cuda=False`."
                 )
+        elif torch.has_mps and use_mps:
+            self.device = "mps"
         else:
             self.device = "cpu"
 

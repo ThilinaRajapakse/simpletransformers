@@ -16,7 +16,7 @@ eval_data = [
 eval_df = pd.DataFrame(eval_data)
 
 # Create a ClassificationModel
-model = ClassificationModel("roberta", "roberta-base")
+model = ClassificationModel("roberta", "roberta-base", use_cuda=False, use_mps=True)
 
 # Train the model
 model.train_model(train_df)

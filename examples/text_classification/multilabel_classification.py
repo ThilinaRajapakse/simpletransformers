@@ -19,6 +19,8 @@ model = MultiLabelClassificationModel(
     "roberta",
     "roberta-base",
     num_labels=6,
+    use_cuda=False,
+    use_mps=True,
     args={
         "reprocess_input_data": True,
         "overwrite_output_dir": True,
