@@ -1967,14 +1967,14 @@ class ClassificationModel:
 
         Args:
             to_predict: A python list of text (str) to be sent to the model for prediction.
-                        For layoutlm and layoutlmv2 model types, this should be a list of lists: 
+                        For layoutlm and layoutlmv2 model types, this should be a list of lists:
                         [
                             [text1, [x0], [y0], [x1], [y1]],
                             [text2, [x0], [y0], [x1], [y1]],
                             ...
                             [textn, [x0], [y0], [x1], [y1]]
                         ]
-    
+
         Returns:
             preds: A python list of the predictions (0 or 1) for each text.
             model_outputs: A python list of the raw model outputs for each text.
