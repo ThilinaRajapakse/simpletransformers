@@ -3,7 +3,7 @@
 <<<<<<< HEAD
 [![All Contributors](https://img.shields.io/badge/all_contributors-93-orange.svg?style=flat-square)](#contributors-)
 =======
-[![All Contributors](https://img.shields.io/badge/all_contributors-92-orange.svg?style=flat-square)](#contributors-)
+[![All Contributors](https://img.shields.io/badge/all_contributors-93-orange.svg?style=flat-square)](#contributors-)
 >>>>>>> 009f595 (update README.md [skip ci])
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
 
@@ -313,6 +313,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center"><a href="https://github.com/Fortune-Adekogbe"><img src="https://avatars.githubusercontent.com/u/53936357?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Fortune Adekogbe</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Fortune-Adekogbe" title="Code">💻</a></td>
 =======
 >>>>>>> 009f595 (update README.md [skip ci])
+      <td align="center"><a href="https://github.com/Fortune-Adekogbe"><img src="https://avatars.githubusercontent.com/u/53936357?v=4?s=100" width="100px;" alt=""/><br /><sub><b>Fortune Adekogbe</b></sub></a><br /><a href="https://github.com/ThilinaRajapakse/simpletransformers/commits?author=Fortune-Adekogbe" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>
