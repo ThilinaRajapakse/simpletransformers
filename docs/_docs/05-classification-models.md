@@ -311,7 +311,6 @@ A metric function should take in two parameters. The first parameter will be the
 {: .notice--info}
 
 
-
 ## Evaluating a Classification Model
 
 The `eval_model()`  method is used to evaluate the model. The `eval_model()` method is identical for `ClassificationModel` and `MultiLabelClassificationModel`, except for the `multi_label` argument being `True` by default for the latter.
@@ -381,21 +380,35 @@ The `predict()`  method is used to make predictions with the model. The `predict
 
 ```python
 predictions, raw_outputs = model.predict(["Sample sentence 1", "Sample sentence 2"])
+# For LayoutLM
+predictions, raw_outputs = model.predict(
+    [
+        ["Sample page text 1", [1, 2, 3, 4], [11, 12, 13, 14], [21, 22, 23, 24], [31, 32, 33, 34]],
+        ["Sample page text 2", [1, 2, 3, 4], [11, 12, 13, 14], [21, 22, 23, 24], [31, 32, 33, 34]],
+    ]
+)
 ```
 
-**Note:** The input **must** be a List even if there is only one sentence.
+**Note:** The input **must** be a List (or list of lists) even if there is only one sentence.
 {: .notice--info}
 
 
 > *simpletransformers.classification.ClassificationModel.predict*{: .function-name}(to_predict, multi_label=False)
 
-Performs predictions on a list of text `to_predict`.
+Performs predictions on a list of text (list of lists for model types `layoutlm` and `layoutlmv2`) `to_predict`.
 {: .function-text}
 
 > Parameters
 {: .parameter-blockquote}
 
-* **to_predict** - A python list of text (str) to be sent to the model for prediction.
+* **to_predict** - A python list of text (str) to be sent to the model for prediction. For `layoutlm` and `layoutlmv2` model types, this should be a list of lists: 
+                        [
+                            [text1, [x0], [y0], [x1], [y1]],
+                            [text2, [x0], [y0], [x1], [y1]],
+                            ...
+                            [text3, [x0], [y0], [x1], [y1]]
+                        ]
+                        
 {: .parameter-list}
 
 > Returns
