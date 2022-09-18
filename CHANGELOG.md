@@ -40,7 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Switched to `torch.optim.AdamW` [whr778](https://github.com/whr778)
--
+
+### Fixed
+
+- Fixed issues with LayoutLM predictions. Updated docs. [deltaxrg](https://github.com/deltaxrg)
+- Fixed issue with loading MarianMT models [Fortune-Adekogbe](https://github.com/Fortune-Adekogbe)
 
 
 ## [0.63.7] - 2022-05-29
