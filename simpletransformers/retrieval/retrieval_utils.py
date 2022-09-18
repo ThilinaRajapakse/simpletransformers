@@ -722,7 +722,7 @@ class PrecomputedEmbeddingsDataset(Dataset):
         return len(self.embeddings)
 
 
-def mean_reciprocal_rank_at_k(rs, k):
+def mean_reciprocal_rank_at_k(rs, k, return_individual_scores=False):
     """
     Adapted from https://gist.github.com/bwhite/3726239
 
@@ -738,7 +738,12 @@ def mean_reciprocal_rank_at_k(rs, k):
     """
     rs = rs[:, :k]
     rs = (np.asarray(r).nonzero()[0] for r in rs)
-    return np.mean([1.0 / (r[0] + 1) if r.size else 0.0 for r in rs])
+
+    mrr_scores = [1.0 / (r[0] + 1) if r.size else 0.0 for r in rs]
+    if return_individual_scores:
+        return np.mean(mrr_scores), mrr_scores
+    else:
+        return np.mean(mrr_scores)
 
 
 def get_recall_at_k(rs, rt, k):

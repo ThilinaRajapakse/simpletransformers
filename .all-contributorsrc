@@ -758,7 +758,8 @@
       "avatar_url": "https://avatars.githubusercontent.com/u/38384138?v=4",
       "profile": "https://github.com/anaconda121",
       "contributions": [
-        "doc"
+        "doc",
+        "code"
       ]
     },
     {
@@ -838,6 +839,25 @@
       "name": "Saint",
       "avatar_url": "https://avatars.githubusercontent.com/u/58609876?v=4",
       "profile": "https://github.com/sainttttt",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "deltaxrg",
+      "name": "deltaxrg",
+      "avatar_url": "https://avatars.githubusercontent.com/u/110563031?v=4",
+      "profile": "https://github.com/deltaxrg",
+      "contributions": [
+        "code",
+        "doc"
+      ]
+    },
+    {
+      "login": "Fortune-Adekogbe",
+      "name": "Fortune Adekogbe",
+      "avatar_url": "https://avatars.githubusercontent.com/u/53936357?v=4",
+      "profile": "https://github.com/Fortune-Adekogbe",
       "contributions": [
         "code"
       ]

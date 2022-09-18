@@ -30,6 +30,7 @@ class ModelArgs:
     adafactor_relative_step: bool = True
     adafactor_scale_parameter: bool = True
     adafactor_warmup_init: bool = True
+    adam_betas: tuple = field(default_factory=lambda: (0.9, 0.999))
     adam_epsilon: float = 1e-8
     best_model_dir: str = "outputs/best_model"
     cache_dir: str = "cache_dir/"

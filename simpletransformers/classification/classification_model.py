@@ -43,7 +43,8 @@ from transformers.optimization import (
     get_cosine_with_hard_restarts_schedule_with_warmup,
     get_polynomial_decay_schedule_with_warmup,
 )
-from transformers.optimization import AdamW, Adafactor
+from torch.optim import AdamW
+from transformers.optimization import Adafactor
 from transformers import (
     AlbertConfig,
     AlbertTokenizer,
@@ -92,6 +93,9 @@ from transformers import (
     MobileBertConfig,
     MobileBertTokenizerFast,
     MobileBertForSequenceClassification,
+    NystromformerConfig,
+    # NystromformerTokenizer,
+    NystromformerForSequenceClassification,
     RemBertConfig,
     RemBertTokenizerFast,
     RemBertForSequenceClassification,
@@ -148,6 +152,7 @@ MODELS_WITH_EXTRA_SEP_TOKEN = [
     "xlmroberta",
     "longformer",
     "mpnet",
+    "nystromformer",
 ]
 
 MODELS_WITH_ADD_PREFIX_SPACE = [
@@ -156,6 +161,7 @@ MODELS_WITH_ADD_PREFIX_SPACE = [
     "xlmroberta",
     "longformer",
     "mpnet",
+    "nystromformer",
 ]
 
 MODELS_WITHOUT_SLIDING_WINDOW_SUPPORT = ["squeezebert"]
@@ -265,6 +271,11 @@ class ClassificationModel:
                 MobileBertTokenizerFast,
             ),
             "mpnet": (MPNetConfig, MPNetForSequenceClassification, MPNetTokenizerFast),
+            "nystromformer": (
+                NystromformerConfig,
+                NystromformerForSequenceClassification,
+                BigBirdTokenizer,
+            ),
             "rembert": (
                 RemBertConfig,
                 RemBertForSequenceClassification,
@@ -739,6 +750,7 @@ class ClassificationModel:
                 optimizer_grouped_parameters,
                 lr=args.learning_rate,
                 eps=args.adam_epsilon,
+                betas=args.adam_betas,
             )
         elif args.optimizer == "Adafactor":
             optimizer = Adafactor(
@@ -1955,6 +1967,13 @@ class ClassificationModel:
 
         Args:
             to_predict: A python list of text (str) to be sent to the model for prediction.
+                        For layoutlm and layoutlmv2 model types, this should be a list of lists:
+                        [
+                            [text1, [x0], [y0], [x1], [y1]],
+                            [text2, [x0], [y0], [x1], [y1]],
+                            ...
+                            [textn, [x0], [y0], [x1], [y1]]
+                        ]
 
         Returns:
             preds: A python list of the predictions (0 or 1) for each text.
@@ -2039,10 +2058,16 @@ class ClassificationModel:
                 model = torch.nn.DataParallel(model)
 
             if isinstance(to_predict[0], list):
-                eval_examples = (
-                    *zip(*to_predict),
-                    [dummy_label for i in range(len(to_predict))],
-                )
+                if self.args.model_type in ["layoutlm", "layoutlmv2"]:
+                    eval_examples = [
+                        InputExample(i, text, None, dummy_label, x0, y0, x1, y1)
+                        for i, (text, x0, y0, x1, y1) in enumerate(to_predict)
+                    ]
+                else:
+                    eval_examples = (
+                        *zip(*to_predict),
+                        [dummy_label for i in range(len(to_predict))],
+                    )
             else:
                 eval_examples = (
                     to_predict,

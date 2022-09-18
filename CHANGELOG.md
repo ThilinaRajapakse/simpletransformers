@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.63.9] - 2022-09-18
+
+### Added
+
+- Python 3.10 support [luketudge](https://github.com/luketudge)
+
+#### Changed
+
+- Removed usage of deprecated function `batch_encode_plus` [whr778](https://github.com/whr778)
+
+## [0.63.8] - 2022-09-18
+
+### Added
+
+- Added `adam_betas` to model_args [anaconda121](https://github.com/anaconda121)
+
+### Changed
+
+- Switched to `torch.optim.AdamW` [whr778](https://github.com/whr778)
+
+### Fixed
+
+- Fixed issues with LayoutLM predictions. Updated docs. [deltaxrg](https://github.com/deltaxrg)
+- Fixed issue with loading MarianMT models [Fortune-Adekogbe](https://github.com/Fortune-Adekogbe)
+
 
 ## [0.63.7] - 2022-05-29
 
@@ -1641,7 +1666,9 @@ Model checkpoint is now saved for all epochs again.
 
 - This CHANGELOG file to hopefully serve as an evolving example of a standardized open source project CHANGELOG.
 
-[0.63.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9323c03...HEAD
+[0.63.8]: https://github.com/ThilinaRajapakse/simpletransformers/compare/71880c2...HEAD
+
+[0.63.6]: https://github.com/ThilinaRajapakse/simpletransformers/compare/9323c03...71880c2
 
 [0.63.0]: https://github.com/ThilinaRajapakse/simpletransformers/compare/a3ce529...9323c03
 

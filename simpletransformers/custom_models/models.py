@@ -8,6 +8,8 @@ from transformers import (
     ElectraForMaskedLM,
     ElectraForPreTraining,
     FlaubertModel,
+    LayoutLMModel,
+    LayoutLMPreTrainedModel,
     LongformerModel,
     RemBertModel,
     RemBertPreTrainedModel,
@@ -46,6 +48,11 @@ from transformers.models.electra.modeling_electra import (
 from transformers.models.longformer.modeling_longformer import (
     LongformerClassificationHead,
     LongformerPreTrainedModel,
+)
+from transformers.models.nystromformer.modeling_nystromformer import (
+    NystromformerClassificationHead,
+    NystromformerModel,
+    NystromformerPreTrainedModel,
 )
 from transformers.models.rembert.configuration_rembert import RemBertConfig
 from transformers.models.roberta.configuration_roberta import RobertaConfig
@@ -86,6 +93,60 @@ class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
     ):
         outputs = self.bert(
             input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+        )
+
+        pooled_output = outputs[1]
+
+        pooled_output = self.dropout(pooled_output)
+        logits = self.classifier(pooled_output)
+
+        outputs = (logits,) + outputs[
+            2:
+        ]  # add hidden states and attention if they are here
+
+        if labels is not None:
+            loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
+            labels = labels.float()
+            loss = loss_fct(
+                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
+            )
+            outputs = (loss,) + outputs
+
+        return outputs  # (loss), logits, (hidden_states), (attentions)
+
+
+class LayoutLMForMultiLabelSequenceClassification(LayoutLMPreTrainedModel):
+    """
+    LayoutLMv1 model adapted for multi-label sequence classification
+    """
+
+    def __init__(self, config, pos_weight=None):
+        super(LayoutLMForMultiLabelSequenceClassification, self).__init__(config)
+        self.num_labels = config.num_labels
+        self.layoutlm = LayoutLMModel(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.classifier = nn.Linear(config.hidden_size, self.config.num_labels)
+        self.pos_weight = pos_weight
+
+        self.init_weights()
+
+    def forward(
+        self,
+        input_ids,
+        bbox=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        labels=None,
+    ):
+        outputs = self.layoutlm(
+            input_ids=input_ids,
+            bbox=bbox,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
             position_ids=position_ids,
@@ -900,6 +961,56 @@ class BigBirdForMultiLabelSequenceClassification(BigBirdPreTrainedModel):
         self.config = config
         self.bert = BigBirdModel(config)
         self.classifier = BigBirdClassificationHead(config)
+        self.pos_weight = pos_weight
+
+        self.init_weights()
+
+    def forward(
+        self,
+        input_ids,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        labels=None,
+    ):
+        outputs = self.bert(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+        )
+
+        sequence_output = outputs[0]
+        logits = self.classifier(sequence_output)
+
+        outputs = (logits,) + outputs[
+            2:
+        ]  # add hidden states and attention if they are here
+
+        if labels is not None:
+            loss_fct = BCEWithLogitsLoss(pos_weight=self.pos_weight)
+            labels = labels.float()
+            loss = loss_fct(
+                logits.view(-1, self.num_labels), labels.view(-1, self.num_labels)
+            )
+            outputs = (loss,) + outputs
+
+        return outputs  # (loss), logits, (hidden_states), (attentions)
+
+
+class NystromformerForMultiLabelSequenceClassification(NystromformerPreTrainedModel):
+    """
+    Bert model adapted for multi-label sequence classification
+    """
+
+    def __init__(self, config, pos_weight=None):
+        super(NystromformerForMultiLabelSequenceClassification, self).__init__(config)
+        self.num_labels = config.num_labels
+        self.config = config
+        self.bert = NystromformerModel(config)
+        self.classifier = NystromformerClassificationHead(config)
         self.pos_weight = pos_weight
 
         self.init_weights()
