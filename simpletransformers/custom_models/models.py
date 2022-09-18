@@ -999,6 +999,7 @@ class BigBirdForMultiLabelSequenceClassification(BigBirdPreTrainedModel):
 
         return outputs  # (loss), logits, (hidden_states), (attentions)
 
+
 class NystromformerForMultiLabelSequenceClassification(NystromformerPreTrainedModel):
     """
     Bert model adapted for multi-label sequence classification
