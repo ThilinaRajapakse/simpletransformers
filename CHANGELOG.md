@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `adam_betas` to model_args [anaconda121](https://github.com/anaconda121)
+
 ### Changed
 
 - Switched to `torch.optim.AdamW` [whr778](https://github.com/whr778)
