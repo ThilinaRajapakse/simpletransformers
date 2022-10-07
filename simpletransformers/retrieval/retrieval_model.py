@@ -41,14 +41,19 @@ from transformers.models.auto import (
     AutoModel,
     AutoTokenizer,
 )
-import datasets
 from datasets import load_from_disk
+from datasets.arrow_dataset import Dataset as HFDataset
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import RetrievalArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
+from simpletransformers.custom_models.large_representation_retrieval_model import (
+    DPRContextEncoderEnhanced,
+    DPRQuestionEncoderEnhanced,
+)
 from simpletransformers.retrieval.retrieval_utils import (
     get_clustered_passage_dataset,
+    get_output_embeddings,
     get_prediction_passage_dataset,
     load_hf_dataset,
     get_evaluation_passage_dataset,
@@ -159,6 +164,15 @@ class RetrievalModel:
         if not use_cuda:
             self.args.fp16 = False
 
+        if self.args.larger_representations:
+            MODEL_CLASSES["dpr"] = (
+                DPRConfig,
+                DPRContextEncoderEnhanced,
+                DPRQuestionEncoderEnhanced,
+                DPRContextEncoderTokenizerFast,
+                DPRQuestionEncoderTokenizerFast,
+            )
+
         try:
             (
                 config_class,
@@ -232,6 +246,49 @@ class RetrievalModel:
 
         # TODO: Add support for adding special tokens to the tokenizers
 
+        if self.args.larger_representations:
+            from tokenizers.processors import TemplateProcessing
+
+            if self.args.extra_cls_token_count > 0:
+                cls_substring = (
+                    " ".join(["[CLS]"] * self.args.extra_cls_token_count) + " "
+                )
+            else:
+                cls_substring = ""
+            context_post_processor = TemplateProcessing(
+                single=f"[CLS] {cls_substring}$A [SEP]",
+                pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+                special_tokens=[
+                    ("[CLS]", self.context_tokenizer.cls_token_id),
+                    ("[UNK]", self.context_tokenizer.unk_token_id),
+                    ("[SEP]", self.context_tokenizer.sep_token_id),
+                    ("[PAD]", self.context_tokenizer.pad_token_id),
+                    ("[MASK]", self.context_tokenizer.mask_token_id),
+                ],
+            )
+
+            self.context_tokenizer._tokenizer.post_processor = context_post_processor
+
+            if self.args.extra_mask_token_count > 0:
+                mask_substring = (
+                    " ".join(["[MASK]"] * self.args.extra_mask_token_count) + " "
+                )
+            else:
+                mask_substring = ""
+            query_post_processor = TemplateProcessing(
+                single=f"[CLS] {cls_substring}$A {mask_substring}[SEP]",
+                pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+                special_tokens=[
+                    ("[CLS]", self.context_tokenizer.cls_token_id),
+                    ("[UNK]", self.context_tokenizer.unk_token_id),
+                    ("[SEP]", self.context_tokenizer.sep_token_id),
+                    ("[PAD]", self.context_tokenizer.pad_token_id),
+                    ("[MASK]", self.context_tokenizer.mask_token_id),
+                ],
+            )
+
+            self.query_tokenizer._tokenizer.post_processor = query_post_processor
+
         self.args.model_type = model_type
         self.args.model_name = model_name
 
@@ -252,6 +309,7 @@ class RetrievalModel:
         additional_eval_passages=None,
         relevant_docs=None,
         clustered_training=False,
+        top_k_values=None,
         verbose=True,
         **kwargs,
     ):
@@ -331,6 +389,7 @@ class RetrievalModel:
             relevant_docs=relevant_docs,
             clustered_training=clustered_training,
             train_data=train_data,
+            top_k_values=top_k_values,
             verbose=verbose,
             **kwargs,
         )
@@ -360,6 +419,7 @@ class RetrievalModel:
         relevant_docs=None,
         clustered_training=False,
         train_data=None,
+        top_k_values=None,
         verbose=True,
         **kwargs,
     ):
@@ -502,7 +562,9 @@ class RetrievalModel:
 
         if args.evaluate_during_training:
             training_progress_scores = self._create_training_progress_scores(
-                calculate_recall=relevant_docs is not None, **kwargs
+                calculate_recall=relevant_docs is not None,
+                top_k_values=top_k_values,
+                **kwargs,
             )
 
         if args.wandb_project:
@@ -653,6 +715,7 @@ class RetrievalModel:
                             relevant_docs=relevant_docs,
                             verbose=verbose and args.evaluate_during_training_verbose,
                             silent=args.evaluate_during_training_silent,
+                            top_k_values=top_k_values,
                             evaluating_during_training=True,
                             **kwargs,
                         )
@@ -830,6 +893,7 @@ class RetrievalModel:
                     relevant_docs=relevant_docs,
                     verbose=verbose and args.evaluate_during_training_verbose,
                     silent=args.evaluate_during_training_silent,
+                    top_k_values=top_k_values,
                     evaluating_during_training=True,
                     **kwargs,
                 )
@@ -1056,7 +1120,7 @@ class RetrievalModel:
             doc_dicts,
             top_k_accuracy_each_query,
             recall_at_k_each_query,
-            relevance_list
+            relevance_list,
         ) = self.evaluate(
             eval_dataset,
             gold_passages,
@@ -1083,7 +1147,7 @@ class RetrievalModel:
             doc_dicts,
             top_k_accuracy_each_query,
             recall_at_k_each_query,
-            relevance_list
+            relevance_list,
         )
 
     def evaluate(
@@ -1134,15 +1198,23 @@ class RetrievalModel:
         if self.args.fp16:
             from torch.cuda import amp
 
-        all_query_embeddings = np.zeros(
-            (
-                len(eval_dataset),
-                self.query_config.hidden_size
-                if "projection_dim" not in self.query_config.to_dict()
-                or not self.query_config.projection_dim
-                else self.query_config.projection_dim,
+        if args.larger_representations:
+            all_query_embeddings = np.zeros(
+                (
+                    len(eval_dataset),
+                    self.query_config.hidden_size * (1 + args.extra_cls_token_count),
+                )
             )
-        )
+        else:
+            all_query_embeddings = np.zeros(
+                (
+                    len(eval_dataset),
+                    self.query_config.hidden_size
+                    if "projection_dim" not in self.query_config.to_dict()
+                    or not self.query_config.projection_dim
+                    else self.query_config.projection_dim,
+                )
+            )
         for i, batch in enumerate(
             tqdm(
                 eval_dataloader,
@@ -1266,7 +1338,7 @@ class RetrievalModel:
             doc_dicts,
             top_k_accuracy_each_query,
             recall_at_k_each_query,
-            relevance_list
+            relevance_list,
         )
 
     def predict(
@@ -1306,15 +1378,24 @@ class RetrievalModel:
                 )
                 self.context_encoder.to(self.device)
 
-        all_query_embeddings = np.zeros(
-            (
-                len(to_predict),
-                self.query_config.hidden_size
-                if "projection_dim" not in self.query_config.to_dict()
-                or not self.query_config.projection_dim
-                else self.query_config.projection_dim,
+        if self.args.larger_representations:
+            all_query_embeddings = np.zeros(
+                (
+                    len(to_predict),
+                    self.query_config.hidden_size
+                    * (1 + self.args.extra_cls_token_count),
+                )
             )
-        )
+        else:
+            all_query_embeddings = np.zeros(
+                (
+                    len(to_predict),
+                    self.query_config.hidden_size
+                    if "projection_dim" not in self.query_config.to_dict()
+                    or not self.query_config.projection_dim
+                    else self.query_config.projection_dim,
+                )
+            )
 
         query_model = self.query_encoder
         query_model.to(self.device)
@@ -1354,9 +1435,21 @@ class RetrievalModel:
             with torch.no_grad():
                 if self.args.fp16:
                     with amp.autocast():
-                        query_outputs = query_model(**query_inputs).pooler_output
+                        query_outputs = query_model(**query_inputs)
+                        query_outputs = get_output_embeddings(
+                            query_outputs,
+                            concatenate_embeddings=self.args.larger_representations
+                            and self.args.model_type == "custom",
+                            n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                        )
                 else:
-                    query_outputs = query_model(**query_inputs).pooler_output
+                    query_outputs = query_model(**query_inputs)
+                    query_outputs = get_output_embeddings(
+                        query_outputs,
+                        concatenate_embeddings=self.args.larger_representations
+                        and self.args.model_type == "custom",
+                        n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                    )
 
             all_query_embeddings[
                 i * self.args.eval_batch_size : (i + 1) * self.args.eval_batch_size
@@ -1536,16 +1629,26 @@ class RetrievalModel:
             return passages
         else:
             ids_batched = np.zeros((len(query_embeddings), retrieve_n_docs))
-            vectors_batched = np.zeros(
-                (
-                    len(query_embeddings),
-                    retrieve_n_docs,
-                    self.context_config.hidden_size
-                    if "projection_dim" not in self.context_config.to_dict()
-                    or not self.context_config.projection_dim
-                    else self.context_config.projection_dim,
+            if self.args.larger_representations:
+                vectors_batched = np.zeros(
+                    (
+                        len(query_embeddings),
+                        retrieve_n_docs,
+                        self.query_config.hidden_size
+                        * (1 + args.extra_cls_token_count),
+                    )
                 )
-            )
+            else:
+                vectors_batched = np.zeros(
+                    (
+                        len(query_embeddings),
+                        retrieve_n_docs,
+                        self.context_config.hidden_size
+                        if "projection_dim" not in self.context_config.to_dict()
+                        or not self.context_config.projection_dim
+                        else self.context_config.projection_dim,
+                    )
+                )
             doc_dicts = []
 
             for i, query_embeddings in enumerate(
@@ -1818,8 +1921,36 @@ class RetrievalModel:
         labels,
         criterion,
     ):
-        context_outputs = context_model(**context_inputs).pooler_output
-        query_outputs = query_model(**query_inputs).pooler_output
+        # if self.args.larger_representations:
+        #     context_outputs_all = context_model(**context_inputs)
+        #     query_outputs_all = query_model(**query_inputs)
+
+        #     # context_outputs_all.sequence_output: (batch_size, context_length, hidden_size)
+        #     # We have 3 CLS tokens in the beginning of each sequence.
+        #     # The embeddings of these 3 CLS tokens are concatenated to be the representation of the sequence.
+        #     context_cls_embeddings = context_outputs_all.sequence_output[:, :3, :]
+        #     context_outputs = context_cls_embeddings.view(
+        #         context_cls_embeddings.size(0), -1
+        #     )
+
+        #     query_cls_embeddings = query_outputs_all.sequence_output[:, :3, :]
+        #     query_outputs = query_cls_embeddings.view(query_cls_embeddings.size(0), -1)
+        # else:
+
+        context_outputs = context_model(**context_inputs)
+        context_outputs = get_output_embeddings(
+            context_outputs,
+            concatenate_embeddings=self.args.larger_representations
+            and self.args.model_type == "custom",
+            n_cls_tokens=(1 + self.args.extra_cls_token_count),
+        )
+        query_outputs = query_model(**query_inputs)
+        query_outputs = get_output_embeddings(
+            query_outputs,
+            concatenate_embeddings=self.args.larger_representations
+            and self.args.model_type == "custom",
+            n_cls_tokens=(1 + self.args.extra_cls_token_count),
+        )
 
         context_outputs = torch.nn.functional.dropout(context_outputs, p=0.1)
         query_outputs = torch.nn.functional.dropout(query_outputs, p=0.1)
@@ -1827,13 +1958,23 @@ class RetrievalModel:
         similarity_score = torch.matmul(query_outputs, context_outputs.t())
         softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
 
-        criterion = torch.nn.NLLLoss(reduction="mean")
+        if self.args.larger_representations and self.context_encoder.training:
+            bce_criterion = torch.nn.BCEWithLogitsLoss()
+            nll_criterion = torch.nn.NLLLoss(reduction="mean")
+            bce_labels, nll_labels = labels
 
-        loss = criterion(softmax_score, labels)
+            bce_loss = bce_criterion(similarity_score, bce_labels)
+            nll_loss = nll_criterion(softmax_score, nll_labels)
+
+            loss = bce_loss + nll_loss
+        else:
+            criterion = torch.nn.NLLLoss(reduction="mean")
+            loss = criterion(softmax_score, labels)
+            nll_labels = labels
 
         max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
-            (max_idxs == torch.tensor(labels)).sum().cpu().detach().numpy().item()
+            (max_idxs == torch.tensor(nll_labels)).sum().cpu().detach().numpy().item()
         )
 
         return loss, context_outputs, query_outputs, correct_predictions_count
@@ -1842,11 +1983,11 @@ class RetrievalModel:
         device = self.device
 
         labels = [i for i in range(len(batch["context_ids"]))]
-        labels = torch.tensor(labels, dtype=torch.long)
+        labels = torch.tensor(labels, dtype=torch.long).to(device)
 
         if not evaluate:
             # Training
-            labels = labels.to(device)
+            # labels = labels.to(device)
             if self.args.hard_negatives:
                 shuffled_indices = torch.randperm(len(labels))
                 context_ids = torch.cat(
@@ -1908,11 +2049,17 @@ class RetrievalModel:
                 "attention_mask": batch["query_mask"].to(device),
             }
 
+        if isinstance(batch, HFDataset) and "labels" in batch.column_names:
+            labels = batch["labels"].to(device), labels  # BCELabels, NLLLabels
+
         return context_input, query_input, labels
 
-    def _create_training_progress_scores(self, calculate_recall=False, **kwargs):
+    def _create_training_progress_scores(
+        self, calculate_recall=False, top_k_values=None, **kwargs
+    ):
         # TODO: top_k_values should be part of the model. Probably.
-        top_k_values = [1, 2, 3, 5, 10]
+        if top_k_values is None:
+            top_k_values = [1, 2, 3, 5, 10]
         extra_metrics = {key: [] for key in kwargs}
         training_progress_scores = {
             "global_step": [],

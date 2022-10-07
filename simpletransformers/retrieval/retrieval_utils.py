@@ -1,9 +1,10 @@
 import logging
 import os
 import pickle
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 from functools import partial
 from simpletransformers.seq2seq.seq2seq_utils import add_faiss_index_to_dataset
+import datasets
 from datasets.load import load_from_disk
 
 import torch
@@ -200,11 +201,26 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
     }
 
 
+def get_output_embeddings(embeddings, concatenate_embeddings=False, n_cls_tokens=3):
+    """
+    Extracts the embeddings from the output of the model.
+    Concatenates CLS embeddings if concatenate_embeddings is True.
+    """
+    if concatenate_embeddings:
+        return embeddings.last_hidden_state[:, :n_cls_tokens, :].reshape(
+            embeddings.last_hidden_state.shape[0], -1
+        )
+    else:
+        return embeddings.pooler_output
+
+
 def embed(
     documents,
     rank=None,
     encoder=None,
     tokenizer=None,
+    concatenate_embeddings=False,
+    extra_cls_token_count=0,
     device=None,
     fp16=None,
     amp=None,
@@ -229,7 +245,12 @@ def embed(
                             input_ids["input_ids"].to(device=device),
                             input_ids["attention_mask"].to(device=device),
                             return_dict=True,
-                        ).pooler_output
+                        )
+                        embeddings = get_output_embeddings(
+                            embeddings,
+                            concatenate_embeddings=concatenate_embeddings,
+                            n_cls_tokens=(1 + extra_cls_token_count),
+                        )
                     except (TypeError, ValueError) as e:
                         logger.warn(e)
                         logger.warn(
@@ -248,13 +269,23 @@ def embed(
                             input_ids["input_ids"].to(device=device),
                             input_ids["attention_mask"].to(device=device),
                             return_dict=True,
-                        ).pooler_output
+                        )
+                        embeddings = get_output_embeddings(
+                            embeddings,
+                            concatenate_embeddings=concatenate_embeddings,
+                            n_cls_tokens=(1 + extra_cls_token_count),
+                        )
                 else:
                     embeddings = encoder(
                         documents["context_ids"].to(device=device),
                         documents["context_mask"].to(device=device),
                         return_dict=True,
-                    ).pooler_output
+                    )
+                    embeddings = get_output_embeddings(
+                        embeddings,
+                        concatenate_embeddings=concatenate_embeddings,
+                        n_cls_tokens=(1 + extra_cls_token_count),
+                    )
             # Embeddings need to be float32 for indexing
             embeddings = embeddings.float()
         else:
@@ -270,7 +301,12 @@ def embed(
                         input_ids["input_ids"].to(device=device),
                         input_ids["attention_mask"].to(device=device),
                         return_dict=True,
-                    ).pooler_output
+                    )
+                    embeddings = get_output_embeddings(
+                        embeddings,
+                        concatenate_embeddings=concatenate_embeddings,
+                        n_cls_tokens=(1 + extra_cls_token_count),
+                    )
                 except (TypeError, ValueError) as e:
                     logger.warn(e)
                     logger.warn(
@@ -289,13 +325,23 @@ def embed(
                         input_ids["input_ids"].to(device=device),
                         input_ids["attention_mask"].to(device=device),
                         return_dict=True,
-                    ).pooler_output
+                    )
+                    embeddings = get_output_embeddings(
+                        embeddings,
+                        concatenate_embeddings=concatenate_embeddings,
+                        n_cls_tokens=(1 + extra_cls_token_count),
+                    )
             else:
                 embeddings = encoder(
                     documents["context_ids"].to(device=device),
                     documents["context_mask"].to(device=device),
                     return_dict=True,
-                ).pooler_output
+                )
+                embeddings = get_output_embeddings(
+                    embeddings,
+                    concatenate_embeddings=concatenate_embeddings,
+                    n_cls_tokens=(1 + extra_cls_token_count),
+                )
     return {"embeddings": embeddings.detach().cpu().numpy()}
 
 
@@ -403,6 +449,8 @@ def get_evaluation_passage_dataset(
                             embed,
                             encoder=encoder,
                             tokenizer=tokenizer,
+                            concatenate_embeddings=args.larger_representations,
+                            extra_cls_token_count=args.extra_cls_token_count,
                             device=device,
                             fp16=args.fp16,
                             amp=amp,
@@ -502,6 +550,8 @@ def get_evaluation_passage_dataset(
                     embed,
                     encoder=encoder,
                     tokenizer=tokenizer,
+                    concatenate_embeddings=args.larger_representations,
+                    extra_cls_token_count=args.extra_cls_token_count,
                     device=device,
                     fp16=args.fp16,
                     amp=amp,
@@ -624,6 +674,8 @@ def get_prediction_passage_dataset(
                 embed,
                 encoder=encoder,
                 tokenizer=tokenizer,
+                concatenate_embeddings=args.larger_representations,
+                extra_cls_token_count=args.extra_cls_token_count,
                 device=device,
                 fp16=args.fp16,
                 amp=amp,
@@ -759,10 +811,38 @@ class ClusteredDataset(Dataset):
         self.clusters = clusters
 
     def __getitem__(self, index):
-        return self.clusters[index]
+        try:
+            return self.clusters[index]
+        except IndexError:
+            return self.clusters[-1]
 
     def __len__(self):
         return len(self.clusters)
+
+
+def get_relevant_labels(context_ids_all, current_context_ids):
+    current_context_ids = current_context_ids["context_ids"]
+    label_tensor = torch.zeros(context_ids_all.shape[0], dtype=torch.long)
+    relevant_indices = torch.where(
+        torch.all(context_ids_all == current_context_ids, dim=1)
+    )[0]
+    label_tensor[relevant_indices] = 1
+    return {"labels": label_tensor.float()}
+
+
+def get_relevant_labels_batched(context_ids_all, context_ids_batch):
+    context_ids_batch = context_ids_batch["context_ids"]
+    labels = np.zeros((context_ids_batch.shape[0], context_ids_all.shape[0]))
+    for i in range(context_ids_batch.shape[0]):
+        relevant_indices = np.argwhere(
+            np.isin(context_ids_all, context_ids_batch[i]).all(axis=1)
+        )
+        labels[i, relevant_indices] = 1
+    return {"labels": labels.astype(float)}
+
+
+def dataset_map_multiprocessed(batch_dataset):
+    return batch_dataset.map(partial(get_relevant_labels, batch_dataset["context_ids"]))
 
 
 def get_clustered_passage_dataset(
@@ -787,6 +867,8 @@ def get_clustered_passage_dataset(
             embed,
             encoder=encoder,
             tokenizer=tokenizer,
+            concatenate_embeddings=args.larger_representations,
+            extra_cls_token_count=args.extra_cls_token_count,
             device=device,
             fp16=args.fp16,
             amp=amp,
@@ -794,6 +876,8 @@ def get_clustered_passage_dataset(
         ),
         batched=True,
         batch_size=args.embed_batch_size,
+        # with_rank=args.n_gpu > 1,
+        # num_proc=args.n_gpu,
     )
     passage_dataset = passage_dataset.rename_column("passages", "gold_passage")
     logger.info("Generating embeddings for passage clustering completed")
@@ -866,5 +950,42 @@ def get_clustered_passage_dataset(
             break
 
     batch_datasets = [passage_dataset.select(batch) for batch in final_batches]
+
+    if datasets.logging.is_progress_bar_enabled():
+        datasets.logging.disable_progress_bar()
+        reenable_progress_bar = True
+    else:
+        reenable_progress_bar = False
+
+    batch_datasets = [
+        batch_dataset.map(partial(get_relevant_labels, batch_dataset["context_ids"]))
+        for batch_dataset in tqdm(batch_datasets, desc="Generating labels")
+    ]
+
+    # batch_datasets = [
+    #     batch_dataset.map(
+    #         partial(get_relevant_labels_batched, batch_dataset["context_ids"]),
+    #         batched=True,
+    #         batch_size=len(batch_dataset),
+    #     )
+    #     for batch_dataset in tqdm(batch_datasets, desc="Generating labels")
+    # ]
+
+    # if args.multiprocessing_chunksize == -1:
+    #     multiprocessing_chunksize = len(batch_datasets) // (cpu_count() * 10)
+    # else:
+    #     multiprocessing_chunksize = args.multiprocessing_chunksize
+
+    # with Pool(args.process_count) as p:
+    #     batch_datasets = list(
+    #         tqdm(
+    #             p.imap(dataset_map_multiprocessed, batch_datasets, chunksize=multiprocessing_chunksize),
+    #             desc="Generating labels",
+    #             total=len(batch_datasets),
+    #         )
+    #     )
+
+    if reenable_progress_bar:
+        datasets.logging.enable_progress_bar()
 
     return ClusteredDataset(batch_datasets)

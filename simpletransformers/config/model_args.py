@@ -376,6 +376,9 @@ class RetrievalArgs(Seq2SeqArgs):
     train_context_encoder: bool = True
     train_query_encoder: bool = True
     use_hf_datasets: bool = True
+    larger_representations: bool = False
+    extra_cls_token_count: int = 0
+    extra_mask_token_count: int = 0
 
 
 @dataclass
