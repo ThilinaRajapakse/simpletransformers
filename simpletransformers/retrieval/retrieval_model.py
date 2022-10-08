@@ -253,6 +253,10 @@ class RetrievalModel:
                 cls_substring = (
                     " ".join(["[CLS]"] * self.args.extra_cls_token_count) + " "
                 )
+
+                cls_substring = (
+                    " ".join([f"[unused{i}]" for i in range(self.args.extra_cls_token_count)]) + " "
+                )
             else:
                 cls_substring = ""
             context_post_processor = TemplateProcessing(
@@ -264,6 +268,8 @@ class RetrievalModel:
                     ("[SEP]", self.context_tokenizer.sep_token_id),
                     ("[PAD]", self.context_tokenizer.pad_token_id),
                     ("[MASK]", self.context_tokenizer.mask_token_id),
+                    ("[unused0]", self.context_tokenizer.convert_tokens_to_ids("[unused0]")),
+                    ("[unused1]", self.context_tokenizer.convert_tokens_to_ids("[unused1]")),
                 ],
             )
 
@@ -279,11 +285,13 @@ class RetrievalModel:
                 single=f"[CLS] {cls_substring}$A {mask_substring}[SEP]",
                 pair="[CLS] $A [SEP] $B:1 [SEP]:1",
                 special_tokens=[
-                    ("[CLS]", self.context_tokenizer.cls_token_id),
-                    ("[UNK]", self.context_tokenizer.unk_token_id),
-                    ("[SEP]", self.context_tokenizer.sep_token_id),
-                    ("[PAD]", self.context_tokenizer.pad_token_id),
-                    ("[MASK]", self.context_tokenizer.mask_token_id),
+                    ("[CLS]", self.query_tokenizer.cls_token_id),
+                    ("[UNK]", self.query_tokenizer.unk_token_id),
+                    ("[SEP]", self.query_tokenizer.sep_token_id),
+                    ("[PAD]", self.query_tokenizer.pad_token_id),
+                    ("[MASK]", self.query_tokenizer.mask_token_id),
+                    ("[unused0]", self.query_tokenizer.convert_tokens_to_ids("[unused0]")),
+                    ("[unused1]", self.query_tokenizer.convert_tokens_to_ids("[unused1]")),
                 ],
             )
 

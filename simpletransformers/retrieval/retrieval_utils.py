@@ -811,10 +811,7 @@ class ClusteredDataset(Dataset):
         self.clusters = clusters
 
     def __getitem__(self, index):
-        try:
-            return self.clusters[index]
-        except IndexError:
-            return self.clusters[-1]
+        return self.clusters[index]
 
     def __len__(self):
         return len(self.clusters)
