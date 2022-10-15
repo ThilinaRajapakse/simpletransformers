@@ -197,6 +197,9 @@ class RepresentationModel:
         else:
             embedding_func = get_all_tokens
 
+        if not isinstance(text_list, list):
+            text_list = [text_list]
+
         self.model.to(self.device)
         self.model.eval()
         batches = batch_iterable(text_list, batch_size=batch_size)
