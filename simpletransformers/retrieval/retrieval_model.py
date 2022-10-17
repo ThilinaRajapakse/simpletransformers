@@ -246,7 +246,7 @@ class RetrievalModel:
 
         # TODO: Add support for adding special tokens to the tokenizers
 
-        if self.args.larger_representations:
+        if self.args.larger_representations or self.args.include_bce_loss:
             from tokenizers.processors import TemplateProcessing
 
             if self.args.extra_cls_token_count > 0:
@@ -255,25 +255,41 @@ class RetrievalModel:
                 )
 
                 cls_substring = (
-                    " ".join([f"[unused{i}]" for i in range(self.args.extra_cls_token_count)]) + " "
+                    " ".join(
+                        [f"[unused{i}]" for i in range(self.args.extra_cls_token_count)]
+                    )
+                    + " "
                 )
-            else:
-                cls_substring = ""
-            context_post_processor = TemplateProcessing(
-                single=f"[CLS] {cls_substring}$A [SEP]",
-                pair="[CLS] $A [SEP] $B:1 [SEP]:1",
-                special_tokens=[
+
+                special_tokens = [
                     ("[CLS]", self.context_tokenizer.cls_token_id),
                     ("[UNK]", self.context_tokenizer.unk_token_id),
                     ("[SEP]", self.context_tokenizer.sep_token_id),
                     ("[PAD]", self.context_tokenizer.pad_token_id),
                     ("[MASK]", self.context_tokenizer.mask_token_id),
-                    ("[unused0]", self.context_tokenizer.convert_tokens_to_ids("[unused0]")),
-                    ("[unused1]", self.context_tokenizer.convert_tokens_to_ids("[unused1]")),
-                ],
-            )
+                ]
 
-            self.context_tokenizer._tokenizer.post_processor = context_post_processor
+                for i in range(self.args.extra_cls_token_count):
+                    special_tokens.append(
+                        (
+                            f"[unused{i}]",
+                            self.context_tokenizer.convert_tokens_to_ids(
+                                f"[unused{i}]"
+                            ),
+                        )
+                    )
+
+                context_post_processor = TemplateProcessing(
+                    single=f"[CLS] {cls_substring}$A [SEP]",
+                    pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+                    special_tokens=special_tokens,
+                )
+
+                self.context_tokenizer._tokenizer.post_processor = (
+                    context_post_processor
+                )
+            else:
+                cls_substring = ""
 
             if self.args.extra_mask_token_count > 0:
                 mask_substring = (
@@ -281,21 +297,18 @@ class RetrievalModel:
                 )
             else:
                 mask_substring = ""
-            query_post_processor = TemplateProcessing(
-                single=f"[CLS] {cls_substring}$A {mask_substring}[SEP]",
-                pair="[CLS] $A [SEP] $B:1 [SEP]:1",
-                special_tokens=[
-                    ("[CLS]", self.query_tokenizer.cls_token_id),
-                    ("[UNK]", self.query_tokenizer.unk_token_id),
-                    ("[SEP]", self.query_tokenizer.sep_token_id),
-                    ("[PAD]", self.query_tokenizer.pad_token_id),
-                    ("[MASK]", self.query_tokenizer.mask_token_id),
-                    ("[unused0]", self.query_tokenizer.convert_tokens_to_ids("[unused0]")),
-                    ("[unused1]", self.query_tokenizer.convert_tokens_to_ids("[unused1]")),
-                ],
-            )
 
-            self.query_tokenizer._tokenizer.post_processor = query_post_processor
+            if (
+                self.args.extra_cls_token_count > 0
+                or self.args.extra_mask_token_count > 0
+            ):
+                query_post_processor = TemplateProcessing(
+                    single=f"[CLS] {cls_substring}$A {mask_substring}[SEP]",
+                    pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+                    special_tokens=special_tokens,
+                )
+
+                self.query_tokenizer._tokenizer.post_processor = query_post_processor
 
         self.args.model_type = model_type
         self.args.model_name = model_name
@@ -1960,21 +1973,28 @@ class RetrievalModel:
             n_cls_tokens=(1 + self.args.extra_cls_token_count),
         )
 
-        context_outputs = torch.nn.functional.dropout(context_outputs, p=0.1)
-        query_outputs = torch.nn.functional.dropout(query_outputs, p=0.1)
+        context_outputs = torch.nn.functional.dropout(
+            context_outputs, p=self.args.output_dropout
+        )
+        query_outputs = torch.nn.functional.dropout(
+            query_outputs, p=self.args.output_dropout
+        )
 
         similarity_score = torch.matmul(query_outputs, context_outputs.t())
         softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
 
-        if self.args.larger_representations and self.context_encoder.training:
+        if self.args.include_bce_loss and self.context_encoder.training:
             bce_criterion = torch.nn.BCEWithLogitsLoss()
             nll_criterion = torch.nn.NLLLoss(reduction="mean")
             bce_labels, nll_labels = labels
 
             bce_loss = bce_criterion(similarity_score, bce_labels)
-            nll_loss = nll_criterion(softmax_score, nll_labels)
 
-            loss = bce_loss + nll_loss
+            if self.args.include_nll_loss:
+                nll_loss = nll_criterion(softmax_score, nll_labels)
+                loss = bce_loss + nll_loss
+            else:
+                loss = bce_loss
         else:
             criterion = torch.nn.NLLLoss(reduction="mean")
             loss = criterion(softmax_score, labels)
@@ -2057,7 +2077,11 @@ class RetrievalModel:
                 "attention_mask": batch["query_mask"].to(device),
             }
 
-        if isinstance(batch, HFDataset) and "labels" in batch.column_names:
+        if (
+            isinstance(batch, HFDataset)
+            and "labels" in batch.column_names
+            and self.args.include_bce_loss
+        ):
             labels = batch["labels"].to(device), labels  # BCELabels, NLLLabels
 
         return context_input, query_input, labels

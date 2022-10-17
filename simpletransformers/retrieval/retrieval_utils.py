@@ -82,6 +82,18 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
                 }
             )
 
+    # Assign an id to each unique gold_passage
+    passage_dict = {}
+
+    for i, passage in enumerate(dataset["gold_passage"]):
+        if passage not in passage_dict:
+            passage_dict[passage] = i
+
+    # dataset = dataset.map(
+    #     lambda example: {"passage_id": passage_dict[example["gold_passage"]]},
+    #     desc="Assigning passage ids",
+    # )
+
     dataset = dataset.map(
         lambda x: preprocess_batch_for_hf_dataset(
             x,
@@ -100,6 +112,7 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
             "context_mask",
             "query_mask",
             "hard_negatives_mask",
+            # "passage_id",
         ]
     else:
         column_names = [
@@ -107,6 +120,7 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
             "query_ids",
             "context_mask",
             "query_mask",
+            # "passage_id",
         ]
 
     if evaluate:
@@ -827,6 +841,14 @@ def get_relevant_labels(context_ids_all, current_context_ids):
     return {"labels": label_tensor.float()}
 
 
+def get_relevant_labels_with_ids(passage_ids_all, current_passage_ids):
+    current_passage_ids = current_passage_ids["passage_id"]
+    label_tensor = torch.zeros(passage_ids_all.shape[0], dtype=torch.long)
+    relevant_indices = torch.where(passage_ids_all == current_passage_ids)[0]
+    label_tensor[relevant_indices] = 1
+    return {"labels": label_tensor.float()}
+
+
 def get_relevant_labels_batched(context_ids_all, context_ids_batch):
     context_ids_batch = context_ids_batch["context_ids"]
     labels = np.zeros((context_ids_batch.shape[0], context_ids_all.shape[0]))
@@ -954,10 +976,18 @@ def get_clustered_passage_dataset(
     else:
         reenable_progress_bar = False
 
-    batch_datasets = [
-        batch_dataset.map(partial(get_relevant_labels, batch_dataset["context_ids"]))
-        for batch_dataset in tqdm(batch_datasets, desc="Generating labels")
-    ]
+    if args.include_bce_loss:
+        batch_datasets = [
+            batch_dataset.map(
+                partial(get_relevant_labels, batch_dataset["context_ids"])
+            )
+            for batch_dataset in tqdm(batch_datasets, desc="Generating labels")
+        ]
+
+    # batch_datasets = [
+    #     batch_dataset.map(partial(get_relevant_labels_with_ids, batch_dataset["passage_id"]))
+    #     for batch_dataset in tqdm(batch_datasets, desc="Generating labels")
+    # ]
 
     # batch_datasets = [
     #     batch_dataset.map(
