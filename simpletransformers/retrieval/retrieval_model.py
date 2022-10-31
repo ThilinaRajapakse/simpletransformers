@@ -1980,25 +1980,61 @@ class RetrievalModel:
             query_outputs, p=self.args.output_dropout
         )
 
-        similarity_score = torch.matmul(query_outputs, context_outputs.t())
-        softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
-
-        if self.args.include_bce_loss and self.context_encoder.training:
-            bce_criterion = torch.nn.BCEWithLogitsLoss()
+        if self.args.include_triplet_loss:
             nll_criterion = torch.nn.NLLLoss(reduction="mean")
-            bce_labels, nll_labels = labels
-
-            bce_loss = bce_criterion(similarity_score, bce_labels)
-
-            if self.args.include_nll_loss:
-                nll_loss = nll_criterion(softmax_score, nll_labels)
-                loss = bce_loss + nll_loss
-            else:
-                loss = bce_loss
-        else:
-            criterion = torch.nn.NLLLoss(reduction="mean")
-            loss = criterion(softmax_score, labels)
+            triplet_criterion = torch.nn.TripletMarginLoss(
+                margin=self.args.triplet_margin, reduction="mean"
+            )
+            positive_context_outputs = context_outputs[: query_outputs.size(0)]
+            negative_context_outputs = context_outputs[query_outputs.size(0) :]
             nll_labels = labels
+
+            if self.args.include_hard_negatives_for_triplets_only:
+                similarity_score = torch.matmul(
+                    query_outputs, positive_context_outputs.t()
+                )
+                softmax_score = torch.nn.functional.log_softmax(
+                    similarity_score, dim=-1
+                )
+                nll_loss = nll_criterion(softmax_score, nll_labels)
+            else:
+                similarity_score = torch.matmul(query_outputs, context_outputs.t())
+                softmax_score = torch.nn.functional.log_softmax(
+                    similarity_score, dim=-1
+                )
+                nll_loss = nll_criterion(softmax_score, nll_labels)
+
+            if self.context_encoder.training:
+                triplet_loss = triplet_criterion(
+                    query_outputs,
+                    positive_context_outputs,
+                    negative_context_outputs,
+                )
+                loss = (
+                    self.args.nll_lambda * nll_loss
+                    + self.args.triplet_lambda * triplet_loss
+                )
+            else:
+                loss = nll_loss
+        else:
+            similarity_score = torch.matmul(query_outputs, context_outputs.t())
+            softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
+            if self.args.include_bce_loss and self.context_encoder.training:
+                bce_criterion = torch.nn.BCEWithLogitsLoss()
+                nll_criterion = torch.nn.NLLLoss(reduction="mean")
+                bce_labels, nll_labels = labels
+
+                bce_loss = bce_criterion(similarity_score, bce_labels)
+
+                if self.args.include_nll_loss:
+                    nll_loss = nll_criterion(softmax_score, nll_labels)
+                    loss = bce_loss + nll_loss
+                else:
+                    loss = bce_loss
+            else:
+                criterion = torch.nn.NLLLoss(reduction="mean")
+                loss = criterion(softmax_score, labels)
+                nll_labels = labels
 
         max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
@@ -2017,18 +2053,17 @@ class RetrievalModel:
             # Training
             # labels = labels.to(device)
             if self.args.hard_negatives:
-                shuffled_indices = torch.randperm(len(labels))
                 context_ids = torch.cat(
                     [
                         batch["context_ids"],
-                        batch["hard_negative_ids"][shuffled_indices],
+                        batch["hard_negative_ids"],
                     ],
                     dim=0,
                 )
                 context_masks = torch.cat(
                     [
                         batch["context_mask"],
-                        batch["hard_negatives_mask"][shuffled_indices],
+                        batch["hard_negatives_mask"],
                     ],
                     dim=0,
                 )
@@ -2049,7 +2084,7 @@ class RetrievalModel:
 
             labels = labels[shuffled_indices].to(device)
 
-            if self.args.hard_negatives:
+            if self.args.hard_negatives and self.args.hard_negatives_in_eval:
                 context_ids = torch.cat(
                     [
                         batch["context_ids"][shuffled_indices],

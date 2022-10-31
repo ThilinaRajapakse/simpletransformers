@@ -100,11 +100,12 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
             context_tokenizer=context_tokenizer,
             query_tokenizer=query_tokenizer,
             args=args,
+            evaluate=evaluate,
         ),
         batched=True,
     )
 
-    if args.hard_negatives:
+    if args.hard_negatives and (args.hard_negatives_in_eval or not evaluate):
         column_names = [
             "context_ids",
             "query_ids",
@@ -133,7 +134,9 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
         return dataset
 
 
-def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer, args):
+def preprocess_batch_for_hf_dataset(
+    dataset, context_tokenizer, query_tokenizer, args, evaluate=False
+):
     try:
         context_inputs = context_tokenizer(
             dataset["gold_passage"],
@@ -171,7 +174,7 @@ def preprocess_batch_for_hf_dataset(dataset, context_tokenizer, query_tokenizer,
     context_mask = context_inputs["attention_mask"].squeeze()
     query_mask = query_inputs["attention_mask"].squeeze()
 
-    if args.hard_negatives:
+    if args.hard_negatives and (args.hard_negatives_in_eval or not evaluate):
         try:
             hard_negatives_inputs = context_tokenizer(
                 dataset["hard_negative"],
@@ -434,7 +437,7 @@ def get_evaluation_passage_dataset(
 
         passage_dataset = passage_dataset.rename_column("gold_passage", "passages")
 
-        if args.hard_negatives:
+        if args.hard_negatives and "hard_negative" in passage_dataset.column_names:
             passage_dataset = passage_dataset.map(
                 add_hard_negatives_to_evaluation_dataset,
                 batched=True,
