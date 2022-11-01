@@ -1644,13 +1644,7 @@ class ClassificationModel:
                 wandb.log({"roc": wandb.plot.roc_curve(truth, model_outputs, labels_list)})
 
                 # Precision Recall
-                wandb.log(
-                    {
-                        "pr": wandb.plot.pr_curve(
-                            truth, model_outputs, labels_list
-                        )
-                    }
-                )
+                wandb.log({"pr": wandb.plot.pr_curve(truth, model_outputs, labels_list)})
 
         return results, model_outputs, wrong
 
