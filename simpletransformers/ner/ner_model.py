@@ -1403,10 +1403,10 @@ class NERModel:
             ]
 
             # ROC
-            wandb.log({"roc": wandb.plots.ROC(truth, outputs, labels_list)})
+            wandb.log({"roc": wandb.plot.roc_curve(truth, outputs, labels_list)})
 
             # Precision Recall
-            wandb.log({"pr": wandb.plots.precision_recall(truth, outputs, labels_list)})
+            wandb.log({"pr": wandb.plot.pr_curve(truth, outputs, labels_list)})
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
