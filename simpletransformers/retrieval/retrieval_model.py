@@ -51,6 +51,7 @@ from simpletransformers.custom_models.large_representation_retrieval_model impor
     DPRContextEncoderEnhanced,
     DPRQuestionEncoderEnhanced,
 )
+from simpletransformers.retrieval.beir_evaluation import BeirRetrievalModel
 from simpletransformers.retrieval.retrieval_utils import (
     get_clustered_passage_dataset,
     get_output_embeddings,
@@ -197,9 +198,14 @@ class RetrievalModel:
             self.context_encoder = context_encoder.from_pretrained(
                 context_encoder_name, config=self.context_config
             )
-            self.context_tokenizer = context_tokenizer.from_pretrained(
-                context_encoder_name
-            )
+            try:
+                self.context_tokenizer = context_tokenizer.from_pretrained(
+                    context_encoder_name
+                )
+            except Exception:
+                self.context_tokenizer = context_tokenizer.from_pretrained(
+                    context_encoder_name, use_fast=False
+                )
         elif model_name:
             self.context_config = config_class.from_pretrained(
                 os.path.join(model_name, "context_encoder"), **self.args.context_config
@@ -217,32 +223,42 @@ class RetrievalModel:
                 context_encoder_tokenizer
             )
 
-        if query_encoder_name:
-            self.query_config = config_class.from_pretrained(
-                query_encoder_name, **self.args.query_config
-            )
-            if self.args.query_config.get("projection_dim") is not None:
-                query_encoder._keys_to_ignore_on_load_missing.append("encode_proj")
-            self.query_encoder = query_encoder.from_pretrained(
-                query_encoder_name, config=self.query_config
-            )
-            self.query_tokenizer = query_tokenizer.from_pretrained(query_encoder_name)
-        elif model_name:
-            self.query_config = config_class.from_pretrained(
-                os.path.join(model_name, "query_encoder"), **self.args.query_config
-            )
-            self.query_encoder = query_encoder.from_pretrained(
-                os.path.join(model_name, "query_encoder"), config=self.query_config
-            )
-            self.query_tokenizer = query_tokenizer.from_pretrained(
-                os.path.join(model_name, "query_encoder")
-            )
+        if self.args.tie_encoders:
+            self.query_encoder = self.context_encoder
+            self.query_tokenizer = self.context_tokenizer
+            self.query_config = self.context_config
         else:
-            self.query_config = config_class(**self.args.query_config)
-            self.query_encoder = query_encoder(config=self.query_config)
-            self.query_tokenizer = query_tokenizer.from_pretrained(
-                query_encoder_tokenizer
-            )
+            if query_encoder_name:
+                self.query_config = config_class.from_pretrained(
+                    query_encoder_name, **self.args.query_config
+                )
+                if self.args.query_config.get("projection_dim") is not None:
+                    query_encoder._keys_to_ignore_on_load_missing.append("encode_proj")
+                self.query_encoder = query_encoder.from_pretrained(
+                    query_encoder_name, config=self.query_config
+                )
+                try:
+                    self.query_tokenizer = query_tokenizer.from_pretrained(query_encoder_name)
+                except Exception:
+                    self.query_tokenizer = query_tokenizer.from_pretrained(
+                        query_encoder_name, use_fast=False
+                    )
+            elif model_name:
+                self.query_config = config_class.from_pretrained(
+                    os.path.join(model_name, "query_encoder"), **self.args.query_config
+                )
+                self.query_encoder = query_encoder.from_pretrained(
+                    os.path.join(model_name, "query_encoder"), config=self.query_config
+                )
+                self.query_tokenizer = query_tokenizer.from_pretrained(
+                    os.path.join(model_name, "query_encoder")
+                )
+            else:
+                self.query_config = config_class(**self.args.query_config)
+                self.query_encoder = query_encoder(config=self.query_config)
+                self.query_tokenizer = query_tokenizer.from_pretrained(
+                    query_encoder_tokenizer
+                )
 
         # TODO: Add support for adding special tokens to the tokenizers
 
@@ -928,6 +944,7 @@ class RetrievalModel:
                 training_progress_scores["train_loss"].append(current_loss)
                 for key in results:
                     training_progress_scores[key].append(results[key])
+
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(
                     os.path.join(args.output_dir, "training_progress_scores.csv"),
@@ -1102,6 +1119,13 @@ class RetrievalModel:
 
         self._move_model_to_device()
 
+        if self.args.evaluate_with_beir:
+            results = self.evaluate_beir(
+                eval_data,
+            )
+
+            return results, None, None, None, None, None
+
         if self.prediction_passages is None or evaluating_during_training:
             passage_dataset = get_evaluation_passage_dataset(
                 eval_data,
@@ -1141,6 +1165,7 @@ class RetrievalModel:
             doc_dicts,
             top_k_accuracy_each_query,
             recall_at_k_each_query,
+            mrr_each_query_dict,
             relevance_list,
         ) = self.evaluate(
             eval_dataset,
@@ -1168,6 +1193,7 @@ class RetrievalModel:
             doc_dicts,
             top_k_accuracy_each_query,
             recall_at_k_each_query,
+            mrr_each_query_dict,
             relevance_list,
         )
 
@@ -1308,6 +1334,7 @@ class RetrievalModel:
                     scores,
                     top_k_accuracy_each_query,
                     recall_at_k_each_query,
+                    mrr_each_query_dict,
                     relevance_list,
                 ) = self.compute_metrics(
                     gold_passages,
@@ -1322,6 +1349,7 @@ class RetrievalModel:
                 (
                     scores,
                     top_k_accuracy_each_query,
+                    mrr_each_query_dict,
                     relevance_list,
                 ) = self.compute_metrics(
                     gold_passages,
@@ -1359,8 +1387,69 @@ class RetrievalModel:
             doc_dicts,
             top_k_accuracy_each_query,
             recall_at_k_each_query,
+            mrr_each_query_dict,
             relevance_list,
         )
+
+    def evaluate_beir(
+        self,
+        eval_data,
+    ):
+        from beir.datasets.data_loader import GenericDataLoader
+        from beir.retrieval.evaluation import EvaluateRetrieval
+        from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
+
+        corpus, queries, qrels = GenericDataLoader(data_folder=eval_data).load(
+            split="dev"
+        )
+
+        beir_model = DRES(
+            BeirRetrievalModel(
+                self.context_encoder,
+                self.query_encoder,
+                self.context_tokenizer,
+                self.query_tokenizer,
+                self.context_config,
+                self.query_config,
+                self.args,
+            )
+        )
+
+        retriever = EvaluateRetrieval(
+            beir_model,
+            score_function="dot",
+        )
+
+        results = retriever.retrieve(corpus, queries)
+
+        ndcg_b, _map_b, recall_b, precision_b = retriever.evaluate(
+            qrels, results, retriever.k_values
+        )
+        mrr_b = retriever.evaluate_custom(
+            qrels, results, retriever.k_values, metric="mrr"
+        )
+
+        ndcg = {}
+        _map = {}
+        recall = {}
+        precision = {}
+        mrr = {}
+
+        for i, k in enumerate(retriever.k_values):
+            ndcg["ndcg_at_" + str(k)] = ndcg_b["NDCG@" + str(k)]
+            _map["map_at_" + str(k)] = _map_b["MAP@" + str(k)]
+            recall["recall_at_" + str(k)] = recall_b["Recall@" + str(k)]
+            precision["precision_at_" + str(k)] = precision_b["P@" + str(k)]
+            mrr["mrr_at_" + str(k)] = mrr_b["MRR@" + str(k)]
+
+        return {
+            **ndcg,
+            **_map,
+            **recall,
+            **precision,
+            **mrr,
+            "eval_loss": -1,
+        }
 
     def predict(
         self,
@@ -1568,10 +1657,14 @@ class RetrievalModel:
                                     relevance_list_first_hit[i, j] = 1
                                 break
 
-        mrr = {
-            f"mrr_at_{k}": mean_reciprocal_rank_at_k(relevance_list_first_hit, k)
-            for k in top_k_values
-        }
+        mrr_each_query_dict = {}
+        mrr = {}
+        for k in top_k_values:
+            mrr_at_k, mrr_matrix_k = mean_reciprocal_rank_at_k(
+                relevance_list_first_hit, k, return_individual_scores=True
+            )
+            mrr[f"mrr_at_{k}"] = mrr_at_k
+            mrr_each_query_dict[f"mrr_at_{k}"] = mrr_matrix_k
 
         top_k_accuracy_dict = {}
         top_k_accuracy_each_query_dict = {}
@@ -1603,12 +1696,14 @@ class RetrievalModel:
                 {**mrr, **top_k_accuracy_dict, **recall_at_k_dict, **extra_metrics},
                 top_k_accuracy_each_query_dict,
                 recall_at_k_each_query_dict,
+                mrr_each_query_dict,
                 relevance_list_all_hits,
             )
         else:
             return (
                 {**mrr, **top_k_accuracy_dict, **extra_metrics},
                 top_k_accuracy_each_query_dict,
+                mrr_each_query_dict,
                 relevance_list_all_hits,
             )
 
@@ -1786,9 +1881,10 @@ class RetrievalModel:
             param_group["params"] = [
                 p for n, p in context_model.named_parameters() if n in params
             ]
-            param_group["params"].extend(
-                [p for n, p in query_model.named_parameters() if n in params]
-            )
+            if not args.tie_encoders:
+                param_group["params"].extend(
+                    [p for n, p in query_model.named_parameters() if n in params]
+                )
             optimizer_grouped_parameters.append(param_group)
 
         for group in self.args.custom_layer_parameters:
@@ -1806,13 +1902,14 @@ class RetrievalModel:
                     else:
                         params_d.append(p)
                     custom_parameter_names.add(n)
-            for n, p in query_model.named_parameters():
-                if n not in custom_parameter_names and layer in n:
-                    if any(nd in n for nd in no_decay):
-                        params_nd.append(p)
-                    else:
-                        params_d.append(p)
-                    custom_parameter_names.add(n)
+            if not args.tie_encoders:
+                for n, p in query_model.named_parameters():
+                    if n not in custom_parameter_names and layer in n:
+                        if any(nd in n for nd in no_decay):
+                            params_nd.append(p)
+                        else:
+                            params_d.append(p)
+                        custom_parameter_names.add(n)
             group_d["params"] = params_d
             group_nd["params"] = params_nd
 
@@ -1843,7 +1940,7 @@ class RetrievalModel:
                         },
                     ]
                 )
-            if self.args.train_query_encoder:
+            if self.args.train_query_encoder and not self.args.tie_encoders:
                 optimizer_grouped_parameters.extend(
                     [
                         {
@@ -2134,20 +2231,32 @@ class RetrievalModel:
             "train_loss": [],
             **extra_metrics,
         }
-        training_progress_scores = {
-            **training_progress_scores,
-            **{f"mrr_at_{k}": [] for k in top_k_values},
-        }
-        training_progress_scores = {
-            **training_progress_scores,
-            **{f"top_{k}_accuracy": [] for k in top_k_values},
-        }
 
-        if calculate_recall:
+        if self.args.evaluate_with_beir:
+            beir_top_ks = [1, 3, 5, 10, 100, 1000]
             training_progress_scores = {
                 **training_progress_scores,
-                **{f"recall_at_{k}": [] for k in top_k_values},
+                **{f"ndcg_at_{k}": [] for k in beir_top_ks},
+                **{f"map_at_{k}": [] for k in beir_top_ks},
+                **{f"recall_at_{k}": [] for k in beir_top_ks},
+                **{f"precision_at_{k}": [] for k in beir_top_ks},
+                **{f"mrr_at_{k}": [] for k in beir_top_ks},
             }
+        else:
+            training_progress_scores = {
+                **training_progress_scores,
+                **{f"mrr_at_{k}": [] for k in top_k_values},
+            }
+            training_progress_scores = {
+                **training_progress_scores,
+                **{f"top_{k}_accuracy": [] for k in top_k_values},
+            }
+
+            if calculate_recall:
+                training_progress_scores = {
+                    **training_progress_scores,
+                    **{f"recall_at_{k}": [] for k in top_k_values},
+                }
 
         return training_progress_scores
 

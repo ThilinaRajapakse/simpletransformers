@@ -388,6 +388,9 @@ class RetrievalArgs(Seq2SeqArgs):
     extra_mask_token_count: int = 0
     nll_lambda: float = 1.0
     triplet_lambda: float = 1.0
+    evaluate_with_beir: bool = False
+    tie_encoders: bool = False
+    cluster_concatenated: bool = False
 
 
 @dataclass

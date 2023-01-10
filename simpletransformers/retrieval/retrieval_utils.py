@@ -83,16 +83,25 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
             )
 
     # Assign an id to each unique gold_passage
-    passage_dict = {}
+    # passage_dict = {}
 
-    for i, passage in enumerate(dataset["gold_passage"]):
-        if passage not in passage_dict:
-            passage_dict[passage] = i
+    # for i, passage in enumerate(dataset["gold_passage"]):
+    #     if passage not in passage_dict:
+    #         passage_dict[passage] = i
 
     # dataset = dataset.map(
     #     lambda example: {"passage_id": passage_dict[example["gold_passage"]]},
     #     desc="Assigning passage ids",
     # )
+
+    if args.cluster_concatenated:
+        dataset = dataset.map(
+            lambda x: {
+                "passages_for_clustering": [
+                    x["query_text"] + " " + x["gold_passage"]
+                ]
+            },
+        )
 
     dataset = dataset.map(
         lambda x: preprocess_batch_for_hf_dataset(
@@ -116,13 +125,23 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
             # "passage_id",
         ]
     else:
-        column_names = [
-            "context_ids",
-            "query_ids",
-            "context_mask",
-            "query_mask",
-            # "passage_id",
-        ]
+        if args.cluster_concatenated:
+            column_names = [
+                "context_ids",
+                "query_ids",
+                "context_mask",
+                "query_mask",
+                "clustering_context_ids",
+                "clustering_context_mask",
+            ]
+        else:
+            column_names = [
+                "context_ids",
+                "query_ids",
+                "context_mask",
+                "query_mask",
+                # "passage_id",
+            ]
 
     if evaluate:
         gold_passages = dataset["gold_passage"]
@@ -174,6 +193,34 @@ def preprocess_batch_for_hf_dataset(
     context_mask = context_inputs["attention_mask"].squeeze()
     query_mask = query_inputs["attention_mask"].squeeze()
 
+    if args.cluster_concatenated:
+        try:
+            clustering_context_inputs = context_tokenizer(
+                dataset["passages_for_clustering"],
+                max_length=args.max_seq_length,
+                padding="max_length",
+                return_tensors="np",
+                truncation=True,
+            )
+        except (TypeError, ValueError) as e:
+            logger.warn(e)
+            logger.warn(
+                """Error encountered while converting target_text.
+            All target_text values have been manually cast to String as a workaround.
+            This may have been caused by NaN values present in the data."""
+            )
+            dataset["passages_for_clustering"] = [str(p) for p in dataset["passages_for_clustering"]]
+            clustering_context_inputs = context_tokenizer(
+                dataset["passages_for_clustering"],
+                max_length=args.max_seq_length,
+                padding="max_length",
+                return_tensors="np",
+                truncation=True,
+            )
+
+        clustering_context_ids = clustering_context_inputs["input_ids"].squeeze()
+        clustering_context_mask = clustering_context_inputs["attention_mask"].squeeze()
+
     if args.hard_negatives and (args.hard_negatives_in_eval or not evaluate):
         try:
             hard_negatives_inputs = context_tokenizer(
@@ -210,12 +257,22 @@ def preprocess_batch_for_hf_dataset(
             "hard_negatives_mask": hard_negatives_mask,
         }
 
-    return {
-        "context_ids": context_ids,
-        "query_ids": query_ids,
-        "context_mask": context_mask,
-        "query_mask": query_mask,
-    }
+    if args.cluster_concatenated:
+        return {
+            "context_ids": context_ids,
+            "query_ids": query_ids,
+            "context_mask": context_mask,
+            "query_mask": query_mask,
+            "clustering_context_ids": clustering_context_ids,
+            "clustering_context_mask": clustering_context_mask,
+        }
+    else:
+        return {
+            "context_ids": context_ids,
+            "query_ids": query_ids,
+            "context_mask": context_mask,
+            "query_mask": query_mask,
+        }
 
 
 def get_output_embeddings(embeddings, concatenate_embeddings=False, n_cls_tokens=3):
@@ -228,7 +285,10 @@ def get_output_embeddings(embeddings, concatenate_embeddings=False, n_cls_tokens
             embeddings.last_hidden_state.shape[0], -1
         )
     else:
-        return embeddings.pooler_output
+        try:
+            return embeddings[0][:, 0, :]
+        except IndexError:
+            return embeddings.pooler_output
 
 
 def embed(
@@ -242,11 +302,19 @@ def embed(
     fp16=None,
     amp=None,
     pretokenized=False,
+    cluster_concatenated=False,
 ):
     """Compute the DPR embeddings of document passages"""
     if rank is not None:
         device = torch.device("cuda", rank)
         encoder = encoder.to(device)
+
+    if cluster_concatenated:
+        context_column = "clustering_context_ids"
+        context_mask_column = "clustering_context_mask"
+    else:
+        context_column = "context_ids"
+        context_mask_column = "context_mask"
     with torch.no_grad():
         if fp16:
             with amp.autocast():
@@ -294,8 +362,8 @@ def embed(
                         )
                 else:
                     embeddings = encoder(
-                        documents["context_ids"].to(device=device),
-                        documents["context_mask"].to(device=device),
+                        documents[context_column].to(device=device),
+                        documents[context_mask_column].to(device=device),
                         return_dict=True,
                     )
                     embeddings = get_output_embeddings(
@@ -350,8 +418,8 @@ def embed(
                     )
             else:
                 embeddings = encoder(
-                    documents["context_ids"].to(device=device),
-                    documents["context_mask"].to(device=device),
+                    documents[context_column].to(device=device),
+                    documents[context_mask_column].to(device=device),
                     return_dict=True,
                 )
                 embeddings = get_output_embeddings(
@@ -883,6 +951,7 @@ def get_clustered_passage_dataset(
         amp = None
 
     encoder = encoder.to(device)
+
     passage_dataset = passage_dataset.rename_column("gold_passage", "passages")
     passage_dataset = passage_dataset.map(
         partial(
@@ -895,6 +964,7 @@ def get_clustered_passage_dataset(
             fp16=args.fp16,
             amp=amp,
             pretokenized=True,
+            cluster_concatenated=True,
         ),
         batched=True,
         batch_size=args.embed_batch_size,
