@@ -10,6 +10,7 @@ from datasets.load import load_from_disk
 import torch
 import transformers
 import numpy as np
+import faiss
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.model_selection import train_test_split
 
@@ -964,12 +965,12 @@ def get_clustered_passage_dataset(
             fp16=args.fp16,
             amp=amp,
             pretokenized=True,
-            cluster_concatenated=True,
+            cluster_concatenated=args.cluster_concatenated,
         ),
         batched=True,
         batch_size=args.embed_batch_size,
-        # with_rank=args.n_gpu > 1,
-        # num_proc=args.n_gpu,
+        with_rank=args.n_gpu > 1,
+        num_proc=args.n_gpu,
     )
     passage_dataset = passage_dataset.rename_column("passages", "gold_passage")
     logger.info("Generating embeddings for passage clustering completed")
@@ -977,21 +978,33 @@ def get_clustered_passage_dataset(
     logger.info("Clustering passages started")
 
     k = int(len(passage_dataset["embeddings"]) / train_batch_size)
-    km = MiniBatchKMeans(
-        n_clusters=k,
-        init="k-means++",
-    )
+    niter = 20
+    verbose = args.silent
+    seed = args.manual_seed if args.manual_seed is not None else 42
+    embeddings = passage_dataset["embeddings"].numpy()
+    d = embeddings.shape[1]
+    kmeans = faiss.Kmeans(d, k, niter=niter, verbose=verbose, seed=seed)
+    kmeans.train(embeddings)
 
-    if args.cluster_train_size is not None:
-        clustering_subset, _ = train_test_split(
-            passage_dataset, train_size=args.cluster_train_size
-        )
-    else:
-        clustering_subset = passage_dataset
-    km.fit(clustering_subset["embeddings"])
-    passage_dataset = passage_dataset.add_column(
-        "cluster_id", km.predict(passage_dataset["embeddings"])
-    )
+    _, indices = kmeans.index.search(embeddings, 1)
+    passage_dataset = passage_dataset.add_column("cluster_id", indices.flatten())
+
+    # k = int(len(passage_dataset["embeddings"]) / train_batch_size)
+    # km = MiniBatchKMeans(
+    #     n_clusters=k,
+    #     init="k-means++",
+    # )
+
+    # if args.cluster_train_size is not None:
+    #     clustering_subset, _ = train_test_split(
+    #         passage_dataset, train_size=args.cluster_train_size
+    #     )
+    # else:
+    #     clustering_subset = passage_dataset
+    # km.fit(clustering_subset["embeddings"])
+    # passage_dataset = passage_dataset.add_column(
+    #     "cluster_id", km.predict(passage_dataset["embeddings"])
+    # )
 
     logger.info("Clustering passages completed")
 
@@ -1017,7 +1030,7 @@ def get_clustered_passage_dataset(
             final_batches.append(batch)
         else:
             remaining_batches.append(batch)
-    for _ in range(len(remaining_batches)):
+    for _ in tqdm(range(len(remaining_batches)), desc="Building batches (Max time)"):
         combined_batches = []
         for i, batch in enumerate(remaining_batches):
             if len(batch) == 0:
