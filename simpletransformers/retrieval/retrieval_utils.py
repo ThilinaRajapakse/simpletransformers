@@ -979,11 +979,14 @@ def get_clustered_passage_dataset(
 
     k = int(len(passage_dataset["embeddings"]) / train_batch_size)
     niter = 20
-    verbose = args.silent
+    verbose = not args.silent
     seed = args.manual_seed if args.manual_seed is not None else 42
     embeddings = passage_dataset["embeddings"].numpy()
     d = embeddings.shape[1]
-    kmeans = faiss.Kmeans(d, k, niter=niter, verbose=verbose, seed=seed)
+
+    use_cuda = True if "cuda" in str(device) else False
+
+    kmeans = faiss.Kmeans(d, k, niter=niter, verbose=verbose, seed=seed, gpu=use_cuda)
     kmeans.train(embeddings)
 
     _, indices = kmeans.index.search(embeddings, 1)
