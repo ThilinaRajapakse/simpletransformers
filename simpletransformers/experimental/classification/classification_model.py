@@ -88,7 +88,7 @@ class ClassificationModel:
 
         Args:
             model_type: The type of model (bert, xlnet, xlm, roberta, distilbert, albert, camembert)
-            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
+            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_model.bin).
             num_labels (optional): The number of labels or classes in the dataset.
             weight (optional): A list of length num_labels containing the weights to assign to each label for loss calculation.
             sliding_window (optional): Use a sliding window when tokenizing to prevent truncating long sequences. Default = False.

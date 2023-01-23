@@ -92,7 +92,7 @@ class MultiModalClassificationModel:
 
         Args:
             model_type: The type of model (bert, xlnet, xlm, roberta, distilbert, albert)
-            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
+            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_model.bin).
             multi_label (optional): Set to True for multi label tasks.
             label_list (optional) : A list of all the labels (str) in the dataset.
             num_labels (optional): The number of labels or classes in the dataset.
