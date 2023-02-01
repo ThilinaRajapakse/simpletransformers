@@ -361,36 +361,37 @@ class RetrievalArgs(Seq2SeqArgs):
     """
 
     model_class: str = "RetrievalModel"
+    cluster_concatenated: bool = False
     cluster_train_size: Union[int, float] = None
     context_config: dict = field(default_factory=dict)
     ddp_training: bool = False
     embed_batch_size: int = 128
+    evaluate_with_beir: bool = False
+    extra_cls_token_count: int = 0
+    extra_mask_token_count: int = 0
     faiss_index_type: str = "IndexFlatIP"
     hard_negatives: bool = False
+    hard_negatives_in_eval: bool = False
+    include_bce_loss: bool = False
+    include_hard_negatives_for_triplets_only: bool = False
+    include_nll_loss: bool = True
     include_title: bool = True
+    include_triplet_loss: bool = False
+    larger_representations: bool = False
+    kmeans_k: int = -1
+    nll_lambda: float = 1.0
+    output_dropout: float = 0.1
     query_config: dict = field(default_factory=dict)
     remove_duplicates_from_eval_passages: bool = False
     retrieval_batch_size: int = 512
     retrieve_n_docs: int = 10
     save_passage_dataset: bool = True
+    tie_encoders: bool = False
     train_context_encoder: bool = True
     train_query_encoder: bool = True
-    use_hf_datasets: bool = True
-    larger_representations: bool = False
-    include_bce_loss: bool = False
-    include_nll_loss: bool = True
-    include_triplet_loss: bool = False
-    triplet_margin: float = 1.0
-    include_hard_negatives_for_triplets_only: bool = False
-    output_dropout: float = 0.1
-    hard_negatives_in_eval: bool = False
-    extra_cls_token_count: int = 0
-    extra_mask_token_count: int = 0
-    nll_lambda: float = 1.0
     triplet_lambda: float = 1.0
-    evaluate_with_beir: bool = False
-    tie_encoders: bool = False
-    cluster_concatenated: bool = False
+    triplet_margin: float = 1.0
+    use_hf_datasets: bool = True
 
 
 @dataclass

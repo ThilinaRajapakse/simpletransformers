@@ -472,15 +472,16 @@ class RetrievalModel:
 
         tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
-        train_dataloader = DataLoader(
-            train_dataset,
-            sampler=train_sampler,
-            batch_size=args.train_batch_size,
-            num_workers=self.args.dataloader_num_workers,
-        )
 
         if clustered_training:
             train_dataloader = train_dataset
+        else:
+            train_dataloader = DataLoader(
+                train_dataset,
+                sampler=train_sampler,
+                batch_size=args.train_batch_size,
+                num_workers=self.args.dataloader_num_workers,
+            )
 
         if args.max_steps > 0:
             t_total = args.max_steps
@@ -636,7 +637,7 @@ class RetrievalModel:
             )
             batch_iterator = tqdm(
                 train_dataloader,
-                desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}",
+                desc=f"Running Epoch {epoch_number + 1} of {args.num_train_epochs}",
                 disable=args.silent,
                 mininterval=0,
             )
@@ -904,7 +905,7 @@ class RetrievalModel:
                 output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
             )
 
-            if clustered_training:
+            if clustered_training and epoch_number != args.num_train_epochs:
                 train_dataset = self.load_and_cache_examples(
                     train_data, verbose=verbose, clustered_training=clustered_training
                 )

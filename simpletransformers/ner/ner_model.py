@@ -753,7 +753,7 @@ class NERModel:
             )
             batch_iterator = tqdm(
                 train_dataloader,
-                desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}",
+                desc=f"Running Epoch {epoch_number + 1} of {args.num_train_epochs}",
                 disable=args.silent,
                 mininterval=0,
             )

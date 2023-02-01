@@ -1,4 +1,5 @@
 import logging
+import math
 import os
 import pickle
 from multiprocessing import Pool, cpu_count
@@ -14,7 +15,7 @@ import faiss
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.model_selection import train_test_split
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 from tqdm.auto import tqdm
 
 from datasets import Features, Sequence, Value, load_dataset, concatenate_datasets
@@ -893,14 +894,38 @@ def get_recall_at_k(rs, rt, k):
 
 
 class ClusteredDataset(Dataset):
-    def __init__(self, clusters):
+    def __init__(self, clusters, length=None):
         self.clusters = clusters
+        # self.length = length
 
     def __getitem__(self, index):
+        # return next(self.clusters)
         return self.clusters[index]
 
     def __len__(self):
+        # return self.length
         return len(self.clusters)
+
+
+# class IterableClusteredDataset(IterableDataset):
+#     def __init__(self, passage_dataset, clustered_batches):
+#         self.passage_dataset = passage_dataset
+#         self.clustered_batches = clustered_batches
+#         self.start = 0
+#         self.end = len(self.clustered_batches)
+
+#     def __iter__(self):
+#         worker_info = torch.utils.data.get_worker_info()
+#         if worker_info is None:
+#             # single-process data loading, return the full iterator
+#             iter_start = self.start
+#             iter_end = self.end
+#         else:
+#             # in a worker process
+#             per_worker = int(math.ceil((self.end - self.start) / float(worker_info.num_workers)))
+#             worker_id = worker_info.id
+#             iter_start = self.start + worker_id * per_worker
+#             iter_end = min(iter_start + per_worker, self.end)
 
 
 def get_relevant_labels(context_ids_all, current_context_ids):
@@ -936,6 +961,11 @@ def dataset_map_multiprocessed(batch_dataset):
     return batch_dataset.map(partial(get_relevant_labels, batch_dataset["context_ids"]))
 
 
+def batch_generator(passage_dataset, batches):
+    for batch in batches:
+        yield passage_dataset.select(batch)
+
+
 def get_clustered_passage_dataset(
     passage_dataset,
     train_batch_size,
@@ -969,15 +999,20 @@ def get_clustered_passage_dataset(
         ),
         batched=True,
         batch_size=args.embed_batch_size,
-        with_rank=args.n_gpu > 1,
-        num_proc=args.n_gpu,
+        # with_rank=args.n_gpu > 1,
+        # num_proc=args.n_gpu,
+        # cache_file_name=os.path.join(args.dataset_cache_dir, args.output_dir, "/clustering_embeddings.cache"),
     )
     passage_dataset = passage_dataset.rename_column("passages", "gold_passage")
     logger.info("Generating embeddings for passage clustering completed")
 
+    # Make passage_dataset bigger by concatenating with itself for testing
+    # passage_dataset = concatenate_datasets([passage_dataset for _ in range(500)])
+    # print(f"Length of passage dataset: {len(passage_dataset)}")
+
     logger.info("Clustering passages started")
 
-    k = int(len(passage_dataset["embeddings"]) / train_batch_size)
+    k = int(len(passage_dataset["embeddings"]) / train_batch_size) if args.kmeans_k == -1 else args.kmeans_k
     niter = 20
     verbose = not args.silent
     seed = args.manual_seed if args.manual_seed is not None else 42
@@ -992,7 +1027,6 @@ def get_clustered_passage_dataset(
     _, indices = kmeans.index.search(embeddings, 1)
     passage_dataset = passage_dataset.add_column("cluster_id", indices.flatten())
 
-    # k = int(len(passage_dataset["embeddings"]) / train_batch_size)
     # km = MiniBatchKMeans(
     #     n_clusters=k,
     #     init="k-means++",
@@ -1010,6 +1044,11 @@ def get_clustered_passage_dataset(
     # )
 
     logger.info("Clustering passages completed")
+    del embeddings
+    passage_dataset = passage_dataset.remove_columns(["embeddings"])
+
+    # Sort passage_dataset by cluster_id
+    passage_dataset = passage_dataset.sort("cluster_id")
 
     clusters = passage_dataset["cluster_id"].tolist()
     clustered_batches = {i: [[]] for i in range(k)}
@@ -1033,7 +1072,7 @@ def get_clustered_passage_dataset(
             final_batches.append(batch)
         else:
             remaining_batches.append(batch)
-    for _ in tqdm(range(len(remaining_batches)), desc="Building batches (Max time)"):
+    for _ in range(len(remaining_batches)):
         combined_batches = []
         for i, batch in enumerate(remaining_batches):
             if len(batch) == 0:
@@ -1057,7 +1096,78 @@ def get_clustered_passage_dataset(
             )
             break
 
-    batch_datasets = [passage_dataset.select(batch) for batch in final_batches]
+    batch_datasets = [passage_dataset.select(batch, keep_in_memory=False) for batch in tqdm(final_batches, desc="Generating batched dataset")]
+
+    # batch_datasets = []
+    # for batch in tqdm(final_batches, desc="Generating batched dataset"):
+    #     batch_start = batch[0]
+    #     batch_end = batch[-1] + 1
+    #     batch_datasets.append(passage_dataset[batch_start:batch_end])
+
+
+    # clustered_batches = sorted(clustered_batches, key=lambda x: len(x), reverse=True)
+
+    # final_batches = []
+    # remaining_batches = []
+    # for batch in clustered_batches:
+    #     if len(batch) == train_batch_size:
+    #         final_batches.append(batch)
+    #     else:
+    #         remaining_batches.append(batch)
+    # # for _ in tqdm(range(len(remaining_batches)), desc="Building batches (Max time)"):
+    # combined_batches = []
+    # for i, batch in enumerate(tqdm(remaining_batches, desc="Building batches")):
+    #     if len(batch) == 0:
+    #         continue
+    #     else:
+    #         for j in range(i + 1, len(remaining_batches)):
+    #             if (
+    #                 len(batch) + len(remaining_batches[j]) <= train_batch_size
+    #                 and i != j
+    #             ):
+    #                 combined_batches.append(batch + remaining_batches[j])
+    #                 remaining_batches[j] = []
+    #                 remaining_batches[i] = []
+    #                 break
+    # remaining_batches = combined_batches + [
+    #     batch for batch in remaining_batches if len(batch) > 0
+    # ]
+    # # if not combined_batches:
+    # final_batches.extend(
+    #     [batch for batch in remaining_batches if len(batch) > 0]
+    # )
+    # break
+
+    # batch_datasets = [passage_dataset.select(batch) for batch in final_batches]
+
+    # dataset = Dataset.from_generator(my_gen)
+    # batch_datasets = HFDataset.from_generator(
+    #     lambda: (passage_dataset.select(batch) for batch in clustered_batches)
+    # )
+
+    # batch_datasets = [passage_dataset.select(batch) for batch in tqdm(clustered_batches, desc="Building batches")]
+    # batch_datasets = []
+    # for batch in tqdm(clustered_batches, desc="Generating batched dataset"):
+    #     batch_start = batch[0]
+    #     batch_end = batch[-1] + 1
+    #     batch_datasets.append(passage_dataset[batch_start:batch_end])
+
+
+    # Use a generator to avoid loading all batches into memory
+    # batch_datasets = (passage_dataset.select(batch) for batch in clustered_batches)
+
+    # total_batches = len(batch_datasets)
+    # total_length_final = sum([len(batch) for batch in batch_datasets])
+    # total_length_initial = len(passage_dataset)
+    # logger.info(
+    #     f"Total batches: {total_batches}"
+    # )
+    # logger.info(
+    #     f"Total length initial: {total_length_initial}"
+    # )
+    # logger.info(
+    #     f"Total length final: {total_length_final}"
+    # )
 
     if datasets.logging.is_progress_bar_enabled():
         datasets.logging.disable_progress_bar()
@@ -1104,4 +1214,4 @@ def get_clustered_passage_dataset(
     if reenable_progress_bar:
         datasets.logging.enable_progress_bar()
 
-    return ClusteredDataset(batch_datasets)
+    return ClusteredDataset(batch_datasets, len(clustered_batches))
