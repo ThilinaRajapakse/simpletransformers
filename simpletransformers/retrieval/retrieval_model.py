@@ -61,6 +61,7 @@ from simpletransformers.retrieval.retrieval_utils import (
     get_evaluation_passage_dataset,
     mean_reciprocal_rank_at_k,
     get_recall_at_k,
+    RetrievalOutput,
 )
 
 try:
@@ -101,6 +102,7 @@ class RetrievalModel:
         query_encoder_tokenizer=None,
         reranker_name=None,
         reranker_tokenizer=None,
+        unified_rr=False,
         prediction_passages=None,
         args=None,
         use_cuda=True,
@@ -192,6 +194,8 @@ class RetrievalModel:
                 )
             )
 
+        self.unified_rr = unified_rr
+
         if context_encoder_name:
             self.context_config = config_class.from_pretrained(
                 context_encoder_name, **self.args.context_config
@@ -241,7 +245,9 @@ class RetrievalModel:
                     query_encoder_name, config=self.query_config
                 )
                 try:
-                    self.query_tokenizer = query_tokenizer.from_pretrained(query_encoder_name)
+                    self.query_tokenizer = query_tokenizer.from_pretrained(
+                        query_encoder_name
+                    )
                 except Exception:
                     self.query_tokenizer = query_tokenizer.from_pretrained(
                         query_encoder_name, use_fast=False
@@ -264,9 +270,13 @@ class RetrievalModel:
                 )
 
         if reranker_name is not None:
-            self.reranker = AutoModelForSequenceClassification.from_pretrained(reranker_name)
+            self.reranker = AutoModelForSequenceClassification.from_pretrained(
+                reranker_name
+            )
             if reranker_tokenizer is None:
-                self.reranker_tokenizer = AutoTokenizer.from_pretrained(reranker_name, max_len=args.max_seq_length)
+                self.reranker_tokenizer = AutoTokenizer.from_pretrained(
+                    reranker_name, max_len=args.max_seq_length
+                )
             elif isinstance(reranker_tokenizer, str):
                 self.reranker_tokenizer = AutoTokenizer.from_pretrained(
                     reranker_tokenizer, max_len=args.max_seq_length
@@ -425,11 +435,17 @@ class RetrievalModel:
             )
             self.query_encoder = DDP(self.query_encoder, device_ids=[kwargs["rank"]])
             self.device = kwargs["rank"]
+            if self.unified_rr:
+                self.reranker = self.reranker.to(kwargs["rank"])
+                self.reranker = DDP(self.reranker, device_ids=[kwargs["rank"]])
         else:
             self._move_model_to_device()
 
         train_dataset = self.load_and_cache_examples(
-            train_data, verbose=verbose, clustered_training=clustered_training, evaluate=False
+            train_data,
+            verbose=verbose,
+            clustered_training=clustered_training,
+            evaluate=False,
         )
 
         os.makedirs(output_dir, exist_ok=True)
@@ -664,26 +680,41 @@ class RetrievalModel:
                     continue
                 # batch = tuple(t.to(device) for t in batch)
 
-                context_inputs, query_inputs, labels = self._get_inputs_dict(batch)
+                if self.unified_rr:
+                    (
+                        context_inputs,
+                        query_inputs,
+                        labels,
+                        reranking_input,
+                    ) = self._get_inputs_dict(batch)
+                else:
+                    context_inputs, query_inputs, labels = self._get_inputs_dict(batch)
+                    reranking_input = None
                 if args.fp16:
                     with amp.autocast():
-                        loss, *_, correct_count = self._calculate_loss(
+                        retrieval_output = self._calculate_loss(
                             context_model,
                             query_model,
                             context_inputs,
                             query_inputs,
                             labels,
                             criterion,
+                            reranking_input,
                         )
+                        loss = retrieval_output.loss
+                        correct_count = retrieval_output.correct_predictions_count
                 else:
-                    loss, *_, correct_count = self._calculate_loss(
+                    retrieval_output = self._calculate_loss(
                         context_model,
                         query_model,
                         context_inputs,
                         query_inputs,
                         labels,
                         criterion,
+                        reranking_input,
                     )
+                    loss = retrieval_output.loss
+                    correct_count = retrieval_output.correct_predictions_count
 
                 if args.n_gpu > 1:
                     loss = loss.mean()
@@ -924,7 +955,10 @@ class RetrievalModel:
 
             if clustered_training and epoch_number != args.num_train_epochs:
                 train_dataset = self.load_and_cache_examples(
-                    train_data, verbose=verbose, clustered_training=clustered_training, evaluate=False
+                    train_data,
+                    verbose=verbose,
+                    clustered_training=clustered_training,
+                    evaluate=False,
                 )
                 train_sampler = RandomSampler(train_dataset)
                 train_dataloader = train_dataset
@@ -1295,12 +1329,7 @@ class RetrievalModel:
             with torch.no_grad():
                 if self.args.fp16:
                     with amp.autocast():
-                        (
-                            tmp_eval_loss,
-                            _,
-                            query_outputs,
-                            correct_count,
-                        ) = self._calculate_loss(
+                        retrieval_outputs = self._calculate_loss(
                             context_model,
                             query_model,
                             context_inputs,
@@ -1309,12 +1338,7 @@ class RetrievalModel:
                             criterion,
                         )
                 else:
-                    (
-                        tmp_eval_loss,
-                        _,
-                        query_outputs,
-                        correct_count,
-                    ) = self._calculate_loss(
+                    retrieval_outputs = self._calculate_loss(
                         context_model,
                         query_model,
                         context_inputs,
@@ -1322,6 +1346,9 @@ class RetrievalModel:
                         labels,
                         criterion,
                     )
+
+                tmp_eval_loss = retrieval_outputs.loss
+                query_outputs = retrieval_outputs.query_outputs
                 if self.args.n_gpu > 1:
                     tmp_eval_loss = tmp_eval_loss.mean()
 
@@ -1507,13 +1534,18 @@ class RetrievalModel:
                 self.context_encoder.to(self.device)
 
         if self.args.larger_representations:
-            all_query_embeddings = np.zeros(
-                (
-                    len(to_predict),
-                    self.query_config.hidden_size
-                    * (1 + self.args.extra_cls_token_count),
+            if self.unified_rr:
+                all_query_embeddings = np.zeros(
+                    (len(to_predict), self.query_config.hidden_size)
                 )
-            )
+            else:
+                all_query_embeddings = np.zeros(
+                    (
+                        len(to_predict),
+                        self.query_config.hidden_size
+                        * (1 + self.args.extra_cls_token_count),
+                    )
+                )
         else:
             all_query_embeddings = np.zeros(
                 (
@@ -1578,6 +1610,14 @@ class RetrievalModel:
                         and self.args.model_type == "custom",
                         n_cls_tokens=(1 + self.args.extra_cls_token_count),
                     )
+
+            if self.unified_rr:
+                reranking_query_outputs = query_outputs[
+                    :, query_outputs.size(1) // 2 :
+                ].cpu()
+                query_outputs = query_outputs[:, : query_outputs.size(1) // 2]
+            else:
+                reranking_query_outputs = None
 
             all_query_embeddings[
                 i * self.args.eval_batch_size : (i + 1) * self.args.eval_batch_size
@@ -1869,7 +1909,11 @@ class RetrievalModel:
 
         if self.args.use_hf_datasets:
             dataset = load_hf_dataset(
-                data, self.context_tokenizer, self.query_tokenizer, self.args
+                data,
+                self.context_tokenizer,
+                self.query_tokenizer,
+                self.args,
+                reranker_tokenizer=self.reranker_tokenizer,
             )
 
             if clustered_training:
@@ -2058,6 +2102,7 @@ class RetrievalModel:
         query_inputs,
         labels,
         criterion,
+        reranking_input=None,
     ):
         # if self.args.larger_representations:
         #     context_outputs_all = context_model(**context_inputs)
@@ -2075,6 +2120,8 @@ class RetrievalModel:
         #     query_outputs = query_cls_embeddings.view(query_cls_embeddings.size(0), -1)
         # else:
 
+        unified_rr = self.unified_rr
+
         context_outputs = context_model(**context_inputs)
         context_outputs = get_output_embeddings(
             context_outputs,
@@ -2089,6 +2136,20 @@ class RetrievalModel:
             and self.args.model_type == "custom",
             n_cls_tokens=(1 + self.args.extra_cls_token_count),
         )
+
+        if unified_rr:
+            reranking_query_outputs = query_outputs[
+                :, query_outputs.size(1) // 2 :
+            ].cpu()
+            query_outputs = query_outputs[:, : query_outputs.size(1) // 2]
+
+            reranking_context_outputs = context_outputs[
+                :, context_outputs.size(1) // 2 :
+            ].cpu()
+            context_outputs = context_outputs[:, : context_outputs.size(1) // 2]
+        else:
+            reranking_query_outputs = None
+            reranking_context_outputs = None
 
         context_outputs = torch.nn.functional.dropout(
             context_outputs, p=self.args.output_dropout
@@ -2153,12 +2214,58 @@ class RetrievalModel:
                 loss = criterion(softmax_score, labels)
                 nll_labels = labels
 
+                if unified_rr:
+                    reranking_target_tensor = []
+                    reranking_dot_score = torch.matmul(
+                        reranking_query_outputs, reranking_context_outputs.t()
+                    ).cpu()
+
+                    with torch.no_grad():
+                        for (
+                            reranking_input_ids,
+                            reranking_input_mask,
+                            reranking_token_type_ids,
+                        ) in zip(
+                            reranking_input["input_ids"],
+                            reranking_input["attention_mask"],
+                            reranking_input["token_type_ids"],
+                        ):
+                            reranking_target_tensor.extend(
+                                self.reranker(
+                                    input_ids=reranking_input_ids,
+                                    attention_mask=reranking_input_mask,
+                                    token_type_ids=reranking_token_type_ids,
+                                ).logits.cpu()
+                            )
+
+                        reranking_target_tensor = torch.stack(reranking_target_tensor)
+                        reranking_target_tensor = reranking_target_tensor.reshape(
+                            reranking_dot_score.shape
+                        )
+
+                    reranking_criterion = torch.nn.MSELoss()
+                    reranking_loss = reranking_criterion(
+                        reranking_dot_score,
+                        reranking_target_tensor.type(torch.FloatTensor),
+                    )
+
+                    loss += reranking_loss
+
         max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
             (max_idxs == torch.tensor(nll_labels)).sum().cpu().detach().numpy().item()
         )
 
-        return loss, context_outputs, query_outputs, correct_predictions_count
+        retrieval_output = RetrievalOutput(
+            loss=loss,
+            context_outputs=context_outputs,
+            query_outputs=query_outputs,
+            correct_predictions_count=correct_predictions_count,
+            reranking_context_outputs=reranking_context_outputs,
+            reranking_query_outputs=reranking_query_outputs,
+        )
+
+        return retrieval_output
 
     def _get_inputs_dict(self, batch, evaluate=False):
         device = self.device
@@ -2195,6 +2302,79 @@ class RetrievalModel:
                 "input_ids": batch["query_ids"].to(device),
                 "attention_mask": batch["query_mask"].to(device),
             }
+            if self.unified_rr:
+                reranking_context_ids = batch["reranking_context_ids"]
+                reranking_context_masks = batch["reranking_context_mask"]
+
+                reranking_query_ids = batch["reranking_query_ids"]
+                reranking_query_masks = batch["reranking_query_mask"]
+
+                # Build reranker inputs for every query-context pair
+                reranking_input_ids_all = []
+                reranking_input_mask_all = []
+                reranking_token_type_ids_all = []
+                for reranking_query_id, reranking_query_mask in zip(
+                    reranking_query_ids, reranking_query_masks
+                ):
+                    for reranking_context_id, reranking_context_mask in zip(
+                        reranking_context_ids, reranking_context_masks
+                    ):
+                        reranking_input_ids = (
+                            reranking_query_id + reranking_context_id[1:]
+                        )
+                        reranking_input_mask = (
+                            reranking_query_mask + reranking_context_mask[1:]
+                        )
+                        reranking_token_type_ids = [0] * len(reranking_query_id) + [
+                            1
+                        ] * (len(reranking_context_id) - 1)
+
+                        reranking_input_ids_all.append(reranking_input_ids)
+                        reranking_input_mask_all.append(reranking_input_mask)
+                        reranking_token_type_ids_all.append(reranking_token_type_ids)
+
+                # Pad reranker inputs to the longest sequence
+                max_len = max(
+                    [
+                        len(reranking_input_ids)
+                        for reranking_input_ids in reranking_input_ids_all
+                    ]
+                )
+                for i in range(len(reranking_input_ids_all)):
+                    reranking_input_ids_all[i] = reranking_input_ids_all[i] + [
+                        self.reranker_tokenizer.pad_token_id
+                    ] * (max_len - len(reranking_input_ids_all[i]))
+                    reranking_input_mask_all[i] = reranking_input_mask_all[i] + [
+                        self.reranker_tokenizer.pad_token_id
+                    ] * (max_len - len(reranking_input_mask_all[i]))
+                    reranking_token_type_ids_all[i] = reranking_token_type_ids_all[
+                        i
+                    ] + [self.reranker_tokenizer.pad_token_id] * (
+                        max_len - len(reranking_token_type_ids_all[i])
+                    )
+
+                reranking_input_ids_all = (
+                    torch.tensor(reranking_input_ids_all, dtype=torch.long)
+                    .to(device)
+                    .split(self.args.rerank_batch_size)
+                )
+                reranking_input_mask_all = (
+                    torch.tensor(reranking_input_mask_all, dtype=torch.long)
+                    .to(device)
+                    .split(self.args.rerank_batch_size)
+                )
+                reranking_token_type_ids_all = (
+                    torch.tensor(reranking_token_type_ids_all, dtype=torch.long)
+                    .to(device)
+                    .split(self.args.rerank_batch_size)
+                )
+
+                reranking_input = {
+                    "input_ids": reranking_input_ids_all,
+                    "attention_mask": reranking_input_mask_all,
+                    "token_type_ids": reranking_token_type_ids_all,
+                }
+                return context_input, query_input, labels, reranking_input
         else:
             # Evaluation
             shuffled_indices = torch.randperm(len(labels))
@@ -2351,7 +2531,7 @@ class RetrievalModel:
         self.context_encoder.to(self.device)
         self.query_encoder.to(self.device)
 
-        if self.reranker is not None:
+        if self.unified_rr:
             self.reranker.to(self.device)
 
     def save_model_args(self, output_dir):

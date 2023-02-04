@@ -41,8 +41,7 @@ class BeirRetrievalModel:
             all_query_embeddings = np.zeros(
                 (
                     len(queries),
-                    query_config.hidden_size
-                    * (1 + self.args.extra_cls_token_count),
+                    query_config.hidden_size * (1 + self.args.extra_cls_token_count),
                 )
             )
         else:

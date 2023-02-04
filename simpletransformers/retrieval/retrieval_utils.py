@@ -27,7 +27,14 @@ from transformers.models.rag.retrieval_rag import Index
 logger = logging.getLogger(__name__)
 
 
-def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=False):
+def load_hf_dataset(
+    data,
+    context_tokenizer,
+    query_tokenizer,
+    args,
+    evaluate=False,
+    reranker_tokenizer=None,
+):
     if isinstance(data, str):
         if data.endswith(".json"):
             dataset = load_dataset(
@@ -99,9 +106,7 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
     if args.cluster_concatenated:
         dataset = dataset.map(
             lambda x: {
-                "passages_for_clustering": [
-                    x["query_text"] + " " + x["gold_passage"]
-                ]
+                "passages_for_clustering": [x["query_text"] + " " + x["gold_passage"]]
             },
         )
 
@@ -112,6 +117,7 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
             query_tokenizer=query_tokenizer,
             args=args,
             evaluate=evaluate,
+            reranker_tokenizer=reranker_tokenizer,
         ),
         batched=True,
     )
@@ -156,8 +162,18 @@ def load_hf_dataset(data, context_tokenizer, query_tokenizer, args, evaluate=Fal
 
 
 def preprocess_batch_for_hf_dataset(
-    dataset, context_tokenizer, query_tokenizer, args, evaluate=False
+    dataset,
+    context_tokenizer,
+    query_tokenizer,
+    args,
+    evaluate=False,
+    reranker_tokenizer=None,
 ):
+    if reranker_tokenizer is None:
+        unified_rr = False
+    else:
+        unified_rr = True
+
     try:
         context_inputs = context_tokenizer(
             dataset["gold_passage"],
@@ -195,6 +211,26 @@ def preprocess_batch_for_hf_dataset(
     context_mask = context_inputs["attention_mask"].squeeze()
     query_mask = query_inputs["attention_mask"].squeeze()
 
+    if unified_rr:
+        reranking_query_inputs = reranker_tokenizer(
+            dataset["query_text"],
+            padding=False,
+            return_tensors="np",
+            truncation=True,
+        )
+
+        reranking_context_inputs = reranker_tokenizer(
+            dataset["gold_passage"],
+            padding=False,
+            return_tensors="np",
+            truncation=True,
+        )
+
+        reranking_context_ids = reranking_context_inputs["input_ids"]
+        reranking_context_mask = reranking_context_inputs["attention_mask"]
+        reranking_query_ids = reranking_query_inputs["input_ids"]
+        reranking_query_mask = reranking_query_inputs["attention_mask"]
+
     if args.cluster_concatenated:
         try:
             clustering_context_inputs = context_tokenizer(
@@ -211,7 +247,9 @@ def preprocess_batch_for_hf_dataset(
             All target_text values have been manually cast to String as a workaround.
             This may have been caused by NaN values present in the data."""
             )
-            dataset["passages_for_clustering"] = [str(p) for p in dataset["passages_for_clustering"]]
+            dataset["passages_for_clustering"] = [
+                str(p) for p in dataset["passages_for_clustering"]
+            ]
             clustering_context_inputs = context_tokenizer(
                 dataset["passages_for_clustering"],
                 max_length=args.max_seq_length,
@@ -269,12 +307,24 @@ def preprocess_batch_for_hf_dataset(
             "clustering_context_mask": clustering_context_mask,
         }
     else:
-        return {
-            "context_ids": context_ids,
-            "query_ids": query_ids,
-            "context_mask": context_mask,
-            "query_mask": query_mask,
-        }
+        if unified_rr:
+            return {
+                "context_ids": context_ids,
+                "query_ids": query_ids,
+                "context_mask": context_mask,
+                "query_mask": query_mask,
+                "reranking_context_ids": reranking_context_ids,
+                "reranking_context_mask": reranking_context_mask,
+                "reranking_query_ids": reranking_query_ids,
+                "reranking_query_mask": reranking_query_mask,
+            }
+        else:
+            return {
+                "context_ids": context_ids,
+                "query_ids": query_ids,
+                "context_mask": context_mask,
+                "query_mask": query_mask,
+            }
 
 
 def get_output_embeddings(embeddings, concatenate_embeddings=False, n_cls_tokens=3):
@@ -966,119 +1016,140 @@ def batch_generator(passage_dataset, batches):
         yield passage_dataset.select(batch)
 
 
-def prepare_batch_for_reranking(batch, tokenizer):
-    queries = batch["query_text"]
-    passages = batch["gold_passage"]
+# def tokenize_for_reranking(dataset, tokenizer):
+#     tokenized_query_inputs = tokenizer(
+#         dataset["query_text"],
+#         padding="longest",
+#         truncation=True,
+#         return_tensors="np",
+#     )
+#     dataset = dataset.add_column("rerank_query_input_ids", tokenized_query_inputs["input_ids"])
+#     dataset = dataset.add_column("rerank_query_attention_mask", tokenized_query_inputs["attention_mask"])
 
-    concatenated_text = {
-        "query_text": [],
-        "passage_text": [],
-    }
-    for query in queries:
-        for passage in passages:
-            concatenated_text["query_text"].append(query)
-            concatenated_text["passage_text"].append(passage)
+#     tokenized_passage_inputs = tokenizer(
+#         dataset["passage_text"],
+#         padding="longest",
+#         truncation=True,
+#     )
+#     dataset = dataset.add_column("rerank_passage_input_ids", tokenized_passage_inputs["input_ids"])
+#     dataset = dataset.add_column("rerank_passage_attention_mask", tokenized_passage_inputs["attention_mask"])
 
-    reranking_batch_dataset = HFDataset.from_dict(concatenated_text)
-
-    return reranking_batch_dataset
-
-
-def embed_reranking(
-    tokenized_reranking_dataset,
-    rank=None,
-    reranker=None,
-    tokenizer=None,
-    device=None,
-    fp16=False,
-    amp=None,
-):
-
-    if rank is not None:
-        device = torch.device("cuda", rank)
-    reranker = reranker.to(device)
-
-    tokenized_inputs = tokenizer(
-        tokenized_reranking_dataset["query_text"],
-        tokenized_reranking_dataset["passage_text"],
-        truncation=True,
-        padding="longest",
-        return_tensors="pt",
-    )
-
-    reranker.eval()
-    with torch.no_grad():
-        if fp16:
-            with amp.autocast():
-                reranking_embeddings = reranker(
-                    tokenized_inputs["input_ids"].to(device),
-                    tokenized_inputs["attention_mask"].to(device),
-                    tokenized_inputs["token_type_ids"].to(device),
-                ).logits
-        else:
-            reranking_embeddings = reranker(
-                tokenized_inputs["input_ids"].to(device),
-                tokenized_inputs["attention_mask"].to(device),
-                tokenized_inputs["token_type_ids"].to(device),
-            ).logits
-
-    return {"rerank_embeddings": reranking_embeddings.detach().cpu().numpy()}
+#     return dataset
 
 
-def generate_reranking_labels(batch_datasets, reranker, reranker_tokenizer, args, device):
-    logger.info("Generating labels for reranking started")
-    if args.fp16:
-        from torch.cuda import amp
-    else:
-        amp = None
+# def prepare_batch_for_reranking(batch, tokenizer):
+#     queries = batch["query_text"]
+#     passages = batch["gold_passage"]
 
-    reranker = reranker.to(device)
+#     concatenated_text = {
+#         "query_text": [],
+#         "passage_text": [],
+#     }
+#     for query in queries:
+#         for passage in passages:
+#             concatenated_text["query_text"].append(query)
+#             concatenated_text["passage_text"].append(passage)
 
-    batch_lengths = []
-    reranking_all_batches_dataset = {
-        "query_text": [],
-        "passage_text": [],
-    }
-    for batch_dataset in batch_datasets:
-        reranking_batch_dataset = prepare_batch_for_reranking(batch_dataset, reranker_tokenizer)
-        batch_lengths.append((len(reranking_batch_dataset)))
-        for key in reranking_all_batches_dataset.keys():
-            reranking_all_batches_dataset[key].extend(
-                reranking_batch_dataset[key]
-            )
+#     reranking_batch_dataset = HFDataset.from_dict(concatenated_text)
 
-    reranking_all_batches_dataset = HFDataset.from_dict(reranking_all_batches_dataset)
-    reranking_all_batches_dataset = reranking_all_batches_dataset.map(
-        partial(
-            embed_reranking,
-            reranker=reranker,
-            tokenizer=reranker_tokenizer,
-            device=device,
-            fp16=args.fp16,
-            amp=amp,
-        ),
-        batched=True,
-        batch_size=args.rerank_batch_size,
-        with_rank=args.n_gpu > 1,
-        num_proc=args.n_gpu,
-    )
+#     return reranking_batch_dataset
 
-    current_index = 0
-    reranking_embeddings = []
-    for batch_length in batch_lengths:
-        reranking_embeddings.append(
-            reranking_all_batches_dataset["rerank_embeddings"][current_index : current_index + batch_length]
-        )
-        current_index += batch_length
 
-    # Add the reranking embeddings to the batch datasets
-    for i, batch_dataset in enumerate(batch_datasets):
-        len_batch = len(batch_dataset)
-        rerank_embeddings_batch = reranking_embeddings[i].reshape(len_batch, len_batch, -1)
-        batch_dataset = batch_dataset.add_column("rerank_embeddings", reranking_embeddings[i])
-        batch_datasets[i] = batch_dataset
+# def embed_reranking(
+#     tokenized_reranking_dataset,
+#     rank=None,
+#     reranker=None,
+#     tokenizer=None,
+#     device=None,
+#     fp16=False,
+#     amp=None,
+# ):
 
-    return batch_datasets
+#     if rank is not None:
+#         device = torch.device("cuda", rank)
+#     reranker = reranker.to(device)
+
+#     tokenized_inputs = tokenizer(
+#         tokenized_reranking_dataset["query_text"],
+#         tokenized_reranking_dataset["passage_text"],
+#         truncation=True,
+#         padding="longest",
+#         return_tensors="pt",
+#     )
+
+#     reranker.eval()
+#     with torch.no_grad():
+#         if fp16:
+#             with amp.autocast():
+#                 reranking_embeddings = reranker(
+#                     tokenized_inputs["input_ids"].to(device),
+#                     tokenized_inputs["attention_mask"].to(device),
+#                     tokenized_inputs["token_type_ids"].to(device),
+#                 ).logits
+#         else:
+#             reranking_embeddings = reranker(
+#                 tokenized_inputs["input_ids"].to(device),
+#                 tokenized_inputs["attention_mask"].to(device),
+#                 tokenized_inputs["token_type_ids"].to(device),
+#             ).logits
+
+#     return {"rerank_embeddings": reranking_embeddings.detach().cpu().numpy()}
+
+
+# def generate_reranking_labels(batch_datasets, reranker, reranker_tokenizer, args, device):
+#     logger.info("Generating labels for reranking started")
+#     if args.fp16:
+#         from torch.cuda import amp
+#     else:
+#         amp = None
+
+#     reranker = reranker.to(device)
+
+#     batch_lengths = []
+#     reranking_all_batches_dataset = {
+#         "query_text": [],
+#         "passage_text": [],
+#     }
+#     for batch_dataset in batch_datasets:
+#         reranking_batch_dataset = prepare_batch_for_reranking(batch_dataset, reranker_tokenizer)
+#         batch_lengths.append((len(reranking_batch_dataset)))
+#         for key in reranking_all_batches_dataset.keys():
+#             reranking_all_batches_dataset[key].extend(
+#                 reranking_batch_dataset[key]
+#             )
+
+#     reranking_all_batches_dataset = HFDataset.from_dict(reranking_all_batches_dataset)
+#     reranking_all_batches_dataset = reranking_all_batches_dataset.map(
+#         partial(
+#             embed_reranking,
+#             reranker=reranker,
+#             tokenizer=reranker_tokenizer,
+#             device=device,
+#             fp16=args.fp16,
+#             amp=amp,
+#         ),
+#         batched=True,
+#         batch_size=args.rerank_batch_size,
+#         with_rank=args.n_gpu > 1,
+#         num_proc=args.n_gpu,
+#     )
+
+#     current_index = 0
+#     reranking_embeddings = []
+#     for batch_length in batch_lengths:
+#         reranking_embeddings.append(
+#             reranking_all_batches_dataset["rerank_embeddings"][current_index : current_index + batch_length]
+#         )
+#         current_index += batch_length
+
+#     # Add the reranking embeddings to the batch datasets
+#     for i, batch_dataset in enumerate(batch_datasets):
+#         len_batch = len(batch_dataset)
+#         rerank_embeddings_batch = reranking_embeddings[i].reshape(len_batch, len_batch, -1)
+#         batch_dataset = batch_dataset.add_column("rerank_embeddings", reranking_embeddings[i])
+#         batch_datasets[i] = batch_dataset
+
+#     return batch_datasets
 
 
 def get_clustered_passage_dataset(
@@ -1091,8 +1162,6 @@ def get_clustered_passage_dataset(
     reranker=None,
     reranker_tokenizer=None,
 ):
-    unified_rr = True if reranker is not None else False
-
     logger.info("Generating embeddings for passage clustering started")
 
     if args.fp16:
@@ -1131,7 +1200,11 @@ def get_clustered_passage_dataset(
 
     logger.info("Clustering passages started")
 
-    k = int(len(passage_dataset["embeddings"]) / train_batch_size) if args.kmeans_k == -1 else args.kmeans_k
+    k = (
+        int(len(passage_dataset["embeddings"]) / train_batch_size)
+        if args.kmeans_k == -1
+        else args.kmeans_k
+    )
     niter = 20
     verbose = not args.silent
     seed = args.manual_seed if args.manual_seed is not None else 42
@@ -1215,17 +1288,16 @@ def get_clustered_passage_dataset(
             )
             break
 
-    batch_datasets = [passage_dataset.select(batch, keep_in_memory=False) for batch in tqdm(final_batches, desc="Generating batched dataset")]
-
-    if unified_rr:
-        batch_datasets = generate_reranking_labels(batch_datasets, reranker, reranker_tokenizer, args, device)
+    batch_datasets = [
+        passage_dataset.select(batch, keep_in_memory=False)
+        for batch in tqdm(final_batches, desc="Generating batched dataset")
+    ]
 
     # batch_datasets = []
     # for batch in tqdm(final_batches, desc="Generating batched dataset"):
     #     batch_start = batch[0]
     #     batch_end = batch[-1] + 1
     #     batch_datasets.append(passage_dataset[batch_start:batch_end])
-
 
     # clustered_batches = sorted(clustered_batches, key=lambda x: len(x), reverse=True)
 
@@ -1273,7 +1345,6 @@ def get_clustered_passage_dataset(
     #     batch_start = batch[0]
     #     batch_end = batch[-1] + 1
     #     batch_datasets.append(passage_dataset[batch_start:batch_end])
-
 
     # Use a generator to avoid loading all batches into memory
     # batch_datasets = (passage_dataset.select(batch) for batch in clustered_batches)
@@ -1337,3 +1408,21 @@ def get_clustered_passage_dataset(
         datasets.logging.enable_progress_bar()
 
     return ClusteredDataset(batch_datasets, len(clustered_batches))
+
+
+class RetrievalOutput:
+    def __init__(
+        self,
+        loss,
+        context_outputs,
+        query_outputs,
+        correct_predictions_count,
+        reranking_context_outputs=None,
+        reranking_query_outputs=None,
+    ):
+        self.loss = loss
+        self.context_outputs = context_outputs
+        self.query_outputs = query_outputs
+        self.correct_predictions_count = correct_predictions_count
+        self.reranking_context_outputs = reranking_context_outputs
+        self.reranking_query_outputs = reranking_query_outputs

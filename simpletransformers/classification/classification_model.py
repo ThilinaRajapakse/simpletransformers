@@ -466,9 +466,7 @@ class ClassificationModel:
                 **kwargs,
             )
         else:
-            self.tokenizer = tokenizer_class.from_pretrained(
-                tokenizer_name, **kwargs
-            )
+            self.tokenizer = tokenizer_class.from_pretrained(tokenizer_name, **kwargs)
 
         if self.args.special_tokens_list:
             self.tokenizer.add_tokens(
