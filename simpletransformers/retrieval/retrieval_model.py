@@ -40,6 +40,7 @@ from transformers.models.auto import (
     AutoConfig,
     AutoModel,
     AutoTokenizer,
+    AutoModelForSequenceClassification,
 )
 from datasets import load_from_disk
 from datasets.arrow_dataset import Dataset as HFDataset
@@ -98,6 +99,8 @@ class RetrievalModel:
         query_encoder_name=None,
         context_encoder_tokenizer=None,
         query_encoder_tokenizer=None,
+        reranker_name=None,
+        reranker_tokenizer=None,
         prediction_passages=None,
         args=None,
         use_cuda=True,
@@ -260,6 +263,20 @@ class RetrievalModel:
                     query_encoder_tokenizer
                 )
 
+        if reranker_name is not None:
+            self.reranker = AutoModelForSequenceClassification.from_pretrained(reranker_name)
+            if reranker_tokenizer is None:
+                self.reranker_tokenizer = AutoTokenizer.from_pretrained(reranker_name, max_len=args.max_seq_length)
+            elif isinstance(reranker_tokenizer, str):
+                self.reranker_tokenizer = AutoTokenizer.from_pretrained(
+                    reranker_tokenizer, max_len=args.max_seq_length
+                )
+            else:
+                self.reranker_tokenizer = reranker_tokenizer
+        else:
+            self.reranker = None
+            self.reranker_tokenizer = None
+
         # TODO: Add support for adding special tokens to the tokenizers
 
         if self.args.larger_representations or self.args.include_bce_loss:
@@ -412,7 +429,7 @@ class RetrievalModel:
             self._move_model_to_device()
 
         train_dataset = self.load_and_cache_examples(
-            train_data, verbose=verbose, clustered_training=clustered_training
+            train_data, verbose=verbose, clustered_training=clustered_training, evaluate=False
         )
 
         os.makedirs(output_dir, exist_ok=True)
@@ -907,7 +924,7 @@ class RetrievalModel:
 
             if clustered_training and epoch_number != args.num_train_epochs:
                 train_dataset = self.load_and_cache_examples(
-                    train_data, verbose=verbose, clustered_training=clustered_training
+                    train_data, verbose=verbose, clustered_training=clustered_training, evaluate=False
                 )
                 train_sampler = RandomSampler(train_dataset)
                 train_dataloader = train_dataset
@@ -1857,12 +1874,14 @@ class RetrievalModel:
 
             if clustered_training:
                 return get_clustered_passage_dataset(
-                    dataset,
-                    self.args.train_batch_size,
-                    self.context_encoder,
-                    self.context_tokenizer,
-                    self.args,
-                    self.device,
+                    passage_dataset=dataset,
+                    train_batch_size=self.args.train_batch_size,
+                    encoder=self.context_encoder,
+                    tokenizer=self.context_tokenizer,
+                    args=self.args,
+                    device=self.device,
+                    reranker=self.reranker,
+                    reranker_tokenizer=self.reranker_tokenizer,
                 )
 
             return dataset
@@ -2331,6 +2350,9 @@ class RetrievalModel:
     def _move_model_to_device(self):
         self.context_encoder.to(self.device)
         self.query_encoder.to(self.device)
+
+        if self.reranker is not None:
+            self.reranker.to(self.device)
 
     def save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)

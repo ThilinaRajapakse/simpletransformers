@@ -383,6 +383,7 @@ class RetrievalArgs(Seq2SeqArgs):
     output_dropout: float = 0.1
     query_config: dict = field(default_factory=dict)
     remove_duplicates_from_eval_passages: bool = False
+    rerank_batch_size: int = 256
     retrieval_batch_size: int = 512
     retrieve_n_docs: int = 10
     save_passage_dataset: bool = True

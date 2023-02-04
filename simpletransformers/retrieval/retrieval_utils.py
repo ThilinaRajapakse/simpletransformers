@@ -322,15 +322,15 @@ def embed(
             with amp.autocast():
                 if not pretokenized:
                     try:
-                        input_ids = tokenizer(
+                        tokenized_inputs = tokenizer(
                             documents["passages"],
                             truncation=True,
                             padding="longest",
                             return_tensors="pt",
                         )
                         embeddings = encoder(
-                            input_ids["input_ids"].to(device=device),
-                            input_ids["attention_mask"].to(device=device),
+                            tokenized_inputs["input_ids"].to(device=device),
+                            tokenized_inputs["attention_mask"].to(device=device),
                             return_dict=True,
                         )
                         embeddings = get_output_embeddings(
@@ -346,15 +346,15 @@ def embed(
                         This may have been caused by NaN values present in the data."""
                         )
                         documents["passages"] = [str(p) for p in documents["passages"]]
-                        input_ids = tokenizer(
+                        tokenized_inputs = tokenizer(
                             documents["passages"],
                             truncation=True,
                             padding="longest",
                             return_tensors="pt",
                         )
                         embeddings = encoder(
-                            input_ids["input_ids"].to(device=device),
-                            input_ids["attention_mask"].to(device=device),
+                            tokenized_inputs["input_ids"].to(device=device),
+                            tokenized_inputs["attention_mask"].to(device=device),
                             return_dict=True,
                         )
                         embeddings = get_output_embeddings(
@@ -378,15 +378,15 @@ def embed(
         else:
             if not pretokenized:
                 try:
-                    input_ids = tokenizer(
+                    tokenized_inputs = tokenizer(
                         documents["passages"],
                         truncation=True,
                         padding="longest",
                         return_tensors="pt",
                     )
                     embeddings = encoder(
-                        input_ids["input_ids"].to(device=device),
-                        input_ids["attention_mask"].to(device=device),
+                        tokenized_inputs["input_ids"].to(device=device),
+                        tokenized_inputs["attention_mask"].to(device=device),
                         return_dict=True,
                     )
                     embeddings = get_output_embeddings(
@@ -402,15 +402,15 @@ def embed(
                     This may have been caused by NaN values present in the data."""
                     )
                     documents["passages"] = [str(p) for p in documents["passages"]]
-                    input_ids = tokenizer(
+                    tokenized_inputs = tokenizer(
                         documents["passages"],
                         truncation=True,
                         padding="longest",
                         return_tensors="pt",
                     )
                     embeddings = encoder(
-                        input_ids["input_ids"].to(device=device),
-                        input_ids["attention_mask"].to(device=device),
+                        tokenized_inputs["input_ids"].to(device=device),
+                        tokenized_inputs["attention_mask"].to(device=device),
                         return_dict=True,
                     )
                     embeddings = get_output_embeddings(
@@ -966,6 +966,121 @@ def batch_generator(passage_dataset, batches):
         yield passage_dataset.select(batch)
 
 
+def prepare_batch_for_reranking(batch, tokenizer):
+    queries = batch["query_text"]
+    passages = batch["gold_passage"]
+
+    concatenated_text = {
+        "query_text": [],
+        "passage_text": [],
+    }
+    for query in queries:
+        for passage in passages:
+            concatenated_text["query_text"].append(query)
+            concatenated_text["passage_text"].append(passage)
+
+    reranking_batch_dataset = HFDataset.from_dict(concatenated_text)
+
+    return reranking_batch_dataset
+
+
+def embed_reranking(
+    tokenized_reranking_dataset,
+    rank=None,
+    reranker=None,
+    tokenizer=None,
+    device=None,
+    fp16=False,
+    amp=None,
+):
+
+    if rank is not None:
+        device = torch.device("cuda", rank)
+    reranker = reranker.to(device)
+
+    tokenized_inputs = tokenizer(
+        tokenized_reranking_dataset["query_text"],
+        tokenized_reranking_dataset["passage_text"],
+        truncation=True,
+        padding="longest",
+        return_tensors="pt",
+    )
+
+    reranker.eval()
+    with torch.no_grad():
+        if fp16:
+            with amp.autocast():
+                reranking_embeddings = reranker(
+                    tokenized_inputs["input_ids"].to(device),
+                    tokenized_inputs["attention_mask"].to(device),
+                    tokenized_inputs["token_type_ids"].to(device),
+                ).logits
+        else:
+            reranking_embeddings = reranker(
+                tokenized_inputs["input_ids"].to(device),
+                tokenized_inputs["attention_mask"].to(device),
+                tokenized_inputs["token_type_ids"].to(device),
+            ).logits
+
+    return {"rerank_embeddings": reranking_embeddings.detach().cpu().numpy()}
+
+
+def generate_reranking_labels(batch_datasets, reranker, reranker_tokenizer, args, device):
+    logger.info("Generating labels for reranking started")
+    if args.fp16:
+        from torch.cuda import amp
+    else:
+        amp = None
+
+    reranker = reranker.to(device)
+
+    batch_lengths = []
+    reranking_all_batches_dataset = {
+        "query_text": [],
+        "passage_text": [],
+    }
+    for batch_dataset in batch_datasets:
+        reranking_batch_dataset = prepare_batch_for_reranking(batch_dataset, reranker_tokenizer)
+        batch_lengths.append((len(reranking_batch_dataset)))
+        for key in reranking_all_batches_dataset.keys():
+            reranking_all_batches_dataset[key].extend(
+                reranking_batch_dataset[key]
+            )
+
+    reranking_all_batches_dataset = HFDataset.from_dict(reranking_all_batches_dataset)
+    reranking_all_batches_dataset = reranking_all_batches_dataset.map(
+        partial(
+            embed_reranking,
+            reranker=reranker,
+            tokenizer=reranker_tokenizer,
+            device=device,
+            fp16=args.fp16,
+            amp=amp,
+        ),
+        batched=True,
+        batch_size=args.rerank_batch_size,
+        with_rank=args.n_gpu > 1,
+        num_proc=args.n_gpu,
+    )
+
+    current_index = 0
+    reranking_embeddings = []
+    for batch_length in batch_lengths:
+        reranking_embeddings.append(
+            reranking_all_batches_dataset["rerank_embeddings"][current_index : current_index + batch_length]
+        )
+        current_index += batch_length
+
+    # Add the reranking embeddings to the batch datasets
+    for i, batch_dataset in enumerate(batch_datasets):
+        len_batch = len(batch_dataset)
+        rerank_embeddings_batch = reranking_embeddings[i].reshape(len_batch, len_batch, -1)
+        batch_dataset = batch_dataset.add_column("rerank_embeddings", reranking_embeddings[i])
+        batch_datasets[i] = batch_dataset
+
+    return batch_datasets
+
+
 def get_clustered_passage_dataset(
     passage_dataset,
     train_batch_size,
@@ -973,7 +1088,11 @@ def get_clustered_passage_dataset(
     tokenizer,
     args,
     device,
+    reranker=None,
+    reranker_tokenizer=None,
 ):
+    unified_rr = True if reranker is not None else False
+
     logger.info("Generating embeddings for passage clustering started")
 
     if args.fp16:
@@ -999,8 +1118,8 @@ def get_clustered_passage_dataset(
         ),
         batched=True,
         batch_size=args.embed_batch_size,
-        # with_rank=args.n_gpu > 1,
-        # num_proc=args.n_gpu,
+        with_rank=args.n_gpu > 1,
+        num_proc=args.n_gpu,
         # cache_file_name=os.path.join(args.dataset_cache_dir, args.output_dir, "/clustering_embeddings.cache"),
     )
     passage_dataset = passage_dataset.rename_column("passages", "gold_passage")
@@ -1097,6 +1216,9 @@ def get_clustered_passage_dataset(
             break
 
     batch_datasets = [passage_dataset.select(batch, keep_in_memory=False) for batch in tqdm(final_batches, desc="Generating batched dataset")]
+
+    if unified_rr:
+        batch_datasets = generate_reranking_labels(batch_datasets, reranker, reranker_tokenizer, args, device)
 
     # batch_datasets = []
     # for batch in tqdm(final_batches, desc="Generating batched dataset"):
