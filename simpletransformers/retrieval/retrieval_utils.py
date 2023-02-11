@@ -1221,29 +1221,32 @@ def get_clustered_passage_dataset(
     embeddings = passage_dataset["embeddings"].numpy()
     d = embeddings.shape[1]
 
-    use_cuda = True if "cuda" in str(device) else False
+    if args.faiss_clustering:
+        use_cuda = True if "cuda" in str(device) else False
 
-    kmeans = faiss.Kmeans(d, k, niter=niter, verbose=verbose, seed=seed, gpu=use_cuda)
-    kmeans.train(embeddings)
+        kmeans = faiss.Kmeans(
+            d, k, niter=niter, verbose=verbose, seed=seed, gpu=use_cuda
+        )
+        kmeans.train(embeddings)
 
-    _, indices = kmeans.index.search(embeddings, 1)
-    passage_dataset = passage_dataset.add_column("cluster_id", indices.flatten())
+        _, indices = kmeans.index.search(embeddings, 1)
+        passage_dataset = passage_dataset.add_column("cluster_id", indices.flatten())
+    else:
+        km = MiniBatchKMeans(
+            n_clusters=k,
+            init="k-means++",
+        )
 
-    # km = MiniBatchKMeans(
-    #     n_clusters=k,
-    #     init="k-means++",
-    # )
-
-    # if args.cluster_train_size is not None:
-    #     clustering_subset, _ = train_test_split(
-    #         passage_dataset, train_size=args.cluster_train_size
-    #     )
-    # else:
-    #     clustering_subset = passage_dataset
-    # km.fit(clustering_subset["embeddings"])
-    # passage_dataset = passage_dataset.add_column(
-    #     "cluster_id", km.predict(passage_dataset["embeddings"])
-    # )
+        if args.cluster_train_size is not None:
+            clustering_subset, _ = train_test_split(
+                passage_dataset, train_size=args.cluster_train_size
+            )
+        else:
+            clustering_subset = passage_dataset
+        km.fit(clustering_subset["embeddings"])
+        passage_dataset = passage_dataset.add_column(
+            "cluster_id", km.predict(passage_dataset["embeddings"])
+        )
 
     logger.info("Clustering passages completed")
     del embeddings

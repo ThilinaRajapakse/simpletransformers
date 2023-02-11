@@ -178,16 +178,16 @@ class RetrievalModel:
                     DPRConfig,
                     DPRContextEncoderUnifiedRR,
                     DPRQuestionEncoderUnifiedRR,
-                    DPRContextEncoderTokenizerFast,
-                    DPRQuestionEncoderTokenizerFast,
+                    AutoTokenizer,
+                    AutoTokenizer,
                 )
             else:
                 MODEL_CLASSES["dpr"] = (
                     DPRConfig,
                     DPRContextEncoderEnhanced,
                     DPRQuestionEncoderEnhanced,
-                    DPRContextEncoderTokenizerFast,
-                    DPRQuestionEncoderTokenizerFast,
+                    AutoTokenizer,
+                    AutoTokenizer,
                 )
 
         try:
@@ -712,7 +712,9 @@ class RetrievalModel:
                             reranking_input,
                         )
                         loss = retrieval_output.loss
-                        correct_predictions_percentage = retrieval_output.correct_predictions_percentage
+                        correct_predictions_percentage = (
+                            retrieval_output.correct_predictions_percentage
+                        )
                 else:
                     retrieval_output = self._calculate_loss(
                         context_model,
@@ -724,7 +726,9 @@ class RetrievalModel:
                         reranking_input,
                     )
                     loss = retrieval_output.loss
-                    correct_predictions_percentage = retrieval_output.correct_predictions_percentage
+                    correct_predictions_percentage = (
+                        retrieval_output.correct_predictions_percentage
+                    )
 
                 if args.n_gpu > 1:
                     loss = loss.mean()
@@ -970,7 +974,8 @@ class RetrievalModel:
 
             epoch_number += 1
             output_dir_current = os.path.join(
-                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number + 1)
+                output_dir,
+                "checkpoint-{}-epoch-{}".format(global_step, epoch_number + 1),
             )
 
             if clustered_training and epoch_number != args.num_train_epochs:
@@ -1663,7 +1668,9 @@ class RetrievalModel:
                     doc_dict["passages"] = [
                         doc_dict["passages"][j] for j in rerank_indices[i]
                     ]
-                    doc_dict["embeddings"] = [doc_dict["embeddings"][j] for j in rerank_indices[i]]
+                    doc_dict["embeddings"] = [
+                        doc_dict["embeddings"][j] for j in rerank_indices[i]
+                    ]
                     doc_dict["rerank_embeddings"] = [
                         doc_dict["rerank_embeddings"][j] for j in rerank_indices[i]
                     ]
@@ -1673,7 +1680,8 @@ class RetrievalModel:
                     for i in range(len(passages))
                 ]
                 doc_ids = [
-                    [doc_ids[i][j] for j in rerank_indices[i]] for i in range(len(doc_ids))
+                    [doc_ids[i][j] for j in rerank_indices[i]]
+                    for i in range(len(doc_ids))
                 ]
                 doc_vectors = [
                     [doc_vectors[i][j] for j in rerank_indices[i]]
@@ -1872,7 +1880,7 @@ class RetrievalModel:
                         (
                             len(query_embeddings),
                             retrieve_n_docs,
-                            self.query_config.hidden_size
+                            self.query_config.hidden_size,
                         )
                     )
                 else:
@@ -2201,7 +2209,9 @@ class RetrievalModel:
             reranking_query_outputs = query_outputs.reranking_embeddings.cpu().float()
             query_outputs = query_outputs.retrieval_embeddings
 
-            reranking_context_outputs = context_outputs.reranking_embeddings.cpu().float()
+            reranking_context_outputs = (
+                context_outputs.reranking_embeddings.cpu().float()
+            )
             context_outputs = context_outputs.retrieval_embeddings
         else:
             context_outputs = get_output_embeddings(
@@ -2327,7 +2337,9 @@ class RetrievalModel:
         correct_predictions_count = (
             (max_idxs == torch.tensor(nll_labels)).sum().cpu().detach().numpy().item()
         )
-        correct_predictions_percentage = (correct_predictions_count / len(nll_labels)) * 100
+        correct_predictions_percentage = (
+            correct_predictions_count / len(nll_labels)
+        ) * 100
 
         retrieval_output = RetrievalOutput(
             loss=loss,

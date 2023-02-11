@@ -369,6 +369,7 @@ class RetrievalArgs(Seq2SeqArgs):
     evaluate_with_beir: bool = False
     extra_cls_token_count: int = 0
     extra_mask_token_count: int = 0
+    faiss_clustering: bool = True
     faiss_index_type: str = "IndexFlatIP"
     hard_negatives: bool = False
     hard_negatives_in_eval: bool = False
