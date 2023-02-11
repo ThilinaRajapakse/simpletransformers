@@ -51,6 +51,8 @@ from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.custom_models.large_representation_retrieval_model import (
     DPRContextEncoderEnhanced,
     DPRQuestionEncoderEnhanced,
+    DPRContextEncoderUnifiedRR,
+    DPRQuestionEncoderUnifiedRR,
 )
 from simpletransformers.retrieval.beir_evaluation import BeirRetrievalModel
 from simpletransformers.retrieval.retrieval_utils import (
@@ -165,18 +167,28 @@ class RetrievalModel:
             self.device = "cpu"
 
         self.results = {}
+        self.unified_rr = self.args.unified_rr
 
         if not use_cuda:
             self.args.fp16 = False
 
         if self.args.larger_representations:
-            MODEL_CLASSES["dpr"] = (
-                DPRConfig,
-                DPRContextEncoderEnhanced,
-                DPRQuestionEncoderEnhanced,
-                DPRContextEncoderTokenizerFast,
-                DPRQuestionEncoderTokenizerFast,
-            )
+            if self.args.unified_rr:
+                MODEL_CLASSES["custom"] = (
+                    DPRConfig,
+                    DPRContextEncoderUnifiedRR,
+                    DPRQuestionEncoderUnifiedRR,
+                    DPRContextEncoderTokenizerFast,
+                    DPRQuestionEncoderTokenizerFast,
+                )
+            else:
+                MODEL_CLASSES["dpr"] = (
+                    DPRConfig,
+                    DPRContextEncoderEnhanced,
+                    DPRQuestionEncoderEnhanced,
+                    DPRContextEncoderTokenizerFast,
+                    DPRQuestionEncoderTokenizerFast,
+                )
 
         try:
             (
@@ -192,8 +204,6 @@ class RetrievalModel:
                     model_type, list(MODEL_CLASSES.keys())
                 )
             )
-
-        self.unified_rr = self.args.unified_rr
 
         if context_encoder_name:
             self.context_config = config_class.from_pretrained(
@@ -2185,31 +2195,27 @@ class RetrievalModel:
         unified_rr = self.unified_rr
 
         context_outputs = context_model(**context_inputs)
-        context_outputs = get_output_embeddings(
-            context_outputs,
-            concatenate_embeddings=self.args.larger_representations
-            and self.args.model_type == "custom",
-            n_cls_tokens=(1 + self.args.extra_cls_token_count),
-        )
         query_outputs = query_model(**query_inputs)
-        query_outputs = get_output_embeddings(
-            query_outputs,
-            concatenate_embeddings=self.args.larger_representations
-            and self.args.model_type == "custom",
-            n_cls_tokens=(1 + self.args.extra_cls_token_count),
-        )
 
         if unified_rr:
-            reranking_query_outputs = query_outputs[
-                :, query_outputs.size(1) // 2 :
-            ].cpu()
-            query_outputs = query_outputs[:, : query_outputs.size(1) // 2]
+            reranking_query_outputs = query_outputs.reranking_embeddings.cpu().float()
+            query_outputs = query_outputs.retrieval_embeddings
 
-            reranking_context_outputs = context_outputs[
-                :, context_outputs.size(1) // 2 :
-            ].cpu()
-            context_outputs = context_outputs[:, : context_outputs.size(1) // 2]
+            reranking_context_outputs = context_outputs.reranking_embeddings.cpu().float()
+            context_outputs = context_outputs.retrieval_embeddings
         else:
+            context_outputs = get_output_embeddings(
+                context_outputs,
+                concatenate_embeddings=self.args.larger_representations
+                and self.args.model_type == "custom",
+                n_cls_tokens=(1 + self.args.extra_cls_token_count),
+            )
+            query_outputs = get_output_embeddings(
+                query_outputs,
+                concatenate_embeddings=self.args.larger_representations
+                and self.args.model_type == "custom",
+                n_cls_tokens=(1 + self.args.extra_cls_token_count),
+            )
             reranking_query_outputs = None
             reranking_context_outputs = None
 

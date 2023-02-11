@@ -30,9 +30,11 @@ class DPRContextEncoderOutput(ModelOutput):
     """
 
     pooler_output: torch.FloatTensor
-    sequence_output: Optional[Tuple[torch.FloatTensor]] = None
+    last_hidden_state: Optional[Tuple[torch.FloatTensor]] = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
+    retrieval_embeddings: Optional[torch.FloatTensor] = None
+    reranking_embeddings: Optional[torch.FloatTensor] = None
 
 
 class DPRContextEncoderEnhanced(DPRContextEncoder):
@@ -115,9 +117,107 @@ class DPRContextEncoderEnhanced(DPRContextEncoder):
             return outputs[1:]
         return DPRContextEncoderOutput(
             pooler_output=cat_cls_embeddings,
-            sequence_output=outputs.last_hidden_state,
+            last_hidden_state=outputs.last_hidden_state,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
+        )
+
+
+class DPRContextEncoderUnifiedRR(DPRContextEncoder):
+    def __init__(self, config):
+        super().__init__(config)
+        self.retrieval_pooler = torch.nn.Linear(
+            config.hidden_size, config.hidden_size
+        )
+        self.reranking_pooler = torch.nn.Linear(
+            config.hidden_size, config.hidden_size
+        )
+        self.init_weights()
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        inputs_embeds=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        r"""
+        Return:
+
+        Examples:
+
+        ```python
+        >>> from transformers import DPRContextEncoder, DPRContextEncoderTokenizer
+
+        >>> tokenizer = DPRContextEncoderTokenizer.from_pretrained("facebook/dpr-ctx_encoder-single-nq-base")
+        >>> model = DPRContextEncoder.from_pretrained("facebook/dpr-ctx_encoder-single-nq-base")
+        >>> input_ids = tokenizer("Hello, is my dog cute ?", return_tensors="pt")["input_ids"]
+        >>> embeddings = model(input_ids).pooler_output
+        ```"""
+
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
+        )
+        output_hidden_states = (
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
+        )
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
+
+        if input_ids is not None and inputs_embeds is not None:
+            raise ValueError(
+                "You cannot specify both input_ids and inputs_embeds at the same time"
+            )
+        elif input_ids is not None:
+            input_shape = input_ids.size()
+        elif inputs_embeds is not None:
+            input_shape = inputs_embeds.size()[:-1]
+        else:
+            raise ValueError("You have to specify either input_ids or inputs_embeds")
+
+        device = input_ids.device if input_ids is not None else inputs_embeds.device
+
+        if attention_mask is None:
+            attention_mask = (
+                torch.ones(input_shape, device=device)
+                if input_ids is None
+                else (input_ids != self.config.pad_token_id)
+            )
+        if token_type_ids is None:
+            token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=device)
+
+        outputs = self.ctx_encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        cls_embeddings = outputs.last_hidden_state
+        cat_cls_embeddings = cls_embeddings[:, :3, :].view(cls_embeddings.shape[0], -1)
+
+        retrieval_embeddings = self.retrieval_pooler(cls_embeddings[:, 0, :])
+        reranking_embeddings = self.reranking_pooler(cls_embeddings[:, 1, :])
+
+        if not return_dict:
+            return outputs[1:]
+        return DPRContextEncoderOutput(
+            pooler_output=cat_cls_embeddings,
+            last_hidden_state=outputs.last_hidden_state,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+            retrieval_embeddings=retrieval_embeddings,
+            reranking_embeddings=reranking_embeddings,
         )
 
 
@@ -145,9 +245,11 @@ class DPRQuestionEncoderOutput(ModelOutput):
     """
 
     pooler_output: torch.FloatTensor
-    sequence_output: Optional[Tuple[torch.FloatTensor]] = None
+    last_hidden_state: Optional[Tuple[torch.FloatTensor]] = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
+    retrieval_embeddings: Optional[torch.FloatTensor] = None
+    reranking_embeddings: Optional[torch.FloatTensor] = None
 
 
 class DPRQuestionEncoderEnhanced(DPRQuestionEncoder):
@@ -231,7 +333,106 @@ class DPRQuestionEncoderEnhanced(DPRQuestionEncoder):
             return outputs[1:]
         return DPRQuestionEncoderOutput(
             pooler_output=cat_cls_embeddings,
-            sequence_output=outputs.last_hidden_state,
+            last_hidden_state=outputs.last_hidden_state,
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
+        )
+
+
+class DPRQuestionEncoderUnifiedRR(DPRQuestionEncoder):
+    def __init__(self, config):
+        super().__init__(config)
+        self.retrieval_pooler = torch.nn.Linear(
+            config.hidden_size, config.hidden_size
+        )
+        self.reranking_pooler = torch.nn.Linear(
+            config.hidden_size, config.hidden_size
+        )
+        self.init_weights()
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        inputs_embeds=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        r"""
+        Return:
+
+        Examples:
+
+        ```python
+        >>> from transformers import DPRQuestionEncoder, DPRQuestionEncoderTokenizer
+
+        >>> tokenizer = DPRQuestionEncoderTokenizer.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
+        >>> model = DPRQuestionEncoder.from_pretrained("facebook/dpr-question_encoder-single-nq-base")
+        >>> input_ids = tokenizer("Hello, is my dog cute ?", return_tensors="pt")["input_ids"]
+        >>> embeddings = model(input_ids).pooler_output
+        ```"""
+
+        output_attentions = (
+            output_attentions
+            if output_attentions is not None
+            else self.config.output_attentions
+        )
+        output_hidden_states = (
+            output_hidden_states
+            if output_hidden_states is not None
+            else self.config.output_hidden_states
+        )
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
+
+        if input_ids is not None and inputs_embeds is not None:
+            raise ValueError(
+                "You cannot specify both input_ids and inputs_embeds at the same time"
+            )
+        elif input_ids is not None:
+            input_shape = input_ids.size()
+        elif inputs_embeds is not None:
+            input_shape = inputs_embeds.size()[:-1]
+        else:
+            raise ValueError("You have to specify either input_ids or inputs_embeds")
+
+        device = input_ids.device if input_ids is not None else inputs_embeds.device
+
+        if attention_mask is None:
+            attention_mask = (
+                torch.ones(input_shape, device=device)
+                if input_ids is None
+                else (input_ids != self.config.pad_token_id)
+            )
+        if token_type_ids is None:
+            token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=device)
+
+        outputs = self.question_encoder(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            inputs_embeds=inputs_embeds,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+
+        cls_embeddings = outputs.last_hidden_state
+        cat_cls_embeddings = cls_embeddings[:, :3, :].view(cls_embeddings.shape[0], -1)
+
+        retrieval_embeddings = self.retrieval_pooler(outputs.last_hidden_state[:, 0, :])
+        reranking_embeddings = self.reranking_pooler(outputs.last_hidden_state[:, 1, :])
+
+        if not return_dict:
+            return outputs[1:]
+        return DPRQuestionEncoderOutput(
+            pooler_output=cat_cls_embeddings,
+            last_hidden_state=outputs.last_hidden_state,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+            retrieval_embeddings=retrieval_embeddings,
+            reranking_embeddings=reranking_embeddings,
         )
