@@ -355,6 +355,7 @@ def embed(
     amp=None,
     pretokenized=False,
     cluster_concatenated=False,
+    unified_rr=False,
 ):
     """Compute the DPR embeddings of document passages"""
     if rank is not None:
@@ -479,7 +480,14 @@ def embed(
                     concatenate_embeddings=concatenate_embeddings,
                     n_cls_tokens=(1 + extra_cls_token_count),
                 )
-    return {"embeddings": embeddings.detach().cpu().numpy()}
+
+    if unified_rr:
+        embeddings = embeddings.detach().cpu().numpy()
+        rerank_embeddings = embeddings[:, : embeddings.shape[1] // 2]
+        embeddings = embeddings[:, embeddings.shape[1] // 2 :]
+        return {"embeddings": embeddings, "rerank_embeddings": rerank_embeddings}
+    else:
+        return {"embeddings": embeddings.detach().cpu().numpy()}
 
 
 def add_hard_negatives_to_evaluation_dataset(dataset):
@@ -786,15 +794,16 @@ def get_prediction_passage_dataset(
         )
     else:
         prediction_passages_dataset = HFDataset.from_pandas(prediction_passages)
-        if "title" not in prediction_passages_dataset.column_names:
-            raise ValueError(
-                "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
+        if args.include_title_in_knowledge_dataset:
+            if "title" not in prediction_passages_dataset.column_names:
+                raise ValueError(
+                    "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
+                )
+            prediction_passages_dataset = prediction_passages_dataset.map(
+                lambda example: {
+                    "gold_passage": example["title"] + " " + example["gold_passage"]
+                }
             )
-        prediction_passages_dataset = prediction_passages_dataset.map(
-            lambda example: {
-                "gold_passage": example["title"] + " " + example["gold_passage"]
-            }
-        )
 
     logger.info("Preparing prediction passages completed")
     if "embeddings" not in prediction_passages_dataset.column_names:
@@ -816,6 +825,7 @@ def get_prediction_passage_dataset(
                 device=device,
                 fp16=args.fp16,
                 amp=amp,
+                unified_rr=args.unified_rr,
             ),
             batched=True,
             batch_size=args.embed_batch_size,
@@ -1417,12 +1427,18 @@ class RetrievalOutput:
         context_outputs,
         query_outputs,
         correct_predictions_count,
+        correct_predictions_percentage=None,
         reranking_context_outputs=None,
         reranking_query_outputs=None,
+        reranking_loss=None,
+        nll_loss=None,
     ):
         self.loss = loss
         self.context_outputs = context_outputs
         self.query_outputs = query_outputs
         self.correct_predictions_count = correct_predictions_count
+        self.correct_predictions_percentage = correct_predictions_percentage
         self.reranking_context_outputs = reranking_context_outputs
         self.reranking_query_outputs = reranking_query_outputs
+        self.reranking_loss = reranking_loss
+        self.nll_loss = nll_loss

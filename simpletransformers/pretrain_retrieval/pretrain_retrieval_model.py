@@ -625,7 +625,7 @@ class PretrainRetrievalModel:
                 length_loss = length_loss.item()
 
                 if show_running_loss:
-                    epoch_str = f"Epochs {epoch_number}/{args.num_train_epochs}. "
+                    epoch_str = f"Epochs {epoch_number + 1}/{args.num_train_epochs}. "
                     running_loss_str = f"Running Loss: {current_loss:9.4f} "
                     similarity_loss_str = f"Similarity Loss: {similarity_loss:9.4f} "
                     length_loss_str = f"Length Loss: {length_loss:9.4f} "
@@ -878,7 +878,7 @@ class PretrainRetrievalModel:
 
             epoch_number += 1
             output_dir_current = os.path.join(
-                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
+                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number + 1)
             )
 
             if clustered_training:

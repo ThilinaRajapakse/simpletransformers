@@ -736,7 +736,7 @@ class QuestionAnsweringModel:
 
                 if show_running_loss:
                     batch_iterator.set_description(
-                        f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}"
+                        f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}"
                     )
 
                 if args.gradient_accumulation_steps > 1:
@@ -938,7 +938,7 @@ class QuestionAnsweringModel:
 
             epoch_number += 1
             output_dir_current = os.path.join(
-                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
+                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number + 1)
             )
 
             if args.save_model_every_epoch or args.evaluate_during_training:

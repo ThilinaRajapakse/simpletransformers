@@ -392,6 +392,7 @@ class RetrievalArgs(Seq2SeqArgs):
     train_query_encoder: bool = True
     triplet_lambda: float = 1.0
     triplet_margin: float = 1.0
+    unified_rr: bool = False
     use_hf_datasets: bool = True
 
 

@@ -102,7 +102,6 @@ class RetrievalModel:
         query_encoder_tokenizer=None,
         reranker_name=None,
         reranker_tokenizer=None,
-        unified_rr=False,
         prediction_passages=None,
         args=None,
         use_cuda=True,
@@ -194,7 +193,7 @@ class RetrievalModel:
                 )
             )
 
-        self.unified_rr = unified_rr
+        self.unified_rr = self.args.unified_rr
 
         if context_encoder_name:
             self.context_config = config_class.from_pretrained(
@@ -586,6 +585,7 @@ class RetrievalModel:
         if args.n_gpu > 1:
             context_model = torch.nn.DataParallel(context_model)
             query_model = torch.nn.DataParallel(query_model)
+            self.reranker = torch.nn.DataParallel(self.reranker)
 
         logger.info(" Training started")
 
@@ -702,7 +702,7 @@ class RetrievalModel:
                             reranking_input,
                         )
                         loss = retrieval_output.loss
-                        correct_count = retrieval_output.correct_predictions_count
+                        correct_predictions_percentage = retrieval_output.correct_predictions_percentage
                 else:
                     retrieval_output = self._calculate_loss(
                         context_model,
@@ -714,7 +714,7 @@ class RetrievalModel:
                         reranking_input,
                     )
                     loss = retrieval_output.loss
-                    correct_count = retrieval_output.correct_predictions_count
+                    correct_predictions_percentage = retrieval_output.correct_predictions_percentage
 
                 if args.n_gpu > 1:
                     loss = loss.mean()
@@ -723,7 +723,7 @@ class RetrievalModel:
 
                 if show_running_loss:
                     batch_iterator.set_description(
-                        f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct count: {correct_count}"
+                        f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f}"
                     )
 
                 if args.gradient_accumulation_steps > 1:
@@ -768,13 +768,23 @@ class RetrievalModel:
                         )
                         logging_loss = tr_loss
                         if args.wandb_project or self.is_sweeping:
-                            wandb.log(
-                                {
+                            if self.unified_rr:
+                                logging_dict = {
                                     "Training loss": current_loss,
                                     "lr": scheduler.get_last_lr()[0],
                                     "global_step": global_step,
+                                    "correct_predictions_percentage": correct_predictions_percentage,
+                                    "reranking_loss": retrieval_output.reranking_loss,
+                                    "nll_loss": retrieval_output.nll_loss,
                                 }
-                            )
+                            else:
+                                logging_dict = {
+                                    "Training loss": current_loss,
+                                    "lr": scheduler.get_last_lr()[0],
+                                    "global_step": global_step,
+                                    "correct_predictions_percentage": correct_predictions_percentage,
+                                }
+                            wandb.log(logging_dict)
 
                     if args.save_steps > 0 and global_step % args.save_steps == 0:
                         # Save model checkpoint
@@ -950,7 +960,7 @@ class RetrievalModel:
 
             epoch_number += 1
             output_dir_current = os.path.join(
-                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
+                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number + 1)
             )
 
             if clustered_training and epoch_number != args.num_train_epochs:
@@ -1286,6 +1296,7 @@ class RetrievalModel:
         if args.n_gpu > 1:
             context_model = torch.nn.DataParallel(context_model)
             query_model = torch.nn.DataParallel(query_model)
+            self.reranker = torch.nn.DataParallel(self.reranker)
 
         nb_eval_steps = 0
         eval_loss = 0
@@ -1629,6 +1640,36 @@ class RetrievalModel:
             )
             passages = [d["passages"] for d in doc_dicts]
 
+            if self.args.unified_rr:
+                rerank_distances = self.compute_rerank_distances(
+                    reranking_query_outputs, doc_dicts
+                )
+
+                # Get indices of rerank_distances sorted by ascending order
+                rerank_indices = np.argsort(rerank_distances, axis=1)
+
+                # Sort passages, doc_ids, doc_vectors, doc_dicts by rerank_indices
+                for i, doc_dict in enumerate(doc_dicts):
+                    doc_dict["passages"] = [
+                        doc_dict["passages"][j] for j in rerank_indices[i]
+                    ]
+                    doc_dict["embeddings"] = [doc_dict["embeddings"][j] for j in rerank_indices[i]]
+                    doc_dict["rerank_embeddings"] = [
+                        doc_dict["rerank_embeddings"][j] for j in rerank_indices[i]
+                    ]
+
+                passages = [
+                    [passages[i][j] for j in rerank_indices[i]]
+                    for i in range(len(passages))
+                ]
+                doc_ids = [
+                    [doc_ids[i][j] for j in rerank_indices[i]] for i in range(len(doc_ids))
+                ]
+                doc_vectors = [
+                    [doc_vectors[i][j] for j in rerank_indices[i]]
+                    for i in range(len(doc_vectors))
+                ]
+
             return passages, doc_ids, doc_vectors, doc_dicts
         else:
             passages = self.retrieve_docs_from_query_embeddings(
@@ -1638,6 +1679,18 @@ class RetrievalModel:
                 passages_only=True,
             )
             return passages
+
+    def compute_rerank_distances(self, query_embeddings, doc_dicts):
+        """
+        Computes the distances between the reranking query embeddings and the reranking document embeddings
+        for the unified reranking method using dot product.
+        """
+        rerank_distances = np.zeros((len(doc_dicts), len(doc_dicts[0]["passages"])))
+        for i, doc_dict in enumerate(doc_dicts):
+            rerank_distances[i] = np.dot(
+                query_embeddings[i], np.array(doc_dict["rerank_embeddings"]).T
+            )
+        return rerank_distances
 
     def compute_metrics(
         self,
@@ -1804,14 +1857,23 @@ class RetrievalModel:
         else:
             ids_batched = np.zeros((len(query_embeddings), retrieve_n_docs))
             if self.args.larger_representations:
-                vectors_batched = np.zeros(
-                    (
-                        len(query_embeddings),
-                        retrieve_n_docs,
-                        self.query_config.hidden_size
-                        * (1 + args.extra_cls_token_count),
+                if self.args.unified_rr:
+                    vectors_batched = np.zeros(
+                        (
+                            len(query_embeddings),
+                            retrieve_n_docs,
+                            self.query_config.hidden_size
+                        )
                     )
-                )
+                else:
+                    vectors_batched = np.zeros(
+                        (
+                            len(query_embeddings),
+                            retrieve_n_docs,
+                            self.query_config.hidden_size
+                            * (1 + args.extra_cls_token_count),
+                        )
+                    )
             else:
                 vectors_batched = np.zeros(
                     (
@@ -2209,9 +2271,10 @@ class RetrievalModel:
                     loss = bce_loss + nll_loss
                 else:
                     loss = bce_loss
+                    nll_loss = None
             else:
                 criterion = torch.nn.NLLLoss(reduction="mean")
-                loss = criterion(softmax_score, labels)
+                nll_loss = criterion(softmax_score, labels)
                 nll_labels = labels
 
                 if unified_rr:
@@ -2249,20 +2312,27 @@ class RetrievalModel:
                         reranking_target_tensor.type(torch.FloatTensor),
                     )
 
-                    loss += reranking_loss
+                    loss = nll_loss + reranking_loss
+                else:
+                    reranking_loss = None
+                    loss = nll_loss
 
         max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
             (max_idxs == torch.tensor(nll_labels)).sum().cpu().detach().numpy().item()
         )
+        correct_predictions_percentage = (correct_predictions_count / len(nll_labels)) * 100
 
         retrieval_output = RetrievalOutput(
             loss=loss,
             context_outputs=context_outputs,
             query_outputs=query_outputs,
             correct_predictions_count=correct_predictions_count,
+            correct_predictions_percentage=correct_predictions_percentage,
             reranking_context_outputs=reranking_context_outputs,
             reranking_query_outputs=reranking_query_outputs,
+            reranking_loss=reranking_loss.item() if reranking_loss else None,
+            nll_loss=nll_loss.item(),
         )
 
         return retrieval_output
