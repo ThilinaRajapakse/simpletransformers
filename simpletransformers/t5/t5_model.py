@@ -926,20 +926,25 @@ class T5Model:
                 to_predict = [
                     prefix + ": " + input_text
                     for prefix, input_text in zip(
-                        eval_data["prefix"], eval_data["input_text"]
+                        eval_dataset["prefix"], eval_dataset["input_text"]
                     )
                 ]
             else:
                 to_predict = [
                     prefix + input_text
                     for prefix, input_text in zip(
-                        eval_data["prefix"], eval_data["input_text"]
+                        eval_dataset["prefix"], eval_dataset["input_text"]
                     )
                 ]
             preds = self.predict(to_predict)
 
+            if self.args.use_hf_datasets:
+                target_text = eval_dataset["target_text"]
+            else:
+                target_text = eval_dataset["target_text"].tolist()
+
             result = self.compute_metrics(
-                eval_data["target_text"].tolist(), preds, **kwargs
+                target_text, preds, **kwargs
             )
             self.results.update(result)
 
