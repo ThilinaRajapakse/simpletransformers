@@ -9,8 +9,8 @@ from simpletransformers.seq2seq import Seq2SeqArgs, Seq2SeqModel
 @pytest.mark.parametrize(
     "encoder_decoder_type, encoder_decoder_name, encoder_type, use_hf_datasets",
     [
-        ("bart", "facebook/bart-large", "bart", True),
-        ("bart", "facebook/bart-large", "bart", False),
+        ("bart", "facebook/bart-base", "bart", True),
+        ("bart", "facebook/bart-base", "bart", False),
         ("roberta-base", "bert-base-cased", "roberta", True),
         ("roberta-base", "bert-base-cased", "roberta", False),
     ],
