@@ -1641,16 +1641,10 @@ class ClassificationModel:
 
             if not self.args.sliding_window:
                 # ROC`
-                wandb.log({"roc": wandb.plots.ROC(truth, model_outputs, labels_list)})
+                wandb.log({"roc": wandb.plot.roc_curve(truth, model_outputs, labels_list)})
 
                 # Precision Recall
-                wandb.log(
-                    {
-                        "pr": wandb.plots.precision_recall(
-                            truth, model_outputs, labels_list
-                        )
-                    }
-                )
+                wandb.log({"pr": wandb.plot.pr_curve(truth, model_outputs, labels_list)})
 
         return results, model_outputs, wrong
 
