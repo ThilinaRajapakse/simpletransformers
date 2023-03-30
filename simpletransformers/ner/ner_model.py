@@ -84,6 +84,10 @@ from transformers import (
     LongformerConfig,
     LongformerForTokenClassification,
     LongformerTokenizer,
+    LukeConfig,
+    LukeTokenizer,
+    MLukeTokenizer,
+    LukeForTokenClassification,
     MPNetConfig,
     MPNetForTokenClassification,
     MPNetTokenizer,
@@ -215,6 +219,16 @@ class NERModel:
                 LongformerForTokenClassification,
                 LongformerTokenizer,
             ),
+            "luke": (
+                LukeConfig,
+                LukeForTokenClassification,
+                LukeTokenizer,
+            ),
+            "mluke": (
+                LukeConfig,
+                LukeForTokenClassification,
+                MLukeTokenizer,
+            ),            
             "mobilebert": (
                 MobileBertConfig,
                 MobileBertForTokenClassification,
@@ -1519,6 +1533,9 @@ class NERModel:
                 encoded_model_inputs = []
                 if self.args.model_type in [
                     "bert",
+                    "rembert",
+                    "luke",
+                    "mluke",
                     "xlnet",
                     "albert",
                     "layoutlm",
