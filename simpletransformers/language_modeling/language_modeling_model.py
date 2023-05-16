@@ -391,6 +391,7 @@ class LanguageModelingModel:
                     self.model.module if hasattr(self.model, "module") else self.model
                 )
                 model_to_resize.resize_token_embeddings(len(self.tokenizer))
+                self.args.vocab_size = len(self.tokenizer)
 
         if model_type in ["camembert", "xlmroberta"]:
             warnings.warn(
