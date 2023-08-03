@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.64.0] - 2023-04-24
+
+### Changed
+
+- Updates for compatibility with transformers v4.31.0
+
+### Fixed
+
+- Fixed bug in `ClassificationModel` when using `sliding_window`
 
 ## [0.63.11] - 2023-04-24
 

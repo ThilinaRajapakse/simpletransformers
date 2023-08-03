@@ -22,12 +22,15 @@ Follow the instructions given below to install Simple Transformers using with An
 3. Using a CUDA capable GPU is recommended.
    To install Pytorch with CUDA support:
    ```shell
-   conda install pytorch>=1.6 cudatoolkit=11.0 -c pytorch
+   conda install pytorch pytorch-cuda=11.7 -c pytorch -c nvidia
    ```
    CPU only:
    ```shell
    conda install pytorch cpuonly -c pytorch
    ```
+
+   **Note:** Check the [Pytorch website](https://pytorch.org/get-started/locally/) for the latest instructions.
+    {: .notice--info}
 
 4. Install simpletransformers.
 `pip install simpletransformers`
