@@ -636,13 +636,14 @@ def get_evaluation_passage_dataset(
                         raise ValueError(
                             "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
                         )
-                    passage_dataset = passage_dataset.map(
+                    additional_passages = additional_passages.map(
                         lambda example: {
                             "gold_passage": example["title"]
                             + " "
                             + example["gold_passage"]
                         }
                     )
+                    # additional_passages = additional_passages.rename_column("gold_passage", "passages")
             try:
                 passage_dataset = concatenate_datasets(
                     [passage_dataset, additional_passages]

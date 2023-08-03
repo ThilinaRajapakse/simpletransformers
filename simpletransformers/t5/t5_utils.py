@@ -21,31 +21,49 @@ logger = logging.getLogger(__name__)
 
 def preprocess_batch_for_hf_dataset(dataset, tokenizer, args):
     if args.preprocess_inputs:
-        return tokenizer.prepare_seq2seq_batch(
-            src_texts=[
+        model_inputs = tokenizer(
+            text=[
                 prefix + ": " + input_text
                 for prefix, input_text in zip(dataset["prefix"], dataset["input_text"])
             ],
-            tgt_texts=dataset["target_text"],
             max_length=args.max_seq_length,
-            max_target_length=args.max_length,
             padding="max_length",
             return_tensors="np",
             truncation=True,
         )
+        with tokenizer.as_target_tokenizer():
+            labels = tokenizer(
+                text=dataset["target_text"],
+                max_length=args.max_seq_length,
+                padding="max_length",
+                return_tensors="np",
+                truncation=True,
+            )
+        model_inputs["labels"] = labels["input_ids"]
+
+        return model_inputs
     else:
-        return tokenizer.prepare_seq2seq_batch(
-            src_texts=[
+        model_inputs = tokenizer(
+            text=[
                 prefix + input_text
                 for prefix, input_text in zip(dataset["prefix"], dataset["input_text"])
             ],
-            tgt_texts=dataset["target_text"],
             max_length=args.max_seq_length,
-            max_target_length=args.max_length,
             padding="max_length",
             return_tensors="np",
             truncation=True,
         )
+        with tokenizer.as_target_tokenizer():
+            labels = tokenizer(
+                text=dataset["target_text"],
+                max_length=args.max_seq_length,
+                padding="max_length",
+                return_tensors="np",
+                truncation=True,
+            )
+        model_inputs["labels"] = labels["input_ids"]
+
+        return model_inputs
 
 
 def load_hf_dataset(data, tokenizer, args):
@@ -80,49 +98,39 @@ def preprocess_data(data):
 
     # Add EOS again if truncated?
     if args.preprocess_inputs:
-        batch = tokenizer.prepare_seq2seq_batch(
-            src_texts=[prefix + ": " + input_text],
-            tgt_texts=[target_text],
+        batch = tokenizer(
+            text=[prefix + ": " + input_text],
             max_length=args.max_seq_length,
             padding="max_length",
-            return_tensors="pt",
+            return_tensors="np",
             truncation=True,
         )
-        # input_text = tokenizer.encode(
-        #     prefix + ": " + input_text,
-        #     max_length=args.max_seq_length,
-        #     padding="max_length",
-        #     return_tensors="pt",
-        #     truncation=True,
-        # )
-
-        # target_text = tokenizer.encode(
-        #     target_text,
-        #     max_length=args.max_seq_length,
-        #     padding="max_length",
-        #     return_tensors="pt",
-        #     truncation=True,
-        # )
+        with tokenizer.as_target_tokenizer():
+            labels = tokenizer(
+                text=[target_text],
+                max_length=args.max_seq_length,
+                padding="max_length",
+                return_tensors="np",
+                truncation=True,
+            )
+        batch["labels"] = labels["input_ids"]
     else:
-        batch = tokenizer.prepare_seq2seq_batch(
-            src_texts=[prefix + input_text],
-            tgt_texts=[target_text],
+        batch = tokenizer(
+            text=[prefix + input_text],
             max_length=args.max_seq_length,
             padding="max_length",
-            return_tensors="pt",
+            return_tensors="np",
             truncation=True,
         )
-        # input_text = tokenizer.encode(
-        #     prefix + input_text,
-        #     max_length=args.max_seq_length,
-        #     padding="max_length",
-        #     return_tensors="pt",
-        #     truncation=True,
-        # )
-
-        # target_text = tokenizer.encode(
-        #     target_text, max_length=args.max_seq_length, padding="max_length", return_tensors="pt", truncation=True
-        # )
+        with tokenizer.as_target_tokenizer():
+            labels = tokenizer(
+                text=[target_text],
+                max_length=args.max_seq_length,
+                padding="max_length",
+                return_tensors="np",
+                truncation=True,
+            )
+        batch["labels"] = labels["input_ids"]
     input_ids = batch["input_ids"][0]
     attention_mask = batch["attention_mask"][0]
     labels = batch["labels"][0]

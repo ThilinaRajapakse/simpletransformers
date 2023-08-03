@@ -24,6 +24,7 @@ train_data = [
 ]
 train_df = pd.DataFrame(train_data)
 train_df.columns = ["prefix", "input_text", "target_text"]
+train_df['target_text'] = train_df['target_text'].astype(str)
 
 eval_data = [
     ["binary classification", "Leia was Luke's sister" , 1],
@@ -33,6 +34,7 @@ eval_data = [
 ]
 eval_df = pd.DataFrame(eval_data)
 eval_df.columns = ["prefix", "input_text", "target_text"]
+eval_df['target_text'] = eval_df['target_text'].astype(str)
 
 # Configure the model
 model_args = T5Args()

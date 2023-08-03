@@ -44,7 +44,7 @@ from transformers import (
     BertModel,
     BertTokenizer,
 )
-from transformers.models.mmbt.configuration_mmbt import MMBTConfig
+from transformers.models.deprecated.mmbt.configuration_mmbt import MMBTConfig
 
 from simpletransformers.classification.classification_utils import (
     ImageEncoder,

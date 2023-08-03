@@ -84,6 +84,10 @@ from transformers import (
     LongformerConfig,
     LongformerForTokenClassification,
     LongformerTokenizer,
+    LukeConfig,
+    LukeTokenizer,
+    MLukeTokenizer,
+    LukeForTokenClassification,
     MPNetConfig,
     MPNetForTokenClassification,
     MPNetTokenizer,
@@ -215,6 +219,16 @@ class NERModel:
                 LongformerForTokenClassification,
                 LongformerTokenizer,
             ),
+            "luke": (
+                LukeConfig,
+                LukeForTokenClassification,
+                LukeTokenizer,
+            ),
+            "mluke": (
+                LukeConfig,
+                LukeForTokenClassification,
+                MLukeTokenizer,
+            ),            
             "mobilebert": (
                 MobileBertConfig,
                 MobileBertForTokenClassification,
@@ -1404,10 +1418,10 @@ class NERModel:
             ]
 
             # ROC
-            wandb.log({"roc": wandb.plots.ROC(truth, outputs, labels_list)})
+            wandb.log({"roc": wandb.plot.roc_curve(truth, outputs, labels_list)})
 
             # Precision Recall
-            wandb.log({"pr": wandb.plots.precision_recall(truth, outputs, labels_list)})
+            wandb.log({"pr": wandb.plot.pr_curve(truth, outputs, labels_list)})
 
             # Confusion Matrix
             wandb.sklearn.plot_confusion_matrix(
@@ -1520,6 +1534,9 @@ class NERModel:
                 encoded_model_inputs = []
                 if self.args.model_type in [
                     "bert",
+                    "rembert",
+                    "luke",
+                    "mluke",
                     "xlnet",
                     "albert",
                     "layoutlm",
