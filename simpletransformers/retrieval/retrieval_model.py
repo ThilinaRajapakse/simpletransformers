@@ -64,7 +64,16 @@ from simpletransformers.retrieval.retrieval_utils import (
     mean_reciprocal_rank_at_k,
     get_recall_at_k,
     RetrievalOutput,
+    load_trec_format,
+    embed_passages_trec_format,
+    compute_rerank_similarity,
 )
+from simpletransformers.retrieval.pytrec_eval_utils import (
+    convert_beir_predictions_to_pytrec_format,
+    convert_qrels_dataset_to_pytrec_format,
+    convert_metric_dict_to_scores_list,
+)
+
 
 try:
     import wandb
@@ -364,6 +373,8 @@ class RetrievalModel:
 
         self.args.model_type = model_type
         self.args.model_name = model_name
+        self.context_encoder_name = context_encoder_name
+        self.query_encoder_name = query_encoder_name
 
         if prediction_passages is not None:
             self.prediction_passages = self.get_updated_prediction_passages(
@@ -1157,6 +1168,11 @@ class RetrievalModel:
         verbose=True,
         silent=False,
         evaluating_during_training=False,
+        pytrec_eval_metrics=None,
+        save_as_experiment=False,
+        experiment_name=None,
+        dataset_name=None,
+        model_name=None,
         **kwargs,
     ):
         """
@@ -1179,6 +1195,12 @@ class RetrievalModel:
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
+            evaluating_during_training: Set to True to perform evaluation during training.
+            pytrec_eval_metrics: A list of pytrec_eval metrics to use. Only valid if `data_format == "beir"`.
+            save_as_experiment: If True, `experiment_name`, `dataset_name`, and `model_name` must be provided. Pytrec_eval output will be saved to `experiment_name`.
+            experiment_name: Name of the experiment. Only valid if `save_as_experiment == True`.
+            dataset_name: Name of the dataset. Only valid if `save_as_experiment == True`.
+            model_name: Name of the model. Only valid if `save_as_experiment == True`.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
                         will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
@@ -1191,10 +1213,20 @@ class RetrievalModel:
             relevance_list: Array of relevance hits for each query.
         """  # noqa: ignore flake8"
 
+        if save_as_experiment:
+            if not experiment_name or not dataset_name or not model_name:
+                raise ValueError(
+                    "experiment_name, dataset_name, and model_name must be provided if save_as_experiment is True"
+                )
+        elif (experiment_name or dataset_name or model_name) and not save_as_experiment:
+            raise ValueError(
+                "experiment_name, dataset_name, and model_name provided but save_as_experiment is False. Please set save_as_experiment to True."
+            )
+
         if not output_dir:
             output_dir = self.args.output_dir
 
-        self._move_model_to_device()
+        self._move_model_to_device(is_evaluating=True)
 
         if self.args.evaluate_with_beir:
             results = self.evaluate_beir(
@@ -1202,6 +1234,59 @@ class RetrievalModel:
             )
 
             return results, None, None, None, None, None
+
+        if self.args.data_format == "beir":
+            try:
+                import pytrec_eval
+            except ImportError:
+                logger.error(
+                    "pytrec_eval not installed. Please install with `pip install pytrec_eval`. (See https://github.com/cvangysel/pytrec_eval)"
+                )
+                return
+
+
+            passage_dataset, query_dataset, qrels_dataset = load_trec_format(eval_data, is_evaluating=True)
+            passage_index = embed_passages_trec_format(
+                passage_dataset,
+                self.context_encoder,
+                self.context_tokenizer,
+                args=self.args,
+                context_config=self.context_config,
+                device=self.device,
+            )
+            self.prediction_passages = passage_index
+
+            predicted_doc_ids, rerank_similarity = self.predict(to_predict=query_dataset["text"], doc_ids_only=True)
+
+            run_dict = convert_beir_predictions_to_pytrec_format(predicted_doc_ids, query_dataset)
+            qrels_dict = convert_qrels_dataset_to_pytrec_format(qrels_dataset)
+
+            if pytrec_eval_metrics is None:
+                pytrec_eval_metrics = ["ndcg", "map", "recip_rank"]
+
+            evaluator = pytrec_eval.RelevanceEvaluator(
+                qrels_dict, pytrec_eval_metrics
+            )
+
+            results = evaluator.evaluate(run_dict)
+
+            if save_as_experiment:
+                os.makedirs(os.path.join(experiment_name, dataset_name, model_name), exist_ok=True)
+
+            result_report = {}
+
+            for metric in pytrec_eval_metrics:
+                per_metric_dict = {query_id: value[metric] for query_id, value in results.items()}
+                mean_metric = np.mean(list(per_metric_dict.values()))
+                result_report[metric] = mean_metric
+
+                if save_as_experiment:
+                    with open(os.path.join(experiment_name, dataset_name, model_name, f"{metric}.json"), "w") as f:
+                        json.dump(per_metric_dict, f)
+
+            return result_report
+
+
 
         if self.prediction_passages is None or evaluating_during_training:
             passage_dataset = get_evaluation_passage_dataset(
@@ -1528,6 +1613,7 @@ class RetrievalModel:
         prediction_passages=None,
         retrieve_n_docs=None,
         passages_only=False,
+        doc_ids_only=False,
     ):
         """
         Retrieve the relevant documents from the prediction passages for a list of queries.
@@ -1564,6 +1650,9 @@ class RetrievalModel:
                 all_query_embeddings = np.zeros(
                     (len(to_predict), self.query_config.hidden_size)
                 )
+                all_reranking_query_embeddings = np.zeros(
+                    (len(to_predict), self.query_config.hidden_size)
+                )
             else:
                 all_query_embeddings = np.zeros(
                     (
@@ -1572,6 +1661,7 @@ class RetrievalModel:
                         * (1 + self.args.extra_cls_token_count),
                     )
                 )
+                all_reranking_query_embeddings = None
         else:
             all_query_embeddings = np.zeros(
                 (
@@ -1649,19 +1739,41 @@ class RetrievalModel:
                 i * self.args.eval_batch_size : (i + 1) * self.args.eval_batch_size
             ] = (query_outputs.cpu().detach().numpy())
 
-        if not passages_only:
+            if self.unified_rr:
+                all_reranking_query_embeddings[
+                    i * self.args.eval_batch_size : (i + 1) * self.args.eval_batch_size
+                ] = (reranking_query_outputs.cpu().detach().numpy())
+
+        if passages_only:
+            passages = self.retrieve_docs_from_query_embeddings(
+                all_query_embeddings,
+                self.prediction_passages,
+                retrieve_n_docs,
+                passages_only=True,
+            )
+            return passages
+        elif doc_ids_only:
+            doc_ids, rerank_scores = self.retrieve_docs_from_query_embeddings(
+                all_query_embeddings,
+                self.prediction_passages,
+                retrieve_n_docs,
+                doc_ids_only=True,
+                reranking_query_outputs=all_reranking_query_embeddings,
+            )
+            return doc_ids, rerank_scores
+        else:
             doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
                 all_query_embeddings, self.prediction_passages, retrieve_n_docs
             )
             passages = [d["passages"] for d in doc_dicts]
 
             if self.args.unified_rr:
-                rerank_distances = self.compute_rerank_distances(
+                rerank_similarity = compute_rerank_similarity(
                     reranking_query_outputs, doc_dicts
                 )
 
-                # Get indices of rerank_distances sorted by ascending order
-                rerank_indices = np.argsort(rerank_distances, axis=1)
+                # Get indices of rerank_similarity sorted by descending order
+                rerank_indices = np.argsort(rerank_similarity, axis=1)[:, ::-1]
 
                 # Sort passages, doc_ids, doc_vectors, doc_dicts by rerank_indices
                 for i, doc_dict in enumerate(doc_dicts):
@@ -1689,26 +1801,8 @@ class RetrievalModel:
                 ]
 
             return passages, doc_ids, doc_vectors, doc_dicts
-        else:
-            passages = self.retrieve_docs_from_query_embeddings(
-                all_query_embeddings,
-                self.prediction_passages,
-                retrieve_n_docs,
-                passages_only=True,
-            )
-            return passages
 
-    def compute_rerank_distances(self, query_embeddings, doc_dicts):
-        """
-        Computes the distances between the reranking query embeddings and the reranking document embeddings
-        for the unified reranking method using dot product.
-        """
-        rerank_distances = np.zeros((len(doc_dicts), len(doc_dicts[0]["passages"])))
-        for i, doc_dict in enumerate(doc_dicts):
-            rerank_distances[i] = np.dot(
-                query_embeddings[i], np.array(doc_dict["rerank_embeddings"]).T
-            )
-        return rerank_distances
+
 
     def compute_metrics(
         self,
@@ -1843,6 +1937,8 @@ class RetrievalModel:
         retrieve_n_docs=None,
         return_doc_dicts=True,
         passages_only=False,
+        doc_ids_only=False,
+        reranking_query_outputs=None,
     ):
         """
         Retrieves documents from the index using the given query embeddings.
@@ -1855,6 +1951,12 @@ class RetrievalModel:
             query_embeddings[i : i + args.retrieval_batch_size]
             for i in range(0, len(query_embeddings), args.retrieval_batch_size)
         ]
+
+        if reranking_query_outputs is not None:
+            reranking_query_outputs_batched = [
+                reranking_query_outputs[i : i + args.retrieval_batch_size]
+                for i in range(0, len(reranking_query_outputs), args.retrieval_batch_size)
+            ]
 
         if passages_only:
             passages = []
@@ -1872,6 +1974,40 @@ class RetrievalModel:
                 passages.extend([d["passages"] for d in doc_dicts_batch])
 
             return passages
+        elif doc_ids_only:
+            doc_ids_batched = []
+
+            if self.args.unified_rr:
+                for i, (query_embeddings, reranking_query_outputs) in enumerate(
+                    tqdm(
+                        zip(
+                            query_embeddings_batched,
+                            reranking_query_outputs_batched,
+                        ),
+                        desc="Retrieving docs",
+                        disable=args.silent,
+                    )
+                ):
+                    ids, reranking_scores = passage_dataset.get_top_doc_ids(
+                        query_embeddings.astype(np.float32), retrieve_n_docs, reranking_query_outputs
+                    )
+                    doc_ids_batched.extend(ids)
+            else:
+                for i, query_embeddings in enumerate(
+                    tqdm(
+                        query_embeddings_batched,
+                        desc="Retrieving docs",
+                        disable=args.silent,
+                    )
+                ):
+                    ids,  = passage_dataset.get_top_doc_ids(
+                        query_embeddings.astype(np.float32), retrieve_n_docs
+                    )
+                    doc_ids_batched.extend(ids)
+
+                    reranking_scores = None
+
+            return doc_ids_batched, reranking_scores
         else:
             ids_batched = np.zeros((len(query_embeddings), retrieve_n_docs))
             if self.args.larger_representations:
@@ -2615,11 +2751,11 @@ class RetrievalModel:
                 for key in sorted(results.keys()):
                     writer.write("{} = {}\n".format(key, str(results[key])))
 
-    def _move_model_to_device(self):
+    def _move_model_to_device(self, is_evaluating=False):
         self.context_encoder.to(self.device)
         self.query_encoder.to(self.device)
 
-        if self.unified_rr:
+        if self.unified_rr and not is_evaluating:
             self.reranker.to(self.device)
 
     def save_model_args(self, output_dir):

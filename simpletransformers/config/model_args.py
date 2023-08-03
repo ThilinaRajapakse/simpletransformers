@@ -364,6 +364,7 @@ class RetrievalArgs(Seq2SeqArgs):
     cluster_concatenated: bool = False
     cluster_train_size: Union[int, float] = None
     context_config: dict = field(default_factory=dict)
+    data_format: str = "st"
     ddp_training: bool = False
     embed_batch_size: int = 128
     evaluate_with_beir: bool = False

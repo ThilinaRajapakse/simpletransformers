@@ -356,6 +356,7 @@ def embed(
     pretokenized=False,
     cluster_concatenated=False,
     unified_rr=False,
+    passage_column="passages",
 ):
     """Compute the DPR embeddings of document passages"""
     if rank is not None:
@@ -374,7 +375,7 @@ def embed(
                 if not pretokenized:
                     try:
                         tokenized_inputs = tokenizer(
-                            documents["passages"],
+                            documents[passage_column],
                             truncation=True,
                             padding="longest",
                             return_tensors="pt",
@@ -396,9 +397,9 @@ def embed(
                         All target_text values have been manually cast to String as a workaround.
                         This may have been caused by NaN values present in the data."""
                         )
-                        documents["passages"] = [str(p) for p in documents["passages"]]
+                        documents[passage_column] = [str(p) for p in documents[passage_column]]
                         tokenized_inputs = tokenizer(
-                            documents["passages"],
+                            documents[passage_column],
                             truncation=True,
                             padding="longest",
                             return_tensors="pt",
@@ -430,7 +431,7 @@ def embed(
             if not pretokenized:
                 try:
                     tokenized_inputs = tokenizer(
-                        documents["passages"],
+                        documents[passage_column],
                         truncation=True,
                         padding="longest",
                         return_tensors="pt",
@@ -452,9 +453,9 @@ def embed(
                     All target_text values have been manually cast to String as a workaround.
                     This may have been caused by NaN values present in the data."""
                     )
-                    documents["passages"] = [str(p) for p in documents["passages"]]
+                    documents[passage_column] = [str(p) for p in documents[passage_column]]
                     tokenized_inputs = tokenizer(
-                        documents["passages"],
+                        documents[passage_column],
                         truncation=True,
                         padding="longest",
                         return_tensors="pt",
@@ -661,14 +662,14 @@ def get_evaluation_passage_dataset(
                         "\n".join(additional_passages.column_names)
                     )
                 )
-                logger.warning("Removing all features except passages as a workaround.")
+                logger.warning("Removing all features except passages and pid as a workaround.")
 
                 passage_dataset = passage_dataset.remove_columns(
-                    [c for c in passage_dataset.column_names if c != "passages"]
+                    [c for c in passage_dataset.column_names if c not in ["passages", "pid"]]
                 )
 
                 additional_passages = additional_passages.remove_columns(
-                    [c for c in additional_passages.column_names if c != "passages"]
+                    [c for c in additional_passages.column_names if c not in ["passages", "pid"]]
                 )
 
                 passage_dataset = concatenate_datasets(
@@ -677,7 +678,7 @@ def get_evaluation_passage_dataset(
 
         if args.remove_duplicates_from_eval_passages:
             passage_dataset = HFDataset.from_pandas(
-                passage_dataset.to_pandas().drop_duplicates(subset=["passages"])
+                passage_dataset.to_pandas().drop_duplicates(subset=["passages", "pid"])
             )
             passage_dataset = passage_dataset.remove_columns("__index_level_0__")
 
@@ -905,6 +906,31 @@ class DPRIndex(Index):
             np.array(vectors),
             docs,
         )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
+
+    def get_top_doc_ids(self, question_hidden_states, n_docs=5, reranking_query_outputs=None):
+        _, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
+        docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
+
+        doc_ids = [doc["passage_id"] for doc in docs]
+
+        if reranking_query_outputs is None:
+            return doc_ids
+
+        rerank_similarity = compute_rerank_similarity(
+            reranking_query_outputs, docs, passage_column="passage_text"
+        )
+
+        rerank_indices = np.argsort(rerank_similarity, axis=1)[:, ::-1]
+        rerank_similarity_reordered = np.take_along_axis(rerank_similarity, rerank_indices, 1)
+
+        # Original id order could also be returned here if needed
+
+        # Reorder doc_ids. doc_ids is a list of lists, so numpy indexing is not possible
+        doc_ids_reordered = []
+        for i in range(len(doc_ids)):
+            doc_ids_reordered.append([doc_ids[i][j] for j in rerank_indices[i]])
+
+        return doc_ids_reordered, rerank_similarity_reordered
 
     def __len__(self):
         return len(self.dataset)
@@ -1422,6 +1448,162 @@ def get_clustered_passage_dataset(
 
     return ClusteredDataset(batch_datasets, len(clustered_batches))
 
+
+def load_trec_file(file_name, data_dir=None, header=False):
+    if data_dir:
+        if os.path.exists(os.path.join(data_dir, f"{file_name}.tsv")):
+            file_path = os.path.join(data_dir, f"{file_name}.tsv")
+        elif os.path.exists(os.path.join(data_dir, f"{file_name}.jsonl")):
+            file_path = os.path.join(data_dir, f"{file_name}.jsonl")
+        elif os.path.exists(os.path.join(data_dir, "qrels", f"{file_name}.tsv")):
+            file_path = os.path.join(data_dir, "qrels", f"{file_name}.tsv")
+        else:
+            raise ValueError(
+                f"{file_name}.tsv or {file_name}.jsonl not found in {data_dir}"
+            )
+    else:
+        file_path = file_name
+
+    if not header:
+        if file_name in ["qrels", "train", "dev"] :
+            column_names = ["query_id", "passage_id", "relevance"]
+        elif file_name == "queries":
+            column_names = ["query_id", "query_text"]
+        elif file_name == "corpus":
+            column_names = ["passage_id", "passage_text"]
+    else:
+        column_names = None
+
+    if file_path.endswith(".tsv"):
+        dataset = load_dataset(
+            "csv",
+            data_files=file_path,
+            delimiter="\t",
+            column_names=column_names,
+            cache_dir=data_dir,
+            skiprows=1
+        )
+    elif file_path.endswith(".jsonl"):
+        dataset = load_dataset(
+            "json",
+            data_files=file_path,
+            cache_dir=data_dir,
+        )
+
+    logger.info(f"Loaded {file_path}")
+
+    return dataset
+
+
+def load_trec_format(
+    data_dir=None,
+    collection_path=None,
+    queries_path=None,
+    qrels_path=None,
+    collection_header=False,
+    queries_header=False,
+    qrels_header=False,
+    is_evaluating=False,
+):
+    """If data_dir is specified, loads the data from there. Otherwise, loads the data from the specified paths.
+    data_dir expects the following structure:
+        collection.tsv or collection.jsonl
+        queries.tsv or queries.jsonl
+        qrels.tsv or qrels.jsonl
+    """
+    if data_dir is not None:
+        if collection_path or queries_path or qrels_path:
+            Warning.warn(
+                "data_dir is specified. Ignoring collection_path, queries_path, and qrels_path."
+            )
+
+        collection = load_trec_file("corpus", data_dir, collection_header)
+        queries = load_trec_file("queries", data_dir, queries_header)
+        qrels = load_trec_file("dev" if is_evaluating else "train", data_dir, qrels_header)
+
+    else:
+        if not collection_path or not queries_path or not qrels_path:
+            raise ValueError(
+                "data_dir is not specified. Please specify collection_path, queries_path, and qrels_path."
+            )
+
+        collection = load_trec_file(collection_path, header=collection_header)
+        queries = load_trec_file(queries_path, header=queries_header)
+        qrels = load_trec_file(qrels_path, header=qrels_header)
+
+    # Also check if an index exists
+
+    return collection["train"], queries["train"], qrels["train"]
+
+
+def embed_passages_trec_format(
+    passage_dataset,
+    encoder,
+    tokenizer,
+    args,
+    context_config,
+    device,
+):
+    if isinstance(passage_dataset, str):
+        # If passage_dataset is a str, then we load from disk.
+        # Actually, this needs to be done earlier
+        pass
+
+    else:
+        if args.fp16:
+            from torch.cuda import amp
+        else:
+            amp = None
+
+        encoder = encoder.to(device)
+
+        logger.info("Generating embeddings for evaluation passages")
+        passage_dataset = passage_dataset.map(
+            partial(
+                embed,
+                encoder=encoder,
+                tokenizer=tokenizer,
+                concatenate_embeddings=args.larger_representations,
+                extra_cls_token_count=args.extra_cls_token_count,
+                device=device,
+                fp16=args.fp16,
+                amp=amp,
+                passage_column="passage_text",
+                unified_rr=args.unified_rr,
+            ),
+            batched=True,
+            batch_size=args.embed_batch_size,
+        )
+        logger.info("Generating embeddings for evaluation passages completed.")
+
+        logger.info("Adding FAISS index to evaluation passages")
+        index = faiss.IndexHNSWFlat(
+            args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
+        )
+        passage_dataset.add_faiss_index("embeddings", custom_index=index)
+        passage_index = DPRIndex(passage_dataset, context_config.hidden_size)
+        logger.info("Adding FAISS index to evaluation passages completed.")
+        if args.save_passage_dataset:
+            output_dataset_directory = os.path.join(args.output_dir, "passage_dataset")
+            os.makedirs(output_dataset_directory, exist_ok=True)
+            faiss_save_path = os.path.join(
+                output_dataset_directory, "hf_dataset_index.faiss"
+            )
+            passage_dataset.save_faiss_index("embeddings", faiss_save_path)
+    return passage_index
+
+
+def compute_rerank_similarity(query_embeddings, doc_dicts, passage_column="passages"):
+    """
+    Computes the similarity between the reranking query embeddings and the reranking document embeddings
+    for the unified reranking method using dot product.
+    """
+    rerank_similarity = np.zeros((len(doc_dicts), len(doc_dicts[0][passage_column])))
+    for i, doc_dict in enumerate(doc_dicts):
+        rerank_similarity[i] = np.dot(
+            query_embeddings[i], np.array(doc_dict["rerank_embeddings"]).T
+        )
+    return rerank_similarity
 
 class RetrievalOutput:
     def __init__(
