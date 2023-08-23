@@ -305,7 +305,7 @@ class ClassificationModel:
         model = self.model
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args["tensorboard_dir"])
+        tb_writer = SummaryWriter(log_dir=args["tensorboard_dir"])
         train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset, sampler=train_sampler, batch_size=args["train_batch_size"]

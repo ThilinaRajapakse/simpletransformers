@@ -516,7 +516,6 @@ class AlbertForMultiLabelSequenceClassification(AlbertPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-
         outputs = self.albert(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -791,7 +790,6 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-
         outputs = self.electra(
             input_ids,
             attention_mask,
@@ -848,7 +846,6 @@ class ElectraForMultiLabelSequenceClassification(ElectraPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-
         outputs = self.electra(
             input_ids,
             attention_mask,
@@ -903,7 +900,6 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
         start_positions=None,
         end_positions=None,
     ):
-
         outputs = self.electra(
             input_ids,
             attention_mask,

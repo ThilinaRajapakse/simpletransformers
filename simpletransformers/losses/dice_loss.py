@@ -64,7 +64,6 @@ class DiceLoss(nn.Module):
         self.smooth: float = smooth
 
     def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-
         if len(input.shape) == 2:
             if input.shape[0] != target.shape[0]:
                 raise ValueError(

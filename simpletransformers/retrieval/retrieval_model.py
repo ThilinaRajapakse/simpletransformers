@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import torch
 import transformers
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -56,6 +56,7 @@ from simpletransformers.custom_models.large_representation_retrieval_model impor
 )
 from simpletransformers.retrieval.beir_evaluation import BeirRetrievalModel
 from simpletransformers.retrieval.retrieval_utils import (
+    convert_beir_columns_to_trec_format,
     get_clustered_passage_dataset,
     get_output_embeddings,
     get_prediction_passage_dataset,
@@ -383,6 +384,12 @@ class RetrievalModel:
         else:
             self.prediction_passages = None
 
+        if self.args.ance_training and not self.args.hard_negatives:
+            self.args.hard_negatives = True
+            warnings.warn(
+                "Setting hard_negatives to True since ANCE training is enabled."
+            )
+
     def train_model(
         self,
         train_data,
@@ -466,6 +473,7 @@ class RetrievalModel:
             verbose=verbose,
             clustered_training=clustered_training,
             evaluate=False,
+            additional_eval_passages=additional_eval_passages,
         )
 
         os.makedirs(output_dir, exist_ok=True)
@@ -523,7 +531,7 @@ class RetrievalModel:
         query_model = self.query_encoder
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+        tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
 
         if clustered_training:
@@ -989,15 +997,26 @@ class RetrievalModel:
                 "checkpoint-{}-epoch-{}".format(global_step, epoch_number + 1),
             )
 
-            if clustered_training and epoch_number != args.num_train_epochs:
+            if (
+                clustered_training or self.args.ance_training
+            ) and epoch_number != args.num_train_epochs:
                 train_dataset = self.load_and_cache_examples(
                     train_data,
                     verbose=verbose,
                     clustered_training=clustered_training,
                     evaluate=False,
+                    additional_eval_passages=additional_eval_passages,
                 )
                 train_sampler = RandomSampler(train_dataset)
-                train_dataloader = train_dataset
+                if clustered_training:
+                    train_dataloader = train_dataset
+                else:
+                    train_dataloader = DataLoader(
+                        train_dataset,
+                        sampler=train_sampler,
+                        batch_size=args.train_batch_size,
+                        num_workers=self.args.dataloader_num_workers,
+                    )
 
             if args.save_model_every_epoch or args.evaluate_during_training:
                 os.makedirs(output_dir_current, exist_ok=True)
@@ -1173,6 +1192,7 @@ class RetrievalModel:
         experiment_name=None,
         dataset_name=None,
         model_name=None,
+        eval_set="dev",
         **kwargs,
     ):
         """
@@ -1201,6 +1221,7 @@ class RetrievalModel:
             experiment_name: Name of the experiment. Only valid if `save_as_experiment == True`.
             dataset_name: Name of the dataset. Only valid if `save_as_experiment == True`.
             model_name: Name of the model. Only valid if `save_as_experiment == True`.
+            eval_set: "dev" or "test".
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
                         will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
@@ -1244,8 +1265,19 @@ class RetrievalModel:
                 )
                 return
 
+            passage_dataset, query_dataset, qrels_dataset = load_trec_format(
+                eval_data, qrels_name=eval_set
+            )
 
-            passage_dataset, query_dataset, qrels_dataset = load_trec_format(eval_data, is_evaluating=True)
+            (
+                passage_dataset,
+                query_dataset,
+                qrels_dataset,
+            ) = convert_beir_columns_to_trec_format(
+                passage_dataset, query_dataset, qrels_dataset
+            )
+
+            print(passage_dataset)
             passage_index = embed_passages_trec_format(
                 passage_dataset,
                 self.context_encoder,
@@ -1256,37 +1288,56 @@ class RetrievalModel:
             )
             self.prediction_passages = passage_index
 
-            predicted_doc_ids, rerank_similarity = self.predict(to_predict=query_dataset["text"], doc_ids_only=True)
+            predicted_doc_ids, rerank_similarity = self.predict(
+                to_predict=query_dataset["text"], doc_ids_only=True
+            )
 
-            run_dict = convert_beir_predictions_to_pytrec_format(predicted_doc_ids, query_dataset)
+            run_dict = convert_beir_predictions_to_pytrec_format(
+                predicted_doc_ids, query_dataset
+            )
             qrels_dict = convert_qrels_dataset_to_pytrec_format(qrels_dataset)
 
             if pytrec_eval_metrics is None:
                 pytrec_eval_metrics = ["ndcg", "map", "recip_rank"]
 
-            evaluator = pytrec_eval.RelevanceEvaluator(
-                qrels_dict, pytrec_eval_metrics
-            )
+            evaluator = pytrec_eval.RelevanceEvaluator(qrels_dict, pytrec_eval_metrics)
 
             results = evaluator.evaluate(run_dict)
 
             if save_as_experiment:
-                os.makedirs(os.path.join(experiment_name, dataset_name, model_name), exist_ok=True)
+                os.makedirs(
+                    os.path.join(experiment_name, dataset_name, model_name),
+                    exist_ok=True,
+                )
 
             result_report = {}
 
             for metric in pytrec_eval_metrics:
-                per_metric_dict = {query_id: value[metric] for query_id, value in results.items()}
+                per_metric_dict = {
+                    query_id: value[metric] for query_id, value in results.items()
+                }
                 mean_metric = np.mean(list(per_metric_dict.values()))
                 result_report[metric] = mean_metric
 
                 if save_as_experiment:
-                    with open(os.path.join(experiment_name, dataset_name, model_name, f"{metric}.json"), "w") as f:
+                    with open(
+                        os.path.join(
+                            experiment_name, dataset_name, model_name, f"{metric}.json"
+                        ),
+                        "w",
+                    ) as f:
                         json.dump(per_metric_dict, f)
 
+            if save_as_experiment:
+                with open(
+                    os.path.join(
+                        experiment_name, dataset_name, model_name, "results.json"
+                    ),
+                    "w",
+                ) as f:
+                    json.dump(result_report, f)
+
             return result_report
-
-
 
         if self.prediction_passages is None or evaluating_during_training:
             passage_dataset = get_evaluation_passage_dataset(
@@ -1614,6 +1665,7 @@ class RetrievalModel:
         retrieve_n_docs=None,
         passages_only=False,
         doc_ids_only=False,
+        is_training=False,
     ):
         """
         Retrieve the relevant documents from the prediction passages for a list of queries.
@@ -1632,18 +1684,26 @@ class RetrievalModel:
             doc_vectors: List of lists containing the retrieved doc vectors per query. (Shape: `(len(to_predict), retrieve_n_docs)`)
             doc_dicts: List of dicts containing the retrieved doc dicts per query.
         """  # noqa: ignore flake8"
-        if self.prediction_passages is None:
+        if self.prediction_passages is None or (self.args.ance_training and is_training):
             if prediction_passages is None:
                 raise ValueError(
                     "prediction_passages cannot be None if the model does not contain a predicition passage index."
                 )
             else:
+                if self.args.ance_training and is_training:
+                    logger.info(
+                        "Updating corpus embeddings for ANCE training. This may take a while."
+                    )
                 self.context_encoder.to(self.device)
                 self.context_encoder.eval()
                 self.prediction_passages = self.get_updated_prediction_passages(
                     prediction_passages
                 )
                 self.context_encoder.to(self.device)
+                if self.args.ance_training and is_training:
+                    logger.info("Done updating corpus embeddings.")
+
+        all_reranking_query_embeddings = None
 
         if self.args.larger_representations:
             if self.unified_rr:
@@ -1661,7 +1721,6 @@ class RetrievalModel:
                         * (1 + self.args.extra_cls_token_count),
                     )
                 )
-                all_reranking_query_embeddings = None
         else:
             all_query_embeddings = np.zeros(
                 (
@@ -1694,6 +1753,7 @@ class RetrievalModel:
             ),
             desc="Generating query embeddings",
             disable=self.args.silent,
+            total=math.ceil(len(to_predict) / self.args.eval_batch_size),
         ):
             query_batch = self.query_tokenizer(
                 batch,
@@ -1801,8 +1861,6 @@ class RetrievalModel:
                 ]
 
             return passages, doc_ids, doc_vectors, doc_dicts
-
-
 
     def compute_metrics(
         self,
@@ -1955,7 +2013,9 @@ class RetrievalModel:
         if reranking_query_outputs is not None:
             reranking_query_outputs_batched = [
                 reranking_query_outputs[i : i + args.retrieval_batch_size]
-                for i in range(0, len(reranking_query_outputs), args.retrieval_batch_size)
+                for i in range(
+                    0, len(reranking_query_outputs), args.retrieval_batch_size
+                )
             ]
 
         if passages_only:
@@ -1967,8 +2027,10 @@ class RetrievalModel:
                     disable=args.silent,
                 )
             ):
-                _, _, doc_dicts_batch = passage_dataset.get_top_docs(
-                    query_embeddings.astype(np.float32), retrieve_n_docs
+                doc_dicts_batch = passage_dataset.get_top_docs(
+                    query_embeddings.astype(np.float32),
+                    retrieve_n_docs,
+                    passages_only=True,
                 )
 
                 passages.extend([d["passages"] for d in doc_dicts_batch])
@@ -1989,7 +2051,9 @@ class RetrievalModel:
                     )
                 ):
                     ids, reranking_scores = passage_dataset.get_top_doc_ids(
-                        query_embeddings.astype(np.float32), retrieve_n_docs, reranking_query_outputs
+                        query_embeddings.astype(np.float32),
+                        retrieve_n_docs,
+                        reranking_query_outputs,
                     )
                     doc_ids_batched.extend(ids)
             else:
@@ -2000,7 +2064,7 @@ class RetrievalModel:
                         disable=args.silent,
                     )
                 ):
-                    ids,  = passage_dataset.get_top_doc_ids(
+                    ids = passage_dataset.get_top_doc_ids(
                         query_embeddings.astype(np.float32), retrieve_n_docs
                     )
                     doc_ids_batched.extend(ids)
@@ -2068,6 +2132,34 @@ class RetrievalModel:
 
             return ids_batched, vectors_batched, doc_dicts
 
+    def get_hard_negatives(
+        self,
+        queries,
+        passage_dataset=None,
+        retrieve_n_docs=None,
+        passages_only=False,
+    ):
+        if passages_only:
+            hard_negatives = self.predict(
+                to_predict=queries,
+                prediction_passages=passage_dataset,
+                retrieve_n_docs=retrieve_n_docs,
+                passages_only=True,
+                is_training=True,
+            )
+        else:
+            hard_negatives, *_ = self.predict(
+                to_predict=queries,
+                prediction_passages=passage_dataset,
+                retrieve_n_docs=retrieve_n_docs,
+                is_training=True,
+            )
+
+        if retrieve_n_docs is None:
+            retrieve_n_docs = self.args.retrieve_n_docs
+
+        return hard_negatives
+
     def build_hard_negatives(
         self,
         queries,
@@ -2076,18 +2168,14 @@ class RetrievalModel:
         write_to_disk=True,
         hard_negatives_save_file_path=None,
     ):
-        hard_negatives, *_ = self.predict(
-            to_predict=queries,
-            prediction_passages=passage_dataset,
+        hard_negatives = self.get_hard_negatives(
+            queries,
+            passage_dataset=passage_dataset,
             retrieve_n_docs=retrieve_n_docs,
         )
 
-        if retrieve_n_docs is None:
-            retrieve_n_docs = self.args.retrieve_n_docs
-
-        column_names = [f"hard_negatives_{i}" for i in range(retrieve_n_docs)]
-
         # Build hard negative df from list of lists
+        column_names = [f"hard_negatives_{i}" for i in range(retrieve_n_docs)]
         hard_negative_df = pd.DataFrame(hard_negatives, columns=column_names)
 
         if write_to_disk:
@@ -2104,6 +2192,35 @@ class RetrievalModel:
 
         return hard_negative_df
 
+    def add_hard_negatives_for_ance(
+        self,
+        train_data,
+        passage_dataset=None,
+    ):
+        hard_negatives = self.get_hard_negatives(
+            train_data["query_text"].tolist(),
+            passage_dataset=passage_dataset,
+            retrieve_n_docs=self.args.retrieve_n_docs,
+            passages_only=True,
+        )
+
+        hard_negative_list = []
+        hn_found = False
+        for hns, gold in zip(hard_negatives, train_data["gold_passage"]):
+            for hn in hns:
+                if hn != gold:
+                    hard_negative_list.append(hn)
+                    hn_found = True
+                    break
+
+            if not hn_found:
+                hard_negative_list.append(hns[0])
+                hn_found = False
+
+        train_data["hard_negative"] = hard_negative_list
+
+        return train_data
+
     def load_and_cache_examples(
         self,
         data,
@@ -2112,6 +2229,7 @@ class RetrievalModel:
         verbose=True,
         silent=False,
         clustered_training=False,
+        additional_eval_passages=None,
     ):
         """
         Creates a IRDataset from data
@@ -2124,6 +2242,13 @@ class RetrievalModel:
             os.makedirs(self.args.cache_dir, exist_ok=True)
 
         if self.args.use_hf_datasets:
+            if self.args.ance_training and not evaluate:
+                logger.info("Adding hard negatives for ANCE training.")
+                data = self.add_hard_negatives_for_ance(
+                    data,
+                    passage_dataset=additional_eval_passages,
+                )
+                logger.info("Finished adding hard negatives for ANCE training.")
             dataset = load_hf_dataset(
                 data,
                 self.context_tokenizer,

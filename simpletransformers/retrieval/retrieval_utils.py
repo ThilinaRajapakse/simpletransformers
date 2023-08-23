@@ -397,7 +397,9 @@ def embed(
                         All target_text values have been manually cast to String as a workaround.
                         This may have been caused by NaN values present in the data."""
                         )
-                        documents[passage_column] = [str(p) for p in documents[passage_column]]
+                        documents[passage_column] = [
+                            str(p) for p in documents[passage_column]
+                        ]
                         tokenized_inputs = tokenizer(
                             documents[passage_column],
                             truncation=True,
@@ -453,7 +455,9 @@ def embed(
                     All target_text values have been manually cast to String as a workaround.
                     This may have been caused by NaN values present in the data."""
                     )
-                    documents[passage_column] = [str(p) for p in documents[passage_column]]
+                    documents[passage_column] = [
+                        str(p) for p in documents[passage_column]
+                    ]
                     tokenized_inputs = tokenizer(
                         documents[passage_column],
                         truncation=True,
@@ -663,14 +667,24 @@ def get_evaluation_passage_dataset(
                         "\n".join(additional_passages.column_names)
                     )
                 )
-                logger.warning("Removing all features except passages and pid as a workaround.")
+                logger.warning(
+                    "Removing all features except passages and pid as a workaround."
+                )
 
                 passage_dataset = passage_dataset.remove_columns(
-                    [c for c in passage_dataset.column_names if c not in ["passages", "pid"]]
+                    [
+                        c
+                        for c in passage_dataset.column_names
+                        if c not in ["passages", "pid"]
+                    ]
                 )
 
                 additional_passages = additional_passages.remove_columns(
-                    [c for c in additional_passages.column_names if c not in ["passages", "pid"]]
+                    [
+                        c
+                        for c in additional_passages.column_names
+                        if c not in ["passages", "pid"]
+                    ]
                 )
 
                 passage_dataset = concatenate_datasets(
@@ -893,7 +907,13 @@ class DPRIndex(Index):
             for i in tqdm(range(doc_ids.shape[0]), desc="Retrieving doc dicts")
         ]
 
-    def get_top_docs(self, question_hidden_states, n_docs=5):
+    def get_top_docs(self, question_hidden_states, n_docs=5, passages_only=False):
+        if passages_only:
+            _, docs = self.dataset.get_nearest_examples_batch(
+                "embeddings", question_hidden_states, n_docs
+            )
+            return docs
+
         _, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
         vectors = [doc["embeddings"] for doc in docs]
@@ -908,7 +928,9 @@ class DPRIndex(Index):
             docs,
         )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
 
-    def get_top_doc_ids(self, question_hidden_states, n_docs=5, reranking_query_outputs=None):
+    def get_top_doc_ids(
+        self, question_hidden_states, n_docs=5, reranking_query_outputs=None
+    ):
         _, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
 
@@ -922,7 +944,9 @@ class DPRIndex(Index):
         )
 
         rerank_indices = np.argsort(rerank_similarity, axis=1)[:, ::-1]
-        rerank_similarity_reordered = np.take_along_axis(rerank_similarity, rerank_indices, 1)
+        rerank_similarity_reordered = np.take_along_axis(
+            rerank_similarity, rerank_indices, 1
+        )
 
         # Original id order could also be returned here if needed
 
@@ -1450,23 +1474,29 @@ def get_clustered_passage_dataset(
     return ClusteredDataset(batch_datasets, len(clustered_batches))
 
 
-def load_trec_file(file_name, data_dir=None, header=False):
+def load_trec_file(file_name, data_dir=None, header=False, loading_qrels=False):
     if data_dir:
-        if os.path.exists(os.path.join(data_dir, f"{file_name}.tsv")):
-            file_path = os.path.join(data_dir, f"{file_name}.tsv")
-        elif os.path.exists(os.path.join(data_dir, f"{file_name}.jsonl")):
-            file_path = os.path.join(data_dir, f"{file_name}.jsonl")
-        elif os.path.exists(os.path.join(data_dir, "qrels", f"{file_name}.tsv")):
-            file_path = os.path.join(data_dir, "qrels", f"{file_name}.tsv")
+        if loading_qrels:
+            if os.path.exists(os.path.join(data_dir, "qrels", f"{file_name}.tsv")):
+                file_path = os.path.join(data_dir, "qrels", f"{file_name}.tsv")
+            else:
+                raise ValueError(
+                    f"{file_name}.tsv or {file_name}.jsonl not found in {data_dir}/qrels"
+                )
         else:
-            raise ValueError(
-                f"{file_name}.tsv or {file_name}.jsonl not found in {data_dir}"
-            )
+            if os.path.exists(os.path.join(data_dir, f"{file_name}.jsonl")):
+                file_path = os.path.join(data_dir, f"{file_name}.jsonl")
+            elif os.path.exists(os.path.join(data_dir, f"{file_name}.tsv")):
+                file_path = os.path.join(data_dir, f"{file_name}.tsv")
+            else:
+                raise ValueError(
+                    f"{file_name}.tsv or {file_name}.jsonl not found in {data_dir}"
+                )
     else:
         file_path = file_name
 
     if not header:
-        if file_name in ["qrels", "train", "dev"] :
+        if file_name in ["qrels", "train", "dev", "test"]:
             column_names = ["query_id", "passage_id", "relevance"]
         elif file_name == "queries":
             column_names = ["query_id", "query_text"]
@@ -1482,7 +1512,7 @@ def load_trec_file(file_name, data_dir=None, header=False):
             delimiter="\t",
             column_names=column_names,
             cache_dir=data_dir,
-            skiprows=1
+            skiprows=1,
         )
     elif file_path.endswith(".jsonl"):
         dataset = load_dataset(
@@ -1504,13 +1534,13 @@ def load_trec_format(
     collection_header=False,
     queries_header=False,
     qrels_header=False,
-    is_evaluating=False,
+    qrels_name=None,
 ):
     """If data_dir is specified, loads the data from there. Otherwise, loads the data from the specified paths.
     data_dir expects the following structure:
         collection.tsv or collection.jsonl
         queries.tsv or queries.jsonl
-        qrels.tsv or qrels.jsonl
+        qrels folder containing train.tsv, dev.tsv, and/or test.tsv or jsonl files
     """
     if data_dir is not None:
         if collection_path or queries_path or qrels_path:
@@ -1520,7 +1550,7 @@ def load_trec_format(
 
         collection = load_trec_file("corpus", data_dir, collection_header)
         queries = load_trec_file("queries", data_dir, queries_header)
-        qrels = load_trec_file("dev" if is_evaluating else "train", data_dir, qrels_header)
+        qrels = load_trec_file(qrels_name, data_dir, qrels_header, loading_qrels=True)
 
     else:
         if not collection_path or not queries_path or not qrels_path:
@@ -1535,6 +1565,24 @@ def load_trec_format(
     # Also check if an index exists
 
     return collection["train"], queries["train"], qrels["train"]
+
+
+def convert_beir_columns_to_trec_format(
+    collection,
+    queries,
+    qrels,
+):
+    collection = collection.rename_column("_id", "passage_id")
+    collection = collection.rename_column("text", "passage_text")
+    # queries = queries.rename_column("_id", "query_id")
+    # queries = queries.rename_column("text", "query_text")
+
+    try:
+        collection = collection.remove_columns("metadata")
+    except:
+        pass
+
+    return collection, queries, qrels
 
 
 def embed_passages_trec_format(
@@ -1605,6 +1653,7 @@ def compute_rerank_similarity(query_embeddings, doc_dicts, passage_column="passa
             query_embeddings[i], np.array(doc_dict["rerank_embeddings"]).T
         )
     return rerank_similarity
+
 
 class RetrievalOutput:
     def __init__(

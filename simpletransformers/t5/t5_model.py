@@ -70,7 +70,6 @@ class T5Model:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a T5Model model.
 
@@ -944,9 +943,7 @@ class T5Model:
             else:
                 target_text = eval_dataset["target_text"].tolist()
 
-            result = self.compute_metrics(
-                target_text, preds, **kwargs
-            )
+            result = self.compute_metrics(target_text, preds, **kwargs)
             self.results.update(result)
 
         if verbose:

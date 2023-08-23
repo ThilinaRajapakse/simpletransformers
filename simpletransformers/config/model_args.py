@@ -361,6 +361,7 @@ class RetrievalArgs(Seq2SeqArgs):
     """
 
     model_class: str = "RetrievalModel"
+    ance_training: bool = False
     cluster_concatenated: bool = False
     cluster_train_size: Union[int, float] = None
     context_config: dict = field(default_factory=dict)

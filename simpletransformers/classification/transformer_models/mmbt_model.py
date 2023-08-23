@@ -55,7 +55,6 @@ class MMBTForClassification(nn.Module):
         inputs_embeds=None,
         labels=None,
     ):
-
         outputs = self.mmbt(
             input_modal=input_modal,
             input_ids=input_ids,

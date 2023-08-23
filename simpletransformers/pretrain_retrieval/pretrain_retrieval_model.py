@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import torch
 import transformers
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -386,7 +386,7 @@ class PretrainRetrievalModel:
 
         if args.ddp_training:
             if kwargs["rank"] == 0:
-                tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+                tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
             else:
                 tb_writer = None
 
@@ -394,7 +394,7 @@ class PretrainRetrievalModel:
                 train_dataset, num_replicas=kwargs["world_size"], rank=kwargs["rank"]
             )
         else:
-            tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
+            tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
             train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
@@ -1767,7 +1767,6 @@ class PretrainRetrievalModel:
         criterion,
         current_span_length_target,
     ):
-
         context_outputs, span_outputs = context_model(**context_inputs)
         context_outputs = context_outputs.pooler_output
 
