@@ -30,6 +30,7 @@ from torch.optim import AdamW
 from transformers.optimization import Adafactor
 from transformers.models.mt5 import MT5Config, MT5ForConditionalGeneration
 from transformers.models.byt5 import ByT5Tokenizer
+from transformers.models.umt5 import UMT5Config, UMT5ForConditionalGeneration
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import T5Args
@@ -56,9 +57,10 @@ MODEL_CLASSES = {
     "t5": (T5Config, T5ForConditionalGeneration),
     "mt5": (MT5Config, MT5ForConditionalGeneration),
     "byt5": (T5Config, T5ForConditionalGeneration),
+    "umt5": (UMT5Config, UMT5ForConditionalGeneration),
 }
 
-
+b
 class T5Model:
     def __init__(
         self,
@@ -75,7 +77,7 @@ class T5Model:
         Initializes a T5Model model.
 
         Args:
-            model_type: The type of model (t5, mt5, byt5)
+            model_type: The type of model (t5, mt5, byt5, umt5)
             model_name: The exact architecture and trained weights to use. This may be a Hugging Face Transformers compatible pre-trained model, a community model, or the path to a directory containing model files.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
