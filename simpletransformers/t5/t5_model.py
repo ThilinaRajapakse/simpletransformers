@@ -12,24 +12,24 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.tensorboard import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
+from torch.optim import AdamW
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
+from torch.utils.tensorboard import SummaryWriter
 from tqdm.auto import tqdm, trange
+from transformers.models.byt5 import ByT5Tokenizer
+from transformers.models.mt5 import MT5Config, MT5ForConditionalGeneration
 from transformers.models.t5 import T5Config, T5ForConditionalGeneration, T5Tokenizer
 from transformers.optimization import (
+    Adafactor,
     get_constant_schedule,
     get_constant_schedule_with_warmup,
-    get_linear_schedule_with_warmup,
     get_cosine_schedule_with_warmup,
     get_cosine_with_hard_restarts_schedule_with_warmup,
+    get_linear_schedule_with_warmup,
     get_polynomial_decay_schedule_with_warmup,
 )
-from torch.optim import AdamW
-from transformers.optimization import Adafactor
-from transformers.models.mt5 import MT5Config, MT5ForConditionalGeneration
-from transformers.models.byt5 import ByT5Tokenizer
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import T5Args
@@ -926,26 +926,24 @@ class T5Model:
                 to_predict = [
                     prefix + ": " + input_text
                     for prefix, input_text in zip(
-                        eval_dataset["prefix"], eval_dataset["input_text"]
+                        eval_data["prefix"], eval_data["input_text"]
                     )
                 ]
             else:
                 to_predict = [
                     prefix + input_text
                     for prefix, input_text in zip(
-                        eval_dataset["prefix"], eval_dataset["input_text"]
+                        eval_data["prefix"], eval_data["input_text"]
                     )
                 ]
             preds = self.predict(to_predict)
 
             if self.args.use_hf_datasets:
-                target_text = eval_dataset["target_text"]
+                target_text = eval_data["target_text"]
             else:
-                target_text = eval_dataset["target_text"].tolist()
+                target_text = eval_data["target_text"].tolist()
 
-            result = self.compute_metrics(
-                target_text, preds, **kwargs
-            )
+            result = self.compute_metrics(target_text, preds, **kwargs)
             self.results.update(result)
 
         if verbose:
