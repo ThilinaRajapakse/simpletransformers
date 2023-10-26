@@ -1,3 +1,4 @@
+import string
 import torch
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
@@ -18,6 +19,7 @@ from transformers import (
     XLMPreTrainedModel,
     XLNetModel,
     XLNetPreTrainedModel,
+    BertTokenizerFast,
 )
 from transformers.modeling_utils import PreTrainedModel, SequenceSummary
 from transformers.models.albert.modeling_albert import (
@@ -1057,3 +1059,106 @@ class DualEncoderModel(PreTrainedModel):
         super().__init__(
             config=context_config
         )  # Initialize with context_config for now
+
+
+class ColBERTModel(BertPreTrainedModel):
+    def __init__(
+        self,
+        config,
+        query_maxlen,
+        doc_maxlen,
+        mask_punctuation,
+        dim=128,
+        similarity_metric="cosine",
+        device="cuda",
+    ):
+        super(ColBERTModel, self).__init__(config)
+
+        self.query_maxlen = query_maxlen
+        self.doc_maxlen = doc_maxlen
+        self.similarity_metric = similarity_metric
+        self.dim = dim
+
+        self.mask_punctuation = mask_punctuation
+        self.skiplist = {}
+
+        if self.mask_punctuation:
+            self.tokenizer = BertTokenizerFast.from_pretrained("bert-base-uncased")
+            self.skiplist = {
+                w: True
+                for symbol in string.punctuation
+                for w in [
+                    symbol,
+                    self.tokenizer.encode(symbol, add_special_tokens=False)[0],
+                ]
+            }
+
+        self.bert = BertModel(config)
+        self.linear = nn.Linear(config.hidden_size, dim, bias=False)
+
+        self.init_weights()
+
+    def forward(self, Q, D):
+        Q = Q["input_ids"], Q["attention_mask"]
+        D = D["input_ids"], D["attention_mask"]
+
+        # Score all docs against each query
+        # scores = torch.zeros(len(Q[0]), len(D[0]), device=self.device)
+        Q_vectors = self.query(Q[0], Q[1])
+        D_vectors = self.doc(D[0], D[1])
+
+        return Q_vectors, D_vectors
+
+        # for i, q_vec in enumerate(Q_vectors):
+        #     scores[i, :] = self.score(q_vec, D_vectors)
+
+        # return scores
+        # print(*Q)
+        # return self.score(self.query(Q_ids[0].unsqueeze(0), Q_mask[1].unsqueeze(0)), self.doc(*D))
+
+    def query(self, input_ids, attention_mask):
+        input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(
+            self.device
+        )
+        Q = self.bert(input_ids, attention_mask=attention_mask)[0]
+        Q = self.linear(Q)
+
+        return torch.nn.functional.normalize(Q, p=2, dim=2)
+
+    def doc(self, input_ids, attention_mask, keep_dims=True):
+        input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(
+            self.device
+        )
+        D = self.bert(input_ids, attention_mask=attention_mask)[0]
+        D = self.linear(D)
+
+        mask = (
+            torch.tensor(self.mask(input_ids), device=self.device).unsqueeze(2).float()
+        )
+        D = D * mask
+
+        D = torch.nn.functional.normalize(D, p=2, dim=2)
+
+        if not keep_dims:
+            D, mask = D.cpu().to(dtype=torch.float16), mask.cpu().bool().squeeze(-1)
+            D = [d[mask[idx]] for idx, d in enumerate(D)]
+
+        return D
+
+    def score(self, Q, D):
+        if self.similarity_metric == "cosine":
+            return (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
+
+        assert self.similarity_metric == "l2"
+        return (
+            (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1)) ** 2).sum(-1))
+            .max(-1)
+            .values.sum(-1)
+        )
+
+    def mask(self, input_ids):
+        mask = [
+            [(x not in self.skiplist) and (x != 0) for x in d]
+            for d in input_ids.cpu().tolist()
+        ]
+        return mask

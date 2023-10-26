@@ -2,13 +2,18 @@ import logging
 import math
 import os
 import pickle
+import json
+import random
+from collections import deque
 from multiprocessing import Pool, cpu_count
 from functools import partial
 from simpletransformers.seq2seq.seq2seq_utils import add_faiss_index_to_dataset
+from simpletransformers.config.model_args import get_default_process_count
 import datasets
 from datasets.load import load_from_disk
 
 import torch
+import torch.nn as nn
 import transformers
 import numpy as np
 import faiss
@@ -25,6 +30,10 @@ from transformers.models.rag.retrieval_rag import Index
 
 
 logger = logging.getLogger(__name__)
+
+
+# Setting FAISS threads
+# faiss.omp_set_num_threads(get_default_process_count())
 
 
 def load_hf_dataset(
@@ -327,7 +336,7 @@ def preprocess_batch_for_hf_dataset(
             }
 
 
-def get_output_embeddings(embeddings, concatenate_embeddings=False, n_cls_tokens=3):
+def get_output_embeddings(embeddings, concatenate_embeddings=False, n_cls_tokens=3, use_pooler_output=False):
     """
     Extracts the embeddings from the output of the model.
     Concatenates CLS embeddings if concatenate_embeddings is True.
@@ -337,6 +346,8 @@ def get_output_embeddings(embeddings, concatenate_embeddings=False, n_cls_tokens
             embeddings.last_hidden_state.shape[0], -1
         )
     else:
+        if use_pooler_output:
+            return embeddings.pooler_output
         try:
             return embeddings[0][:, 0, :]
         except IndexError:
@@ -367,8 +378,12 @@ def embed(
         context_column = "clustering_context_ids"
         context_mask_column = "clustering_context_mask"
     else:
-        context_column = "context_ids"
-        context_mask_column = "context_mask"
+        if passage_column == "query_text":
+            context_column = "query_ids"
+            context_mask_column = "query_mask"
+        else:
+            context_column = "context_ids"
+            context_mask_column = "context_mask"
     with torch.no_grad():
         if fp16:
             with amp.autocast():
@@ -377,7 +392,8 @@ def embed(
                         tokenized_inputs = tokenizer(
                             documents[passage_column],
                             truncation=True,
-                            padding="longest",
+                            padding="max_length",
+                            max_length=256,
                             return_tensors="pt",
                         )
                         embeddings = encoder(
@@ -1222,90 +1238,145 @@ def get_clustered_passage_dataset(
     device,
     reranker=None,
     reranker_tokenizer=None,
+    clustered_batch_randomize_percentage=0.0,
+    epoch_number=None,
 ):
-    logger.info("Generating embeddings for passage clustering started")
-
     if args.fp16:
         from torch.cuda import amp
     else:
         amp = None
 
-    encoder = encoder.to(device)
+    if epoch_number is None or epoch_number % args.cluster_every_n_epochs == 0:
+        encoder = encoder.to(device)
 
-    passage_dataset = passage_dataset.rename_column("gold_passage", "passages")
-    passage_dataset = passage_dataset.map(
-        partial(
-            embed,
-            encoder=encoder,
-            tokenizer=tokenizer,
-            concatenate_embeddings=args.larger_representations,
-            extra_cls_token_count=args.extra_cls_token_count,
-            device=device,
-            fp16=args.fp16,
-            amp=amp,
-            pretokenized=True,
-            cluster_concatenated=args.cluster_concatenated,
-        ),
-        batched=True,
-        batch_size=args.embed_batch_size,
-        with_rank=args.n_gpu > 1,
-        num_proc=args.n_gpu,
-        # cache_file_name=os.path.join(args.dataset_cache_dir, args.output_dir, "/clustering_embeddings.cache"),
-    )
-    passage_dataset = passage_dataset.rename_column("passages", "gold_passage")
-    logger.info("Generating embeddings for passage clustering completed")
+        if args.cluster_queries:
+            logger.info("Generating embeddings for query clustering started")
+            passage_dataset = passage_dataset.map(
+                partial(
+                    embed,
+                    encoder=encoder,
+                    tokenizer=tokenizer,
+                    concatenate_embeddings=args.larger_representations,
+                    extra_cls_token_count=args.extra_cls_token_count,
+                    device=device,
+                    fp16=args.fp16,
+                    amp=amp,
+                    pretokenized=True,
+                    cluster_concatenated=args.cluster_concatenated,
+                    passage_column="query_text",
+                ),
+                batched=True,
+                batch_size=args.embed_batch_size,
+                with_rank=args.n_gpu > 1,
+                num_proc=args.n_gpu,
+                # cache_file_name=os.path.join(args.dataset_cache_dir, args.output_dir, "/clustering_embeddings.cache"),
+            )
+            logger.info("Generating embeddings for query clustering completed")
 
-    # Make passage_dataset bigger by concatenating with itself for testing
-    # passage_dataset = concatenate_datasets([passage_dataset for _ in range(500)])
-    # print(f"Length of passage dataset: {len(passage_dataset)}")
+        else:
+            logger.info("Generating embeddings for passage clustering started")
+            passage_dataset = passage_dataset.rename_column("gold_passage", "passages")
+            passage_dataset = passage_dataset.map(
+                partial(
+                    embed,
+                    encoder=encoder,
+                    tokenizer=tokenizer,
+                    concatenate_embeddings=args.larger_representations,
+                    extra_cls_token_count=args.extra_cls_token_count,
+                    device=device,
+                    fp16=args.fp16,
+                    amp=amp,
+                    pretokenized=True,
+                    cluster_concatenated=args.cluster_concatenated,
+                ),
+                batched=True,
+                batch_size=args.embed_batch_size,
+                with_rank=args.n_gpu > 1,
+                num_proc=args.n_gpu,
+                # cache_file_name=os.path.join(args.dataset_cache_dir, args.output_dir, "/clustering_embeddings.cache"),
+            )
+            passage_dataset = passage_dataset.rename_column("passages", "gold_passage")
+            logger.info("Generating embeddings for passage clustering completed")
 
-    logger.info("Clustering passages started")
+        # Make passage_dataset bigger by concatenating with itself for testing
+        # passage_dataset = concatenate_datasets([passage_dataset for _ in range(500)])
+        # print(f"Length of passage dataset: {len(passage_dataset)}")
 
-    k = (
-        int(len(passage_dataset["embeddings"]) / train_batch_size)
-        if args.kmeans_k == -1
-        else args.kmeans_k
-    )
-    niter = 20
-    verbose = not args.silent
-    seed = args.manual_seed if args.manual_seed is not None else 42
-    embeddings = passage_dataset["embeddings"].numpy()
-    d = embeddings.shape[1]
+        logger.info("Clustering passages started")
 
-    if args.faiss_clustering:
-        use_cuda = True if "cuda" in str(device) else False
-
-        kmeans = faiss.Kmeans(
-            d, k, niter=niter, verbose=verbose, seed=seed, gpu=use_cuda
+        k = (
+            int(len(passage_dataset["embeddings"]) / train_batch_size)
+            if args.kmeans_k == -1
+            else args.kmeans_k
         )
-        kmeans.train(embeddings)
+        niter = 20
+        verbose = not args.silent
+        seed = args.manual_seed if args.manual_seed is not None else 42
+        embeddings = passage_dataset["embeddings"].numpy()
+        d = embeddings.shape[1]
 
-        _, indices = kmeans.index.search(embeddings, 1)
-        passage_dataset = passage_dataset.add_column("cluster_id", indices.flatten())
-    else:
-        km = MiniBatchKMeans(
-            n_clusters=k,
-            init="k-means++",
-        )
+        if args.faiss_clustering:
+            use_cuda = True if "cuda" in str(device) else False
 
-        if args.cluster_train_size is not None:
-            clustering_subset, _ = train_test_split(
-                passage_dataset, train_size=args.cluster_train_size
+            kmeans = faiss.Kmeans(
+                d, k, niter=niter, verbose=verbose, seed=seed, gpu=use_cuda
+            )
+            kmeans.train(embeddings)
+
+            _, indices = kmeans.index.search(embeddings, 1)
+            passage_dataset = passage_dataset.add_column(
+                "cluster_id", indices.flatten()
             )
         else:
-            clustering_subset = passage_dataset
-        km.fit(clustering_subset["embeddings"])
-        passage_dataset = passage_dataset.add_column(
-            "cluster_id", km.predict(passage_dataset["embeddings"])
-        )
+            km = MiniBatchKMeans(
+                n_clusters=k,
+                init="k-means++",
+            )
 
-    logger.info("Clustering passages completed")
-    del embeddings
-    passage_dataset = passage_dataset.remove_columns(["embeddings"])
+            if args.cluster_train_size is not None:
+                clustering_subset, _ = train_test_split(
+                    passage_dataset, train_size=args.cluster_train_size
+                )
+            else:
+                clustering_subset = passage_dataset
+            km.fit(clustering_subset["embeddings"])
+            passage_dataset = passage_dataset.add_column(
+                "cluster_id", km.predict(passage_dataset["embeddings"])
+            )
 
-    # Sort passage_dataset by cluster_id
-    passage_dataset = passage_dataset.sort("cluster_id")
+        logger.info("Clustering passages completed")
+        del embeddings
+        passage_dataset = passage_dataset.remove_columns(["embeddings"])
+    else:
+        try:
+            logger.info("Reconstructing passage dataset started")
+            passage_dataset = concatenate_datasets(passage_dataset)
+            k = (
+                int(len(passage_dataset["cluster_id"]) / train_batch_size)
+                if args.kmeans_k == -1
+                else args.kmeans_k
+            )
+            logger.info("Reconstructing passage dataset completed")
+        except ValueError:
+            pass
 
+    # Shuffle then sort
+    # passage_dataset = passage_dataset.flatten_indices()
+    # passage_dataset = passage_dataset.to_iterable_dataset(num_shards=128)
+    # passage_dataset = passage_dataset.shuffle(
+    #     seed=args.manual_seed
+    # )
+
+    logger.info(
+        "Converting passage dataset to pandas dataframe to build clustered batches"
+    )
+    passage_dataset = passage_dataset.to_pandas()
+    logger.info("Converting passage dataset to pandas dataframe completed")
+
+    # Sort passage_dataset df by cluster_id
+    # passage_dataset = passage_dataset.sort_values(by=["cluster_id"])
+
+    logger.info("Building clustered batches started")
     clusters = passage_dataset["cluster_id"].tolist()
     clustered_batches = {i: [[]] for i in range(k)}
     for i, cluster in enumerate(clusters):
@@ -1314,6 +1385,37 @@ def get_clustered_passage_dataset(
             clustered_batches[cluster][mini_batch_num].append(i)
         else:
             clustered_batches[cluster].append([i])
+
+    # Randomize the mini batches inside a cluster and shuffle items between mini batches of the same cluster
+    # This is done to avoid having the same mini batches in the same order in every epoch
+    random.seed(args.manual_seed)
+    for cluster in clustered_batches.values():
+        for mini_batch in cluster:
+            random.shuffle(mini_batch)
+        random.shuffle(cluster)
+
+    # Move items inside mini batches to other mini batches in the same cluster while keeping the mini batch size constant
+    # This is done to avoid having the same mini batches in the same order in every epoch
+    for cluster in tqdm(clustered_batches.values(), desc="Randomizing clusters"):
+        if len(cluster) == 1:
+            continue
+        for mini_batch in tqdm(cluster, desc="Randomizing mini batches"):
+            for i in range(len(mini_batch)):
+                random_mini_batch = random.sample(cluster, 1)[0]
+                attempts = 0
+                while (
+                    len(random_mini_batch) == train_batch_size
+                    and attempts <= train_batch_size
+                ):
+                    random_mini_batch = random.sample(cluster, 1)[0]
+                    attempts += 1
+                if attempts < train_batch_size:
+                    try:
+                        random_mini_batch.append(mini_batch.pop())
+                    except:
+                        logger.info(
+                            "Skipping minibatch randomize as all other minibatches in the cluster are full"
+                        )
 
     clustered_batches = [
         batch for batch_list in clustered_batches.values() for batch in batch_list
@@ -1352,10 +1454,89 @@ def get_clustered_passage_dataset(
             )
             break
 
-    batch_datasets = [
-        passage_dataset.select(batch, keep_in_memory=False)
-        for batch in tqdm(final_batches, desc="Generating batched dataset")
-    ]
+    # Randomize each batch in final batches according to clustered_batch_randomize_percentage
+    # Here randomize means that a percentage of samples from each batch is moved to other batches and replaced with samples from other batches
+    if clustered_batch_randomize_percentage > 0.0:
+        random.seed(seed)
+        for i, batch in enumerate(final_batches):
+            num_samples_to_randomize = int(
+                clustered_batch_randomize_percentage * len(batch)
+            )
+            for _ in range(num_samples_to_randomize):
+                random_sample = random.sample(batch, 1)[0]
+                random_batch = random.sample(final_batches, 1)[0]
+                while len(random_batch) == train_batch_size:
+                    random_batch = random.sample(final_batches, 1)[0]
+                random_batch.append(random_sample)
+                batch.remove(random_sample)
+
+    # if args.save_clustering_idx:
+    #     output_dataset_directory = os.path.join(args.output_dir, "clustering_idx")
+    #     os.makedirs(output_dataset_directory, exist_ok=True)
+    #     current_count = len(os.listdir(output_dataset_directory)) + 1
+
+    #     clustering_idx_save_path = os.path.join(
+    #         output_dataset_directory, f"clustering_idx_{current_count}.json"
+    #     )
+    #     with open(clustering_idx_save_path, "w") as f:
+    #         json.dump(clustered_batches, f)
+
+    def select_batch_from_pandas(batch, df):
+        batch_dataset = HFDataset.from_pandas(df.iloc[batch].reset_index(drop=True))
+        if args.hard_negatives:
+            batch_dataset.set_format(
+                type="torch",
+                columns=[
+                    "query_ids",
+                    "query_mask",
+                    "context_ids",
+                    "context_mask",
+                    "hard_negative_ids",
+                    "hard_negatives_mask",
+                    "cluster_id",
+                ],
+            )
+        else:
+            batch_dataset.set_format(
+                type="torch",
+                columns=[
+                    "query_ids",
+                    "query_mask",
+                    "context_ids",
+                    "context_mask",
+                    "cluster_id",
+                ],
+            )
+
+        return batch_dataset
+
+    # For testing on large data
+    # passage_dataset = datasets.concatenate_datasets([passage_dataset for _ in range(500)])
+
+    clustered_queries = []
+    if args.save_clustering_idx:
+        batch_datasets = []
+        for batch in tqdm(final_batches, desc="Generating batched dataset"):
+            # train_batch = passage_dataset.select(batch, keep_in_memory=False)
+            train_batch = select_batch_from_pandas(batch, passage_dataset)
+            batch_datasets.append(train_batch)
+            clustered_queries.append([train_batch["query_text"]])
+
+        output_dataset_directory = os.path.join(args.output_dir, "clustering_idx")
+        os.makedirs(output_dataset_directory, exist_ok=True)
+        current_count = len(os.listdir(output_dataset_directory)) + 1
+
+        clustering_idx_save_path = os.path.join(
+            output_dataset_directory, f"clustering_idx_{current_count}.json"
+        )
+        with open(clustering_idx_save_path, "w") as f:
+            json.dump(clustered_queries, f)
+    else:
+        batch_datasets = [
+            # passage_dataset.select(batch, keep_in_memory=False)
+            select_batch_from_pandas(batch, passage_dataset)
+            for batch in tqdm(final_batches, desc="Generating batched dataset")
+        ]
 
     # batch_datasets = []
     # for batch in tqdm(final_batches, desc="Generating batched dataset"):
@@ -1468,13 +1649,15 @@ def get_clustered_passage_dataset(
     #         )
     #     )
 
+    logger.info("Building clustered batches completed")
+
     if reenable_progress_bar:
         datasets.logging.enable_progress_bar()
 
     return ClusteredDataset(batch_datasets, len(clustered_batches))
 
 
-def load_trec_file(file_name, data_dir=None, header=False, loading_qrels=False):
+def load_trec_file(file_name, data_dir=None, header=False, loading_qrels=False, data_format=None):
     if data_dir:
         if loading_qrels:
             if os.path.exists(os.path.join(data_dir, "qrels", f"{file_name}.tsv")):
@@ -1506,19 +1689,32 @@ def load_trec_file(file_name, data_dir=None, header=False, loading_qrels=False):
         column_names = None
 
     if file_path.endswith(".tsv"):
-        dataset = load_dataset(
-            "csv",
-            data_files=file_path,
-            delimiter="\t",
-            column_names=column_names,
-            cache_dir=data_dir,
-            skiprows=1,
-        )
+        if data_format == "msmarco":
+            if loading_qrels:
+                column_names = ["query_id", "na", "passage_id", "relevance"]
+            dataset = load_dataset(
+                "csv",
+                data_files=file_path,
+                delimiter="\t",
+                column_names=column_names,
+                # cache_dir=data_dir,
+            )
+            # Drop na column
+            dataset = dataset.remove_columns("na")
+        else:
+            dataset = load_dataset(
+                "csv",
+                data_files=file_path,
+                delimiter="\t",
+                column_names=column_names,
+                # cache_dir=data_dir,
+                skiprows=1,
+            )
     elif file_path.endswith(".jsonl"):
         dataset = load_dataset(
             "json",
             data_files=file_path,
-            cache_dir=data_dir,
+            # cache_dir=data_dir,
         )
 
     logger.info(f"Loaded {file_path}")
@@ -1535,6 +1731,8 @@ def load_trec_format(
     queries_header=False,
     qrels_header=False,
     qrels_name=None,
+    data_format=None,
+    skip_passages=False,
 ):
     """If data_dir is specified, loads the data from there. Otherwise, loads the data from the specified paths.
     data_dir expects the following structure:
@@ -1548,9 +1746,10 @@ def load_trec_format(
                 "data_dir is specified. Ignoring collection_path, queries_path, and qrels_path."
             )
 
-        collection = load_trec_file("corpus", data_dir, collection_header)
+        if not skip_passages:
+            collection = load_trec_file("corpus", data_dir, collection_header)
         queries = load_trec_file("queries", data_dir, queries_header)
-        qrels = load_trec_file(qrels_name, data_dir, qrels_header, loading_qrels=True)
+        qrels = load_trec_file(qrels_name, data_dir, qrels_header, loading_qrels=True, data_format=data_format)
 
     else:
         if not collection_path or not queries_path or not qrels_path:
@@ -1558,13 +1757,14 @@ def load_trec_format(
                 "data_dir is not specified. Please specify collection_path, queries_path, and qrels_path."
             )
 
-        collection = load_trec_file(collection_path, header=collection_header)
+        if not skip_passages:
+            collection = load_trec_file(collection_path, header=collection_header)
         queries = load_trec_file(queries_path, header=queries_header)
         qrels = load_trec_file(qrels_path, header=qrels_header)
 
     # Also check if an index exists
 
-    return collection["train"], queries["train"], qrels["train"]
+    return None if skip_passages else collection["train"], queries["train"], qrels["train"]
 
 
 def convert_beir_columns_to_trec_format(
@@ -1595,8 +1795,30 @@ def embed_passages_trec_format(
 ):
     if isinstance(passage_dataset, str):
         # If passage_dataset is a str, then we load from disk.
-        # Actually, this needs to be done earlier
-        pass
+        logger.info(f"Loading passage dataset from {passage_dataset}")
+        passage_data = load_from_disk(passage_dataset)
+        index_path = os.path.join(passage_dataset, "hf_dataset_index.faiss")
+        if os.path.isfile(index_path):
+            passage_data.load_faiss_index("embeddings", index_path)
+            passage_dataset = passage_data
+        else:
+            logger.info("Adding FAISS index to evaluation passages")
+            index = faiss.IndexHNSWFlat(
+                args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
+            )
+            passage_dataset.add_faiss_index("embeddings", custom_index=index)
+            logger.info("Adding FAISS index to evaluation passages completed.")
+            if args.save_passage_dataset:
+                output_dataset_directory = os.path.join(
+                    args.output_dir, "passage_dataset"
+                )
+                faiss_save_path = os.path.join(
+                    output_dataset_directory, "hf_dataset_index.faiss"
+                )
+                passage_dataset.save_faiss_index("embeddings", faiss_save_path)
+
+        logger.info(f"Succesfully loaded passage dataset from {passage_dataset}")
+        passage_index = DPRIndex(passage_dataset, context_config.hidden_size)
 
     else:
         if args.fp16:
@@ -1624,6 +1846,13 @@ def embed_passages_trec_format(
             batch_size=args.embed_batch_size,
         )
         logger.info("Generating embeddings for evaluation passages completed.")
+
+        if args.save_passage_dataset:
+            output_dataset_directory = os.path.join(
+                args.output_dir, "passage_dataset"
+            )
+            os.makedirs(output_dataset_directory, exist_ok=True)
+            passage_dataset.save_to_disk(output_dataset_directory)
 
         logger.info("Adding FAISS index to evaluation passages")
         index = faiss.IndexHNSWFlat(
@@ -1667,6 +1896,7 @@ class RetrievalOutput:
         reranking_query_outputs=None,
         reranking_loss=None,
         nll_loss=None,
+        colbert_correct_predictions_percentage=None,
     ):
         self.loss = loss
         self.context_outputs = context_outputs
@@ -1677,3 +1907,217 @@ class RetrievalOutput:
         self.reranking_query_outputs = reranking_query_outputs
         self.reranking_loss = reranking_loss
         self.nll_loss = nll_loss
+        self.colbert_correct_predictions_percentage = (
+            colbert_correct_predictions_percentage
+        )
+
+
+class MarginMSELoss(nn.Module):
+    def __init__(self, margin=1.0):
+        super(MarginMSELoss, self).__init__()
+        self.margin = margin
+
+    def forward(self, scores, labels):
+        """
+        A Margin-MSE loss variant for matrices of relevance scores and labels.
+        """
+        diff_scores = scores.unsqueeze(1) - scores.unsqueeze(2)
+        diff_labels = labels.unsqueeze(1) - labels.unsqueeze(2)
+        margin_diff = diff_labels - self.margin
+
+        loss = torch.mean(torch.pow(diff_scores - margin_diff, 2))
+        return loss
+
+
+def colbert_score(teacher_model, query_inputs, context_inputs, device):
+    Q_vectors, D_vectors = teacher_model(query_inputs, context_inputs)
+
+    scores = torch.zeros(len(Q_vectors), len(D_vectors), device=device)
+
+    def score(Q, D):
+        return (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
+
+    for i, q_vec in enumerate(Q_vectors):
+        scores[i, :] = score(q_vec, D_vectors)
+
+    return scores
+
+
+def get_tas_dataset(
+    passage_dataset,
+    train_batch_size,
+    encoder,
+    tokenizer,
+    args,
+    device,
+):
+    logger.info("Generating embeddings for clustering started")
+
+    if args.fp16:
+        from torch.cuda import amp
+    else:
+        amp = None
+
+    encoder = encoder.to(device)
+
+    if "embeddings" not in passage_dataset.column_names:
+        if args.cluster_queries:
+            logger.info("Generating embeddings for query clustering started")
+            passage_dataset = passage_dataset.map(
+                partial(
+                    embed,
+                    encoder=encoder,
+                    tokenizer=tokenizer,
+                    concatenate_embeddings=args.larger_representations,
+                    extra_cls_token_count=args.extra_cls_token_count,
+                    device=device,
+                    fp16=args.fp16,
+                    amp=amp,
+                    pretokenized=False,
+                    cluster_concatenated=args.cluster_concatenated,
+                    passage_column="query_text",
+                ),
+                batched=True,
+                batch_size=args.embed_batch_size,
+                with_rank=args.n_gpu > 1,
+                num_proc=args.n_gpu,
+                # cache_file_name=os.path.join(args.dataset_cache_dir, args.output_dir, "/clustering_embeddings.cache"),
+            )
+            logger.info("Generating embeddings for query clustering completed")
+
+        else:
+            logger.info("Generating embeddings for passage clustering started")
+            passage_dataset = passage_dataset.rename_column("gold_passage", "passages")
+            passage_dataset = passage_dataset.map(
+                partial(
+                    embed,
+                    encoder=encoder,
+                    tokenizer=tokenizer,
+                    concatenate_embeddings=args.larger_representations,
+                    extra_cls_token_count=args.extra_cls_token_count,
+                    device=device,
+                    fp16=args.fp16,
+                    amp=amp,
+                    pretokenized=False,
+                    cluster_concatenated=args.cluster_concatenated,
+                ),
+                batched=True,
+                batch_size=args.embed_batch_size,
+                with_rank=args.n_gpu > 1,
+                num_proc=args.n_gpu,
+                # cache_file_name=os.path.join(args.dataset_cache_dir, args.output_dir, "/clustering_embeddings.cache"),
+            )
+            passage_dataset = passage_dataset.rename_column("passages", "gold_passage")
+            logger.info("Generating embeddings for passage clustering completed")
+
+    logger.info("Clustering passages started")
+
+    k = (
+        int(len(passage_dataset["embeddings"]) / train_batch_size)
+        if args.kmeans_k == -1
+        else args.kmeans_k
+    )
+    niter = 20
+    verbose = not args.silent
+    seed = args.manual_seed if args.manual_seed is not None else 42
+    embeddings = passage_dataset["embeddings"].numpy()
+    d = embeddings.shape[1]
+
+    if args.faiss_clustering:
+        use_cuda = True if "cuda" in str(device) else False
+
+        kmeans = faiss.Kmeans(
+            d, k, niter=niter, verbose=verbose, seed=seed, gpu=use_cuda
+        )
+        kmeans.train(embeddings)
+
+        _, indices = kmeans.index.search(embeddings, 1)
+        passage_dataset = passage_dataset.add_column("cluster_id", indices.flatten())
+    else:
+        km = MiniBatchKMeans(
+            n_clusters=k,
+            init="k-means++",
+        )
+
+        if args.cluster_train_size is not None:
+            clustering_subset, _ = train_test_split(
+                passage_dataset, train_size=args.cluster_train_size
+            )
+        else:
+            clustering_subset = passage_dataset
+        km.fit(clustering_subset["embeddings"])
+        passage_dataset = passage_dataset.add_column(
+            "cluster_id", km.predict(passage_dataset["embeddings"])
+        )
+
+    logger.info("Clustering passages completed")
+
+    # Random shuffle passage_dataset
+    passage_dataset = passage_dataset.shuffle(seed=seed)
+
+    # Sort passage_dataset by cluster_id
+    # passage_dataset = passage_dataset.sort("cluster_id")
+
+    clusters = passage_dataset["cluster_id"].tolist()
+    clustered_batches = {i: [[]] for i in range(k)}
+    for i, cluster in enumerate(clusters):
+        mini_batch_num = len(clustered_batches[cluster]) - 1
+        if len(clustered_batches[cluster][mini_batch_num]) < train_batch_size:
+            clustered_batches[cluster][mini_batch_num].append(i)
+        else:
+            clustered_batches[cluster].append([i])
+
+    clustered_batches = [
+        batch for batch_list in clustered_batches.values() for batch in batch_list
+    ]
+
+    clustered_batches = sorted(clustered_batches, key=lambda x: len(x), reverse=True)
+
+    # Split any batches bigger than train_batch_size into smaller batches until all batches are of size train_batch_size or smaller
+    final_batches = []
+    for batch in clustered_batches:
+        if len(batch) <= train_batch_size:
+            final_batches.append(batch)
+        else:
+            for i in range(0, len(batch), train_batch_size):
+                final_batches.append(batch[i : i + train_batch_size])
+
+    clustered_queries = []
+    if args.save_clustering_idx:
+        batch_datasets = []
+        for batch in tqdm(final_batches, desc="Generating batched dataset"):
+            train_batch = passage_dataset.select(batch, keep_in_memory=False)
+            batch_datasets.append(train_batch)
+            clustered_queries.append([train_batch["query_text"]])
+
+        output_dataset_directory = os.path.join(args.output_dir, "clustering_idx")
+        os.makedirs(output_dataset_directory, exist_ok=True)
+        current_count = len(os.listdir(output_dataset_directory)) + 1
+
+        clustering_idx_save_path = os.path.join(
+            output_dataset_directory, f"clustering_idx_{current_count}.json"
+        )
+        with open(clustering_idx_save_path, "w") as f:
+            json.dump(clustered_queries, f)
+    else:
+        batch_datasets = [
+            passage_dataset.select(batch, keep_in_memory=False)
+            for batch in tqdm(final_batches, desc="Generating batched dataset")
+        ]
+
+    return ClusteredDataset(batch_datasets, len(clustered_batches))
+
+
+class MovingLossAverage:
+    def __init__(self, window_size):
+        self.window_size = window_size
+        self.losses = deque(maxlen=window_size)
+
+    def add_loss(self, loss):
+        self.losses.append(loss)
+
+    def get_average_loss(self):
+        return sum(self.losses) / len(self.losses)
+
+    def size(self):
+        return len(self.losses)

@@ -361,18 +361,25 @@ class RetrievalArgs(Seq2SeqArgs):
     """
 
     model_class: str = "RetrievalModel"
+    ance_refresh_n_epochs: int = 1
     ance_training: bool = False
     cluster_concatenated: bool = False
+    cluster_every_n_epochs: int = 1
+    cluster_queries: bool = False
     cluster_train_size: Union[int, float] = None
     context_config: dict = field(default_factory=dict)
+    curriculum_clustering: bool = False
     data_format: str = "st"
     ddp_training: bool = False
+    disable_datasets_caching: bool = False
     embed_batch_size: int = 128
     evaluate_with_beir: bool = False
     extra_cls_token_count: int = 0
     extra_mask_token_count: int = 0
     faiss_clustering: bool = True
     faiss_index_type: str = "IndexFlatIP"
+    gradient_caching: bool = False
+    gradient_caching_steps: int = 16
     hard_negatives: bool = False
     hard_negatives_in_eval: bool = False
     include_bce_loss: bool = False
@@ -380,23 +387,33 @@ class RetrievalArgs(Seq2SeqArgs):
     include_nll_loss: bool = True
     include_title: bool = True
     include_triplet_loss: bool = False
-    larger_representations: bool = False
+    kl_div_loss: bool = False
     kmeans_k: int = -1
+    larger_representations: bool = False
+    margin_mse_loss: bool = False
+    moving_average_loss_count: int = 10
     nll_lambda: float = 1.0
     output_dropout: float = 0.1
+    pytrec_eval_metrics: list = field(default_factory=lambda: ["recip_rank", "recall_100", "ndcg_cut_10", "ndcg"])
     query_config: dict = field(default_factory=dict)
     remove_duplicates_from_eval_passages: bool = False
+    repeat_high_loss_n: int = 0
     rerank_batch_size: int = 256
     retrieval_batch_size: int = 512
     retrieve_n_docs: int = 10
+    save_clustering_idx: bool = False
     save_passage_dataset: bool = True
+    tas_clustering: bool = False
     tie_encoders: bool = False
     train_context_encoder: bool = True
     train_query_encoder: bool = True
     triplet_lambda: float = 1.0
     triplet_margin: float = 1.0
     unified_rr: bool = False
+    unified_cross_rr: bool = False
     use_hf_datasets: bool = True
+    use_pooler_output: bool = False
+    reranking_config: dict = field(default_factory=dict)
 
 
 @dataclass

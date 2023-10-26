@@ -4,9 +4,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def convert_beir_predictions_to_pytrec_format(predicted_doc_ids, query_dataset):
+def convert_predictions_to_pytrec_format(predicted_doc_ids, query_dataset, id_column="_id"):
     run_dict = {}
-    for query_id, doc_ids in zip(query_dataset["_id"], predicted_doc_ids):
+    for query_id, doc_ids in zip(query_dataset[id_column], predicted_doc_ids):
         run_dict[query_id] = {doc_id: 1 / (i + 1) for i, doc_id in enumerate(doc_ids)}
 
     return run_dict

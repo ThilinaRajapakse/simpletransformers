@@ -44,6 +44,7 @@ from transformers.models.auto import (
 )
 from datasets import load_from_disk
 from datasets.arrow_dataset import Dataset as HFDataset
+from datasets import disable_caching
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import RetrievalArgs
@@ -60,6 +61,7 @@ from simpletransformers.retrieval.retrieval_utils import (
     get_clustered_passage_dataset,
     get_output_embeddings,
     get_prediction_passage_dataset,
+    get_tas_dataset,
     load_hf_dataset,
     get_evaluation_passage_dataset,
     mean_reciprocal_rank_at_k,
@@ -68,12 +70,17 @@ from simpletransformers.retrieval.retrieval_utils import (
     load_trec_format,
     embed_passages_trec_format,
     compute_rerank_similarity,
+    MarginMSELoss,
+    colbert_score,
+    MovingLossAverage,
 )
 from simpletransformers.retrieval.pytrec_eval_utils import (
-    convert_beir_predictions_to_pytrec_format,
+    convert_predictions_to_pytrec_format,
     convert_qrels_dataset_to_pytrec_format,
     convert_metric_dict_to_scores_list,
 )
+
+from simpletransformers.custom_models.models import ColBERTModel
 
 
 try:
@@ -112,9 +119,12 @@ class RetrievalModel:
         query_encoder_name=None,
         context_encoder_tokenizer=None,
         query_encoder_tokenizer=None,
+        reranking_model_name=None,
         reranker_name=None,
         reranker_tokenizer=None,
         prediction_passages=None,
+        teacher_model=None,
+        clustering_model=None,
         args=None,
         use_cuda=True,
         cuda_device=-1,
@@ -183,7 +193,7 @@ class RetrievalModel:
             self.args.fp16 = False
 
         if self.args.larger_representations:
-            if self.args.unified_rr:
+            if self.args.unified_rr and not self.args.unified_cross_rr:
                 MODEL_CLASSES["custom"] = (
                     DPRConfig,
                     DPRContextEncoderUnifiedRR,
@@ -214,6 +224,23 @@ class RetrievalModel:
                     model_type, list(MODEL_CLASSES.keys())
                 )
             )
+
+        if self.args.unified_cross_rr:
+            self.reranking_config = config_class.from_pretrained(
+                reranking_model_name, **self.args.reranking_config
+            )
+            self.reranking_model = context_encoder.from_pretrained(
+                reranking_model_name, config=self.reranking_config
+            )
+            if self.args.retrieval_batch_size > self.args.max_seq_length - 1:
+                warnings.warn(
+                    f"retrieval_batch_size ({self.args.retrieval_batch_size}) is larger than max_seq_length ({self.args.max_seq_length - 1})." +
+                    "Setting retrieval_batch_size to max_seq_length - 1."
+                )
+                self.args.retrieval_batch_size = self.args.max_seq_length - 1
+        else:
+            self.reranking_config = None
+            self.reranking_model = None
 
         if context_encoder_name:
             self.context_config = config_class.from_pretrained(
@@ -306,6 +333,33 @@ class RetrievalModel:
             self.reranker = None
             self.reranker_tokenizer = None
 
+        if args.margin_mse_loss or args.kl_div_loss:
+            self.teacher_model = ColBERTModel.from_pretrained(
+                teacher_model,
+                query_maxlen=32,
+                doc_maxlen=180,
+                mask_punctuation=True,
+                device=self.device,
+            )
+        else:
+            self.teacher_model = None
+
+        if clustering_model is not None:
+            self.clustering_model = AutoModel.from_pretrained(clustering_model)
+            try:
+                self.clustering_tokenizer = AutoTokenizer.from_pretrained(
+                    clustering_model, max_len=args.max_seq_length
+                )
+            except Exception:
+                self.clustering_tokenizer = AutoTokenizer.from_pretrained(
+                    "bert-base-multilingual-cased",
+                    max_len=args.max_seq_length
+                    # clustering_model
+                )
+        else:
+            self.clustering_model = None
+            self.clustering_tokenizer = None
+
         # TODO: Add support for adding special tokens to the tokenizers
 
         if self.args.larger_representations or self.args.include_bce_loss:
@@ -377,6 +431,9 @@ class RetrievalModel:
         self.context_encoder_name = context_encoder_name
         self.query_encoder_name = query_encoder_name
 
+        if args.disable_datasets_caching:
+            disable_caching()
+
         if prediction_passages is not None:
             self.prediction_passages = self.get_updated_prediction_passages(
                 prediction_passages
@@ -402,6 +459,7 @@ class RetrievalModel:
         clustered_training=False,
         top_k_values=None,
         verbose=True,
+        eval_set="dev",
         **kwargs,
     ):
         """
@@ -489,6 +547,7 @@ class RetrievalModel:
             train_data=train_data,
             top_k_values=top_k_values,
             verbose=verbose,
+            eval_set=eval_set,
             **kwargs,
         )
 
@@ -519,6 +578,7 @@ class RetrievalModel:
         train_data=None,
         top_k_values=None,
         verbose=True,
+        eval_set="dev",
         **kwargs,
     ):
         """
@@ -534,8 +594,22 @@ class RetrievalModel:
         tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
 
-        if clustered_training:
+        if clustered_training or args.tas_clustering:
             train_dataloader = train_dataset
+            if args.curriculum_clustering:
+                # Number of epochs where randomizing happens is 75% of total epochs
+                randomize_epochs = int(0.75 * args.num_train_epochs)
+
+                # Linearly decrease randomize percentage for 1 to 0 over the randomize epochs
+                randomize_percentage = np.linspace(1, 0, randomize_epochs)
+
+                # Add 0 to the end of the randomize percentage for the remaining epochs
+                randomize_percentage = np.append(
+                    randomize_percentage,
+                    np.zeros(args.num_train_epochs - randomize_epochs),
+                )
+            else:
+                randomize_percentage = np.zeros(args.num_train_epochs)
         else:
             train_dataloader = DataLoader(
                 train_dataset,
@@ -615,6 +689,7 @@ class RetrievalModel:
             context_model = torch.nn.DataParallel(context_model)
             query_model = torch.nn.DataParallel(query_model)
             self.reranker = torch.nn.DataParallel(self.reranker)
+            self.teacher_model = torch.nn.DataParallel(self.teacher_model)
 
         logger.info(" Training started")
 
@@ -631,6 +706,7 @@ class RetrievalModel:
         early_stopping_counter = 0
         steps_trained_in_current_epoch = 0
         epochs_trained = 0
+        moving_loss = MovingLossAverage(args.moving_average_loss_count)
 
         if args.model_name and os.path.exists(args.model_name):
             try:
@@ -641,8 +717,10 @@ class RetrievalModel:
                 else:
                     checkpoint_suffix = checkpoint_suffix[-1]
                 global_step = int(checkpoint_suffix)
-                epochs_trained = global_step // (
-                    len(train_dataloader) // args.gradient_accumulation_steps
+                epochs_trained = (
+                    global_step
+                    // (len(train_dataloader) // args.gradient_accumulation_steps)
+                    + 1
                 )
                 steps_trained_in_current_epoch = global_step % (
                     len(train_dataloader) // args.gradient_accumulation_steps
@@ -656,6 +734,13 @@ class RetrievalModel:
                 logger.info(
                     "   Will skip the first %d steps in the current epoch",
                     steps_trained_in_current_epoch,
+                )
+                train_iterator = trange(
+                    epochs_trained,
+                    int(args.num_train_epochs),
+                    desc="Epoch",
+                    disable=args.silent,
+                    mininterval=0,
                 )
             except ValueError:
                 logger.info("   Starting fine-tuning.")
@@ -693,6 +778,7 @@ class RetrievalModel:
                 query_model.eval()
             if epochs_trained > 0:
                 epochs_trained -= 1
+                epoch_number = current_epoch - 1
                 continue
             train_iterator.set_description(
                 f"Epoch {epoch_number + 1} of {args.num_train_epochs}"
@@ -719,8 +805,27 @@ class RetrievalModel:
                 else:
                     context_inputs, query_inputs, labels = self._get_inputs_dict(batch)
                     reranking_input = None
-                if args.fp16:
-                    with amp.autocast():
+
+                high_loss_repeats = 0
+
+                while True:
+                    if args.fp16:
+                        with amp.autocast():
+                            retrieval_output = self._calculate_loss(
+                                context_model,
+                                query_model,
+                                context_inputs,
+                                query_inputs,
+                                labels,
+                                criterion,
+                                reranking_input,
+                                reranking_model=self.reranking_model,
+                            )
+                            loss = retrieval_output.loss
+                            correct_predictions_percentage = (
+                                retrieval_output.correct_predictions_percentage
+                            )
+                    else:
                         retrieval_output = self._calculate_loss(
                             context_model,
                             query_model,
@@ -729,35 +834,74 @@ class RetrievalModel:
                             labels,
                             criterion,
                             reranking_input,
+                            reranking_model=self.reranking_model,
                         )
                         loss = retrieval_output.loss
                         correct_predictions_percentage = (
                             retrieval_output.correct_predictions_percentage
                         )
-                else:
-                    retrieval_output = self._calculate_loss(
-                        context_model,
-                        query_model,
-                        context_inputs,
-                        query_inputs,
-                        labels,
-                        criterion,
-                        reranking_input,
-                    )
-                    loss = retrieval_output.loss
-                    correct_predictions_percentage = (
-                        retrieval_output.correct_predictions_percentage
+                    colbert_percentage = (
+                        retrieval_output.colbert_correct_predictions_percentage
                     )
 
-                if args.n_gpu > 1:
-                    loss = loss.mean()
+                    if args.n_gpu > 1:
+                        loss = loss.mean()
 
-                current_loss = loss.item()
+                    # Compare the current loss to the moving average loss
+                    current_loss = loss.item()
 
-                if show_running_loss:
+                    if (args.repeat_high_loss_n == 0 or moving_loss.size() < args.moving_average_loss_count):
+                        break
+
+                    if current_loss > moving_loss.get_average_loss():
+                        # Increment the high loss repeats counter
+                        high_loss_repeats += 1
+
+                        if high_loss_repeats > args.repeat_high_loss_n:
+                            # Exit the loop if the high loss repeats counter exceeds the threshold
+                            break
+                        if args.fp16:
+                            scaler.scale(loss).backward()
+                        else:
+                            loss.backward()
+
+                        if args.fp16:
+                            scaler.unscale_(optimizer)
+                        if args.optimizer == "AdamW":
+                            torch.nn.utils.clip_grad_norm_(
+                                context_model.parameters(), args.max_grad_norm
+                            )
+                            torch.nn.utils.clip_grad_norm_(
+                                query_model.parameters(), args.max_grad_norm
+                            )
+
+                        if args.fp16:
+                            scaler.step(optimizer)
+                            scaler.update()
+                        else:
+                            optimizer.step()
+                            context_model.zero_grad()
+                            query_model.zero_grad()
+                    else:
+                        # Exit the loop if the current loss is lower than the moving average loss
+                        break
+
+                if args.repeat_high_loss_n > 0:
+                    moving_loss.add_loss(current_loss)
+
+                if show_running_loss and (args.kl_div_loss or args.margin_mse_loss):
                     batch_iterator.set_description(
-                        f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f}"
+                        f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Colbert percentage: {colbert_percentage:4.1f}"
                     )
+                elif show_running_loss:
+                    if args.repeat_high_loss_n > 0:
+                        batch_iterator.set_description(
+                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} High loss repeats: {high_loss_repeats}"
+                        )
+                    else:
+                        batch_iterator.set_description(
+                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f}"
+                        )
 
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps
@@ -811,12 +955,33 @@ class RetrievalModel:
                                     "nll_loss": retrieval_output.nll_loss,
                                 }
                             else:
-                                logging_dict = {
-                                    "Training loss": current_loss,
-                                    "lr": scheduler.get_last_lr()[0],
-                                    "global_step": global_step,
-                                    "correct_predictions_percentage": correct_predictions_percentage,
-                                }
+                                if args.kl_div_loss or args.margin_mse_loss:
+                                    logging_dict = {
+                                        "Training loss": current_loss,
+                                        "lr": scheduler.get_last_lr()[0],
+                                        "global_step": global_step,
+                                        "correct_predictions_percentage": correct_predictions_percentage,
+                                        "colbert_correct_predictions_percentage": colbert_percentage,
+                                    }
+                                    if args.include_nll_loss:
+                                        logging_dict[
+                                            "nll_loss"
+                                        ] = retrieval_output.nll_loss
+                                        if args.kl_div_loss:
+                                            logging_dict["kl_div_loss"] = (
+                                                current_loss - retrieval_output.nll_loss
+                                            )
+                                        elif args.margin_mse_loss:
+                                            logging_dict["margin_mse_loss"] = (
+                                                current_loss - retrieval_output.nll_loss
+                                            )
+                                else:
+                                    logging_dict = {
+                                        "Training loss": current_loss,
+                                        "lr": scheduler.get_last_lr()[0],
+                                        "global_step": global_step,
+                                        "correct_predictions_percentage": correct_predictions_percentage,
+                                    }
                             wandb.log(logging_dict)
 
                     if args.save_steps > 0 and global_step % args.save_steps == 0:
@@ -838,16 +1003,28 @@ class RetrievalModel:
                         and global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results, *_ = self.eval_model(
-                            eval_data,
-                            additional_passages=additional_eval_passages,
-                            relevant_docs=relevant_docs,
-                            verbose=verbose and args.evaluate_during_training_verbose,
-                            silent=args.evaluate_during_training_silent,
-                            top_k_values=top_k_values,
-                            evaluating_during_training=True,
-                            **kwargs,
-                        )
+                        if args.data_format == "beir" or args.data_format == "msmarco":
+                            results = self.eval_model(
+                                eval_data,
+                                verbose=verbose
+                                and args.evaluate_during_training_verbose,
+                                silent=args.evaluate_during_training_silent,
+                                evaluating_during_training=True,
+                                eval_set=eval_set,
+                                **kwargs,
+                            )
+                        else:
+                            results, *_ = self.eval_model(
+                                eval_data,
+                                additional_passages=additional_eval_passages,
+                                relevant_docs=relevant_docs,
+                                verbose=verbose
+                                and args.evaluate_during_training_verbose,
+                                silent=args.evaluate_during_training_silent,
+                                top_k_values=top_k_values,
+                                evaluating_during_training=True,
+                                **kwargs,
+                            )
                         for key, value in results.items():
                             try:
                                 tb_writer.add_scalar(
@@ -994,7 +1171,7 @@ class RetrievalModel:
             epoch_number += 1
             output_dir_current = os.path.join(
                 output_dir,
-                "checkpoint-{}-epoch-{}".format(global_step, epoch_number + 1),
+                "checkpoint-{}-epoch-{}".format(global_step, epoch_number),
             )
 
             if (
@@ -1006,6 +1183,13 @@ class RetrievalModel:
                     clustered_training=clustered_training,
                     evaluate=False,
                     additional_eval_passages=additional_eval_passages,
+                    clustered_batch_randomize_percentage=randomize_percentage[
+                        epoch_number
+                    ]
+                    if clustered_training
+                    else None,
+                    epoch_number=epoch_number,
+                    dataset=train_dataset,
                 )
                 train_sampler = RandomSampler(train_dataset)
                 if clustered_training:
@@ -1031,16 +1215,26 @@ class RetrievalModel:
                 )
 
             if args.evaluate_during_training and args.evaluate_each_epoch:
-                results, *_ = self.eval_model(
-                    eval_data,
-                    additional_passages=additional_eval_passages,
-                    relevant_docs=relevant_docs,
-                    verbose=verbose and args.evaluate_during_training_verbose,
-                    silent=args.evaluate_during_training_silent,
-                    top_k_values=top_k_values,
-                    evaluating_during_training=True,
-                    **kwargs,
-                )
+                if args.data_format == "beir":
+                    results = self.eval_model(
+                        eval_data,
+                        verbose=verbose and args.evaluate_during_training_verbose,
+                        silent=args.evaluate_during_training_silent,
+                        evaluating_during_training=True,
+                        eval_set=eval_set,
+                        **kwargs,
+                    )
+                else:
+                    results, *_ = self.eval_model(
+                        eval_data,
+                        additional_passages=additional_eval_passages,
+                        relevant_docs=relevant_docs,
+                        verbose=verbose and args.evaluate_during_training_verbose,
+                        silent=args.evaluate_during_training_silent,
+                        top_k_values=top_k_values,
+                        evaluating_during_training=True,
+                        **kwargs,
+                    )
 
                 if args.save_eval_checkpoints:
                     self.save_model(
@@ -1256,7 +1450,7 @@ class RetrievalModel:
 
             return results, None, None, None, None, None
 
-        if self.args.data_format == "beir":
+        if self.args.data_format == "beir" or self.args.data_format == "msmarco":
             try:
                 import pytrec_eval
             except ImportError:
@@ -1265,19 +1459,24 @@ class RetrievalModel:
                 )
                 return
 
-            passage_dataset, query_dataset, qrels_dataset = load_trec_format(
-                eval_data, qrels_name=eval_set
-            )
+            if passage_dataset is None:
+                passage_dataset, query_dataset, qrels_dataset = load_trec_format(
+                    eval_data, qrels_name=eval_set, data_format=self.args.data_format
+                )
+            else:
+                _, query_dataset, qrels_dataset = load_trec_format(
+                    eval_data, qrels_name=eval_set, data_format=self.args.data_format, skip_passages=True
+                )
 
-            (
-                passage_dataset,
-                query_dataset,
-                qrels_dataset,
-            ) = convert_beir_columns_to_trec_format(
-                passage_dataset, query_dataset, qrels_dataset
-            )
+            if self.args.data_format == "beir":
+                (
+                    passage_dataset,
+                    query_dataset,
+                    qrels_dataset,
+                ) = convert_beir_columns_to_trec_format(
+                    passage_dataset, query_dataset, qrels_dataset
+                )
 
-            print(passage_dataset)
             passage_index = embed_passages_trec_format(
                 passage_dataset,
                 self.context_encoder,
@@ -1288,28 +1487,36 @@ class RetrievalModel:
             )
             self.prediction_passages = passage_index
 
-            predicted_doc_ids, rerank_similarity = self.predict(
-                to_predict=query_dataset["text"], doc_ids_only=True
+            query_text_column = "text" if self.args.data_format == "beir" else "query_text"
+
+            predicted_doc_ids, pre_rerank_doc_ids = self.predict(
+                to_predict=query_dataset[query_text_column], doc_ids_only=True
             )
 
-            run_dict = convert_beir_predictions_to_pytrec_format(
-                predicted_doc_ids, query_dataset
+            run_dict = convert_predictions_to_pytrec_format(
+                predicted_doc_ids, query_dataset, id_column="_id" if self.args.data_format == "beir" else "query_id"
             )
             qrels_dict = convert_qrels_dataset_to_pytrec_format(qrels_dataset)
 
             if pytrec_eval_metrics is None:
-                pytrec_eval_metrics = ["ndcg", "map", "recip_rank"]
+                pytrec_eval_metrics = self.args.pytrec_eval_metrics
 
             evaluator = pytrec_eval.RelevanceEvaluator(qrels_dict, pytrec_eval_metrics)
 
-            results = evaluator.evaluate(run_dict)
+            try:
+                results = evaluator.evaluate(run_dict)
+            except:
+                # Convert run_dict keys to strings
+                run_dict = {
+                    str(key): {str(k): v for k, v in value.items()} for key, value in run_dict.items()
+                }
+                results = evaluator.evaluate(run_dict)
 
             if save_as_experiment:
                 os.makedirs(
                     os.path.join(experiment_name, dataset_name, model_name),
                     exist_ok=True,
                 )
-
             result_report = {}
 
             for metric in pytrec_eval_metrics:
@@ -1684,7 +1891,9 @@ class RetrievalModel:
             doc_vectors: List of lists containing the retrieved doc vectors per query. (Shape: `(len(to_predict), retrieve_n_docs)`)
             doc_dicts: List of dicts containing the retrieved doc dicts per query.
         """  # noqa: ignore flake8"
-        if self.prediction_passages is None or (self.args.ance_training and is_training):
+        if self.prediction_passages is None or (
+            self.args.ance_training and is_training
+        ):
             if prediction_passages is None:
                 raise ValueError(
                     "prediction_passages cannot be None if the model does not contain a predicition passage index."
@@ -1777,6 +1986,7 @@ class RetrievalModel:
                             concatenate_embeddings=self.args.larger_representations
                             and self.args.model_type == "custom",
                             n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                            use_pooler_output=self.args.use_pooler_output,
                         )
                 else:
                     query_outputs = query_model(**query_inputs)
@@ -1785,6 +1995,7 @@ class RetrievalModel:
                         concatenate_embeddings=self.args.larger_representations
                         and self.args.model_type == "custom",
                         n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                        use_pooler_output=self.args.use_pooler_output,
                     )
 
             if self.unified_rr:
@@ -1813,14 +2024,24 @@ class RetrievalModel:
             )
             return passages
         elif doc_ids_only:
-            doc_ids, rerank_scores = self.retrieve_docs_from_query_embeddings(
-                all_query_embeddings,
-                self.prediction_passages,
-                retrieve_n_docs,
-                doc_ids_only=True,
-                reranking_query_outputs=all_reranking_query_embeddings,
-            )
-            return doc_ids, rerank_scores
+            if self.args.unified_cross_rr:
+                doc_ids, pre_rerank_doc_ids = self.retrieve_docs_from_query_embeddings(
+                    all_query_embeddings,
+                    self.prediction_passages,
+                    retrieve_n_docs,
+                    doc_ids_only=True,
+                    reranking_query_outputs=all_reranking_query_embeddings,
+                )
+                return doc_ids, pre_rerank_doc_ids
+            else:
+                doc_ids, rerank_scores = self.retrieve_docs_from_query_embeddings(
+                    all_query_embeddings,
+                    self.prediction_passages,
+                    retrieve_n_docs,
+                    doc_ids_only=True,
+                    reranking_query_outputs=all_reranking_query_embeddings,
+                )
+                return doc_ids, rerank_scores
         else:
             doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
                 all_query_embeddings, self.prediction_passages, retrieve_n_docs
@@ -2020,7 +2241,7 @@ class RetrievalModel:
 
         if passages_only:
             passages = []
-            for i, query_embeddings in enumerate(
+            for i, query_embeddings_retr in enumerate(
                 tqdm(
                     query_embeddings_batched,
                     desc="Retrieving docs",
@@ -2028,7 +2249,7 @@ class RetrievalModel:
                 )
             ):
                 doc_dicts_batch = passage_dataset.get_top_docs(
-                    query_embeddings.astype(np.float32),
+                    query_embeddings_retr.astype(np.float32),
                     retrieve_n_docs,
                     passages_only=True,
                 )
@@ -2040,7 +2261,7 @@ class RetrievalModel:
             doc_ids_batched = []
 
             if self.args.unified_rr:
-                for i, (query_embeddings, reranking_query_outputs) in enumerate(
+                for i, (query_embeddings_retr, reranking_query_outputs) in enumerate(
                     tqdm(
                         zip(
                             query_embeddings_batched,
@@ -2051,13 +2272,87 @@ class RetrievalModel:
                     )
                 ):
                     ids, reranking_scores = passage_dataset.get_top_doc_ids(
-                        query_embeddings.astype(np.float32),
+                        query_embeddings_retr.astype(np.float32),
                         retrieve_n_docs,
                         reranking_query_outputs,
                     )
                     doc_ids_batched.extend(ids)
+            elif self.args.unified_cross_rr:
+                # We need the doc_vectors
+                doc_ids_batched = np.zeros(
+                    (len(query_embeddings), retrieve_n_docs)
+                ).astype(int)
+                reranked_doc_ids_batched = np.zeros(
+                    (len(query_embeddings), retrieve_n_docs)
+                ).astype(int)
+
+                doc_vectors_batched = np.zeros(
+                    (
+                        len(query_embeddings),
+                        retrieve_n_docs,
+                        self.context_config.hidden_size
+                        if "projection_dim" not in self.context_config.to_dict()
+                        or not self.context_config.projection_dim
+                        else self.context_config.projection_dim,
+                    )
+                )
+                for i, query_embeddings_retr in enumerate(
+                    tqdm(
+                        query_embeddings_batched,
+                        desc="Retrieving docs",
+                        disable=args.silent,
+                    )
+                ):
+                    ids, vectors, *_ = passage_dataset.get_top_docs(
+                        query_embeddings_retr.astype(np.float32), retrieve_n_docs
+                    )
+                    doc_ids_batched[
+                        i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                        + len(ids)
+                    ] = ids
+                    doc_vectors_batched[
+                        i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                        + len(ids)
+                    ] = vectors
+
+                    query_outputs = torch.tensor(
+                        query_embeddings_retr,
+                        dtype=torch.float,
+                        device=self.device,
+                    )
+                    context_outputs = torch.tensor(
+                        vectors,
+                        dtype=torch.float,
+                        device=self.device,
+                    )
+
+                    with torch.no_grad():
+                        rerank_dot_score, rerank_softmax_score = self._rerank_passages(
+                            query_outputs=query_outputs,
+                            context_outputs=context_outputs,
+                            is_evaluating=True,
+                        )
+
+                    rerank_softmax_score = rerank_softmax_score.cpu().numpy()
+
+                    # Rerank the doc_ids based on the rerank_softmax_score
+                    rerank_indices = np.argsort(rerank_softmax_score, axis=1)[:, ::-1]
+
+                    reranked_doc_ids_batched[
+                        i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                        + len(ids)
+                    ] = doc_ids_batched[
+                        i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                        + len(ids)
+                    ][
+                        np.arange(len(ids))[:, None],
+                        rerank_indices,
+                    ]
+
+                return reranked_doc_ids_batched, doc_ids_batched
+
             else:
-                for i, query_embeddings in enumerate(
+                for i, query_embeddings_retr in enumerate(
                     tqdm(
                         query_embeddings_batched,
                         desc="Retrieving docs",
@@ -2065,7 +2360,7 @@ class RetrievalModel:
                     )
                 ):
                     ids = passage_dataset.get_top_doc_ids(
-                        query_embeddings.astype(np.float32), retrieve_n_docs
+                        query_embeddings_retr.astype(np.float32), retrieve_n_docs
                     )
                     doc_ids_batched.extend(ids)
 
@@ -2105,7 +2400,7 @@ class RetrievalModel:
                 )
             doc_dicts = []
 
-            for i, query_embeddings in enumerate(
+            for i, query_embeddings_retr in enumerate(
                 tqdm(
                     query_embeddings_batched,
                     desc="Retrieving docs",
@@ -2113,7 +2408,7 @@ class RetrievalModel:
                 )
             ):
                 ids, vectors, doc_dicts_batch = passage_dataset.get_top_docs(
-                    query_embeddings.astype(np.float32), retrieve_n_docs
+                    query_embeddings_retr.astype(np.float32), retrieve_n_docs
                 )
                 ids_batched[
                     i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
@@ -2207,14 +2502,16 @@ class RetrievalModel:
         hard_negative_list = []
         hn_found = False
         for hns, gold in zip(hard_negatives, train_data["gold_passage"]):
-            for hn in hns:
+            # Randomly sample a hn from hns and check if equal to gold
+            for _ in range(len(hns)):
+                hn = random.choice(hns)
                 if hn != gold:
                     hard_negative_list.append(hn)
                     hn_found = True
                     break
 
             if not hn_found:
-                hard_negative_list.append(hns[0])
+                hard_negative_list.append(hns[-1])
                 hn_found = False
 
         train_data["hard_negative"] = hard_negative_list
@@ -2230,6 +2527,9 @@ class RetrievalModel:
         silent=False,
         clustered_training=False,
         additional_eval_passages=None,
+        clustered_batch_randomize_percentage=0.0,
+        epoch_number=None,
+        dataset=None,
     ):
         """
         Creates a IRDataset from data
@@ -2243,19 +2543,31 @@ class RetrievalModel:
 
         if self.args.use_hf_datasets:
             if self.args.ance_training and not evaluate:
-                logger.info("Adding hard negatives for ANCE training.")
-                data = self.add_hard_negatives_for_ance(
+                if (
+                    epoch_number is None
+                    or epoch_number % self.args.ance_refresh_n_epochs == 0
+                ):
+                    logger.info("Adding hard negatives for ANCE training.")
+                    data = self.add_hard_negatives_for_ance(
+                        data,
+                        passage_dataset=additional_eval_passages,
+                    )
+                    logger.info("Finished adding hard negatives for ANCE training.")
+                else:
+                    logger.info(
+                        "Not updating hard negatives for ANCE training. {} epochs until next refresh.".format(
+                            self.args.ance_refresh_n_epochs
+                            - (epoch_number % self.args.ance_refresh_n_epochs)
+                        )
+                    )
+            if dataset is None or epoch_number % self.args.cluster_every_n_epochs == 0:
+                dataset = load_hf_dataset(
                     data,
-                    passage_dataset=additional_eval_passages,
+                    self.context_tokenizer,
+                    self.query_tokenizer,
+                    self.args,
+                    reranker_tokenizer=self.reranker_tokenizer,
                 )
-                logger.info("Finished adding hard negatives for ANCE training.")
-            dataset = load_hf_dataset(
-                data,
-                self.context_tokenizer,
-                self.query_tokenizer,
-                self.args,
-                reranker_tokenizer=self.reranker_tokenizer,
-            )
 
             if clustered_training:
                 return get_clustered_passage_dataset(
@@ -2267,8 +2579,18 @@ class RetrievalModel:
                     device=self.device,
                     reranker=self.reranker,
                     reranker_tokenizer=self.reranker_tokenizer,
+                    clustered_batch_randomize_percentage=clustered_batch_randomize_percentage,
+                    epoch_number=epoch_number,
                 )
-
+            elif self.args.tas_clustering:
+                return get_tas_dataset(
+                    passage_dataset=dataset,
+                    train_batch_size=self.args.train_batch_size,
+                    encoder=self.clustering_model,
+                    tokenizer=self.clustering_tokenizer,
+                    args=self.args,
+                    device=self.device,
+                )
             return dataset
         else:
             # Retrieval models can only be used with hf datasets
@@ -2444,6 +2766,7 @@ class RetrievalModel:
         labels,
         criterion,
         reranking_input=None,
+        reranking_model=None,
     ):
         # if self.args.larger_representations:
         #     context_outputs_all = context_model(**context_inputs)
@@ -2480,12 +2803,14 @@ class RetrievalModel:
                 concatenate_embeddings=self.args.larger_representations
                 and self.args.model_type == "custom",
                 n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                use_pooler_output=self.args.use_pooler_output,
             )
             query_outputs = get_output_embeddings(
                 query_outputs,
                 concatenate_embeddings=self.args.larger_representations
                 and self.args.model_type == "custom",
                 n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                use_pooler_output=self.args.use_pooler_output,
             )
             reranking_query_outputs = None
             reranking_context_outputs = None
@@ -2536,6 +2861,13 @@ class RetrievalModel:
         else:
             similarity_score = torch.matmul(query_outputs, context_outputs.t())
             softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
+
+            if self.args.unified_cross_rr:
+                reranking_dot_score, reranking_softmax_score = self._rerank_passages(
+                    query_outputs=query_outputs,
+                    context_outputs=context_outputs,
+                )
+
             if self.args.include_bce_loss and self.context_encoder.training:
                 bce_criterion = torch.nn.BCEWithLogitsLoss()
                 nll_criterion = torch.nn.NLLLoss(reduction="mean")
@@ -2549,10 +2881,64 @@ class RetrievalModel:
                 else:
                     loss = bce_loss
                     nll_loss = None
+
             else:
-                criterion = torch.nn.NLLLoss(reduction="mean")
-                nll_loss = criterion(softmax_score, labels)
-                nll_labels = labels
+                if self.args.margin_mse_loss:
+                    mmse_criterion = MarginMSELoss(margin=0.1)
+                    with torch.no_grad():
+                        label_scores = colbert_score(
+                            self.teacher_model,
+                            query_inputs,
+                            context_inputs,
+                            device=self.device,
+                        )
+
+                    if self.args.unified_cross_rr:
+                        similarity_score = reranking_dot_score
+
+                    mse_loss = mmse_criterion(similarity_score, label_scores)
+
+                    if self.args.include_nll_loss:
+                        nll_criterion = torch.nn.NLLLoss(reduction="mean")
+                        nll_loss = nll_criterion(softmax_score, labels)
+                        loss = mse_loss + nll_loss
+                    else:
+                        # a bit ugly but works downstream
+                        nll_loss = mse_loss
+                    # for computing correct percentage
+                    nll_labels = labels
+                elif self.args.kl_div_loss:
+                    kl_criterion = torch.nn.KLDivLoss(reduction="batchmean")
+                    with torch.no_grad():
+                        label_scores = colbert_score(
+                            self.teacher_model,
+                            query_inputs,
+                            context_inputs,
+                            device=self.device,
+                        )
+
+                    if self.args.unified_cross_rr:
+                        softmax_score = reranking_softmax_score
+
+                    kl_div_loss = kl_criterion(
+                        softmax_score,
+                        torch.nn.functional.softmax(label_scores, dim=-1),
+                    )
+
+                    if self.args.include_nll_loss:
+                        nll_criterion = torch.nn.NLLLoss(reduction="mean")
+
+                        nll_loss = nll_criterion(softmax_score, labels)
+                        loss = kl_div_loss + nll_loss
+                    else:
+                        # a bit ugly but works downstream
+                        nll_loss = loss
+                    # for computing correct percentage
+                    nll_labels = labels
+                else:
+                    criterion = torch.nn.NLLLoss(reduction="mean")
+                    nll_loss = criterion(softmax_score, labels)
+                    nll_labels = labels
 
                 if unified_rr:
                     reranking_target_tensor = []
@@ -2602,6 +2988,23 @@ class RetrievalModel:
             correct_predictions_count / len(nll_labels)
         ) * 100
 
+        if self.args.kl_div_loss or self.args.margin_mse_loss:
+            colbert_softmax_score = torch.nn.functional.softmax(label_scores, dim=-1)
+            colbert_max_score, colbert_max_idxs = torch.max(colbert_softmax_score, 1)
+            colbert_correct_predictions_count = (
+                (colbert_max_idxs == torch.tensor(nll_labels))
+                .sum()
+                .cpu()
+                .detach()
+                .numpy()
+                .item()
+            )
+            colbert_correct_predictions_percentage = (
+                colbert_correct_predictions_count / len(nll_labels)
+            ) * 100
+        else:
+            colbert_correct_predictions_percentage = None
+
         retrieval_output = RetrievalOutput(
             loss=loss,
             context_outputs=context_outputs,
@@ -2612,9 +3015,82 @@ class RetrievalModel:
             reranking_query_outputs=reranking_query_outputs,
             reranking_loss=reranking_loss.item() if reranking_loss else None,
             nll_loss=nll_loss.item(),
+            colbert_correct_predictions_percentage=colbert_correct_predictions_percentage,
         )
 
         return retrieval_output
+
+    def _rerank_passages(self, query_outputs, context_outputs, is_evaluating=False):
+        """
+        Unified cross reranking
+
+        query_outputs: (batch_size, hidden_size)
+        context_outputs: (batch_size, hidden_size)
+
+        reranking_model_input_embeds: (batch_size, max_seq_length, hidden_size)
+        Here, a single row of reranking_model_inputs is the concatenation of a query output (hidden_size) and all context outputs padded to max_seq_length.
+        reranking_model_attention_mask: (batch_size, max_seq_length)
+        reranking_model_token_type_ids: (batch_size, max_seq_length) - 0 for the query, 1 for the context
+        """
+        if is_evaluating:
+            query_outputs = query_outputs.unsqueeze(1)
+            reranking_model_inputs_embeds = torch.cat(
+                [query_outputs, context_outputs], dim=1
+            )
+
+            reranking_model_attention_mask = torch.ones_like(
+                reranking_model_inputs_embeds[:, :, 0]
+            )
+
+            reranking_model_token_type_ids = torch.zeros_like(
+                reranking_model_inputs_embeds[:, :, 0]
+            )
+            reranking_model_token_type_ids[:, 0] = torch.ones(
+                (query_outputs.size(0))
+            )
+        else:
+            reranking_model_inputs_embeds = torch.zeros(
+                (query_outputs.size(0), self.args.max_seq_length, query_outputs.size(1))
+            )
+
+            reranking_model_inputs_embeds[:, 0, :] = query_outputs
+            reranking_model_inputs_embeds[:, 1 : context_outputs.size(0) + 1, :] = context_outputs
+
+            reranking_model_attention_mask = torch.zeros(
+                (query_outputs.size(0), self.args.max_seq_length)
+            )
+            reranking_model_attention_mask[
+                :, 0 : context_outputs.size(0) + 1
+            ] = torch.ones((query_outputs.size(0), context_outputs.size(0) + 1)).to(
+                self.device
+            )
+
+            reranking_model_token_type_ids = torch.zeros(
+                (query_outputs.size(0), self.args.max_seq_length)
+            )
+            reranking_model_token_type_ids[:, 0] = torch.ones(
+                (query_outputs.size(0))
+            )
+
+        reranking_model_inputs = {
+            "inputs_embeds": reranking_model_inputs_embeds.to(self.device),
+            "attention_mask": reranking_model_attention_mask.long().to(self.device),
+            "token_type_ids": reranking_model_token_type_ids.long().to(self.device),
+        }
+
+        reranking_outputs = self.reranking_model(**reranking_model_inputs)
+
+        reranking_query_outputs = reranking_outputs[0][:, 0, :]
+        reranking_context_outputs = reranking_outputs[0][:, 1: context_outputs.size(1 if is_evaluating else 0) + 1, :]
+
+        reranking_dot_score = torch.bmm(
+            reranking_query_outputs.unsqueeze(1), reranking_context_outputs.transpose(-1, -2)
+        )
+        reranking_softmax_score = torch.nn.functional.log_softmax(
+            reranking_dot_score.squeeze(1), dim=-1
+        )
+
+        return reranking_dot_score, reranking_softmax_score
 
     def _get_inputs_dict(self, batch, evaluate=False):
         device = self.device
@@ -2791,6 +3267,16 @@ class RetrievalModel:
                 **{f"precision_at_{k}": [] for k in beir_top_ks},
                 **{f"mrr_at_{k}": [] for k in beir_top_ks},
             }
+        elif self.args.data_format == "beir":
+            training_progress_scores = {
+                **training_progress_scores,
+                **{"ndcg": []},
+                **{"recip_rank": []},
+                **{"recall_100": []},
+                **{"ndcg_cut_10": []},
+            }
+            # Remove eval_loss from training_progress_scores
+            training_progress_scores.pop("eval_loss")
         else:
             training_progress_scores = {
                 **training_progress_scores,
@@ -2869,6 +3355,21 @@ class RetrievalModel:
                     scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
                 )
 
+        if self.args.unified_cross_rr:
+            reranking_model_to_save = (
+                self.reranking_model.module
+                if hasattr(self.reranking_model, "module")
+                else self.reranking_model
+            )
+            os.makedirs(os.path.join(output_dir, "reranking_model"), exist_ok=True)
+
+            self.reranking_config.save_pretrained(
+                os.path.join(output_dir, "reranking_model")
+            )
+            reranking_model_to_save.save_pretrained(
+                os.path.join(output_dir, "reranking_model")
+            )
+
         if results:
             os.makedirs(output_dir, exist_ok=True)
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
@@ -2882,6 +3383,12 @@ class RetrievalModel:
 
         if self.unified_rr and not is_evaluating:
             self.reranker.to(self.device)
+
+        if self.args.unified_cross_rr:
+            self.reranking_model.to(self.device)
+
+        if (self.args.margin_mse_loss or self.args.kl_div_loss) and not is_evaluating:
+            self.teacher_model.to(self.device)
 
     def save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)

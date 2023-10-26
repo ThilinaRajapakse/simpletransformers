@@ -249,7 +249,7 @@ def build_classification_dataset(
                 examples = list(
                     tqdm(
                         p.imap(preprocess_data_multiprocessing, data),
-                        total=len(text_a),
+                        total=len(text_a) // chunksize,
                         disable=args.silent,
                     )
                 )
