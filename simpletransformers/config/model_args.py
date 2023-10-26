@@ -395,7 +395,9 @@ class RetrievalArgs(Seq2SeqArgs):
     moving_average_loss_count: int = 10
     nll_lambda: float = 1.0
     output_dropout: float = 0.1
-    pytrec_eval_metrics: list = field(default_factory=lambda: ["recip_rank", "recall_100", "ndcg_cut_10", "ndcg"])
+    pytrec_eval_metrics: list = field(
+        default_factory=lambda: ["recip_rank", "recall_100", "ndcg_cut_10", "ndcg"]
+    )
     query_config: dict = field(default_factory=dict)
     remove_duplicates_from_eval_passages: bool = False
     repeat_high_loss_n: int = 0

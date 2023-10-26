@@ -82,7 +82,11 @@ def generate_latex_row(
                         row += f"\\textbf{{{results[model_name][dataset_name][metric]:.3f}}}\\rlap{{\\textsuperscript{{*}}}} & "
                     else:
                         row += f"\\textbf{{{results[model_name][dataset_name][metric]:.3f}}} & "
-                elif model_name == second_best_model_name and best_model_name != second_best_model_name and len(all_scores) > 2:
+                elif (
+                    model_name == second_best_model_name
+                    and best_model_name != second_best_model_name
+                    and len(all_scores) > 2
+                ):
                     row += f"\\textit{{{results[model_name][dataset_name][metric]:.3f}}} & "
 
                 else:

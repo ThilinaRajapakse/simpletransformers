@@ -336,7 +336,9 @@ def preprocess_batch_for_hf_dataset(
             }
 
 
-def get_output_embeddings(embeddings, concatenate_embeddings=False, n_cls_tokens=3, use_pooler_output=False):
+def get_output_embeddings(
+    embeddings, concatenate_embeddings=False, n_cls_tokens=3, use_pooler_output=False
+):
     """
     Extracts the embeddings from the output of the model.
     Concatenates CLS embeddings if concatenate_embeddings is True.
@@ -910,7 +912,9 @@ class DPRIndex(Index):
             for i in tqdm(range(doc_ids.shape[0]), desc="Retrieving doc dicts")
         ]
 
-    def get_top_docs(self, question_hidden_states, n_docs=5, passages_only=False, return_indices=True):
+    def get_top_docs(
+        self, question_hidden_states, n_docs=5, passages_only=False, return_indices=True
+    ):
         if passages_only:
             _, docs = self.dataset.get_nearest_examples_batch(
                 "embeddings", question_hidden_states, n_docs
@@ -1652,7 +1656,9 @@ def get_clustered_passage_dataset(
     return ClusteredDataset(batch_datasets, len(clustered_batches))
 
 
-def load_trec_file(file_name, data_dir=None, header=False, loading_qrels=False, data_format=None):
+def load_trec_file(
+    file_name, data_dir=None, header=False, loading_qrels=False, data_format=None
+):
     if data_dir:
         if loading_qrels:
             if os.path.exists(os.path.join(data_dir, "qrels", f"{file_name}.tsv")):
@@ -1744,7 +1750,13 @@ def load_trec_format(
         if not skip_passages:
             collection = load_trec_file("corpus", data_dir, collection_header)
         queries = load_trec_file("queries", data_dir, queries_header)
-        qrels = load_trec_file(qrels_name, data_dir, qrels_header, loading_qrels=True, data_format=data_format)
+        qrels = load_trec_file(
+            qrels_name,
+            data_dir,
+            qrels_header,
+            loading_qrels=True,
+            data_format=data_format,
+        )
 
     else:
         if not collection_path or not queries_path or not qrels_path:
@@ -1759,7 +1771,11 @@ def load_trec_format(
 
     # Also check if an index exists
 
-    return None if skip_passages else collection["train"], queries["train"], qrels["train"]
+    return (
+        None if skip_passages else collection["train"],
+        queries["train"],
+        qrels["train"],
+    )
 
 
 def convert_beir_columns_to_trec_format(
@@ -1841,9 +1857,7 @@ def embed_passages_trec_format(
         logger.info("Generating embeddings for evaluation passages completed.")
 
         if args.save_passage_dataset:
-            output_dataset_directory = os.path.join(
-                args.output_dir, "passage_dataset"
-            )
+            output_dataset_directory = os.path.join(args.output_dir, "passage_dataset")
             os.makedirs(output_dataset_directory, exist_ok=True)
             passage_dataset.save_to_disk(output_dataset_directory)
 
@@ -1888,6 +1902,7 @@ class RetrievalOutput:
         reranking_loss=None,
         nll_loss=None,
         colbert_correct_predictions_percentage=None,
+        reranking_correct_predictions_percentage=None,
     ):
         self.loss = loss
         self.context_outputs = context_outputs
@@ -1900,6 +1915,9 @@ class RetrievalOutput:
         self.nll_loss = nll_loss
         self.colbert_correct_predictions_percentage = (
             colbert_correct_predictions_percentage
+        )
+        self.reranking_correct_predictions_percentage = (
+            reranking_correct_predictions_percentage
         )
 
 

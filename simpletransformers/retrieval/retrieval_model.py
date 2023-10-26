@@ -837,6 +837,9 @@ class RetrievalModel:
                     colbert_percentage = (
                         retrieval_output.colbert_correct_predictions_percentage
                     )
+                    reranking_correct_predictions_percentage = (
+                        retrieval_output.reranking_correct_predictions_percentage
+                    )
 
                     if args.n_gpu > 1:
                         loss = loss.mean()
@@ -844,7 +847,10 @@ class RetrievalModel:
                     # Compare the current loss to the moving average loss
                     current_loss = loss.item()
 
-                    if (args.repeat_high_loss_n == 0 or moving_loss.size() < args.moving_average_loss_count):
+                    if (
+                        args.repeat_high_loss_n == 0
+                        or moving_loss.size() < args.moving_average_loss_count
+                    ):
                         break
 
                     if current_loss > moving_loss.get_average_loss():
@@ -884,9 +890,14 @@ class RetrievalModel:
                     moving_loss.add_loss(current_loss)
 
                 if show_running_loss and (args.kl_div_loss or args.margin_mse_loss):
-                    batch_iterator.set_description(
-                        f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Colbert percentage: {colbert_percentage:4.1f}"
-                    )
+                    if args.unified_cross_rr:
+                        batch_iterator.set_description(
+                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Colbert percentage: {colbert_percentage:4.1f} Reranking correct percentage: {reranking_correct_predictions_percentage:4.1f}"
+                        )
+                    else:
+                        batch_iterator.set_description(
+                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Colbert percentage: {colbert_percentage:4.1f}"
+                        )
                 elif show_running_loss:
                     if args.repeat_high_loss_n > 0:
                         batch_iterator.set_description(
@@ -950,13 +961,23 @@ class RetrievalModel:
                                 }
                             else:
                                 if args.kl_div_loss or args.margin_mse_loss:
-                                    logging_dict = {
-                                        "Training loss": current_loss,
-                                        "lr": scheduler.get_last_lr()[0],
-                                        "global_step": global_step,
-                                        "correct_predictions_percentage": correct_predictions_percentage,
-                                        "colbert_correct_predictions_percentage": colbert_percentage,
-                                    }
+                                    if args.unified_cross_rr:
+                                        logging_dict = {
+                                            "Training loss": current_loss,
+                                            "lr": scheduler.get_last_lr()[0],
+                                            "global_step": global_step,
+                                            "correct_predictions_percentage": correct_predictions_percentage,
+                                            "colbert_correct_predictions_percentage": colbert_percentage,
+                                            "reranking_correct_predictions_percentage": reranking_correct_predictions_percentage,
+                                        }
+                                    else:
+                                        logging_dict = {
+                                            "Training loss": current_loss,
+                                            "lr": scheduler.get_last_lr()[0],
+                                            "global_step": global_step,
+                                            "correct_predictions_percentage": correct_predictions_percentage,
+                                            "colbert_correct_predictions_percentage": colbert_percentage,
+                                        }
                                     if args.include_nll_loss:
                                         logging_dict[
                                             "nll_loss"
@@ -1459,7 +1480,10 @@ class RetrievalModel:
                 )
             else:
                 _, query_dataset, qrels_dataset = load_trec_format(
-                    eval_data, qrels_name=eval_set, data_format=self.args.data_format, skip_passages=True
+                    eval_data,
+                    qrels_name=eval_set,
+                    data_format=self.args.data_format,
+                    skip_passages=True,
                 )
 
             if self.args.data_format == "beir":
@@ -1481,14 +1505,18 @@ class RetrievalModel:
             )
             self.prediction_passages = passage_index
 
-            query_text_column = "text" if self.args.data_format == "beir" else "query_text"
+            query_text_column = (
+                "text" if self.args.data_format == "beir" else "query_text"
+            )
 
             predicted_doc_ids, pre_rerank_doc_ids = self.predict(
                 to_predict=query_dataset[query_text_column], doc_ids_only=True
             )
 
             run_dict = convert_predictions_to_pytrec_format(
-                predicted_doc_ids, query_dataset, id_column="_id" if self.args.data_format == "beir" else "query_id"
+                predicted_doc_ids,
+                query_dataset,
+                id_column="_id" if self.args.data_format == "beir" else "query_id",
             )
             qrels_dict = convert_qrels_dataset_to_pytrec_format(qrels_dataset)
 
@@ -1502,7 +1530,8 @@ class RetrievalModel:
             except:
                 # Convert run_dict keys to strings
                 run_dict = {
-                    str(key): {str(k): v for k, v in value.items()} for key, value in run_dict.items()
+                    str(key): {str(k): v for k, v in value.items()}
+                    for key, value in run_dict.items()
                 }
                 results = evaluator.evaluate(run_dict)
 
@@ -2299,7 +2328,9 @@ class RetrievalModel:
                     )
                 ):
                     ids, vectors, *_ = passage_dataset.get_top_docs(
-                        query_embeddings_retr.astype(np.float32), retrieve_n_docs, return_indices=False,
+                        query_embeddings_retr.astype(np.float32),
+                        retrieve_n_docs,
+                        return_indices=False,
                     )
                     doc_ids_batched[
                         i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
@@ -2985,6 +3016,20 @@ class RetrievalModel:
             correct_predictions_count / len(nll_labels)
         ) * 100
 
+        if self.args.unified_cross_rr:
+            rerank_max_score, rerank_max_idxs = torch.max(reranking_softmax_score, 1)
+            rerank_correct_predictions_count = (
+                (rerank_max_idxs == torch.tensor(nll_labels))
+                .sum()
+                .cpu()
+                .detach()
+                .numpy()
+                .item()
+            )
+            rerank_correct_predictions_percentage = (
+                rerank_correct_predictions_count / len(nll_labels)
+            ) * 100
+
         if self.args.kl_div_loss or self.args.margin_mse_loss:
             colbert_softmax_score = torch.nn.functional.softmax(label_scores, dim=-1)
             colbert_max_score, colbert_max_idxs = torch.max(colbert_softmax_score, 1)
@@ -3013,6 +3058,7 @@ class RetrievalModel:
             reranking_loss=reranking_loss.item() if reranking_loss else None,
             nll_loss=nll_loss.item(),
             colbert_correct_predictions_percentage=colbert_correct_predictions_percentage,
+            reranking_correct_predictions_percentage=rerank_correct_predictions_percentage,
         )
 
         return retrieval_output
@@ -3042,16 +3088,16 @@ class RetrievalModel:
             reranking_model_token_type_ids = torch.zeros_like(
                 reranking_model_inputs_embeds[:, :, 0]
             )
-            reranking_model_token_type_ids[:, 0] = torch.ones(
-                (query_outputs.size(0))
-            )
+            reranking_model_token_type_ids[:, 0] = torch.ones((query_outputs.size(0)))
         else:
             reranking_model_inputs_embeds = torch.zeros(
                 (query_outputs.size(0), self.args.max_seq_length, query_outputs.size(1))
             )
 
             reranking_model_inputs_embeds[:, 0, :] = query_outputs
-            reranking_model_inputs_embeds[:, 1 : context_outputs.size(0) + 1, :] = context_outputs
+            reranking_model_inputs_embeds[
+                :, 1 : context_outputs.size(0) + 1, :
+            ] = context_outputs
 
             reranking_model_attention_mask = torch.zeros(
                 (query_outputs.size(0), self.args.max_seq_length)
@@ -3065,9 +3111,7 @@ class RetrievalModel:
             reranking_model_token_type_ids = torch.zeros(
                 (query_outputs.size(0), self.args.max_seq_length)
             )
-            reranking_model_token_type_ids[:, 0] = torch.ones(
-                (query_outputs.size(0))
-            )
+            reranking_model_token_type_ids[:, 0] = torch.ones((query_outputs.size(0)))
 
         reranking_model_inputs = {
             "inputs_embeds": reranking_model_inputs_embeds.to(self.device),
@@ -3078,10 +3122,13 @@ class RetrievalModel:
         reranking_outputs = self.reranking_model(**reranking_model_inputs)
 
         reranking_query_outputs = reranking_outputs[0][:, 0, :]
-        reranking_context_outputs = reranking_outputs[0][:, 1: context_outputs.size(1 if is_evaluating else 0) + 1, :]
+        reranking_context_outputs = reranking_outputs[0][
+            :, 1 : context_outputs.size(1 if is_evaluating else 0) + 1, :
+        ]
 
         reranking_dot_score = torch.bmm(
-            reranking_query_outputs.unsqueeze(1), reranking_context_outputs.transpose(-1, -2)
+            reranking_query_outputs.unsqueeze(1),
+            reranking_context_outputs.transpose(-1, -2),
         )
         reranking_softmax_score = torch.nn.functional.log_softmax(
             reranking_dot_score.squeeze(1), dim=-1
