@@ -969,6 +969,7 @@ class RetrievalModel:
                                             "correct_predictions_percentage": correct_predictions_percentage,
                                             "colbert_correct_predictions_percentage": colbert_percentage,
                                             "reranking_correct_predictions_percentage": reranking_correct_predictions_percentage,
+                                            "distillation_loss": retrieval_output.distillation_loss,
                                         }
                                     else:
                                         logging_dict = {
@@ -2932,7 +2933,7 @@ class RetrievalModel:
                         loss = mse_loss + nll_loss
                     else:
                         # a bit ugly but works downstream
-                        nll_loss = mse_loss
+                        loss = mse_loss
                     # for computing correct percentage
                     nll_labels = labels
                 elif self.args.kl_div_loss:
@@ -2945,11 +2946,8 @@ class RetrievalModel:
                             device=self.device,
                         )
 
-                    if self.args.unified_cross_rr:
-                        softmax_score = reranking_softmax_score
-
                     kl_div_loss = kl_criterion(
-                        softmax_score,
+                        reranking_softmax_score if self.args.unified_cross_rr else softmax_score,
                         torch.nn.functional.softmax(label_scores, dim=-1),
                     )
 
@@ -2960,7 +2958,7 @@ class RetrievalModel:
                         loss = kl_div_loss + nll_loss
                     else:
                         # a bit ugly but works downstream
-                        nll_loss = loss
+                        loss = kl_div_loss
                     # for computing correct percentage
                     nll_labels = labels
                 else:
@@ -3004,9 +3002,16 @@ class RetrievalModel:
                     )
 
                     loss = nll_loss + reranking_loss
+                elif self.args.unified_cross_rr:
+                    loss = nll_loss + kl_div_loss if self.args.kl_div_loss else mse_loss
+                    distillation_loss = (
+                        kl_div_loss.item() if self.args.kl_div_loss else mse_loss.item()
+                    )
+                    reranking_loss = None
                 else:
                     reranking_loss = None
                     loss = nll_loss
+                    distillation_loss = None
 
         max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
@@ -3057,6 +3062,7 @@ class RetrievalModel:
             reranking_query_outputs=reranking_query_outputs,
             reranking_loss=reranking_loss.item() if reranking_loss else None,
             nll_loss=nll_loss.item(),
+            distillation_loss=distillation_loss,
             colbert_correct_predictions_percentage=colbert_correct_predictions_percentage,
             reranking_correct_predictions_percentage=rerank_correct_predictions_percentage,
         )

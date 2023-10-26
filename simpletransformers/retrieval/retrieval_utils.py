@@ -1903,6 +1903,7 @@ class RetrievalOutput:
         nll_loss=None,
         colbert_correct_predictions_percentage=None,
         reranking_correct_predictions_percentage=None,
+        distillation_loss=None,
     ):
         self.loss = loss
         self.context_outputs = context_outputs
@@ -1919,6 +1920,7 @@ class RetrievalOutput:
         self.reranking_correct_predictions_percentage = (
             reranking_correct_predictions_percentage
         )
+        self.distillation_loss = distillation_loss
 
 
 class MarginMSELoss(nn.Module):
