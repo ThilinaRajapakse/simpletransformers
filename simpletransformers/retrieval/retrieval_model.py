@@ -232,12 +232,6 @@ class RetrievalModel:
             self.reranking_model = context_encoder.from_pretrained(
                 reranking_model_name, config=self.reranking_config
             )
-            if self.args.retrieval_batch_size > self.args.max_seq_length - 1:
-                warnings.warn(
-                    f"retrieval_batch_size ({self.args.retrieval_batch_size}) is larger than max_seq_length ({self.args.max_seq_length - 1})." +
-                    "Setting retrieval_batch_size to max_seq_length - 1."
-                )
-                self.args.retrieval_batch_size = self.args.max_seq_length - 1
         else:
             self.reranking_config = None
             self.reranking_model = None
@@ -2296,6 +2290,7 @@ class RetrievalModel:
                         else self.context_config.projection_dim,
                     )
                 )
+
                 for i, query_embeddings_retr in enumerate(
                     tqdm(
                         query_embeddings_batched,
@@ -2304,12 +2299,14 @@ class RetrievalModel:
                     )
                 ):
                     ids, vectors, *_ = passage_dataset.get_top_docs(
-                        query_embeddings_retr.astype(np.float32), retrieve_n_docs
+                        query_embeddings_retr.astype(np.float32), retrieve_n_docs, return_indices=False,
                     )
                     doc_ids_batched[
                         i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
                         + len(ids)
                     ] = ids
+                    reranking_scores = None
+
                     doc_vectors_batched[
                         i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
                         + len(ids)
@@ -2364,7 +2361,7 @@ class RetrievalModel:
                     )
                     doc_ids_batched.extend(ids)
 
-                    reranking_scores = None
+                reranking_scores = None
 
             return doc_ids_batched, reranking_scores
         else:

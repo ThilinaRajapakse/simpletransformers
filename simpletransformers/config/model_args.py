@@ -313,6 +313,7 @@ class Seq2SeqArgs(ModelArgs):
     evaluate_generated_text: bool = False
     faiss_d: int = 768
     faiss_m: int = 128
+    faiss_index_type: str = "IndexFlatIP"
     include_title_in_knowledge_dataset: bool = True
     length_penalty: float = 2.0
     max_length: int = 20

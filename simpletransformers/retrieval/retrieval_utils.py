@@ -746,9 +746,7 @@ def get_evaluation_passage_dataset(
                 passage_dataset.save_to_disk(output_dataset_directory)
 
         logger.info("Adding FAISS index to evaluation passages")
-        index = faiss.IndexHNSWFlat(
-            args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
-        )
+        index = get_faiss_index(args)
         passage_dataset.add_faiss_index("embeddings", custom_index=index)
         passage_index = DPRIndex(passage_dataset, context_config.hidden_size)
         logger.info("Adding FAISS index to evaluation passages completed.")
@@ -768,9 +766,7 @@ def get_evaluation_passage_dataset(
             passage_dataset = passage_data
         else:
             logger.info("Adding FAISS index to evaluation passages")
-            index = faiss.IndexHNSWFlat(
-                args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
-            )
+            index = get_faiss_index(args)
             passage_dataset.add_faiss_index("embeddings", custom_index=index)
             logger.info("Adding FAISS index to evaluation passages completed.")
             if args.save_passage_dataset:
@@ -884,16 +880,7 @@ def get_prediction_passage_dataset(
 
     if not index_added:
         logger.info("Adding FAISS index to prediction passages")
-        if args.faiss_index_type == "IndexHNSWFlat":
-            index = faiss.IndexHNSWFlat(
-                args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
-            )
-        elif args.faiss_index_type == "IndexFlatIP":
-            index = faiss.IndexFlatIP(args.faiss_d)
-        else:
-            raise ValueError(
-                f"Unsupported FAISS index type {args.faiss_index_type}. Choose from IndexHNSWFlat and IndexFlatIP"
-            )
+        index = get_faiss_index(args)
         prediction_passages_dataset.add_faiss_index(
             "embeddings", custom_index=index, faiss_verbose=True
         )
@@ -923,7 +910,7 @@ class DPRIndex(Index):
             for i in tqdm(range(doc_ids.shape[0]), desc="Retrieving doc dicts")
         ]
 
-    def get_top_docs(self, question_hidden_states, n_docs=5, passages_only=False):
+    def get_top_docs(self, question_hidden_states, n_docs=5, passages_only=False, return_indices=True):
         if passages_only:
             _, docs = self.dataset.get_nearest_examples_batch(
                 "embeddings", question_hidden_states, n_docs
@@ -932,17 +919,25 @@ class DPRIndex(Index):
 
         _, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
+        doc_ids = [doc["passage_id"] for doc in docs]
         vectors = [doc["embeddings"] for doc in docs]
         for i in range(len(vectors)):
             if len(vectors[i]) < n_docs:
                 vectors[i] = np.vstack(
                     [vectors[i], np.zeros((n_docs - len(vectors[i]), self.vector_size))]
                 )
-        return (
-            np.array(ids),
-            np.array(vectors),
-            docs,
-        )  # shapes (batch_size, n_docs) and (batch_size, n_docs, d)
+        if return_indices:
+            return (
+                ids,
+                np.array(vectors),
+                docs,
+            )
+        else:
+            return (
+                np.array(doc_ids),
+                np.array(vectors),
+                docs,
+            )
 
     def get_top_doc_ids(
         self, question_hidden_states, n_docs=5, reranking_query_outputs=None
@@ -1803,9 +1798,7 @@ def embed_passages_trec_format(
             passage_dataset = passage_data
         else:
             logger.info("Adding FAISS index to evaluation passages")
-            index = faiss.IndexHNSWFlat(
-                args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
-            )
+            index
             passage_dataset.add_faiss_index("embeddings", custom_index=index)
             logger.info("Adding FAISS index to evaluation passages completed.")
             if args.save_passage_dataset:
@@ -1855,9 +1848,7 @@ def embed_passages_trec_format(
             passage_dataset.save_to_disk(output_dataset_directory)
 
         logger.info("Adding FAISS index to evaluation passages")
-        index = faiss.IndexHNSWFlat(
-            args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
-        )
+        index = get_faiss_index(args)
         passage_dataset.add_faiss_index("embeddings", custom_index=index)
         passage_index = DPRIndex(passage_dataset, context_config.hidden_size)
         logger.info("Adding FAISS index to evaluation passages completed.")
@@ -2121,3 +2112,17 @@ class MovingLossAverage:
 
     def size(self):
         return len(self.losses)
+
+
+def get_faiss_index(args):
+    if args.faiss_index_type == "IndexHNSWFlat":
+        index = faiss.IndexHNSWFlat(
+            args.faiss_d, args.faiss_m, faiss.METRIC_INNER_PRODUCT
+        )
+    elif args.faiss_index_type == "IndexFlatIP":
+        index = faiss.IndexFlatIP(args.faiss_d)
+    else:
+        raise ValueError(
+            f"faiss_index_type {args.faiss_index_type} is not supported. Please use IndexHNSWFlat or IndexFlatIP."
+        )
+    return index
