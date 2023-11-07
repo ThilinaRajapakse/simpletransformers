@@ -42,7 +42,8 @@ def load_hf_dataset(
     query_tokenizer,
     args,
     evaluate=False,
-    reranker_tokenizer=None,
+    teacher_tokenizer=None,
+    clustered_training=False,
 ):
     if isinstance(data, str):
         if data.endswith(".json"):
@@ -126,7 +127,7 @@ def load_hf_dataset(
             query_tokenizer=query_tokenizer,
             args=args,
             evaluate=evaluate,
-            reranker_tokenizer=reranker_tokenizer,
+            teacher_tokenizer=teacher_tokenizer,
         ),
         batched=True,
     )
@@ -160,6 +161,14 @@ def load_hf_dataset(
                 # "passage_id",
             ]
 
+    if args.unified_cross_rr and teacher_tokenizer:
+        column_names += [
+            "reranking_context_ids",
+            "reranking_context_mask",
+            "reranking_query_ids",
+            "reranking_query_mask",
+        ]
+
     if evaluate:
         gold_passages = dataset["gold_passage"]
         dataset.set_format(type="pt", columns=column_names)
@@ -167,6 +176,13 @@ def load_hf_dataset(
         return dataset, gold_passages
     else:
         dataset.set_format(type="pt", columns=column_names)
+        if args.unified_cross_rr and not clustered_training and not evaluate:
+            dataset = dataset.to_pandas()
+            dataset = np.array_split(dataset, math.ceil(len(dataset) / args.train_batch_size))
+            batch_datasets = [HFDataset.from_pandas(df) for df in dataset]
+
+            dataset = ClusteredDataset(batch_datasets, len(batch_datasets))
+
         return dataset
 
 
@@ -176,9 +192,9 @@ def preprocess_batch_for_hf_dataset(
     query_tokenizer,
     args,
     evaluate=False,
-    reranker_tokenizer=None,
+    teacher_tokenizer=None,
 ):
-    if reranker_tokenizer is None:
+    if teacher_tokenizer is None:
         unified_rr = False
     else:
         unified_rr = True
@@ -220,15 +236,15 @@ def preprocess_batch_for_hf_dataset(
     context_mask = context_inputs["attention_mask"].squeeze()
     query_mask = query_inputs["attention_mask"].squeeze()
 
-    if unified_rr:
-        reranking_query_inputs = reranker_tokenizer(
+    if unified_rr or (args.unified_cross_rr and teacher_tokenizer):
+        reranking_query_inputs = teacher_tokenizer(
             dataset["query_text"],
             padding=False,
             return_tensors="np",
             truncation=True,
         )
 
-        reranking_context_inputs = reranker_tokenizer(
+        reranking_context_inputs = teacher_tokenizer(
             dataset["gold_passage"],
             padding=False,
             return_tensors="np",
@@ -537,7 +553,7 @@ def get_evaluation_passage_dataset(
                     "retrieval_dataset_loading_script",
                     data_files=eval_data,
                     hard_negatives=args.hard_negatives,
-                    include_title=args.include_title_in_knowledge_dataset,
+                    include_title=args.include_title_in_corpus,
                     download_mode="force_redownload"
                     if args.reprocess_input_data
                     else "reuse_dataset_if_exists",
@@ -554,10 +570,10 @@ def get_evaluation_passage_dataset(
                     cache_dir=args.dataset_cache_dir,
                 )
                 passage_dataset = passage_dataset["train"]
-                if args.include_title_in_knowledge_dataset:
+                if args.include_title_in_corpus:
                     if "title" not in passage_dataset.column_names:
                         raise ValueError(
-                            "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
+                            "The dataset must contain a column named 'title' if args.include_title_in_corpus is True."
                         )
                     passage_dataset = passage_dataset.map(
                         lambda example: {
@@ -569,10 +585,10 @@ def get_evaluation_passage_dataset(
 
         else:
             passage_dataset = HFDataset.from_pandas(eval_data)
-            if args.include_title_in_knowledge_dataset:
+            if args.include_title_in_corpus:
                 if "title" not in passage_dataset.column_names:
                     raise ValueError(
-                        "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
+                        "The dataset must contain a column named 'title' if args.include_title_in_corpus is True."
                     )
                 passage_dataset = passage_dataset.map(
                     lambda example: {
@@ -634,10 +650,10 @@ def get_evaluation_passage_dataset(
                         column_names=["passages"],
                         cache_dir=args.dataset_cache_dir,
                     )
-                    if args.include_title_in_knowledge_dataset:
+                    if args.include_title_in_corpus:
                         if "title" not in passage_dataset.column_names:
                             raise ValueError(
-                                "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
+                                "The dataset must contain a column named 'title' if args.include_title_in_corpus is True."
                             )
                         passage_dataset = passage_dataset.map(
                             lambda example: {
@@ -653,10 +669,10 @@ def get_evaluation_passage_dataset(
                 )
             else:
                 additional_passages = HFDataset.from_pandas(additional_passages)
-                if args.include_title_in_knowledge_dataset:
+                if args.include_title_in_corpus:
                     if "title" not in passage_dataset.column_names:
                         raise ValueError(
-                            "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
+                            "The dataset must contain a column named 'title' if args.include_title_in_corpus is True."
                         )
                     additional_passages = additional_passages.map(
                         lambda example: {
@@ -808,10 +824,10 @@ def get_prediction_passage_dataset(
                 cache_dir=args.dataset_cache_dir,
             )
             prediction_passages_dataset = prediction_passages_dataset["train"]
-            if args.include_title_in_knowledge_dataset:
+            if args.include_title_in_corpus:
                 if "title" not in prediction_passages_dataset.column_names:
                     raise ValueError(
-                        "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
+                        "The dataset must contain a column named 'title' if args.include_title_in_corpus is True."
                     )
                 prediction_passages_dataset = prediction_passages_dataset.map(
                     lambda example: {
@@ -824,10 +840,10 @@ def get_prediction_passage_dataset(
         )
     else:
         prediction_passages_dataset = HFDataset.from_pandas(prediction_passages)
-        if args.include_title_in_knowledge_dataset:
+        if args.include_title_in_corpus:
             if "title" not in prediction_passages_dataset.column_names:
                 raise ValueError(
-                    "The dataset must contain a column named 'title' if args.include_title_in_knowledge_dataset is True."
+                    "The dataset must contain a column named 'title' if args.include_title_in_corpus is True."
                 )
             prediction_passages_dataset = prediction_passages_dataset.map(
                 lambda example: {
@@ -923,7 +939,12 @@ class DPRIndex(Index):
 
         _, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
-        doc_ids = [doc["passage_id"] for doc in docs]
+        try:
+            doc_ids = [doc["passage_id"] for doc in docs]
+        except KeyError:
+            raise KeyError(
+                "The dataset must contain a column named 'passage_id' if passages_only is False."
+            )
         vectors = [doc["embeddings"] for doc in docs]
         for i in range(len(vectors)):
             if len(vectors[i]) < n_docs:
@@ -1235,8 +1256,8 @@ def get_clustered_passage_dataset(
     tokenizer,
     args,
     device,
-    reranker=None,
-    reranker_tokenizer=None,
+    teacher_model=None,
+    teacher_tokenizer=None,
     clustered_batch_randomize_percentage=0.0,
     epoch_number=None,
 ):
@@ -1782,8 +1803,11 @@ def convert_beir_columns_to_trec_format(
     collection,
     queries,
     qrels,
+    include_titles=False,
 ):
     collection = collection.rename_column("_id", "passage_id")
+    if include_titles:
+        collection = collection.map(lambda row: {"text": row["title"] + " " + row["text"]})
     collection = collection.rename_column("text", "passage_text")
     # queries = queries.rename_column("_id", "query_id")
     # queries = queries.rename_column("text", "query_text")
@@ -1901,9 +1925,8 @@ class RetrievalOutput:
         reranking_query_outputs=None,
         reranking_loss=None,
         nll_loss=None,
-        colbert_correct_predictions_percentage=None,
+        teacher_correct_predictions_percentage=None,
         reranking_correct_predictions_percentage=None,
-        distillation_loss=None,
     ):
         self.loss = loss
         self.context_outputs = context_outputs
@@ -1914,13 +1937,12 @@ class RetrievalOutput:
         self.reranking_query_outputs = reranking_query_outputs
         self.reranking_loss = reranking_loss
         self.nll_loss = nll_loss
-        self.colbert_correct_predictions_percentage = (
-            colbert_correct_predictions_percentage
+        self.teacher_correct_predictions_percentage = (
+            teacher_correct_predictions_percentage
         )
         self.reranking_correct_predictions_percentage = (
             reranking_correct_predictions_percentage
         )
-        self.distillation_loss = distillation_loss
 
 
 class MarginMSELoss(nn.Module):
@@ -1947,11 +1969,17 @@ def colbert_score(teacher_model, query_inputs, context_inputs, device):
 
     def score(Q, D):
         return (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
+        # return teacher_model.score(Q, D)
 
     for i, q_vec in enumerate(Q_vectors):
         scores[i, :] = score(q_vec, D_vectors)
 
     return scores
+
+
+def cross_encoder_score(teacher_model, query_inputs, context_inputs, device):
+    # Build input tensors
+    pass
 
 
 def get_tas_dataset(

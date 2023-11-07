@@ -18,6 +18,7 @@ class BeirRetrievalModel:
         context_config,
         query_config,
         args,
+        reranking_model=None,
         **kwargs
     ):
         self.context_encoder = context_encoder
@@ -26,6 +27,7 @@ class BeirRetrievalModel:
         self.query_tokenizer = query_tokenizer
         self.context_config = context_config
         self.query_config = query_config
+        self.reranking_model = reranking_model
         self.args = args
 
     # Write your own encoding query function (Returns: Query embeddings as numpy array)

@@ -314,7 +314,7 @@ class Seq2SeqArgs(ModelArgs):
     faiss_d: int = 768
     faiss_m: int = 128
     faiss_index_type: str = "IndexFlatIP"
-    include_title_in_knowledge_dataset: bool = True
+    include_title_in_corpus: bool = True
     length_penalty: float = 2.0
     max_length: int = 20
     max_steps: int = -1
@@ -407,6 +407,7 @@ class RetrievalArgs(Seq2SeqArgs):
     save_clustering_idx: bool = False
     save_passage_dataset: bool = True
     tas_clustering: bool = False
+    teacher_type: str = "colbert"
     tie_encoders: bool = False
     train_context_encoder: bool = True
     train_query_encoder: bool = True

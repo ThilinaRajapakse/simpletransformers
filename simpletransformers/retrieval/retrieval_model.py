@@ -120,10 +120,9 @@ class RetrievalModel:
         context_encoder_tokenizer=None,
         query_encoder_tokenizer=None,
         reranking_model_name=None,
-        reranker_name=None,
-        reranker_tokenizer=None,
         prediction_passages=None,
-        teacher_model=None,
+        teacher_model_name=None,
+        teacher_tokenizer_name=None,
         clustering_model=None,
         args=None,
         use_cuda=True,
@@ -226,12 +225,22 @@ class RetrievalModel:
             )
 
         if self.args.unified_cross_rr:
-            self.reranking_config = config_class.from_pretrained(
-                reranking_model_name, **self.args.reranking_config
-            )
-            self.reranking_model = context_encoder.from_pretrained(
-                reranking_model_name, config=self.reranking_config
-            )
+            if reranking_model_name:
+                self.reranking_config = config_class.from_pretrained(
+                    reranking_model_name, **self.args.reranking_config
+                )
+                self.reranking_model = context_encoder.from_pretrained(
+                    reranking_model_name, config=self.reranking_config
+                )
+            elif model_name:
+                self.reranking_config = config_class.from_pretrained(
+                    os.path.join(model_name, "reranking_model"),
+                    **self.args.reranking_config
+                )
+                self.reranking_model = context_encoder.from_pretrained(
+                    os.path.join(model_name, "reranking_model"),
+                    config=self.reranking_config,
+                )
         else:
             self.reranking_config = None
             self.reranking_model = None
@@ -309,32 +318,38 @@ class RetrievalModel:
                     query_encoder_tokenizer
                 )
 
-        if reranker_name is not None:
-            self.reranker = AutoModelForSequenceClassification.from_pretrained(
-                reranker_name
+        if args.unified_rr:
+            self.teacher_model = AutoModelForSequenceClassification.from_pretrained(
+                teacher_model_name
             )
-            if reranker_tokenizer is None:
-                self.reranker_tokenizer = AutoTokenizer.from_pretrained(
-                    reranker_name, max_len=args.max_seq_length
+            if teacher_tokenizer_name is None:
+                self.teacher_tokenizer = AutoTokenizer.from_pretrained(
+                    teacher_model_name, max_len=args.max_seq_length
                 )
-            elif isinstance(reranker_tokenizer, str):
-                self.reranker_tokenizer = AutoTokenizer.from_pretrained(
-                    reranker_tokenizer, max_len=args.max_seq_length
+            elif isinstance(teacher_tokenizer_name, str):
+                self.teacher_tokenizer = AutoTokenizer.from_pretrained(
+                    teacher_tokenizer_name, max_len=args.max_seq_length
                 )
             else:
-                self.reranker_tokenizer = reranker_tokenizer
+                self.teacher_tokenizer = teacher_tokenizer_name
         else:
-            self.reranker = None
-            self.reranker_tokenizer = None
+            self.teacher_model = None
+            self.teacher_tokenizer = None
 
         if args.margin_mse_loss or args.kl_div_loss:
-            self.teacher_model = ColBERTModel.from_pretrained(
-                teacher_model,
-                query_maxlen=32,
-                doc_maxlen=180,
-                mask_punctuation=True,
-                device=self.device,
-            )
+            if args.teacher_type == "colbert":
+                self.teacher_model = ColBERTModel.from_pretrained(
+                    teacher_model_name,
+                    query_maxlen=32,
+                    doc_maxlen=180,
+                    mask_punctuation=True,
+                    device=self.device,
+                )
+            elif args.teacher_type == "cross_encoder":
+                self.teacher_model = AutoModelForSequenceClassification.from_pretrained(
+                    teacher_model_name
+                )
+                self.teacher_tokenizer = AutoTokenizer.from_pretrained(teacher_model_name)
         else:
             self.teacher_model = None
 
@@ -515,8 +530,8 @@ class RetrievalModel:
             self.query_encoder = DDP(self.query_encoder, device_ids=[kwargs["rank"]])
             self.device = kwargs["rank"]
             if self.unified_rr:
-                self.reranker = self.reranker.to(kwargs["rank"])
-                self.reranker = DDP(self.reranker, device_ids=[kwargs["rank"]])
+                self.teacher_model = self.teacher_model.to(kwargs["rank"])
+                self.teacher_model = DDP(self.teacher_model, device_ids=[kwargs["rank"]])
         else:
             self._move_model_to_device()
 
@@ -588,7 +603,7 @@ class RetrievalModel:
         tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
         train_sampler = RandomSampler(train_dataset)
 
-        if clustered_training or args.tas_clustering:
+        if clustered_training or args.tas_clustering or args.unified_cross_rr:
             train_dataloader = train_dataset
             if args.curriculum_clustering:
                 # Number of epochs where randomizing happens is 75% of total epochs
@@ -682,7 +697,6 @@ class RetrievalModel:
         if args.n_gpu > 1:
             context_model = torch.nn.DataParallel(context_model)
             query_model = torch.nn.DataParallel(query_model)
-            self.reranker = torch.nn.DataParallel(self.reranker)
             self.teacher_model = torch.nn.DataParallel(self.teacher_model)
 
         logger.info(" Training started")
@@ -789,7 +803,7 @@ class RetrievalModel:
                     continue
                 # batch = tuple(t.to(device) for t in batch)
 
-                if self.unified_rr:
+                if self.unified_rr or (args.unified_cross_rr and args.teacher_type == "cross_encoder"):
                     (
                         context_inputs,
                         query_inputs,
@@ -835,7 +849,7 @@ class RetrievalModel:
                             retrieval_output.correct_predictions_percentage
                         )
                     colbert_percentage = (
-                        retrieval_output.colbert_correct_predictions_percentage
+                        retrieval_output.teacher_correct_predictions_percentage
                     )
                     reranking_correct_predictions_percentage = (
                         retrieval_output.reranking_correct_predictions_percentage
@@ -892,11 +906,11 @@ class RetrievalModel:
                 if show_running_loss and (args.kl_div_loss or args.margin_mse_loss):
                     if args.unified_cross_rr:
                         batch_iterator.set_description(
-                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Colbert percentage: {colbert_percentage:4.1f} Reranking correct percentage: {reranking_correct_predictions_percentage:4.1f}"
+                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Teacher correct percentage: {colbert_percentage:4.1f} Reranking correct percentage: {reranking_correct_predictions_percentage:4.1f}"
                         )
                     else:
                         batch_iterator.set_description(
-                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Colbert percentage: {colbert_percentage:4.1f}"
+                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Teacher correct percentage: {colbert_percentage:4.1f}"
                         )
                 elif show_running_loss:
                     if args.repeat_high_loss_n > 0:
@@ -967,9 +981,8 @@ class RetrievalModel:
                                             "lr": scheduler.get_last_lr()[0],
                                             "global_step": global_step,
                                             "correct_predictions_percentage": correct_predictions_percentage,
-                                            "colbert_correct_predictions_percentage": colbert_percentage,
+                                            "teacher_correct_predictions_percentage": colbert_percentage,
                                             "reranking_correct_predictions_percentage": reranking_correct_predictions_percentage,
-                                            "distillation_loss": retrieval_output.distillation_loss,
                                         }
                                     else:
                                         logging_dict = {
@@ -977,7 +990,7 @@ class RetrievalModel:
                                             "lr": scheduler.get_last_lr()[0],
                                             "global_step": global_step,
                                             "correct_predictions_percentage": correct_predictions_percentage,
-                                            "colbert_correct_predictions_percentage": colbert_percentage,
+                                            "teacher_correct_predictions_percentage": colbert_percentage,
                                         }
                                     if args.include_nll_loss:
                                         logging_dict[
@@ -1462,6 +1475,7 @@ class RetrievalModel:
         if self.args.evaluate_with_beir:
             results = self.evaluate_beir(
                 eval_data,
+                eval_set=eval_set,
             )
 
             return results, None, None, None, None, None
@@ -1493,7 +1507,7 @@ class RetrievalModel:
                     query_dataset,
                     qrels_dataset,
                 ) = convert_beir_columns_to_trec_format(
-                    passage_dataset, query_dataset, qrels_dataset
+                    passage_dataset, query_dataset, qrels_dataset, include_titles=self.args.include_title_in_corpus
                 )
 
             passage_index = embed_passages_trec_format(
@@ -1678,7 +1692,7 @@ class RetrievalModel:
         if args.n_gpu > 1:
             context_model = torch.nn.DataParallel(context_model)
             query_model = torch.nn.DataParallel(query_model)
-            self.reranker = torch.nn.DataParallel(self.reranker)
+            self.teacher_model = torch.nn.DataParallel(self.teacher_model)
 
         nb_eval_steps = 0
         eval_loss = 0
@@ -1832,13 +1846,14 @@ class RetrievalModel:
     def evaluate_beir(
         self,
         eval_data,
+        eval_set="dev",
     ):
         from beir.datasets.data_loader import GenericDataLoader
         from beir.retrieval.evaluation import EvaluateRetrieval
         from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
 
         corpus, queries, qrels = GenericDataLoader(data_folder=eval_data).load(
-            split="dev"
+            split=eval_set
         )
 
         beir_model = DRES(
@@ -1968,8 +1983,13 @@ class RetrievalModel:
         query_model = self.query_encoder
         query_model.to(self.device)
 
+        if self.args.unified_cross_rr:
+            self.reranking_model.to(self.device)
+
         if self.args.n_gpu > 1:
             query_model = torch.nn.DataParallel(query_model)
+            if self.args.unified_cross_rr:
+                self.reranking_model = torch.nn.DataParallel(self.reranking_model)
 
         if self.args.fp16:
             from torch.cuda import amp
@@ -2067,9 +2087,15 @@ class RetrievalModel:
                 )
                 return doc_ids, rerank_scores
         else:
-            doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
+            retrieval_outputs = self.retrieve_docs_from_query_embeddings(
                 all_query_embeddings, self.prediction_passages, retrieve_n_docs
             )
+            if self.args.unified_cross_rr:
+                doc_dicts, reranked_doc_ids, pre_rerank_doc_ids, pre_rerank_doc_vectors, rerank_softmax_scores = retrieval_outputs
+                passages = [d["passages"] for d in doc_dicts]
+                return passages, reranked_doc_ids, pre_rerank_doc_ids, pre_rerank_doc_vectors, rerank_softmax_scores
+            else:
+                doc_ids, doc_vectors, doc_dicts = retrieval_outputs
             passages = [d["passages"] for d in doc_dicts]
 
             if self.args.unified_rr:
@@ -2302,24 +2328,15 @@ class RetrievalModel:
                     )
                     doc_ids_batched.extend(ids)
             elif self.args.unified_cross_rr:
+                retrieve_n_docs = min(retrieve_n_docs, len(passage_dataset.dataset))
                 # We need the doc_vectors
+                # TODO: np doesnt work for string ids.
                 doc_ids_batched = np.zeros(
                     (len(query_embeddings), retrieve_n_docs)
                 ).astype(int)
                 reranked_doc_ids_batched = np.zeros(
                     (len(query_embeddings), retrieve_n_docs)
                 ).astype(int)
-
-                doc_vectors_batched = np.zeros(
-                    (
-                        len(query_embeddings),
-                        retrieve_n_docs,
-                        self.context_config.hidden_size
-                        if "projection_dim" not in self.context_config.to_dict()
-                        or not self.context_config.projection_dim
-                        else self.context_config.projection_dim,
-                    )
-                )
 
                 for i, query_embeddings_retr in enumerate(
                     tqdm(
@@ -2333,16 +2350,14 @@ class RetrievalModel:
                         retrieve_n_docs,
                         return_indices=False,
                     )
+                    if len(passage_dataset.dataset) < retrieve_n_docs:
+                        # Truncate dim 1
+                        vectors = vectors[:, :len(passage_dataset.dataset)]
                     doc_ids_batched[
                         i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
                         + len(ids)
                     ] = ids
                     reranking_scores = None
-
-                    doc_vectors_batched[
-                        i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
-                        + len(ids)
-                    ] = vectors
 
                     query_outputs = torch.tensor(
                         query_embeddings_retr,
@@ -2397,6 +2412,113 @@ class RetrievalModel:
 
             return doc_ids_batched, reranking_scores
         else:
+            if self.args.unified_cross_rr:
+                retrieve_n_docs = min(retrieve_n_docs, len(passage_dataset.dataset))
+                # We need the doc_vectors
+                doc_ids_batched = np.zeros(
+                    (len(query_embeddings), retrieve_n_docs)
+                ).astype(int)
+                reranked_doc_ids_batched = np.zeros(
+                    (len(query_embeddings), retrieve_n_docs)
+                ).astype(int)
+                reranked_softmax_scores_batched = np.zeros(
+                    (len(query_embeddings), retrieve_n_docs)
+                ).astype(float)
+                reranked_doc_dicts = []
+                doc_vectors_batched = np.zeros(
+                    (
+                        len(query_embeddings),
+                        retrieve_n_docs,
+                        self.context_config.hidden_size
+                        if "projection_dim" not in self.context_config.to_dict()
+                        or not self.context_config.projection_dim
+                        else self.context_config.projection_dim,
+                    )
+                )
+
+                for i, query_embeddings_retr in enumerate(
+                    tqdm(
+                        query_embeddings_batched,
+                        desc="Retrieving docs",
+                        disable=args.silent,
+                    )
+                ):
+                    ids, vectors, doc_dicts_batch = passage_dataset.get_top_docs(
+                        query_embeddings_retr.astype(np.float32),
+                        retrieve_n_docs,
+                        return_indices=False,
+                    )
+                    if len(passage_dataset.dataset) < retrieve_n_docs:
+                        # Truncate dim 1
+                        vectors = vectors[:, :len(passage_dataset.dataset)]
+                    doc_ids_batched[
+                        i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                        + len(ids)
+                    ] = ids
+                    reranking_scores = None
+
+                    doc_vectors_batched[
+                        i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                        + len(ids)
+                    ] = vectors
+
+                    query_outputs = torch.tensor(
+                        query_embeddings_retr,
+                        dtype=torch.float,
+                        device=self.device,
+                    )
+                    context_outputs = torch.tensor(
+                        vectors,
+                        dtype=torch.float,
+                        device=self.device,
+                    )
+
+                    with torch.no_grad():
+                        rerank_dot_score, rerank_softmax_score = self._rerank_passages(
+                            query_outputs=query_outputs,
+                            context_outputs=context_outputs,
+                            is_evaluating=True,
+                        )
+
+                    rerank_softmax_score = rerank_softmax_score.cpu().numpy()
+
+                    # Rerank the doc_ids based on the rerank_softmax_score
+                    rerank_indices = np.argsort(rerank_softmax_score, axis=1)[:, ::-1]
+
+                    reranked_doc_ids_batched[
+                        i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                        + len(ids)
+                    ] = doc_ids_batched[
+                        i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                        + len(ids)
+                    ][
+                        np.arange(len(ids))[:, None],
+                        rerank_indices,
+                    ]
+                    reranked_softmax_scores_batched[
+                        i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
+                        + len(ids)
+                    ] = rerank_softmax_score
+                    reranked_doc_dicts_batch = []
+                    # doc_dicts ia a list of dicts containing passages, passage_id, and embeddings
+                    for j, doc_dict in enumerate(doc_dicts_batch):
+                        reranked_doc_dicts_batch.append(
+                            {
+                                "passages": [
+                                    doc_dict["passages"][k] for k in rerank_indices[j]
+                                ],
+                                "passage_id": [
+                                    doc_dict["passage_id"][k] for k in rerank_indices[j]
+                                ],
+                                "embeddings": [
+                                    doc_dict["embeddings"][k] for k in rerank_indices[j]
+                                ],
+                            }
+                        )
+                    reranked_doc_dicts.extend(reranked_doc_dicts_batch)
+
+                return reranked_doc_dicts, reranked_doc_ids_batched, doc_ids_batched, doc_vectors_batched, reranked_softmax_scores_batched
+
             ids_batched = np.zeros((len(query_embeddings), retrieve_n_docs))
             if self.args.larger_representations:
                 if self.args.unified_rr:
@@ -2595,7 +2717,8 @@ class RetrievalModel:
                     self.context_tokenizer,
                     self.query_tokenizer,
                     self.args,
-                    reranker_tokenizer=self.reranker_tokenizer,
+                    teacher_tokenizer=None if self.args.teacher_type == "colbert" else self.teacher_tokenizer,
+                    clustered_training=clustered_training,
                 )
 
             if clustered_training:
@@ -2606,8 +2729,8 @@ class RetrievalModel:
                     tokenizer=self.context_tokenizer,
                     args=self.args,
                     device=self.device,
-                    reranker=self.reranker,
-                    reranker_tokenizer=self.reranker_tokenizer,
+                    teacher_model=self.teacher_model,
+                    teacher_tokenizer=None if self.args.teacher_type == "colbert" else self.teacher_tokenizer,
                     clustered_batch_randomize_percentage=clustered_batch_randomize_percentage,
                     epoch_number=epoch_number,
                 )
@@ -2912,21 +3035,28 @@ class RetrievalModel:
                     nll_loss = None
 
             else:
+                if self.args.margin_mse_loss or self.args.kl_div_loss:
+                    with torch.no_grad():
+                        if self.args.teacher_type == "colbert":
+                            label_scores = colbert_score(
+                                self.teacher_model,
+                                query_inputs,
+                                context_inputs,
+                                device=self.device,
+                            )
+                        else:
+                            label_scores = self._get_teacher_scores(
+                                reranking_input,
+                            )
                 if self.args.margin_mse_loss:
                     mmse_criterion = MarginMSELoss(margin=0.1)
-                    with torch.no_grad():
-                        label_scores = colbert_score(
-                            self.teacher_model,
-                            query_inputs,
-                            context_inputs,
-                            device=self.device,
-                        )
 
-                    if self.args.unified_cross_rr:
-                        similarity_score = reranking_dot_score
+                    label_scores = label_scores.reshape(similarity_score.shape)
+                    mse_loss = mmse_criterion(
+                        reranking_dot_score if self.args.unified_cross_rr else similarity_score,
+                        label_scores
 
-                    mse_loss = mmse_criterion(similarity_score, label_scores)
-
+                    )
                     if self.args.include_nll_loss:
                         nll_criterion = torch.nn.NLLLoss(reduction="mean")
                         nll_loss = nll_criterion(softmax_score, labels)
@@ -2938,13 +3068,9 @@ class RetrievalModel:
                     nll_labels = labels
                 elif self.args.kl_div_loss:
                     kl_criterion = torch.nn.KLDivLoss(reduction="batchmean")
-                    with torch.no_grad():
-                        label_scores = colbert_score(
-                            self.teacher_model,
-                            query_inputs,
-                            context_inputs,
-                            device=self.device,
-                        )
+                    label_scores = label_scores.reshape(
+                        reranking_softmax_score.shape
+                    )
 
                     kl_div_loss = kl_criterion(
                         reranking_softmax_score if self.args.unified_cross_rr else softmax_score,
@@ -2973,24 +3099,9 @@ class RetrievalModel:
                     ).cpu()
 
                     with torch.no_grad():
-                        for (
-                            reranking_input_ids,
-                            reranking_input_mask,
-                            reranking_token_type_ids,
-                        ) in zip(
-                            reranking_input["input_ids"],
-                            reranking_input["attention_mask"],
-                            reranking_input["token_type_ids"],
-                        ):
-                            reranking_target_tensor.extend(
-                                self.reranker(
-                                    input_ids=reranking_input_ids,
-                                    attention_mask=reranking_input_mask,
-                                    token_type_ids=reranking_token_type_ids,
-                                ).logits.cpu()
-                            )
-
-                        reranking_target_tensor = torch.stack(reranking_target_tensor)
+                        reranking_target_tensor = self._get_teacher_scores(
+                            reranking_input,
+                        )
                         reranking_target_tensor = reranking_target_tensor.reshape(
                             reranking_dot_score.shape
                         )
@@ -3003,15 +3114,12 @@ class RetrievalModel:
 
                     loss = nll_loss + reranking_loss
                 elif self.args.unified_cross_rr:
-                    loss = nll_loss + kl_div_loss if self.args.kl_div_loss else mse_loss
-                    distillation_loss = (
-                        kl_div_loss.item() if self.args.kl_div_loss else mse_loss.item()
-                    )
+                    if self.args.include_nll_loss:
+                        loss = nll_loss + kl_div_loss if self.args.kl_div_loss else mse_loss
                     reranking_loss = None
                 else:
                     reranking_loss = None
                     loss = nll_loss
-                    distillation_loss = None
 
         max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
@@ -3036,21 +3144,21 @@ class RetrievalModel:
             ) * 100
 
         if self.args.kl_div_loss or self.args.margin_mse_loss:
-            colbert_softmax_score = torch.nn.functional.softmax(label_scores, dim=-1)
-            colbert_max_score, colbert_max_idxs = torch.max(colbert_softmax_score, 1)
-            colbert_correct_predictions_count = (
-                (colbert_max_idxs == torch.tensor(nll_labels))
+            teacher_softmax_score = torch.nn.functional.softmax(label_scores, dim=-1)
+            teacher_max_score, teacher_max_idxs = torch.max(teacher_softmax_score, 1)
+            teacher_correct_predictions_count = (
+                (teacher_max_idxs == torch.tensor(nll_labels))
                 .sum()
                 .cpu()
                 .detach()
                 .numpy()
                 .item()
             )
-            colbert_correct_predictions_percentage = (
-                colbert_correct_predictions_count / len(nll_labels)
+            teacher_correct_predictions_percentage = (
+                teacher_correct_predictions_count / len(nll_labels)
             ) * 100
         else:
-            colbert_correct_predictions_percentage = None
+            teacher_correct_predictions_percentage = None
 
         retrieval_output = RetrievalOutput(
             loss=loss,
@@ -3061,10 +3169,9 @@ class RetrievalModel:
             reranking_context_outputs=reranking_context_outputs,
             reranking_query_outputs=reranking_query_outputs,
             reranking_loss=reranking_loss.item() if reranking_loss else None,
-            nll_loss=nll_loss.item(),
-            distillation_loss=distillation_loss,
-            colbert_correct_predictions_percentage=colbert_correct_predictions_percentage,
-            reranking_correct_predictions_percentage=rerank_correct_predictions_percentage,
+            nll_loss=nll_loss.item() if self.args.include_nll_loss else None,
+            teacher_correct_predictions_percentage=teacher_correct_predictions_percentage,
+            reranking_correct_predictions_percentage=rerank_correct_predictions_percentage if self.args.unified_cross_rr else None,
         )
 
         return retrieval_output
@@ -3142,6 +3249,35 @@ class RetrievalModel:
 
         return reranking_dot_score, reranking_softmax_score
 
+    def _get_teacher_scores(self, reranking_input):
+        """Get teacher scores for reranking_input
+
+        Args:
+            reranking_input (dict): Reranking input dict
+        """
+        reranking_target_tensor = []
+        for (
+            reranking_input_ids,
+            reranking_input_mask,
+            reranking_token_type_ids,
+        ) in zip(
+            reranking_input["input_ids"],
+            reranking_input["attention_mask"],
+            reranking_input["token_type_ids"],
+        ):
+            reranking_target_tensor.extend(
+                self.teacher_model(
+                    input_ids=reranking_input_ids,
+                    attention_mask=reranking_input_mask,
+                    token_type_ids=reranking_token_type_ids,
+                ).logits
+            )
+
+        # Stack and back to float32
+        reranking_target_tensor = torch.stack(reranking_target_tensor).float()
+
+        return reranking_target_tensor
+
     def _get_inputs_dict(self, batch, evaluate=False):
         device = self.device
 
@@ -3177,7 +3313,7 @@ class RetrievalModel:
                 "input_ids": batch["query_ids"].to(device),
                 "attention_mask": batch["query_mask"].to(device),
             }
-            if self.unified_rr:
+            if self.unified_rr or (self.args.unified_cross_rr and self.args.teacher_type == "cross_encoder"):
                 reranking_context_ids = batch["reranking_context_ids"]
                 reranking_context_masks = batch["reranking_context_mask"]
 
@@ -3217,14 +3353,14 @@ class RetrievalModel:
                 )
                 for i in range(len(reranking_input_ids_all)):
                     reranking_input_ids_all[i] = reranking_input_ids_all[i] + [
-                        self.reranker_tokenizer.pad_token_id
+                        self.teacher_tokenizer.pad_token_id
                     ] * (max_len - len(reranking_input_ids_all[i]))
                     reranking_input_mask_all[i] = reranking_input_mask_all[i] + [
-                        self.reranker_tokenizer.pad_token_id
+                        self.teacher_tokenizer.pad_token_id
                     ] * (max_len - len(reranking_input_mask_all[i]))
                     reranking_token_type_ids_all[i] = reranking_token_type_ids_all[
                         i
-                    ] + [self.reranker_tokenizer.pad_token_id] * (
+                    ] + [self.teacher_tokenizer.pad_token_id] * (
                         max_len - len(reranking_token_type_ids_all[i])
                     )
 
@@ -3432,7 +3568,7 @@ class RetrievalModel:
         self.query_encoder.to(self.device)
 
         if self.unified_rr and not is_evaluating:
-            self.reranker.to(self.device)
+            self.teacher_model.to(self.device)
 
         if self.args.unified_cross_rr:
             self.reranking_model.to(self.device)
