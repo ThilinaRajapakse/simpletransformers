@@ -178,7 +178,9 @@ def load_hf_dataset(
         dataset.set_format(type="pt", columns=column_names)
         if args.unified_cross_rr and not clustered_training and not evaluate:
             dataset = dataset.to_pandas()
-            dataset = np.array_split(dataset, math.ceil(len(dataset) / args.train_batch_size))
+            dataset = np.array_split(
+                dataset, math.ceil(len(dataset) / args.train_batch_size)
+            )
             batch_datasets = [HFDataset.from_pandas(df) for df in dataset]
 
             dataset = ClusteredDataset(batch_datasets, len(batch_datasets))
@@ -1807,7 +1809,9 @@ def convert_beir_columns_to_trec_format(
 ):
     collection = collection.rename_column("_id", "passage_id")
     if include_titles:
-        collection = collection.map(lambda row: {"text": row["title"] + " " + row["text"]})
+        collection = collection.map(
+            lambda row: {"text": row["title"] + " " + row["text"]}
+        )
     collection = collection.rename_column("text", "passage_text")
     # queries = queries.rename_column("_id", "query_id")
     # queries = queries.rename_column("text", "query_text")
