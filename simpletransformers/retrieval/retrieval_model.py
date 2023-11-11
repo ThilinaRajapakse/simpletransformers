@@ -3113,7 +3113,9 @@ class RetrievalModel:
                         nll_criterion = torch.nn.NLLLoss(reduction="mean")
 
                         nll_loss = nll_criterion(softmax_score, labels)
-                        loss = kl_div_loss + nll_loss
+                        loss = (
+                            kl_div_loss * self.args.kl_div_loss_multiplier
+                        ) + nll_loss
                     else:
                         # a bit ugly but works downstream
                         loss = kl_div_loss

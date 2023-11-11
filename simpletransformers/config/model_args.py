@@ -256,6 +256,7 @@ class LanguageModelingArgs(ModelArgs):
     config_name: str = None
     dataset_class: Dataset = None
     dataset_type: str = "None"
+    data_format: str = "text"
     discriminator_config: dict = field(default_factory=dict)
     discriminator_loss_weight: float = 50.0
     generator_config: dict = field(default_factory=dict)
@@ -389,6 +390,7 @@ class RetrievalArgs(Seq2SeqArgs):
     include_title: bool = True
     include_triplet_loss: bool = False
     kl_div_loss: bool = False
+    kl_div_loss_multiplier: float = 1.0
     kmeans_k: int = -1
     larger_representations: bool = False
     margin_mse_loss: bool = False

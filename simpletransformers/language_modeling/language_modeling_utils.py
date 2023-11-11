@@ -56,6 +56,40 @@ def encode_sliding_window(data):
     return features
 
 
+def chunk_sequence(sequence, max_length):
+    # Splits the sequence into chunks of max_length, handling edge cases
+    chunks = []
+    current_chunk = ""
+    words = sequence.split()
+
+    for word in words:
+        if len(current_chunk) + len(word) + 1 <= max_length:
+            current_chunk += word + " "
+        else:
+            chunks.append(current_chunk.strip())
+            current_chunk = word + " "
+    chunks.append(current_chunk.strip())  # Add the last chunk
+
+    return chunks
+
+
+def preprocess_and_chunk_batch_for_hf_dataset(
+    dataset, tokenizer, max_seq_length, max_word_length=100
+):
+    chunked_texts = []
+    for text in dataset["text"]:
+        chunks = chunk_sequence(text, max_seq_length)
+        for chunk in chunks:
+            chunked_texts.append(chunk)
+
+    return tokenizer(
+        text=chunked_texts,
+        padding="max_length",
+        max_length=max_seq_length,
+        truncation=True,  # Now this is safe as we have manually chunked the text
+    )
+
+
 def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
     return tokenizer(
         text=dataset["text"],
@@ -66,22 +100,36 @@ def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
 
 
 def load_hf_dataset(data, tokenizer, args):
-    dataset = load_dataset(
-        "text",
-        data_files=data,
-        download_mode="force_redownload"
-        if args.reprocess_input_data
-        else "reuse_dataset_if_exists",
-    )
+    if args.data_format == "text":
+        dataset = load_dataset(
+            data_files=data,
+            download_mode="force_redownload"
+            if args.reprocess_input_data
+            else "reuse_dataset_if_exists",
+        )
+    elif args.data_format == "tsv":
+        dataset = load_dataset(
+            "csv",
+            delimiter="\t",
+            data_files=data,
+            download_mode="force_redownload"
+            if args.reprocess_input_data
+            else "reuse_dataset_if_exists",
+        )
+    else:
+        raise ValueError("args.data_format must be either 'text' or 'tsv'")
 
     dataset = dataset.map(
-        lambda x: preprocess_batch_for_hf_dataset(
+        lambda x: preprocess_and_chunk_batch_for_hf_dataset(
             x, tokenizer=tokenizer, max_seq_length=args.max_seq_length
         ),
         batched=True,
+        remove_columns=["text"],
     )
 
-    dataset.set_format(type="pt", columns=["input_ids"])
+    dataset.set_format(
+        type="pt", columns=["input_ids", "token_type_ids", "attention_mask"]
+    )
 
     if isinstance(data, str):
         # This is not necessarily a train dataset. The datasets library insists on calling it train.

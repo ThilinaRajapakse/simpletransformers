@@ -28,6 +28,8 @@ from tokenizers import BertWordPieceTokenizer, ByteLevelBPETokenizer
 from tokenizers.implementations import (
     SentencePieceBPETokenizer,
     SentencePieceUnigramTokenizer,
+    # BertWordPieceTokenizer,
+    # ByteLevelBPETokenizer,
 )
 from tokenizers.processors import BertProcessing
 from torch.nn.utils.rnn import pad_sequence
