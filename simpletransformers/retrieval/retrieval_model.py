@@ -3328,20 +3328,43 @@ class RetrievalModel:
             # Training
             # labels = labels.to(device)
             if self.args.hard_negatives:
-                context_ids = torch.cat(
-                    [
-                        batch["context_ids"],
-                        batch["hard_negative_ids"],
-                    ],
-                    dim=0,
-                )
-                context_masks = torch.cat(
-                    [
-                        batch["context_mask"],
-                        batch["hard_negatives_mask"],
-                    ],
-                    dim=0,
-                )
+                if self.args.n_hard_negatives == 1:
+                    context_ids = torch.cat(
+                        [
+                            batch["context_ids"],
+                            batch["hard_negative_ids"],
+                        ],
+                        dim=0,
+                    )
+                    context_masks = torch.cat(
+                        [
+                            batch["context_mask"],
+                            batch["hard_negatives_mask"],
+                        ],
+                        dim=0,
+                    )
+                else:
+                    context_ids = torch.cat(
+                        [
+                            batch["context_ids"],
+                        ]
+                        + [
+                            batch[f"hard_negative_{i}_ids"]
+                            for i in range(self.args.n_hard_negatives)
+                        ],
+                        dim=0,
+                    )
+
+                    context_masks = torch.cat(
+                        [
+                            batch["context_mask"],
+                        ]
+                        + [
+                            batch[f"hard_negative_{i}_mask"]
+                            for i in range(self.args.n_hard_negatives)
+                        ],
+                        dim=0,
+                    )
             else:
                 context_ids = batch["context_ids"]
                 context_masks = batch["context_mask"]

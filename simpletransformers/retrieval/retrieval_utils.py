@@ -120,6 +120,8 @@ def load_hf_dataset(
             },
         )
 
+    n_hard_negatives = args.n_hard_negatives
+
     dataset = dataset.map(
         lambda x: preprocess_batch_for_hf_dataset(
             x,
@@ -128,20 +130,33 @@ def load_hf_dataset(
             args=args,
             evaluate=evaluate,
             teacher_tokenizer=teacher_tokenizer,
+            n_hard_negatives=n_hard_negatives,
         ),
         batched=True,
     )
 
     if args.hard_negatives and (args.hard_negatives_in_eval or not evaluate):
-        column_names = [
-            "context_ids",
-            "query_ids",
-            "hard_negative_ids",
-            "context_mask",
-            "query_mask",
-            "hard_negatives_mask",
-            # "passage_id",
-        ]
+        if n_hard_negatives == 1:
+            column_names = [
+                "context_ids",
+                "query_ids",
+                "hard_negative_ids",
+                "context_mask",
+                "query_mask",
+                "hard_negatives_mask",
+                # "passage_id",
+            ]
+        else:
+            column_names = [
+                "context_ids",
+                "query_ids",
+                "context_mask",
+                "query_mask",
+                # "passage_id",
+            ]
+            for i in range(n_hard_negatives):
+                column_names.append(f"hard_negative_{i}_ids")
+                column_names.append(f"hard_negative_{i}_mask")
     else:
         if args.cluster_concatenated:
             column_names = [
@@ -195,6 +210,7 @@ def preprocess_batch_for_hf_dataset(
     args,
     evaluate=False,
     teacher_tokenizer=None,
+    n_hard_negatives=1,
 ):
     if teacher_tokenizer is None:
         unified_rr = False
@@ -290,13 +306,25 @@ def preprocess_batch_for_hf_dataset(
 
     if args.hard_negatives and (args.hard_negatives_in_eval or not evaluate):
         try:
-            hard_negatives_inputs = context_tokenizer(
-                dataset["hard_negative"],
-                max_length=args.max_seq_length,
-                padding="max_length",
-                return_tensors="np",
-                truncation=True,
-            )
+            if n_hard_negatives > 1:
+                hard_negatives_inputs = [
+                    context_tokenizer(
+                        dataset[f"hard_negative_{i}"],
+                        max_length=args.max_seq_length,
+                        padding="max_length",
+                        return_tensors="np",
+                        truncation=True,
+                    )
+                    for i in range(n_hard_negatives)
+                ]
+            else:
+                hard_negatives_inputs = context_tokenizer(
+                    dataset["hard_negative"],
+                    max_length=args.max_seq_length,
+                    padding="max_length",
+                    return_tensors="np",
+                    truncation=True,
+                )
         except (TypeError, ValueError) as e:
             logger.warn(e)
             logger.warn(
@@ -312,17 +340,44 @@ def preprocess_batch_for_hf_dataset(
                 return_tensors="np",
                 truncation=True,
             )
-        hard_negative_ids = hard_negatives_inputs["input_ids"].squeeze()
-        hard_negatives_mask = hard_negatives_inputs["attention_mask"].squeeze()
+        if n_hard_negatives > 1:
+            hard_negatives_inputs = [
+                {
+                    "input_ids": hard_negatives_input["input_ids"].squeeze(),
+                    "attention_mask": hard_negatives_input["attention_mask"].squeeze(),
+                }
+                for hard_negatives_input in hard_negatives_inputs
+            ]
+            return {
+                "context_ids": context_ids,
+                "query_ids": query_ids,
+                "context_mask": context_mask,
+                "query_mask": query_mask,
+                **{
+                    f"hard_negative_{i}_ids": hard_negatives_input[
+                        "input_ids"
+                    ].squeeze()
+                    for i, hard_negatives_input in enumerate(hard_negatives_inputs)
+                },
+                **{
+                    f"hard_negative_{i}_mask": hard_negatives_input[
+                        "attention_mask"
+                    ].squeeze()
+                    for i, hard_negatives_input in enumerate(hard_negatives_inputs)
+                },
+            }
+        else:
+            hard_negative_ids = hard_negatives_inputs["input_ids"].squeeze()
+            hard_negatives_mask = hard_negatives_inputs["attention_mask"].squeeze()
 
-        return {
-            "context_ids": context_ids,
-            "query_ids": query_ids,
-            "hard_negative_ids": hard_negative_ids,
-            "context_mask": context_mask,
-            "query_mask": query_mask,
-            "hard_negatives_mask": hard_negatives_mask,
-        }
+            return {
+                "context_ids": context_ids,
+                "query_ids": query_ids,
+                "hard_negative_ids": hard_negative_ids,
+                "context_mask": context_mask,
+                "query_mask": query_mask,
+                "hard_negatives_mask": hard_negatives_mask,
+            }
 
     if args.cluster_concatenated:
         return {
