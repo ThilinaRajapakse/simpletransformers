@@ -646,7 +646,7 @@ class RetrievalModel:
             )
 
         optimizer_grouped_parameters = self.get_optimizer_parameters(
-            context_model, query_model, args
+            context_model, query_model, args, self.reranking_model
         )
 
         warmup_steps = math.ceil(t_total * args.warmup_ratio)
@@ -2779,7 +2779,7 @@ class RetrievalModel:
             # Retrieval models can only be used with hf datasets
             raise ValueError("Retrieval models can only be used with hf datasets.")
 
-    def get_optimizer_parameters(self, context_model, query_model, args):
+    def get_optimizer_parameters(self, context_model, query_model, args, reranking_model=None):
         no_decay = ["bias", "LayerNorm.weight"]
 
         optimizer_grouped_parameters = []
@@ -2794,6 +2794,10 @@ class RetrievalModel:
             if not args.tie_encoders:
                 param_group["params"].extend(
                     [p for n, p in query_model.named_parameters() if n in params]
+                )
+            if args.unified_cross_rr or args.unified_rr:
+                param_group["params"].extend(
+                    [p for n, p in reranking_model.named_parameters() if n in params]
                 )
             optimizer_grouped_parameters.append(param_group)
 
@@ -2866,6 +2870,29 @@ class RetrievalModel:
                             "params": [
                                 p
                                 for n, p in query_model.named_parameters()
+                                if n not in custom_parameter_names
+                                and any(nd in n for nd in no_decay)
+                            ],
+                            "weight_decay": 0.0,
+                        },
+                    ]
+                )
+            if self.args.unified_cross_rr or self.args.unified_rr:
+                optimizer_grouped_parameters.extend(
+                    [
+                        {
+                            "params": [
+                                p
+                                for n, p in reranking_model.named_parameters()
+                                if n not in custom_parameter_names
+                                and not any(nd in n for nd in no_decay)
+                            ],
+                            "weight_decay": args.weight_decay,
+                        },
+                        {
+                            "params": [
+                                p
+                                for n, p in reranking_model.named_parameters()
                                 if n not in custom_parameter_names
                                 and any(nd in n for nd in no_decay)
                             ],

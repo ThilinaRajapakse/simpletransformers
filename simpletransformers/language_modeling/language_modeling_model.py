@@ -790,6 +790,7 @@ class LanguageModelingModel:
                     steps_trained_in_current_epoch -= 1
                     continue
 
+                # TODO: Move this to _get_inputs_dict and keep the attention masks
                 if self.args.use_hf_datasets:
                     batch = batch["input_ids"]
 
