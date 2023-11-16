@@ -55,8 +55,10 @@ from simpletransformers.custom_models.large_representation_retrieval_model impor
     DPRContextEncoderUnifiedRR,
     DPRQuestionEncoderUnifiedRR,
 )
+from simpletransformers.custom_models.reranking_model import RerankingModel
 from simpletransformers.retrieval.beir_evaluation import BeirRetrievalModel
 from simpletransformers.retrieval.retrieval_utils import (
+    calculate_mrr,
     convert_beir_columns_to_trec_format,
     get_clustered_passage_dataset,
     get_output_embeddings,
@@ -229,7 +231,7 @@ class RetrievalModel:
                 self.reranking_config = config_class.from_pretrained(
                     reranking_model_name, **self.args.reranking_config
                 )
-                self.reranking_model = context_encoder.from_pretrained(
+                self.reranking_model = RerankingModel.from_pretrained(
                     reranking_model_name, config=self.reranking_config
                 )
             elif model_name:
@@ -241,6 +243,9 @@ class RetrievalModel:
                     os.path.join(model_name, "reranking_model"),
                     config=self.reranking_config,
                 )
+            else:
+                self.reranking_config = config_class(**self.args.reranking_config)
+                self.reranking_model = RerankingModel(config=self.reranking_config)
         else:
             self.reranking_config = None
             self.reranking_model = None
@@ -710,6 +715,8 @@ class RetrievalModel:
         tr_loss, logging_loss = 0.0, 0.0
         context_model.zero_grad()
         query_model.zero_grad()
+        if self.args.unified_rr or self.args.unified_cross_rr:
+            self.reranking_model.zero_grad()
         train_iterator = trange(
             int(args.num_train_epochs), desc="Epoch", disable=args.silent, mininterval=0
         )
@@ -788,6 +795,8 @@ class RetrievalModel:
                 query_model.train()
             else:
                 query_model.eval()
+            if self.args.unified_rr or self.args.unified_cross_rr:
+                self.reranking_model.train()
             if epochs_trained > 0:
                 epochs_trained -= 1
                 epoch_number = current_epoch - 1
@@ -947,6 +956,10 @@ class RetrievalModel:
                         torch.nn.utils.clip_grad_norm_(
                             query_model.parameters(), args.max_grad_norm
                         )
+                        if args.unified_rr or args.unified_cross_rr:
+                            torch.nn.utils.clip_grad_norm_(
+                                self.reranking_model.parameters(), args.max_grad_norm
+                            )
 
                     if args.fp16:
                         scaler.step(optimizer)
@@ -956,6 +969,8 @@ class RetrievalModel:
                     scheduler.step()  # Update learning rate schedule
                     context_model.zero_grad()
                     query_model.zero_grad()
+                    if self.unified_rr or self.args.unified_cross_rr:
+                        self.reranking_model.zero_grad()
                     global_step += 1
 
                     if args.logging_steps > 0 and global_step % args.logging_steps == 0:
@@ -1202,6 +1217,8 @@ class RetrievalModel:
                                         )
                         context_model.train()
                         query_model.train()
+                        if self.unified_rr or self.args.unified_cross_rr:
+                            self.reranking_model.train()
 
             epoch_number += 1
             output_dir_current = os.path.join(
@@ -1547,6 +1564,12 @@ class RetrievalModel:
             if pytrec_eval_metrics is None:
                 pytrec_eval_metrics = self.args.pytrec_eval_metrics
 
+            if "mrr" in pytrec_eval_metrics:
+                custom_mrr = True
+                pytrec_eval_metrics.remove("mrr")
+            else:
+                custom_mrr = False
+
             evaluator = pytrec_eval.RelevanceEvaluator(qrels_dict, pytrec_eval_metrics)
 
             try:
@@ -1581,6 +1604,10 @@ class RetrievalModel:
                         "w",
                     ) as f:
                         json.dump(per_metric_dict, f)
+
+            if custom_mrr:
+                # TODO: Implement custom MRR
+                pass
 
             if save_as_experiment:
                 with open(
@@ -1707,6 +1734,8 @@ class RetrievalModel:
         eval_loss = 0
         context_model.eval()
         query_model.eval()
+        if self.unified_rr or self.args.unified_cross_rr:
+            self.reranking_model.eval()
 
         criterion = torch.nn.NLLLoss(reduction="mean")
 
@@ -2004,6 +2033,8 @@ class RetrievalModel:
             from torch.cuda import amp
 
         query_model.eval()
+        if self.unified_rr or self.args.unified_cross_rr:
+            self.reranking_model.eval()
 
         # Batching
         for i, batch in tqdm(
@@ -2779,7 +2810,9 @@ class RetrievalModel:
             # Retrieval models can only be used with hf datasets
             raise ValueError("Retrieval models can only be used with hf datasets.")
 
-    def get_optimizer_parameters(self, context_model, query_model, args, reranking_model=None):
+    def get_optimizer_parameters(
+        self, context_model, query_model, args, reranking_model=None
+    ):
         no_decay = ["bias", "LayerNorm.weight"]
 
         optimizer_grouped_parameters = []
@@ -3188,7 +3221,7 @@ class RetrievalModel:
 
         max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
-            (max_idxs == torch.tensor(nll_labels)).sum().cpu().detach().numpy().item()
+            (max_idxs == nll_labels.clone().detach()).sum().cpu().numpy().item()
         )
         correct_predictions_percentage = (
             correct_predictions_count / len(nll_labels)
@@ -3197,10 +3230,9 @@ class RetrievalModel:
         if self.args.unified_cross_rr:
             rerank_max_score, rerank_max_idxs = torch.max(reranking_softmax_score, 1)
             rerank_correct_predictions_count = (
-                (rerank_max_idxs == torch.tensor(nll_labels))
+                (rerank_max_idxs == nll_labels.clone().detach())
                 .sum()
                 .cpu()
-                .detach()
                 .numpy()
                 .item()
             )
@@ -3212,10 +3244,9 @@ class RetrievalModel:
             teacher_softmax_score = torch.nn.functional.softmax(label_scores, dim=-1)
             teacher_max_score, teacher_max_idxs = torch.max(teacher_softmax_score, 1)
             teacher_correct_predictions_count = (
-                (teacher_max_idxs == torch.tensor(nll_labels))
+                (teacher_max_idxs == nll_labels.clone().detach())
                 .sum()
                 .cpu()
-                .detach()
                 .numpy()
                 .item()
             )

@@ -792,23 +792,50 @@ class LanguageModelingModel:
 
                 # TODO: Move this to _get_inputs_dict and keep the attention masks
                 if self.args.use_hf_datasets:
-                    batch = batch["input_ids"]
+                    input_ids = batch["input_ids"]
+                else:
+                    input_ids = batch
 
                 inputs, labels = (
-                    mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
+                    mask_tokens(input_ids, tokenizer, args)
+                    if args.mlm
+                    else (input_ids, input_ids)
                 )
                 inputs = inputs.to(self.device)
+                attention_mask = (
+                    batch["attention_mask"].to(self.device)
+                    if self.args.use_hf_datasets
+                    else None
+                )
+                token_type_ids = (
+                    batch["token_type_ids"].to(self.device)
+                    if self.args.use_hf_datasets
+                    else None
+                )
                 labels = labels.to(self.device)
+
+                inputs_dict = {
+                    "input_ids": inputs,
+                    "attention_mask": attention_mask,
+                    "token_type_ids": token_type_ids,
+                }
 
                 if args.fp16:
                     with amp.autocast():
                         if args.model_type == "longformer":
                             outputs = model(inputs, attention_mask=None, labels=labels)
+                        elif args.model_type == "electra":
+                            outputs = model(
+                                inputs,
+                                labels,
+                                attention_mask=attention_mask,
+                                token_type_ids=token_type_ids,
+                            )
                         else:
                             outputs = (
-                                model(inputs, labels=labels)
+                                model(**inputs_dict, labels=labels)
                                 if args.mlm
-                                else model(inputs, labels=labels)
+                                else model(**inputs_dict, labels=labels)
                             )
                         # model outputs are always tuple in pytorch-transformers (see doc)
                         if args.model_type == "electra":
@@ -819,12 +846,21 @@ class LanguageModelingModel:
                             loss = outputs[0]
                 else:
                     if args.model_type == "longformer":
-                        outputs = model(inputs, attention_mask=None, labels=labels)
+                        outputs = model(
+                            **inputs_dict, attention_mask=None, labels=labels
+                        )
+                    elif args.model_type == "electra":
+                        outputs = model(
+                            input_ids,
+                            labels,
+                            attention_mask=attention_mask,
+                            token_type_ids=token_type_ids,
+                        )
                     else:
                         outputs = (
-                            model(inputs, labels=labels)
+                            model(**inputs_dict, labels=labels)
                             if args.mlm
-                            else model(inputs, labels=labels)
+                            else model(**inputs_dict, labels=labels)
                         )
                     # model outputs are always tuple in pytorch-transformers (see doc)
                     if args.model_type == "electra":
