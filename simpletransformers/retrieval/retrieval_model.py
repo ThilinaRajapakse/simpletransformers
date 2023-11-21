@@ -3124,7 +3124,6 @@ class RetrievalModel:
                 else:
                     loss = bce_loss
                     nll_loss = None
-
             else:
                 if self.args.margin_mse_loss or self.args.kl_div_loss:
                     with torch.no_grad():
@@ -3150,42 +3149,17 @@ class RetrievalModel:
                     unified_rr,
                 )
 
-        max_score, max_idxs = torch.max(softmax_score, 1)
-        correct_predictions_count = (
-            (max_idxs == nll_labels.clone().detach()).sum().cpu().numpy().item()
+        (
+            correct_predictions_count,
+            correct_predictions_percentage,
+            rerank_correct_predictions_percentage,
+            teacher_correct_predictions_percentage,
+        ) = self._get_running_stats(
+            softmax_score,
+            nll_labels,
+            label_scores,
+            reranking_softmax_score,
         )
-        correct_predictions_percentage = (
-            correct_predictions_count / len(nll_labels)
-        ) * 100
-
-        if self.args.unified_cross_rr:
-            rerank_max_score, rerank_max_idxs = torch.max(reranking_softmax_score, 1)
-            rerank_correct_predictions_count = (
-                (rerank_max_idxs == nll_labels.clone().detach())
-                .sum()
-                .cpu()
-                .numpy()
-                .item()
-            )
-            rerank_correct_predictions_percentage = (
-                rerank_correct_predictions_count / len(nll_labels)
-            ) * 100
-
-        if self.args.kl_div_loss or self.args.margin_mse_loss:
-            teacher_softmax_score = torch.nn.functional.softmax(label_scores, dim=-1)
-            teacher_max_score, teacher_max_idxs = torch.max(teacher_softmax_score, 1)
-            teacher_correct_predictions_count = (
-                (teacher_max_idxs == nll_labels.clone().detach())
-                .sum()
-                .cpu()
-                .numpy()
-                .item()
-            )
-            teacher_correct_predictions_percentage = (
-                teacher_correct_predictions_count / len(nll_labels)
-            ) * 100
-        else:
-            teacher_correct_predictions_percentage = None
 
         retrieval_output = RetrievalOutput(
             loss=loss,
@@ -3407,6 +3381,59 @@ class RetrievalModel:
             loss = nll_loss
 
         return loss, reranking_loss, nll_loss, nll_labels, label_scores
+
+    def _get_running_stats(
+        self,
+        softmax_score,
+        nll_labels,
+        label_scores,
+        reranking_softmax_score,
+    ):
+        max_score, max_idxs = torch.max(softmax_score, 1)
+        correct_predictions_count = (
+            (max_idxs == nll_labels.clone().detach()).sum().cpu().numpy().item()
+        )
+        correct_predictions_percentage = (
+            correct_predictions_count / len(nll_labels)
+        ) * 100
+
+        if self.args.unified_cross_rr:
+            rerank_max_score, rerank_max_idxs = torch.max(reranking_softmax_score, 1)
+            rerank_correct_predictions_count = (
+                (rerank_max_idxs == nll_labels.clone().detach())
+                .sum()
+                .cpu()
+                .numpy()
+                .item()
+            )
+            rerank_correct_predictions_percentage = (
+                rerank_correct_predictions_count / len(nll_labels)
+            ) * 100
+
+        if self.args.kl_div_loss or self.args.margin_mse_loss:
+            teacher_softmax_score = torch.nn.functional.softmax(label_scores, dim=-1)
+            teacher_max_score, teacher_max_idxs = torch.max(teacher_softmax_score, 1)
+            teacher_correct_predictions_count = (
+                (teacher_max_idxs == nll_labels.clone().detach())
+                .sum()
+                .cpu()
+                .numpy()
+                .item()
+            )
+            teacher_correct_predictions_percentage = (
+                teacher_correct_predictions_count / len(nll_labels)
+            ) * 100
+        else:
+            teacher_correct_predictions_percentage = None
+
+        return (
+            correct_predictions_count,
+            correct_predictions_percentage,
+            rerank_correct_predictions_percentage
+            if self.args.unified_cross_rr
+            else None,
+            teacher_correct_predictions_percentage,
+        )
 
     def _get_inputs_dict(self, batch, evaluate=False):
         device = self.device
