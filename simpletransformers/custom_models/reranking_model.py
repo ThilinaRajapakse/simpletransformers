@@ -1,26 +1,24 @@
 import torch
 from torch import nn
-from transformers import AutoModel, PreTrainedModel
+from transformers import AutoModel, BertModel
 
 
-class RerankingModel(PreTrainedModel):
+class RerankingModel(BertModel):
     def __init__(self, config):
         super().__init__(config)
-
-        self.encoder = AutoModel.from_config(config)
-        self.reranking_head = nn.Linear(config.hidden_size * 2, 1)
+        self.reranking_head = nn.Linear(config.hidden_size * 4, 1)
+        self.init_weights()
 
     def forward(self, inputs_embeds, attention_mask, token_type_ids, **kwargs):
+        extended_attention_mask = self.get_extended_attention_mask(
+            attention_mask, inputs_embeds.size()[:-1]
+        )
         outputs = self.encoder(
-            inputs_embeds=inputs_embeds,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
+            hidden_states=inputs_embeds,
+            attention_mask=extended_attention_mask,
         )
 
         outputs = outputs.last_hidden_state
-        # Ignoring the batch dimension, we have:
-        # outputs[0].shape = (sequence_length, hidden_size)
-        # The actual sequence length comes from the attention mask
         sequence_length = attention_mask.sum(dim=1)[0]
         batch_size = attention_mask.shape[0]
         hidden_dim = outputs[0].shape[1]
@@ -28,28 +26,41 @@ class RerankingModel(PreTrainedModel):
         # Truncate outputs to the actual sequence length
         outputs = outputs[:, :sequence_length, :]
 
-        # Step 1: Separate query and document vectors
-        query_vectors = outputs[:, 0, :]  # Shape: (batch_size, hidden_dim)
-        document_vectors = outputs[
-            :, 1:, :
-        ]  # Shape: (batch_size, sequence_length - 1, hidden_dim)
+        # Separate query and document vectors
+        query_vectors = outputs[:, 0, :]
+        document_vectors = outputs[:, 1:, :]
 
-        # Step 2: Repeat query vectors
+        # Repeat query vectors
         query_vectors_repeated = query_vectors.repeat_interleave(
             sequence_length - 1, dim=0
-        )  # Shape: (batch_size*(sequence_length - 1), hidden_dim)
+        )
 
-        # Step 3: Reshape document vectors
-        # Use .reshape() instead of .view() to handle non-contiguous memory layout
-        document_vectors_reshaped = document_vectors.reshape(
-            -1, hidden_dim
-        )  # Shape: (batch_size*(sequence_length - 1), hidden_dim)
+        # Reshape document vectors
+        document_vectors_reshaped = document_vectors.reshape(-1, hidden_dim)
 
-        # Step 4: Concatenate query and document vectors
+        # Concatenate query and document vectors
         concatenated = torch.cat(
             (query_vectors_repeated, document_vectors_reshaped), dim=1
-        )  # Shape: (batch_size*(sequence_length - 1), hidden_dim*2)
+        )
 
-        print(concatenated.shape)
+        # Skip connection: Concatenate original query and document vectors
+        query_vectors_expanded = (
+            query_vectors.unsqueeze(1)
+            .expand(-1, sequence_length - 1, -1)
+            .reshape(-1, hidden_dim)
+        )
+        document_vectors_flattened = document_vectors.reshape(-1, hidden_dim)
+        skip_concatenated = torch.cat(
+            (query_vectors_expanded, document_vectors_flattened), dim=1
+        )
 
-        pass
+        # Final concatenation for the reranking head input
+        reranking_input = torch.cat((concatenated, skip_concatenated), dim=1)
+
+        # Get logits from the reranking head
+        logits = self.reranking_head(reranking_input)
+
+        # Reshape logits to get a score for each document
+        logits = logits.reshape(batch_size, sequence_length - 1)
+
+        return logits

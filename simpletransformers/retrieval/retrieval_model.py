@@ -239,7 +239,7 @@ class RetrievalModel:
                     os.path.join(model_name, "reranking_model"),
                     **self.args.reranking_config,
                 )
-                self.reranking_model = context_encoder.from_pretrained(
+                self.reranking_model = RerankingModel.from_pretrained(
                     os.path.join(model_name, "reranking_model"),
                     config=self.reranking_config,
                 )
@@ -921,7 +921,7 @@ class RetrievalModel:
                 if show_running_loss and (args.kl_div_loss or args.margin_mse_loss):
                     if args.unified_cross_rr:
                         batch_iterator.set_description(
-                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Teacher correct percentage: {colbert_percentage:4.1f} Reranking correct percentage: {reranking_correct_predictions_percentage:4.1f}"
+                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Reranking correct percentage: {reranking_correct_predictions_percentage:4.1f} Teacher correct percentage: {colbert_percentage:4.1f}"
                         )
                     else:
                         batch_iterator.set_description(
@@ -3128,96 +3128,27 @@ class RetrievalModel:
             else:
                 if self.args.margin_mse_loss or self.args.kl_div_loss:
                     with torch.no_grad():
-                        if self.args.teacher_type == "colbert":
-                            label_scores = colbert_score(
-                                self.teacher_model,
-                                query_inputs,
-                                context_inputs,
-                                device=self.device,
-                            )
-                        else:
-                            label_scores = self._get_teacher_scores(
-                                reranking_input,
-                            )
-                if self.args.margin_mse_loss:
-                    mmse_criterion = MarginMSELoss(margin=0.1)
-
-                    label_scores = label_scores.reshape(similarity_score.shape)
-                    mse_loss = mmse_criterion(
-                        reranking_dot_score
-                        if self.args.unified_cross_rr
-                        else similarity_score,
-                        label_scores,
-                    )
-                    if self.args.include_nll_loss:
-                        nll_criterion = torch.nn.NLLLoss(reduction="mean")
-                        nll_loss = nll_criterion(softmax_score, labels)
-                        loss = mse_loss + nll_loss
-                    else:
-                        # a bit ugly but works downstream
-                        loss = mse_loss
-                    # for computing correct percentage
-                    nll_labels = labels
-                elif self.args.kl_div_loss:
-                    kl_criterion = torch.nn.KLDivLoss(reduction="batchmean")
-                    label_scores = label_scores.reshape(reranking_softmax_score.shape)
-
-                    kl_div_loss = kl_criterion(
-                        reranking_softmax_score
-                        if self.args.unified_cross_rr
-                        else softmax_score,
-                        torch.nn.functional.softmax(label_scores, dim=-1),
-                    )
-
-                    if self.args.include_nll_loss:
-                        nll_criterion = torch.nn.NLLLoss(reduction="mean")
-
-                        nll_loss = nll_criterion(softmax_score, labels)
-                        loss = (
-                            kl_div_loss * self.args.kl_div_loss_multiplier
-                        ) + nll_loss
-                    else:
-                        # a bit ugly but works downstream
-                        loss = kl_div_loss
-                    # for computing correct percentage
-                    nll_labels = labels
-                else:
-                    criterion = torch.nn.NLLLoss(reduction="mean")
-                    nll_loss = criterion(softmax_score, labels)
-                    nll_labels = labels
-
-                if unified_rr:
-                    reranking_target_tensor = []
-                    reranking_dot_score = torch.matmul(
-                        reranking_query_outputs, reranking_context_outputs.t()
-                    ).cpu()
-
-                    with torch.no_grad():
-                        reranking_target_tensor = self._get_teacher_scores(
-                            reranking_input,
+                        label_scores = self._get_teacher_scores(
+                            reranking_input, query_inputs, context_inputs
                         )
-                        reranking_target_tensor = reranking_target_tensor.reshape(
-                            reranking_dot_score.shape
-                        )
-
-                    reranking_criterion = torch.nn.MSELoss()
-                    reranking_loss = reranking_criterion(
-                        reranking_dot_score,
-                        reranking_target_tensor.type(torch.FloatTensor),
-                    )
-
-                    loss = nll_loss + reranking_loss
-                elif self.args.unified_cross_rr:
-                    if self.args.include_nll_loss:
-                        loss = (
-                            nll_loss + kl_div_loss
-                            if self.args.kl_div_loss
-                            else mse_loss
-                        )
-                    reranking_loss = None
-                else:
-                    reranking_loss = None
-                    loss = nll_loss
+                (
+                    loss,
+                    reranking_loss,
+                    nll_loss,
+                    nll_labels,
+                    label_scores,
+                ) = self._get_loss(
+                    similarity_score,
+                    softmax_score,
+                    labels,
+                    label_scores,
+                    reranking_softmax_score,
+                    reranking_dot_score,
+                    reranking_input,
+                    reranking_query_outputs,
+                    reranking_context_outputs,
+                    unified_rr,
+                )
 
         max_score, max_idxs = torch.max(softmax_score, 1)
         correct_predictions_count = (
@@ -3332,49 +3263,150 @@ class RetrievalModel:
 
         reranking_outputs = self.reranking_model(**reranking_model_inputs)
 
-        reranking_query_outputs = reranking_outputs[0][:, 0, :]
-        reranking_context_outputs = reranking_outputs[0][
-            :, 1 : context_outputs.size(1 if is_evaluating else 0) + 1, :
-        ]
+        if True:
+            reranking_softmax_score = torch.nn.functional.log_softmax(
+                reranking_outputs, dim=-1
+            )
+            return reranking_outputs, reranking_softmax_score
+        else:
+            reranking_query_outputs = reranking_outputs[0][:, 0, :]
+            reranking_context_outputs = reranking_outputs[0][
+                :, 1 : context_outputs.size(1 if is_evaluating else 0) + 1, :
+            ]
 
-        reranking_dot_score = torch.bmm(
-            reranking_query_outputs.unsqueeze(1),
-            reranking_context_outputs.transpose(-1, -2),
-        )
-        reranking_softmax_score = torch.nn.functional.log_softmax(
-            reranking_dot_score.squeeze(1), dim=-1
-        )
+            reranking_dot_score = torch.bmm(
+                reranking_query_outputs.unsqueeze(1),
+                reranking_context_outputs.transpose(-1, -2),
+            )
+            reranking_softmax_score = torch.nn.functional.log_softmax(
+                reranking_dot_score.squeeze(1), dim=-1
+            )
 
-        return reranking_dot_score, reranking_softmax_score
+            return reranking_dot_score, reranking_softmax_score
 
-    def _get_teacher_scores(self, reranking_input):
+    def _get_teacher_scores(
+        self, reranking_input=None, query_inputs=None, context_inputs=None
+    ):
         """Get teacher scores for reranking_input
 
         Args:
             reranking_input (dict): Reranking input dict
         """
-        reranking_target_tensor = []
-        for (
-            reranking_input_ids,
-            reranking_input_mask,
-            reranking_token_type_ids,
-        ) in zip(
-            reranking_input["input_ids"],
-            reranking_input["attention_mask"],
-            reranking_input["token_type_ids"],
-        ):
-            reranking_target_tensor.extend(
-                self.teacher_model(
-                    input_ids=reranking_input_ids,
-                    attention_mask=reranking_input_mask,
-                    token_type_ids=reranking_token_type_ids,
-                ).logits
+        if self.args.teacher_type == "colbert":
+            label_scores = colbert_score(
+                self.teacher_model,
+                query_inputs,
+                context_inputs,
+                device=self.device,
             )
+
+            return label_scores
+        else:
+            reranking_target_tensor = []
+            for (
+                reranking_input_ids,
+                reranking_input_mask,
+                reranking_token_type_ids,
+            ) in zip(
+                reranking_input["input_ids"],
+                reranking_input["attention_mask"],
+                reranking_input["token_type_ids"],
+            ):
+                reranking_target_tensor.extend(
+                    self.teacher_model(
+                        input_ids=reranking_input_ids,
+                        attention_mask=reranking_input_mask,
+                        token_type_ids=reranking_token_type_ids,
+                    ).logits
+                )
 
         # Stack and back to float32
         reranking_target_tensor = torch.stack(reranking_target_tensor).float()
 
         return reranking_target_tensor
+
+    def _get_loss(
+        self,
+        similarity_score,
+        softmax_score,
+        labels,
+        label_scores,
+        reranking_softmax_score,
+        reranking_dot_score,
+        reranking_input,
+        reranking_query_outputs,
+        reranking_context_outputs,
+        unified_rr,
+    ):
+        if self.args.margin_mse_loss:
+            mmse_criterion = MarginMSELoss(margin=0.1)
+
+            label_scores = label_scores.reshape(similarity_score.shape)
+            mse_loss = mmse_criterion(
+                reranking_dot_score if self.args.unified_cross_rr else similarity_score,
+                label_scores,
+            )
+        elif self.args.kl_div_loss:
+            kl_criterion = torch.nn.KLDivLoss(reduction="batchmean")
+            label_scores = label_scores.reshape(similarity_score.shape)
+
+            kl_div_loss = kl_criterion(
+                reranking_softmax_score
+                if self.args.unified_cross_rr
+                else softmax_score,
+                torch.nn.functional.softmax(label_scores, dim=-1),
+            )
+        if self.args.include_nll_loss:
+            criterion = torch.nn.NLLLoss(reduction="mean")
+            nll_loss = criterion(softmax_score, labels)
+            nll_labels = labels
+        if not (
+            self.args.include_nll_loss
+            or self.args.margin_mse_loss
+            or self.args.kl_div_loss
+        ):
+            raise ValueError(
+                "Either include_nll_loss, margin_mse_loss, or kl_div_loss must be True."
+            )
+
+        nll_labels = labels
+
+        if unified_rr:
+            reranking_target_tensor = []
+            reranking_dot_score = torch.matmul(
+                reranking_query_outputs, reranking_context_outputs.t()
+            ).cpu()
+
+            with torch.no_grad():
+                reranking_target_tensor = self._get_teacher_scores(
+                    reranking_input,
+                )
+                reranking_target_tensor = reranking_target_tensor.reshape(
+                    reranking_dot_score.shape
+                )
+
+            reranking_criterion = torch.nn.MSELoss()
+            reranking_loss = reranking_criterion(
+                reranking_dot_score,
+                reranking_target_tensor.type(torch.FloatTensor),
+            )
+
+            loss = nll_loss + reranking_loss
+        elif self.args.unified_cross_rr:
+            if self.args.include_nll_loss:
+                loss = nll_loss + (
+                    self.args.kl_div_loss_multiplier
+                    if self.args.kl_div_loss
+                    else mse_loss
+                )
+            else:
+                loss = kl_div_loss if self.args.kl_div_loss else mse_loss
+            reranking_loss = None
+        else:
+            reranking_loss = None
+            loss = nll_loss
+
+        return loss, reranking_loss, nll_loss, nll_labels, label_scores
 
     def _get_inputs_dict(self, batch, evaluate=False):
         device = self.device
