@@ -393,8 +393,10 @@ class RetrievalArgs(Seq2SeqArgs):
     kl_div_loss_multiplier: float = 1.0
     kmeans_k: int = -1
     larger_representations: bool = False
-    margin_mse_loss: bool = False
+    mse_loss: bool = False
     moving_average_loss_count: int = 10
+    multi_vector_query: bool = False
+    query_vector_count: int = 50
     nll_lambda: float = 1.0
     n_hard_negatives: int = 1
     output_dropout: float = 0.1

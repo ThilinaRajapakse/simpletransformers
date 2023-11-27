@@ -410,7 +410,12 @@ def preprocess_batch_for_hf_dataset(
 
 
 def get_output_embeddings(
-    embeddings, concatenate_embeddings=False, n_cls_tokens=3, use_pooler_output=False
+    embeddings,
+    concatenate_embeddings=False,
+    n_cls_tokens=3,
+    use_pooler_output=False,
+    args=None,
+    query_embeddings=False,
 ):
     """
     Extracts the embeddings from the output of the model.
@@ -424,7 +429,10 @@ def get_output_embeddings(
         if use_pooler_output:
             return embeddings.pooler_output
         try:
-            return embeddings[0][:, 0, :]
+            if args is not None and args.multi_vector_query and query_embeddings:
+                return embeddings[0][:, : args.query_vector_count, :]
+            else:
+                return embeddings[0][:, 0, :]
         except IndexError:
             return embeddings.pooler_output
 
@@ -1476,7 +1484,7 @@ def get_clustered_passage_dataset(
     for cluster in tqdm(clustered_batches.values(), desc="Randomizing clusters"):
         if len(cluster) == 1:
             continue
-        for mini_batch in tqdm(cluster, desc="Randomizing mini batches"):
+        for mini_batch in cluster:
             for i in range(len(mini_batch)):
                 random_mini_batch = random.sample(cluster, 1)[0]
                 attempts = 0

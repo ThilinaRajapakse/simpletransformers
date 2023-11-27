@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import json
 import logging
 import math
@@ -341,7 +342,7 @@ class RetrievalModel:
             self.teacher_model = None
             self.teacher_tokenizer = None
 
-        if args.margin_mse_loss or args.kl_div_loss:
+        if args.mse_loss or args.kl_div_loss:
             if args.teacher_type == "colbert":
                 self.teacher_model = ColBERTModel.from_pretrained(
                     teacher_model_name,
@@ -780,6 +781,8 @@ class RetrievalModel:
             wandb.run._label(repo="simpletransformers")
             wandb.watch(context_model)
             wandb.watch(query_model)
+            if self.unified_rr or self.args.unified_cross_rr:
+                wandb.watch(self.reranking_model)
 
         if args.fp16:
             from torch.cuda import amp
@@ -918,7 +921,7 @@ class RetrievalModel:
                 if args.repeat_high_loss_n > 0:
                     moving_loss.add_loss(current_loss)
 
-                if show_running_loss and (args.kl_div_loss or args.margin_mse_loss):
+                if show_running_loss and (args.kl_div_loss or args.mse_loss):
                     if args.unified_cross_rr:
                         batch_iterator.set_description(
                             f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Reranking correct percentage: {reranking_correct_predictions_percentage:4.1f} Teacher correct percentage: {colbert_percentage:4.1f}"
@@ -995,7 +998,7 @@ class RetrievalModel:
                                     "nll_loss": retrieval_output.nll_loss,
                                 }
                             else:
-                                if args.kl_div_loss or args.margin_mse_loss:
+                                if args.kl_div_loss or args.mse_loss:
                                     if args.unified_cross_rr:
                                         logging_dict = {
                                             "Training loss": current_loss,
@@ -1021,8 +1024,8 @@ class RetrievalModel:
                                             logging_dict["kl_div_loss"] = (
                                                 current_loss - retrieval_output.nll_loss
                                             )
-                                        elif args.margin_mse_loss:
-                                            logging_dict["margin_mse_loss"] = (
+                                        elif args.mse_loss:
+                                            logging_dict["mse_loss"] = (
                                                 current_loss - retrieval_output.nll_loss
                                             )
                                 else:
@@ -2071,6 +2074,7 @@ class RetrievalModel:
                             and self.args.model_type == "custom",
                             n_cls_tokens=(1 + self.args.extra_cls_token_count),
                             use_pooler_output=self.args.use_pooler_output,
+                            args=self.args,
                         )
                 else:
                     query_outputs = query_model(**query_inputs)
@@ -2080,6 +2084,8 @@ class RetrievalModel:
                         and self.args.model_type == "custom",
                         n_cls_tokens=(1 + self.args.extra_cls_token_count),
                         use_pooler_output=self.args.use_pooler_output,
+                        args=self.args,
+                        query_embeddings=True,
                     )
 
             if self.unified_rr:
@@ -3029,41 +3035,52 @@ class RetrievalModel:
 
         unified_rr = self.unified_rr
 
-        context_outputs = context_model(**context_inputs)
-        query_outputs = query_model(**query_inputs)
+        with torch.no_grad() if not (
+            self.args.train_context_encoder or self.args.train_query_encoder
+        ) else nullcontext():
+            context_outputs = context_model(**context_inputs)
+            query_outputs = query_model(**query_inputs)
 
-        if unified_rr:
-            reranking_query_outputs = query_outputs.reranking_embeddings.cpu().float()
-            query_outputs = query_outputs.retrieval_embeddings
+            if unified_rr:
+                reranking_query_outputs = (
+                    query_outputs.reranking_embeddings.cpu().float()
+                )
+                query_outputs = query_outputs.retrieval_embeddings
 
-            reranking_context_outputs = (
-                context_outputs.reranking_embeddings.cpu().float()
-            )
-            context_outputs = context_outputs.retrieval_embeddings
-        else:
-            context_outputs = get_output_embeddings(
-                context_outputs,
-                concatenate_embeddings=self.args.larger_representations
-                and self.args.model_type == "custom",
-                n_cls_tokens=(1 + self.args.extra_cls_token_count),
-                use_pooler_output=self.args.use_pooler_output,
-            )
-            query_outputs = get_output_embeddings(
-                query_outputs,
-                concatenate_embeddings=self.args.larger_representations
-                and self.args.model_type == "custom",
-                n_cls_tokens=(1 + self.args.extra_cls_token_count),
-                use_pooler_output=self.args.use_pooler_output,
-            )
-            reranking_query_outputs = None
-            reranking_context_outputs = None
+                reranking_context_outputs = (
+                    context_outputs.reranking_embeddings.cpu().float()
+                )
+                context_outputs = context_outputs.retrieval_embeddings
+            else:
+                context_outputs = get_output_embeddings(
+                    context_outputs,
+                    concatenate_embeddings=self.args.larger_representations
+                    and self.args.model_type == "custom",
+                    n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                    use_pooler_output=self.args.use_pooler_output,
+                    args=self.args,
+                )
+                query_outputs = get_output_embeddings(
+                    query_outputs,
+                    concatenate_embeddings=self.args.larger_representations
+                    and self.args.model_type == "custom",
+                    n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                    use_pooler_output=self.args.use_pooler_output,
+                    args=self.args,
+                    query_embeddings=True,
+                )
+                if self.args.multi_vector_query:
+                    reranking_query_outputs = query_outputs
+                    query_outputs = query_outputs[0]
+                reranking_query_outputs = None
+                reranking_context_outputs = None
 
-        context_outputs = torch.nn.functional.dropout(
-            context_outputs, p=self.args.output_dropout
-        )
-        query_outputs = torch.nn.functional.dropout(
-            query_outputs, p=self.args.output_dropout
-        )
+            context_outputs = torch.nn.functional.dropout(
+                context_outputs, p=self.args.output_dropout
+            )
+            query_outputs = torch.nn.functional.dropout(
+                query_outputs, p=self.args.output_dropout
+            )
 
         if self.args.include_triplet_loss:
             nll_criterion = torch.nn.NLLLoss(reduction="mean")
@@ -3125,7 +3142,7 @@ class RetrievalModel:
                     loss = bce_loss
                     nll_loss = None
             else:
-                if self.args.margin_mse_loss or self.args.kl_div_loss:
+                if self.args.mse_loss or self.args.kl_div_loss:
                     with torch.no_grad():
                         label_scores = self._get_teacher_scores(
                             reranking_input, query_inputs, context_inputs
@@ -3140,12 +3157,12 @@ class RetrievalModel:
                     similarity_score,
                     softmax_score,
                     labels,
-                    label_scores,
-                    reranking_softmax_score,
-                    reranking_dot_score,
-                    reranking_input,
-                    reranking_query_outputs,
-                    reranking_context_outputs,
+                    label_scores if self.args.unified_cross_rr else None,
+                    reranking_softmax_score if self.args.unified_cross_rr else None,
+                    reranking_dot_score if self.args.unified_cross_rr else None,
+                    reranking_input if self.args.unified_cross_rr else None,
+                    reranking_query_outputs if self.args.unified_cross_rr else None,
+                    reranking_context_outputs if self.args.unified_cross_rr else None,
                     unified_rr,
                 )
 
@@ -3158,7 +3175,7 @@ class RetrievalModel:
             softmax_score,
             nll_labels,
             label_scores,
-            reranking_softmax_score,
+            reranking_softmax_score if self.args.unified_cross_rr else None,
         )
 
         retrieval_output = RetrievalOutput(
@@ -3170,7 +3187,7 @@ class RetrievalModel:
             reranking_context_outputs=reranking_context_outputs,
             reranking_query_outputs=reranking_query_outputs,
             reranking_loss=reranking_loss.item() if reranking_loss else None,
-            nll_loss=nll_loss.item() if self.args.include_nll_loss else None,
+            nll_loss=nll_loss,
             teacher_correct_predictions_percentage=teacher_correct_predictions_percentage,
             reranking_correct_predictions_percentage=rerank_correct_predictions_percentage
             if self.args.unified_cross_rr
@@ -3312,14 +3329,22 @@ class RetrievalModel:
         reranking_context_outputs,
         unified_rr,
     ):
-        if self.args.margin_mse_loss:
-            mmse_criterion = MarginMSELoss(margin=0.1)
+        if self.args.mse_loss:
+            mse_criterion = torch.nn.MSELoss()
 
             label_scores = label_scores.reshape(similarity_score.shape)
-            mse_loss = mmse_criterion(
+            mse_loss = mse_criterion(
                 reranking_dot_score if self.args.unified_cross_rr else similarity_score,
                 label_scores,
             )
+
+            # mmse_criterion = MarginMSELoss(margin=0.1)
+
+            # label_scores = label_scores.reshape(similarity_score.shape)
+            # mse_loss = mmse_criterion(
+            #     reranking_dot_score if self.args.unified_cross_rr else similarity_score,
+            #     label_scores,
+            # )
         elif self.args.kl_div_loss:
             kl_criterion = torch.nn.KLDivLoss(reduction="batchmean")
             label_scores = label_scores.reshape(similarity_score.shape)
@@ -3335,12 +3360,10 @@ class RetrievalModel:
             nll_loss = criterion(softmax_score, labels)
             nll_labels = labels
         if not (
-            self.args.include_nll_loss
-            or self.args.margin_mse_loss
-            or self.args.kl_div_loss
+            self.args.include_nll_loss or self.args.mse_loss or self.args.kl_div_loss
         ):
             raise ValueError(
-                "Either include_nll_loss, margin_mse_loss, or kl_div_loss must be True."
+                "Either include_nll_loss, mse_loss, or kl_div_loss must be True."
             )
 
         nll_labels = labels
@@ -3380,6 +3403,7 @@ class RetrievalModel:
             reranking_loss = None
             loss = nll_loss
 
+        nll_loss = nll_loss.item() if self.args.include_nll_loss else None
         return loss, reranking_loss, nll_loss, nll_labels, label_scores
 
     def _get_running_stats(
@@ -3410,7 +3434,7 @@ class RetrievalModel:
                 rerank_correct_predictions_count / len(nll_labels)
             ) * 100
 
-        if self.args.kl_div_loss or self.args.margin_mse_loss:
+        if self.args.kl_div_loss or self.args.mse_loss:
             teacher_softmax_score = torch.nn.functional.softmax(label_scores, dim=-1)
             teacher_max_score, teacher_max_idxs = torch.max(teacher_softmax_score, 1)
             teacher_correct_predictions_count = (
@@ -3755,7 +3779,7 @@ class RetrievalModel:
         if self.args.unified_cross_rr:
             self.reranking_model.to(self.device)
 
-        if (self.args.margin_mse_loss or self.args.kl_div_loss) and not is_evaluating:
+        if (self.args.mse_loss or self.args.kl_div_loss) and not is_evaluating:
             self.teacher_model.to(self.device)
 
     def save_model_args(self, output_dir):
