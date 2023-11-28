@@ -57,6 +57,7 @@ from simpletransformers.custom_models.large_representation_retrieval_model impor
     DPRQuestionEncoderUnifiedRR,
 )
 from simpletransformers.custom_models.reranking_model import RerankingModel
+from simpletransformers.custom_models.retrieval_autoencoder import Autoencoder
 from simpletransformers.retrieval.beir_evaluation import BeirRetrievalModel
 from simpletransformers.retrieval.retrieval_utils import (
     calculate_mrr,
@@ -126,6 +127,7 @@ class RetrievalModel:
         prediction_passages=None,
         teacher_model_name=None,
         teacher_tokenizer_name=None,
+        autoencoder_model=None,
         clustering_model=None,
         args=None,
         use_cuda=True,
@@ -226,6 +228,25 @@ class RetrievalModel:
                     model_type, list(MODEL_CLASSES.keys())
                 )
             )
+
+        if self.args.use_autoencoder:
+            self.autoencoder_model = Autoencoder()
+            if autoencoder_model is not None:
+                # Load with PyTorch
+                self.autoencoder_model.load_state_dict(
+                    torch.load(os.path.join(autoencoder_model, "pytorch_model.bin"))
+                )
+            elif model_name:
+                # PyTorch model from a PyTorch checkpoint
+                self.autoencoder_model.load_state_dict(
+                    torch.load(
+                        os.path.join(
+                            model_name, "autoencoder_model", "pytorch_model.bin"
+                        )
+                    )
+                )
+        else:
+            self.autoencoder_model = None
 
         if self.args.unified_cross_rr:
             if reranking_model_name:
@@ -783,6 +804,8 @@ class RetrievalModel:
             wandb.watch(query_model)
             if self.unified_rr or self.args.unified_cross_rr:
                 wandb.watch(self.reranking_model)
+            if self.args.use_autoencoder:
+                wandb.watch(self.autoencoder_model)
 
         if args.fp16:
             from torch.cuda import amp
@@ -800,6 +823,9 @@ class RetrievalModel:
                 query_model.eval()
             if self.args.unified_rr or self.args.unified_cross_rr:
                 self.reranking_model.train()
+            if self.args.use_autoencoder:
+                self.autoencoder_model.train()
+
             if epochs_trained > 0:
                 epochs_trained -= 1
                 epoch_number = current_epoch - 1
@@ -1222,6 +1248,8 @@ class RetrievalModel:
                         query_model.train()
                         if self.unified_rr or self.args.unified_cross_rr:
                             self.reranking_model.train()
+                        if self.args.use_autoencoder:
+                            self.autoencoder_model.train()
 
             epoch_number += 1
             output_dir_current = os.path.join(
@@ -1546,6 +1574,7 @@ class RetrievalModel:
                 args=self.args,
                 context_config=self.context_config,
                 device=self.device,
+                autoencoder=self.autoencoder_model,
             )
             self.prediction_passages = passage_index
 
@@ -1739,6 +1768,8 @@ class RetrievalModel:
         query_model.eval()
         if self.unified_rr or self.args.unified_cross_rr:
             self.reranking_model.eval()
+        if self.args.use_autoencoder:
+            self.autoencoder_model.train()
 
         criterion = torch.nn.NLLLoss(reduction="mean")
 
@@ -2038,6 +2069,8 @@ class RetrievalModel:
         query_model.eval()
         if self.unified_rr or self.args.unified_cross_rr:
             self.reranking_model.eval()
+        if self.args.use_autoencoder:
+            self.autoencoder_model.train()
 
         # Batching
         for i, batch in tqdm(
@@ -2075,7 +2108,10 @@ class RetrievalModel:
                             n_cls_tokens=(1 + self.args.extra_cls_token_count),
                             use_pooler_output=self.args.use_pooler_output,
                             args=self.args,
+                            return_all_embeddings=self.args.use_autoencoder,
                         )
+                        if self.args.use_autoencoder:
+                            query_outputs = self.autoencoder_model.encode(query_outputs)
                 else:
                     query_outputs = query_model(**query_inputs)
                     query_outputs = get_output_embeddings(
@@ -2939,6 +2975,29 @@ class RetrievalModel:
                         },
                     ]
                 )
+            if self.args.use_autoencoder:
+                optimizer_grouped_parameters.extend(
+                    [
+                        {
+                            "params": [
+                                p
+                                for n, p in self.autoencoder_model.named_parameters()
+                                if n not in custom_parameter_names
+                                and not any(nd in n for nd in no_decay)
+                            ],
+                            "weight_decay": args.weight_decay,
+                        },
+                        {
+                            "params": [
+                                p
+                                for n, p in self.autoencoder_model.named_parameters()
+                                if n not in custom_parameter_names
+                                and any(nd in n for nd in no_decay)
+                            ],
+                            "weight_decay": 0.0,
+                        },
+                    ]
+                )
 
         return optimizer_grouped_parameters
 
@@ -3059,6 +3118,7 @@ class RetrievalModel:
                     n_cls_tokens=(1 + self.args.extra_cls_token_count),
                     use_pooler_output=self.args.use_pooler_output,
                     args=self.args,
+                    return_all_embeddings=self.args.use_autoencoder,
                 )
                 query_outputs = get_output_embeddings(
                     query_outputs,
@@ -3068,6 +3128,7 @@ class RetrievalModel:
                     use_pooler_output=self.args.use_pooler_output,
                     args=self.args,
                     query_embeddings=True,
+                    return_all_embeddings=self.args.use_autoencoder,
                 )
                 if self.args.multi_vector_query:
                     reranking_query_outputs = query_outputs
@@ -3119,6 +3180,21 @@ class RetrievalModel:
             else:
                 loss = nll_loss
         else:
+            if self.args.use_autoencoder:
+                full_query_outputs = query_outputs
+                full_context_outputs = context_outputs
+                query_outputs, decoded_query_outputs = self.autoencoder_model(
+                    query_outputs
+                )
+                context_outputs, decoded_context_outputs = self.autoencoder_model(
+                    context_outputs
+                )
+            else:
+                decoded_query_outputs = None
+                decoded_context_outputs = None
+                full_context_outputs = None
+                full_query_outputs = None
+
             similarity_score = torch.matmul(query_outputs, context_outputs.t())
             softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
 
@@ -3164,6 +3240,10 @@ class RetrievalModel:
                     reranking_query_outputs if self.args.unified_cross_rr else None,
                     reranking_context_outputs if self.args.unified_cross_rr else None,
                     unified_rr,
+                    query_outputs=full_query_outputs,
+                    context_outputs=full_context_outputs,
+                    decoded_query_outputs=decoded_query_outputs,
+                    decoded_context_outputs=decoded_context_outputs,
                 )
 
         (
@@ -3196,7 +3276,9 @@ class RetrievalModel:
 
         return retrieval_output
 
-    def _rerank_passages(self, query_outputs, context_outputs, is_evaluating=False):
+    def _rerank_passages(
+        self, query_outputs, context_outputs, is_evaluating=False, unified_cross_rr=True
+    ):
         """
         Unified cross reranking
 
@@ -3208,72 +3290,84 @@ class RetrievalModel:
         reranking_model_attention_mask: (batch_size, max_seq_length)
         reranking_model_token_type_ids: (batch_size, max_seq_length) - 0 for the query, 1 for the context
         """
-        if is_evaluating:
-            query_outputs = query_outputs.unsqueeze(1)
-            reranking_model_inputs_embeds = torch.cat(
-                [query_outputs, context_outputs], dim=1
-            )
+        if unified_cross_rr:
+            if is_evaluating:
+                query_outputs = query_outputs.unsqueeze(1)
+                reranking_model_inputs_embeds = torch.cat(
+                    [query_outputs, context_outputs], dim=1
+                )
 
-            reranking_model_attention_mask = torch.ones_like(
-                reranking_model_inputs_embeds[:, :, 0]
-            )
+                reranking_model_attention_mask = torch.ones_like(
+                    reranking_model_inputs_embeds[:, :, 0]
+                )
 
-            reranking_model_token_type_ids = torch.zeros_like(
-                reranking_model_inputs_embeds[:, :, 0]
-            )
-            reranking_model_token_type_ids[:, 0] = torch.ones((query_outputs.size(0)))
+                reranking_model_token_type_ids = torch.zeros_like(
+                    reranking_model_inputs_embeds[:, :, 0]
+                )
+                reranking_model_token_type_ids[:, 0] = torch.ones(
+                    (query_outputs.size(0))
+                )
+            else:
+                reranking_model_inputs_embeds = torch.zeros(
+                    (
+                        query_outputs.size(0),
+                        self.args.max_seq_length,
+                        query_outputs.size(1),
+                    )
+                )
+
+                reranking_model_inputs_embeds[:, 0, :] = query_outputs
+                reranking_model_inputs_embeds[
+                    :, 1 : context_outputs.size(0) + 1, :
+                ] = context_outputs
+
+                reranking_model_attention_mask = torch.zeros(
+                    (query_outputs.size(0), self.args.max_seq_length)
+                )
+                reranking_model_attention_mask[
+                    :, 0 : context_outputs.size(0) + 1
+                ] = torch.ones((query_outputs.size(0), context_outputs.size(0) + 1)).to(
+                    self.device
+                )
+
+                reranking_model_token_type_ids = torch.zeros(
+                    (query_outputs.size(0), self.args.max_seq_length)
+                )
+                reranking_model_token_type_ids[:, 0] = torch.ones(
+                    (query_outputs.size(0))
+                )
+
+            reranking_model_inputs = {
+                "inputs_embeds": reranking_model_inputs_embeds.to(self.device),
+                "attention_mask": reranking_model_attention_mask.long().to(self.device),
+                "token_type_ids": reranking_model_token_type_ids.long().to(self.device),
+            }
+
+            reranking_outputs = self.reranking_model(**reranking_model_inputs)
+
+            if True:
+                reranking_softmax_score = torch.nn.functional.log_softmax(
+                    reranking_outputs, dim=-1
+                )
+                return reranking_outputs, reranking_softmax_score
+            else:
+                reranking_query_outputs = reranking_outputs[0][:, 0, :]
+                reranking_context_outputs = reranking_outputs[0][
+                    :, 1 : context_outputs.size(1 if is_evaluating else 0) + 1, :
+                ]
+
+                reranking_dot_score = torch.bmm(
+                    reranking_query_outputs.unsqueeze(1),
+                    reranking_context_outputs.transpose(-1, -2),
+                )
+                reranking_softmax_score = torch.nn.functional.log_softmax(
+                    reranking_dot_score.squeeze(1), dim=-1
+                )
+
+                return reranking_dot_score, reranking_softmax_score
         else:
-            reranking_model_inputs_embeds = torch.zeros(
-                (query_outputs.size(0), self.args.max_seq_length, query_outputs.size(1))
-            )
-
-            reranking_model_inputs_embeds[:, 0, :] = query_outputs
-            reranking_model_inputs_embeds[
-                :, 1 : context_outputs.size(0) + 1, :
-            ] = context_outputs
-
-            reranking_model_attention_mask = torch.zeros(
-                (query_outputs.size(0), self.args.max_seq_length)
-            )
-            reranking_model_attention_mask[
-                :, 0 : context_outputs.size(0) + 1
-            ] = torch.ones((query_outputs.size(0), context_outputs.size(0) + 1)).to(
-                self.device
-            )
-
-            reranking_model_token_type_ids = torch.zeros(
-                (query_outputs.size(0), self.args.max_seq_length)
-            )
-            reranking_model_token_type_ids[:, 0] = torch.ones((query_outputs.size(0)))
-
-        reranking_model_inputs = {
-            "inputs_embeds": reranking_model_inputs_embeds.to(self.device),
-            "attention_mask": reranking_model_attention_mask.long().to(self.device),
-            "token_type_ids": reranking_model_token_type_ids.long().to(self.device),
-        }
-
-        reranking_outputs = self.reranking_model(**reranking_model_inputs)
-
-        if True:
-            reranking_softmax_score = torch.nn.functional.log_softmax(
-                reranking_outputs, dim=-1
-            )
-            return reranking_outputs, reranking_softmax_score
-        else:
-            reranking_query_outputs = reranking_outputs[0][:, 0, :]
-            reranking_context_outputs = reranking_outputs[0][
-                :, 1 : context_outputs.size(1 if is_evaluating else 0) + 1, :
-            ]
-
-            reranking_dot_score = torch.bmm(
-                reranking_query_outputs.unsqueeze(1),
-                reranking_context_outputs.transpose(-1, -2),
-            )
-            reranking_softmax_score = torch.nn.functional.log_softmax(
-                reranking_dot_score.squeeze(1), dim=-1
-            )
-
-            return reranking_dot_score, reranking_softmax_score
+            # Autoencoder
+            pass
 
     def _get_teacher_scores(
         self, reranking_input=None, query_inputs=None, context_inputs=None
@@ -3328,7 +3422,36 @@ class RetrievalModel:
         reranking_query_outputs,
         reranking_context_outputs,
         unified_rr,
+        query_outputs=None,
+        context_outputs=None,
+        decoded_query_outputs=None,
+        decoded_context_outputs=None,
     ):
+        if self.args.use_autoencoder:
+            if self.args.autoencoder_mse_loss:
+                mse_criterion = torch.nn.MSELoss()
+                mse_loss = mse_criterion(
+                    decoded_query_outputs,
+                    query_outputs,
+                ) + mse_criterion(
+                    decoded_context_outputs,
+                    context_outputs,
+                )
+            else:
+                mse_loss = None
+
+            if self.args.autoencoder_kl_div_loss:
+                kl_criterion = torch.nn.KLDivLoss(reduction="batchmean")
+                kl_div_loss = kl_criterion(
+                    torch.nn.functional.log_softmax(decoded_query_outputs, dim=-1),
+                    torch.nn.functional.softmax(query_outputs, dim=-1),
+                ) + kl_criterion(
+                    torch.nn.functional.log_softmax(decoded_context_outputs, dim=-1),
+                    torch.nn.functional.softmax(context_outputs, dim=-1),
+                )
+            else:
+                kl_div_loss = None
+
         if self.args.mse_loss:
             mse_criterion = torch.nn.MSELoss()
 
@@ -3338,13 +3461,6 @@ class RetrievalModel:
                 label_scores,
             )
 
-            # mmse_criterion = MarginMSELoss(margin=0.1)
-
-            # label_scores = label_scores.reshape(similarity_score.shape)
-            # mse_loss = mmse_criterion(
-            #     reranking_dot_score if self.args.unified_cross_rr else similarity_score,
-            #     label_scores,
-            # )
         elif self.args.kl_div_loss:
             kl_criterion = torch.nn.KLDivLoss(reduction="batchmean")
             label_scores = label_scores.reshape(similarity_score.shape)
@@ -3398,6 +3514,11 @@ class RetrievalModel:
                 )
             else:
                 loss = kl_div_loss if self.args.kl_div_loss else mse_loss
+            reranking_loss = None
+        elif self.args.use_autoencoder:
+            loss = nll_loss + (
+                self.args.kl_div_loss_multiplier if self.args.kl_div_loss else mse_loss
+            )
             reranking_loss = None
         else:
             reranking_loss = None
@@ -3762,6 +3883,14 @@ class RetrievalModel:
                 os.path.join(output_dir, "reranking_model")
             )
 
+        if self.args.use_autoencoder:
+            # We need to save with PyTorch
+            os.makedirs(os.path.join(output_dir, "autoencoder_model"), exist_ok=True)
+            torch.save(
+                self.autoencoder_model.state_dict(),
+                os.path.join(output_dir, "autoencoder_model", "pytorch_model.bin"),
+            )
+
         if results:
             os.makedirs(output_dir, exist_ok=True)
             output_eval_file = os.path.join(output_dir, "eval_results.txt")
@@ -3781,6 +3910,9 @@ class RetrievalModel:
 
         if (self.args.mse_loss or self.args.kl_div_loss) and not is_evaluating:
             self.teacher_model.to(self.device)
+
+        if self.args.use_autoencoder:
+            self.autoencoder_model.to(self.device)
 
     def save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)

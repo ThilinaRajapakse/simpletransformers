@@ -416,6 +416,7 @@ def get_output_embeddings(
     use_pooler_output=False,
     args=None,
     query_embeddings=False,
+    return_all_embeddings=False,
 ):
     """
     Extracts the embeddings from the output of the model.
@@ -432,7 +433,10 @@ def get_output_embeddings(
             if args is not None and args.multi_vector_query and query_embeddings:
                 return embeddings[0][:, : args.query_vector_count, :]
             else:
-                return embeddings[0][:, 0, :]
+                if return_all_embeddings:
+                    return embeddings[0]
+                else:
+                    return embeddings[0][:, 0, :]
         except IndexError:
             return embeddings.pooler_output
 
@@ -451,11 +455,20 @@ def embed(
     cluster_concatenated=False,
     unified_rr=False,
     passage_column="passages",
+    args=None,
+    autoencoder=None,
 ):
     """Compute the DPR embeddings of document passages"""
     if rank is not None:
         device = torch.device("cuda", rank)
         encoder = encoder.to(device)
+
+    if args is None:
+        use_autoencoder = False
+    elif args.use_autoencoder:
+        use_autoencoder = True
+        if rank is not None:
+            autoencoder = autoencoder.to(device)
 
     if cluster_concatenated:
         context_column = "clustering_context_ids"
@@ -488,7 +501,10 @@ def embed(
                             embeddings,
                             concatenate_embeddings=concatenate_embeddings,
                             n_cls_tokens=(1 + extra_cls_token_count),
+                            return_all_embeddings=args.use_autoencoder,
                         )
+                        if args.use_autoencoder:
+                            embeddings = autoencoder.encode(embeddings)
                     except (TypeError, ValueError) as e:
                         logger.warn(e)
                         logger.warn(
@@ -514,7 +530,10 @@ def embed(
                             embeddings,
                             concatenate_embeddings=concatenate_embeddings,
                             n_cls_tokens=(1 + extra_cls_token_count),
+                            return_all_embeddings=use_autoencoder,
                         )
+                        if use_autoencoder:
+                            embeddings = autoencoder.encode(embeddings)
                 else:
                     embeddings = encoder(
                         documents[context_column].to(device=device),
@@ -525,7 +544,10 @@ def embed(
                         embeddings,
                         concatenate_embeddings=concatenate_embeddings,
                         n_cls_tokens=(1 + extra_cls_token_count),
+                        return_all_embeddings=use_autoencoder,
                     )
+                    if use_autoencoder:
+                        embeddings = autoencoder.encode(embeddings)
             # Embeddings need to be float32 for indexing
             embeddings = embeddings.float()
         else:
@@ -873,6 +895,7 @@ def get_prediction_passage_dataset(
     context_config,
     args,
     device,
+    autoencoder=None,
 ):
     import faiss
 
@@ -926,6 +949,8 @@ def get_prediction_passage_dataset(
             amp = None
 
         encoder = encoder.to(device)
+        if args.use_autoencoder:
+            autoencoder = autoencoder.to(device)
         prediction_passages_dataset = prediction_passages_dataset.map(
             partial(
                 embed,
@@ -937,6 +962,8 @@ def get_prediction_passage_dataset(
                 fp16=args.fp16,
                 amp=amp,
                 unified_rr=args.unified_rr,
+                args=args,
+                autoencoder=autoencoder,
             ),
             batched=True,
             batch_size=args.embed_batch_size,
@@ -1894,6 +1921,7 @@ def embed_passages_trec_format(
     args,
     context_config,
     device,
+    autoencoder=None,
 ):
     if isinstance(passage_dataset, str):
         # If passage_dataset is a str, then we load from disk.
@@ -1927,6 +1955,8 @@ def embed_passages_trec_format(
             amp = None
 
         encoder = encoder.to(device)
+        if autoencoder is not None:
+            autoencoder = autoencoder.to(device)
 
         logger.info("Generating embeddings for evaluation passages")
         passage_dataset = passage_dataset.map(
@@ -1941,6 +1971,8 @@ def embed_passages_trec_format(
                 amp=amp,
                 passage_column="passage_text",
                 unified_rr=args.unified_rr,
+                args=args,
+                autoencoder=autoencoder,
             ),
             batched=True,
             batch_size=args.embed_batch_size,

@@ -420,9 +420,12 @@ class RetrievalArgs(Seq2SeqArgs):
     triplet_margin: float = 1.0
     unified_rr: bool = False
     unified_cross_rr: bool = False
+    use_autoencoder: bool = False
     use_hf_datasets: bool = True
     use_pooler_output: bool = False
     reranking_config: dict = field(default_factory=dict)
+    autoencoder_mse_loss: bool = True
+    autoencoder_kl_div_loss: bool = False
 
 
 @dataclass
