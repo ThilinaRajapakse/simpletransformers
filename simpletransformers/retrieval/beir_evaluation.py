@@ -99,6 +99,8 @@ class BeirRetrievalModel:
                             concatenate_embeddings=self.args.larger_representations
                             and self.args.model_type == "custom",
                             n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                            args=self.args,
+                            input_mask=query_inputs["attention_mask"],
                         )
                 else:
                     query_outputs = query_model(**query_inputs)
@@ -107,6 +109,8 @@ class BeirRetrievalModel:
                         concatenate_embeddings=self.args.larger_representations
                         and self.args.model_type == "custom",
                         n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                        args=self.args,
+                        input_mask=query_inputs["attention_mask"],
                     )
 
             all_query_embeddings[
@@ -122,7 +126,10 @@ class BeirRetrievalModel:
         encoder = self.context_encoder
         device = encoder.device
         tokenizer = self.context_tokenizer
-        passages = [c["title"] + " " + c["text"] for c in corpus]
+        if args.include_title_in_corpus:
+            passages = [c["title"] + " " + c["text"] for c in corpus]
+        else:
+            passages = [c["text"] for c in corpus]
 
         prediction_passages_dataset = HFDataset.from_dict({"passages": passages})
 
@@ -144,6 +151,7 @@ class BeirRetrievalModel:
                     device=device,
                     fp16=args.fp16,
                     amp=amp,
+                    args=args,
                 ),
                 batched=True,
                 batch_size=args.embed_batch_size,

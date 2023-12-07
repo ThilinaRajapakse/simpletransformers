@@ -46,6 +46,7 @@ from transformers.optimization import (
 )
 from torch.optim import AdamW
 from transformers.optimization import Adafactor
+from simpletransformers.custom_models.models import RobertaWithAutoEncoderForMaskedLM
 
 from transformers import DummyObject, requires_backends
 
@@ -139,6 +140,11 @@ MODEL_CLASSES = {
     "openai-gpt": (OpenAIGPTConfig, OpenAIGPTLMHeadModel, OpenAIGPTTokenizer),
     "rembert": (RemBertConfig, RemBertForMaskedLM, RemBertTokenizer),
     "roberta": (RobertaConfig, RobertaForMaskedLM, RobertaTokenizer),
+    "roberta-autoencoder": (
+        RobertaConfig,
+        RobertaWithAutoEncoderForMaskedLM,
+        RobertaTokenizer,
+    ),
     "xlmroberta": (XLMRobertaConfig, XLMRobertaForMaskedLM, XLMRobertaTokenizer),
 }
 
@@ -153,6 +159,7 @@ class LanguageModelingModel:
         train_files=None,
         args=None,
         use_cuda=True,
+        autoencoder_model=None,
         cuda_device=-1,
         **kwargs,
     ):
@@ -393,6 +400,25 @@ class LanguageModelingModel:
                 )
                 model_to_resize.resize_token_embeddings(len(self.tokenizer))
 
+        # if self.args.use_autoencoder:
+        #     self.autoencoder_model = Autoencoder()
+        #     if autoencoder_model is not None:
+        #         # Load with PyTorch
+        #         self.autoencoder_model.load_state_dict(
+        #             torch.load(os.path.join(autoencoder_model, "pytorch_model.bin"))
+        #         )
+        #     elif model_name:
+        #         # PyTorch model from a PyTorch checkpoint
+        #         self.autoencoder_model.load_state_dict(
+        #             torch.load(
+        #                 os.path.join(
+        #                     model_name, "autoencoder_model", "pytorch_model.bin"
+        #                 )
+        #             )
+        #         )
+        # else:
+        #     self.autoencoder_model = None
+
         if model_type in ["camembert", "xlmroberta"]:
             warnings.warn(
                 f"use_multiprocessing automatically disabled as {model_type}"
@@ -517,15 +543,18 @@ class LanguageModelingModel:
 
         if self.is_world_master():
             tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
-        train_sampler = (
-            RandomSampler(train_dataset)
-            if args.local_rank == -1
-            else DistributedSampler(train_dataset)
-        )
+        if not self.args.stream_hf_datasets:
+            train_sampler = (
+                RandomSampler(train_dataset)
+                if args.local_rank == -1
+                else DistributedSampler(train_dataset)
+            )
         if self.args.use_hf_datasets:
             # Inputs are already padded so default collation is fine
             train_dataloader = DataLoader(
-                train_dataset, batch_size=args.train_batch_size, sampler=train_sampler
+                train_dataset,
+                batch_size=args.train_batch_size,
+                sampler=train_sampler if not self.args.stream_hf_datasets else None,
             )
         else:
             train_dataloader = DataLoader(
@@ -537,11 +566,14 @@ class LanguageModelingModel:
 
         if args.max_steps > 0:
             t_total = args.max_steps
-            args.num_train_epochs = (
-                args.max_steps
-                // (len(train_dataloader) // args.gradient_accumulation_steps)
-                + 1
-            )
+            try:
+                args.num_train_epochs = (
+                    args.max_steps
+                    // (len(train_dataloader) // args.gradient_accumulation_steps)
+                    + 1
+                )
+            except TypeError:
+                pass
         else:
             t_total = (
                 len(train_dataloader)
@@ -549,63 +581,7 @@ class LanguageModelingModel:
                 * args.num_train_epochs
             )
 
-        no_decay = ["bias", "LayerNorm.weight"]
-
-        optimizer_grouped_parameters = []
-        custom_parameter_names = set()
-        for group in self.args.custom_parameter_groups:
-            params = group.pop("params")
-            custom_parameter_names.update(params)
-            param_group = {**group}
-            param_group["params"] = [
-                p for n, p in model.named_parameters() if n in params
-            ]
-            optimizer_grouped_parameters.append(param_group)
-
-        for group in self.args.custom_layer_parameters:
-            layer_number = group.pop("layer")
-            layer = f"layer.{layer_number}."
-            group_d = {**group}
-            group_nd = {**group}
-            group_nd["weight_decay"] = 0.0
-            params_d = []
-            params_nd = []
-            for n, p in model.named_parameters():
-                if n not in custom_parameter_names and layer in n:
-                    if any(nd in n for nd in no_decay):
-                        params_nd.append(p)
-                    else:
-                        params_d.append(p)
-                    custom_parameter_names.add(n)
-            group_d["params"] = params_d
-            group_nd["params"] = params_nd
-
-            optimizer_grouped_parameters.append(group_d)
-            optimizer_grouped_parameters.append(group_nd)
-
-        if not self.args.train_custom_parameters_only:
-            optimizer_grouped_parameters.extend(
-                [
-                    {
-                        "params": [
-                            p
-                            for n, p in model.named_parameters()
-                            if n not in custom_parameter_names
-                            and not any(nd in n for nd in no_decay)
-                        ],
-                        "weight_decay": args.weight_decay,
-                    },
-                    {
-                        "params": [
-                            p
-                            for n, p in model.named_parameters()
-                            if n not in custom_parameter_names
-                            and any(nd in n for nd in no_decay)
-                        ],
-                        "weight_decay": 0.0,
-                    },
-                ]
-            )
+        optimizer_grouped_parameters = self.get_optimizer_parameters(model, args)
 
         warmup_steps = math.ceil(t_total * args.warmup_ratio)
         args.warmup_steps = (
@@ -792,6 +768,27 @@ class LanguageModelingModel:
 
                 # TODO: Move this to _get_inputs_dict and keep the attention masks
                 if self.args.use_hf_datasets:
+                    if self.args.stream_hf_datasets:
+                        # BUG: TOKENIZATION IS BUGGED FOR HF DATASETS
+                        batch["input_ids"] = torch.stack(batch["input_ids"])
+                        batch["attention_mask"] = torch.stack(batch["attention_mask"])
+                        if self.args.model_type in [
+                            "roberta",
+                            "roberta-autoencoder",
+                            "xlmroberta",
+                        ]:
+                            # We need a list of zeros the same shape as attention_mask for RoBERTa
+                            batch["token_type_ids"] = [
+                                torch.zeros_like(attention_mask)
+                                for attention_mask in batch["attention_mask"]
+                            ]
+                            batch["token_type_ids"] = torch.stack(
+                                batch["token_type_ids"]
+                            )
+                        else:
+                            batch["token_type_ids"] = torch.stack(
+                                batch["token_type_ids"]
+                            )
                     input_ids = batch["input_ids"]
                 else:
                     input_ids = batch
@@ -1704,6 +1701,91 @@ class LanguageModelingModel:
         even when training on multiple machines.
         """
         return self.args.local_rank == -1 or torch.distributed.get_rank() == 0
+
+    def get_optimizer_parameters(self, model, args):
+        no_decay = ["bias", "LayerNorm.weight"]
+
+        optimizer_grouped_parameters = []
+        custom_parameter_names = set()
+        for group in self.args.custom_parameter_groups:
+            params = group.pop("params")
+            custom_parameter_names.update(params)
+            param_group = {**group}
+            param_group["params"] = [
+                p for n, p in model.named_parameters() if n in params
+            ]
+            optimizer_grouped_parameters.append(param_group)
+
+        for group in self.args.custom_layer_parameters:
+            layer_number = group.pop("layer")
+            layer = f"layer.{layer_number}."
+            group_d = {**group}
+            group_nd = {**group}
+            group_nd["weight_decay"] = 0.0
+            params_d = []
+            params_nd = []
+            for n, p in model.named_parameters():
+                if n not in custom_parameter_names and layer in n:
+                    if any(nd in n for nd in no_decay):
+                        params_nd.append(p)
+                    else:
+                        params_d.append(p)
+                    custom_parameter_names.add(n)
+            group_d["params"] = params_d
+            group_nd["params"] = params_nd
+
+            optimizer_grouped_parameters.append(group_d)
+            optimizer_grouped_parameters.append(group_nd)
+
+        if not self.args.train_custom_parameters_only:
+            optimizer_grouped_parameters.extend(
+                [
+                    {
+                        "params": [
+                            p
+                            for n, p in model.named_parameters()
+                            if n not in custom_parameter_names
+                            and not any(nd in n for nd in no_decay)
+                        ],
+                        "weight_decay": args.weight_decay,
+                    },
+                    {
+                        "params": [
+                            p
+                            for n, p in model.named_parameters()
+                            if n not in custom_parameter_names
+                            and any(nd in n for nd in no_decay)
+                        ],
+                        "weight_decay": 0.0,
+                    },
+                ]
+            )
+
+            # if self.args.use_autoencoder:
+            #     optimizer_grouped_parameters.extend(
+            #         [
+            #             {
+            #                 "params": [
+            #                     p
+            #                     for n, p in self.autoencoder_model.named_parameters()
+            #                     if n not in custom_parameter_names
+            #                     and not any(nd in n for nd in no_decay)
+            #                 ],
+            #                 "weight_decay": args.weight_decay,
+            #             },
+            #             {
+            #                 "params": [
+            #                     p
+            #                     for n, p in self.autoencoder_model.named_parameters()
+            #                     if n not in custom_parameter_names
+            #                     and any(nd in n for nd in no_decay)
+            #                 ],
+            #                 "weight_decay": 0.0,
+            #             },
+            #         ]
+            #     )
+
+        return optimizer_grouped_parameters
 
     def get_named_parameters(self):
         return [n for n, p in self.model.named_parameters()]

@@ -106,6 +106,7 @@ def load_hf_dataset(data, tokenizer, args):
             download_mode="force_redownload"
             if args.reprocess_input_data
             else "reuse_dataset_if_exists",
+            streaming=True,
         )
     elif args.data_format == "tsv":
         dataset = load_dataset(
@@ -115,6 +116,7 @@ def load_hf_dataset(data, tokenizer, args):
             download_mode="force_redownload"
             if args.reprocess_input_data
             else "reuse_dataset_if_exists",
+            streaming=True,
         )
     else:
         raise ValueError("args.data_format must be either 'text' or 'tsv'")
@@ -127,9 +129,9 @@ def load_hf_dataset(data, tokenizer, args):
         remove_columns=["text"],
     )
 
-    dataset.set_format(
-        type="pt", columns=["input_ids", "token_type_ids", "attention_mask"]
-    )
+    # dataset = dataset.with_format(
+    #     type="pt", columns=["input_ids", "token_type_ids", "attention_mask"]
+    # )
 
     if isinstance(data, str):
         # This is not necessarily a train dataset. The datasets library insists on calling it train.

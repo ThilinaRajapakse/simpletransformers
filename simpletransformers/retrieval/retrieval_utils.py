@@ -417,6 +417,7 @@ def get_output_embeddings(
     args=None,
     query_embeddings=False,
     return_all_embeddings=False,
+    input_mask=None,
 ):
     """
     Extracts the embeddings from the output of the model.
@@ -425,6 +426,16 @@ def get_output_embeddings(
     if concatenate_embeddings:
         return embeddings.last_hidden_state[:, :n_cls_tokens, :].reshape(
             embeddings.last_hidden_state.shape[0], -1
+        )
+    elif args is not None and args.mean_pooling:
+        token_embeddings = embeddings[
+            0
+        ]  # First element of model_output contains all token embeddings
+        input_mask_expanded = (
+            input_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+        )
+        return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(
+            input_mask_expanded.sum(1), min=1e-9
         )
     else:
         if use_pooler_output:
@@ -469,6 +480,8 @@ def embed(
         use_autoencoder = True
         if rank is not None:
             autoencoder = autoencoder.to(device)
+    else:
+        use_autoencoder = False
 
     if cluster_concatenated:
         context_column = "clustering_context_ids"
@@ -501,9 +514,13 @@ def embed(
                             embeddings,
                             concatenate_embeddings=concatenate_embeddings,
                             n_cls_tokens=(1 + extra_cls_token_count),
-                            return_all_embeddings=args.use_autoencoder,
+                            return_all_embeddings=use_autoencoder,
+                            args=args,
+                            input_mask=tokenized_inputs["attention_mask"].to(
+                                device=device
+                            ),
                         )
-                        if args.use_autoencoder:
+                        if use_autoencoder:
                             embeddings = autoencoder.encode(embeddings)
                     except (TypeError, ValueError) as e:
                         logger.warn(e)
@@ -1793,7 +1810,13 @@ def load_trec_file(
         file_path = file_name
 
     if not header:
-        if file_name in ["qrels", "train", "dev", "test"]:
+        if file_name in [
+            "qrels",
+            "train",
+            "dev",
+            "test",
+            "dev",
+        ] or file_name.startswith("dev_"):
             column_names = ["query_id", "passage_id", "relevance"]
         elif file_name == "queries":
             column_names = ["query_id", "query_text"]
@@ -1882,7 +1905,9 @@ def load_trec_format(
         queries = load_trec_file(queries_path, header=queries_header)
         qrels = load_trec_file(qrels_path, header=qrels_header)
 
-    # Also check if an index exists
+    # Filter rows from queries if _id is not in qrels query_id
+    to_keep = {int(_id) for _id in qrels["train"]["query_id"]}
+    queries = queries.filter(lambda row: int(row["_id"]) in to_keep)
 
     return (
         None if skip_passages else collection["train"],
@@ -1896,6 +1921,7 @@ def convert_beir_columns_to_trec_format(
     queries,
     qrels,
     include_titles=False,
+    skip_passages=False,
 ):
     collection = collection.rename_column("_id", "passage_id")
     if include_titles:

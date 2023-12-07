@@ -275,6 +275,8 @@ class LanguageModelingArgs(ModelArgs):
     special_tokens_list: list = field(default_factory=list)
     strip_accents: bool = True
     local_rank: int = -1
+    use_autoencoder: bool = False
+    stream_hf_datasets: bool = False
 
     def save(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
@@ -407,7 +409,7 @@ class RetrievalArgs(Seq2SeqArgs):
     remove_duplicates_from_eval_passages: bool = False
     repeat_high_loss_n: int = 0
     rerank_batch_size: int = 256
-    retrieval_batch_size: int = 512
+    retrieval_batch_size: int = 2048
     retrieve_n_docs: int = 10
     save_clustering_idx: bool = False
     save_passage_dataset: bool = True
@@ -426,6 +428,7 @@ class RetrievalArgs(Seq2SeqArgs):
     reranking_config: dict = field(default_factory=dict)
     autoencoder_mse_loss: bool = True
     autoencoder_kl_div_loss: bool = False
+    mean_pooling: bool = False
 
 
 @dataclass

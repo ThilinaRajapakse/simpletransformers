@@ -1543,7 +1543,7 @@ class RetrievalModel:
                 )
                 return
 
-            if passage_dataset is None:
+            if passage_dataset != "preloaded":
                 passage_dataset, query_dataset, qrels_dataset = load_trec_format(
                     eval_data, qrels_name=eval_set, data_format=self.args.data_format
                 )
@@ -1555,7 +1555,7 @@ class RetrievalModel:
                     skip_passages=True,
                 )
 
-            if self.args.data_format == "beir":
+            if self.args.data_format == "beir" and passage_dataset != "preloaded":
                 (
                     passage_dataset,
                     query_dataset,
@@ -1567,16 +1567,17 @@ class RetrievalModel:
                     include_titles=self.args.include_title_in_corpus,
                 )
 
-            passage_index = embed_passages_trec_format(
-                passage_dataset,
-                self.context_encoder,
-                self.context_tokenizer,
-                args=self.args,
-                context_config=self.context_config,
-                device=self.device,
-                autoencoder=self.autoencoder_model,
-            )
-            self.prediction_passages = passage_index
+            if passage_dataset != "preloaded":
+                passage_index = embed_passages_trec_format(
+                    passage_dataset,
+                    self.context_encoder,
+                    self.context_tokenizer,
+                    args=self.args,
+                    context_config=self.context_config,
+                    device=self.device,
+                    autoencoder=self.autoencoder_model,
+                )
+                self.prediction_passages = passage_index
 
             query_text_column = (
                 "text" if self.args.data_format == "beir" else "query_text"
@@ -1649,6 +1650,16 @@ class RetrievalModel:
                     "w",
                 ) as f:
                     json.dump(result_report, f)
+
+            if save_as_experiment:
+                # Save run_dict
+                with open(
+                    os.path.join(
+                        experiment_name, dataset_name, model_name, "run_dict.json"
+                    ),
+                    "w",
+                ) as f:
+                    json.dump(run_dict, f)
 
             return result_report
 
@@ -2109,6 +2120,7 @@ class RetrievalModel:
                             use_pooler_output=self.args.use_pooler_output,
                             args=self.args,
                             return_all_embeddings=self.args.use_autoencoder,
+                            input_mask=query_inputs["attention_mask"],
                         )
                         if self.args.use_autoencoder:
                             query_outputs = self.autoencoder_model.encode(query_outputs)
@@ -2122,6 +2134,7 @@ class RetrievalModel:
                         use_pooler_output=self.args.use_pooler_output,
                         args=self.args,
                         query_embeddings=True,
+                        input_mask=query_inputs["attention_mask"],
                     )
 
             if self.unified_rr:
@@ -3200,8 +3213,12 @@ class RetrievalModel:
 
             if self.args.unified_cross_rr:
                 reranking_dot_score, reranking_softmax_score = self._rerank_passages(
-                    query_outputs=query_outputs,
-                    context_outputs=context_outputs,
+                    query_outputs=query_outputs
+                    if not self.args.use_autoencoder
+                    else full_query_outputs,
+                    context_outputs=context_outputs
+                    if not self.args.use_autoencoder
+                    else full_context_outputs,
                 )
 
             if self.args.include_bce_loss and self.context_encoder.training:
@@ -3368,6 +3385,14 @@ class RetrievalModel:
         else:
             # Autoencoder
             pass
+            # reranking_dot_score = torch.matmul(
+            #     query_outputs, context_outputs.t()
+            # )
+            # reranking_softmax_score = torch.nn.functional.log_softmax(
+            #     reranking_dot_score, dim=-1
+            # )
+
+            # return reranking_dot_score, reranking_softmax_score
 
     def _get_teacher_scores(
         self, reranking_input=None, query_inputs=None, context_inputs=None
