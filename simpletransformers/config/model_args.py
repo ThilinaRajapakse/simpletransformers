@@ -407,6 +407,7 @@ class RetrievalArgs(Seq2SeqArgs):
     )
     query_config: dict = field(default_factory=dict)
     remove_duplicates_from_eval_passages: bool = False
+    relevance_level: int = 1
     repeat_high_loss_n: int = 0
     rerank_batch_size: int = 256
     retrieval_batch_size: int = 2048

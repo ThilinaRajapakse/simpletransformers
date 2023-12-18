@@ -1603,7 +1603,7 @@ class RetrievalModel:
             else:
                 custom_mrr = False
 
-            evaluator = pytrec_eval.RelevanceEvaluator(qrels_dict, pytrec_eval_metrics)
+            evaluator = pytrec_eval.RelevanceEvaluator(qrels_dict, pytrec_eval_metrics, relevance_level=self.args.relevance_level)
 
             try:
                 results = evaluator.evaluate(run_dict)

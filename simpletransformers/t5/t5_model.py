@@ -1132,7 +1132,7 @@ class T5Model:
 
     def _get_inputs_dict(self, batch):
         if self.args.use_hf_datasets:
-            inputs = {**batch, "labels": batch["input_ids"]}
+            inputs = {**batch}
 
             return {key: value.to(self.device) for key, value in inputs.items()}
         else:
