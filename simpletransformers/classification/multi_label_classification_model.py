@@ -89,7 +89,6 @@ class MultiLabelClassificationModel(ClassificationModel):
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a MultiLabelClassification model.
 

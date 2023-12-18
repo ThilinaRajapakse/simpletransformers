@@ -86,7 +86,6 @@ class MultiModalClassificationModel:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a MultiModalClassificationModel model.
 

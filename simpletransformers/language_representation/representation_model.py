@@ -73,7 +73,6 @@ class RepresentationModel:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a RepresentationModel model.
 

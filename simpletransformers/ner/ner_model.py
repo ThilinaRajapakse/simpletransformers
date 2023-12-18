@@ -228,7 +228,7 @@ class NERModel:
                 LukeConfig,
                 LukeForTokenClassification,
                 MLukeTokenizer,
-            ),            
+            ),
             "mobilebert": (
                 MobileBertConfig,
                 MobileBertForTokenClassification,
@@ -868,7 +868,6 @@ class NERModel:
                         args.evaluate_during_training_steps > 0
                         and global_step % args.evaluate_during_training_steps == 0
                     ):
-
                         output_dir_current = os.path.join(
                             output_dir, "checkpoint-{}".format(global_step)
                         )
@@ -1501,7 +1500,6 @@ class NERModel:
                 ]
 
         if self.args.onnx:
-
             # Encode
             model_inputs = self.tokenizer.batch_encode_plus(
                 to_predict,
@@ -1751,7 +1749,6 @@ class NERModel:
     def _convert_tokens_to_word_logits(
         self, input_ids, label_ids, attention_mask, logits
     ):
-
         ignore_ids = [
             self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token),
             self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token),

@@ -154,7 +154,6 @@ class LanguageModelingModel:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a LanguageModelingModel.
 

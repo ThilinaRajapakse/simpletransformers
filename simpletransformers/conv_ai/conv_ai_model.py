@@ -95,7 +95,6 @@ class ConvAIModel:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a ClassificationModel model.
 

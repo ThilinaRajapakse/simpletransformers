@@ -53,7 +53,6 @@ class BertForSequenceClassification(BertPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-
         outputs = self.bert(
             input_ids,
             attention_mask=attention_mask,

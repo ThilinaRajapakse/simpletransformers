@@ -58,7 +58,6 @@ class AlbertForSequenceClassification(AlbertPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-
         all_outputs = []
         if self.sliding_window:
             # input_ids is really the list of inputs for each "sequence window"

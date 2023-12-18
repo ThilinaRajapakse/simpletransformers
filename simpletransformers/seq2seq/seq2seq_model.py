@@ -138,7 +138,6 @@ class Seq2SeqModel:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a Seq2SeqModel.
 
@@ -312,7 +311,7 @@ class Seq2SeqModel:
 
             if encoder_decoder_type in ["bart", "mbart", "mbart50", "marian"]:
                 self.model = model_class.from_pretrained(encoder_decoder_name)
-                if encoder_decoder_type in ["bart", "mbart","mbart50"]:
+                if encoder_decoder_type in ["bart", "mbart", "mbart50"]:
                     self.encoder_tokenizer = tokenizer_class.from_pretrained(
                         encoder_decoder_name
                     )
@@ -1316,7 +1315,6 @@ class Seq2SeqModel:
                     num_return_sequences=self.args.num_return_sequences,
                 )
             elif self.args.model_type in ["mbart"]:
-                
                 # tgt_lang_token = self.decoder_tokenizer._convert_token_to_id_with_added_voc(
                 #     self.args.tgt_lang
                 # )
@@ -1324,7 +1322,9 @@ class Seq2SeqModel:
                 outputs = self.model.generate(
                     input_ids=input_ids,
                     # decoder_start_token_id=tgt_lang_token,
-                    decoder_start_token_id=self.decoder_tokenizer.lang_code_to_id[self.args.tgt_lang],
+                    decoder_start_token_id=self.decoder_tokenizer.lang_code_to_id[
+                        self.args.tgt_lang
+                    ],
                     num_beams=self.args.num_beams,
                     # max_length=self.args.max_length,
                     max_new_tokens=self.args.max_length,
@@ -1337,7 +1337,6 @@ class Seq2SeqModel:
                     num_return_sequences=self.args.num_return_sequences,
                 )
             elif self.args.model_type in ["mbart50"]:
-                
                 # tgt_lang_token = self.decoder_tokenizer._convert_token_to_id_with_added_voc(
                 #     self.args.tgt_lang
                 # )
@@ -1345,7 +1344,9 @@ class Seq2SeqModel:
                 outputs = self.model.generate(
                     input_ids=input_ids,
                     # decoder_start_token_id=tgt_lang_token,
-                    decoder_start_token_id=self.decoder_tokenizer.lang_code_to_id[self.args.tgt_lang],
+                    decoder_start_token_id=self.decoder_tokenizer.lang_code_to_id[
+                        self.args.tgt_lang
+                    ],
                     num_beams=self.args.num_beams,
                     # max_length=self.args.max_length,
                     max_new_tokens=self.args.max_length,
@@ -1356,7 +1357,9 @@ class Seq2SeqModel:
                     top_k=self.args.top_k,
                     top_p=self.args.top_p,
                     num_return_sequences=self.args.num_return_sequences,
-                    forced_bos_token_id=self.decoder_tokenizer.lang_code_to_id[self.args.tgt_lang],
+                    forced_bos_token_id=self.decoder_tokenizer.lang_code_to_id[
+                        self.args.tgt_lang
+                    ],
                 )
             elif self.args.model_type in ["rag-token", "rag-sequence"]:
                 outputs = self.model.generate(
@@ -1659,7 +1662,7 @@ class Seq2SeqModel:
                 "attention_mask": source_mask.to(device),
                 "labels": labels.to(device),
             }
-        elif self.args.model_type in ["mbart","mbart50"]:
+        elif self.args.model_type in ["mbart", "mbart50"]:
             inputs = {
                 "input_ids": batch["input_ids"].to(device),
                 "attention_mask": batch["attention_mask"].to(device),

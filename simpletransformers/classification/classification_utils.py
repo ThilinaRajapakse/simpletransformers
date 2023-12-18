@@ -803,7 +803,6 @@ class JsonlDataset(Dataset):
         data_type_extension=None,
         multi_label=False,
     ):
-
         self.text_label = text_label if text_label else "text"
         self.labels_label = labels_label if labels_label else "labels"
         self.images_label = images_label if images_label else "images"
