@@ -43,11 +43,12 @@ Using a T5 Model in Simple Transformers follows the [standard pattern](/docs/usa
 
 ## Supported Model Types
 
-| Model | Model code for `NERModel` |
-| ----- | ------------------------- |
-| T5    | t5                        |
-| MT5   | mt5                       |
-| ByT5  | byt5                      |
+| Model | Model code for `T5Model` |
+|-------|--------------------------|
+| T5    | t5                       |
+| MT5   | mt5                      |
+| ByT5  | byt5                     |
+| umT5  | umt5                     |
 
 **Tip:** The model code is used to specify the `model_type` in a Simple Transformers model.
 {: .notice--success}
