@@ -9,7 +9,17 @@ def convert_predictions_to_pytrec_format(
 ):
     run_dict = {}
     for query_id, doc_ids in zip(query_dataset[id_column], predicted_doc_ids):
-        run_dict[query_id] = {doc_id: 1 / (i + 1) for i, doc_id in enumerate(doc_ids)}
+        # run_dict[query_id] = {doc_id: 1 / (i + 1) for i, doc_id in enumerate(doc_ids)}
+        # This doesn't work when there are duplicate doc_ids
+
+        run_dict[query_id] = {}
+        for i, doc_id in enumerate(doc_ids):
+            if doc_id not in run_dict[query_id]:
+                run_dict[query_id][doc_id] = 1 / (i + 1)
+            else:
+                logger.warning(
+                    f"Duplicate doc_id {doc_id} for query_id {query_id} at position {i}"
+                )
 
     return run_dict
 

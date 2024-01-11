@@ -1592,6 +1592,7 @@ class RetrievalModel:
                 query_dataset,
                 id_column="_id" if self.args.data_format == "beir" else "query_id",
             )
+
             qrels_dict = convert_qrels_dataset_to_pytrec_format(qrels_dataset)
 
             if pytrec_eval_metrics is None:

@@ -470,6 +470,7 @@ def embed(
     autoencoder=None,
 ):
     """Compute the DPR embeddings of document passages"""
+
     if rank is not None:
         device = torch.device("cuda", rank)
         encoder = encoder.to(device)
@@ -1906,8 +1907,8 @@ def load_trec_format(
         qrels = load_trec_file(qrels_path, header=qrels_header)
 
     # Filter rows from queries if _id is not in qrels query_id
-    to_keep = {int(_id) for _id in qrels["train"]["query_id"]}
-    queries = queries.filter(lambda row: int(row["_id"]) in to_keep)
+    to_keep = {str(_id) for _id in qrels["train"]["query_id"]}
+    queries = queries.filter(lambda row: str(row["_id"]) in to_keep)
 
     return (
         None if skip_passages else collection["train"],
