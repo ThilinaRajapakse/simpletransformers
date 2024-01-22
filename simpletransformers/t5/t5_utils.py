@@ -12,34 +12,40 @@ from tokenizers.processors import BertProcessing
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
 from transformers import PreTrainedTokenizer
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 from datasets import Dataset as HFDataset
+import datasets
 
 
 logger = logging.getLogger(__name__)
 
 
-def preprocess_batch_for_hf_dataset(dataset, tokenizer, args):
+def preprocess_batch_for_hf_dataset(dataset, tokenizer, args, tokenize_targets=True):
     if args.preprocess_inputs:
-        model_inputs = tokenizer(
-            text=[
+        if args.add_prefix:
+            text = [
                 prefix + ": " + input_text
                 for prefix, input_text in zip(dataset["prefix"], dataset["input_text"])
-            ],
+            ]
+        else:
+            text = dataset["input_text"]
+        model_inputs = tokenizer(
+            text=text,
             max_length=args.max_seq_length,
             padding="max_length",
             return_tensors="np",
             truncation=True,
         )
-        with tokenizer.as_target_tokenizer():
-            labels = tokenizer(
-                text=dataset["target_text"],
-                max_length=args.max_seq_length,
-                padding="max_length",
-                return_tensors="np",
-                truncation=True,
-            )
-        model_inputs["labels"] = labels["input_ids"]
+        if tokenize_targets:
+            with tokenizer.as_target_tokenizer():
+                labels = tokenizer(
+                    text=dataset["target_text"],
+                    max_length=args.max_seq_length,
+                    padding="max_length",
+                    return_tensors="np",
+                    truncation=True,
+                )
+            model_inputs["labels"] = labels["input_ids"]
 
         return model_inputs
     else:
@@ -47,27 +53,32 @@ def preprocess_batch_for_hf_dataset(dataset, tokenizer, args):
             text=[
                 prefix + input_text
                 for prefix, input_text in zip(dataset["prefix"], dataset["input_text"])
-            ],
+            ]
+            if args.add_prefix
+            else dataset["input_text"],
             max_length=args.max_seq_length,
             padding="max_length",
             return_tensors="np",
             truncation=True,
         )
-        with tokenizer.as_target_tokenizer():
-            labels = tokenizer(
-                text=dataset["target_text"],
-                max_length=args.max_seq_length,
-                padding="max_length",
-                return_tensors="np",
-                truncation=True,
-            )
-        model_inputs["labels"] = labels["input_ids"]
+        if tokenize_targets:
+            with tokenizer.as_target_tokenizer():
+                labels = tokenizer(
+                    text=dataset["target_text"],
+                    max_length=args.max_seq_length,
+                    padding="max_length",
+                    return_tensors="np",
+                    truncation=True,
+                )
+            model_inputs["labels"] = labels["input_ids"]
 
         return model_inputs
 
 
-def load_hf_dataset(data, tokenizer, args):
-    if isinstance(data, str):
+def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=False):
+    if args.model_type == "eet5" or reranking:
+        dataset = load_from_disk(data)
+    elif isinstance(data, str):
         dataset = load_dataset(
             "csv",
             data_files=data,
@@ -75,18 +86,58 @@ def load_hf_dataset(data, tokenizer, args):
             download_mode="force_redownload"
             if args.reprocess_input_data
             else "reuse_dataset_if_exists",
+            features=datasets.Features(
+                {
+                    "prefix": datasets.Value("string"),
+                    "input_text": datasets.Value("string"),
+                    "target_text": datasets.Value("string"),
+                }
+            ) if args.add_prefix else datasets.Features(
+                {
+                    "input_text": datasets.Value("string"),
+                    "target_text": datasets.Value("string"),
+                }
+            ),
         )
     else:
         dataset = HFDataset.from_pandas(data)
 
+    # tokenize_targets = not (evaluate and args.model_type == "eet5")
+
     dataset = dataset.map(
-        lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, args=args),
+        lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, args=args, tokenize_targets=tokenize_targets),
         batched=True,
     )
 
-    dataset.set_format(type="pt", columns=["input_ids", "attention_mask", "labels"])
+    if args.model_type == "eet5" or reranking:
+        # If embeddings in dataset and encoder_ouputs not in dataset, rename embeddings to encoder_outputs
+        if "embeddings" in dataset.features:
+            dataset = dataset.rename_column("embeddings", "encoder_outputs")
 
-    if isinstance(data, str):
+        if args.model_type == "eet5":
+            if tokenize_targets:
+                dataset.set_format(
+                    type="pt",
+                    columns=["input_ids", "attention_mask", "labels", "encoder_outputs"],
+                )
+            else:
+                dataset.set_format(
+                    type="pt", columns=["input_ids", "attention_mask", "encoder_outputs"]
+                )
+        else:
+            if tokenize_targets:
+                dataset.set_format(
+                    type="pt",
+                    columns=["input_ids", "attention_mask", "labels"],
+                )
+            else:
+                dataset.set_format(
+                    type="pt", columns=["input_ids", "attention_mask"]
+                )
+    else:
+        dataset.set_format(type="pt", columns=["input_ids", "attention_mask", "labels"])
+
+    if isinstance(data, str) and not (args.model_type == "eet5" or reranking):
         # This is not necessarily a train dataset. The datasets library insists on calling it train.
         return dataset["train"]
     else:

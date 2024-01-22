@@ -315,8 +315,8 @@ class RetrievalModel:
                 self.query_config = config_class.from_pretrained(
                     query_encoder_name, **self.args.query_config
                 )
-                if self.args.query_config.get("projection_dim") is not None:
-                    query_encoder._keys_to_ignore_on_load_missing.append("encode_proj")
+                # if self.args.query_config.get("projection_dim") is not None:
+                    # query_encoder._keys_to_ignore_on_load_missing.append("encode_proj")
                 self.query_encoder = query_encoder.from_pretrained(
                     query_encoder_name, config=self.query_config
                 )
@@ -811,6 +811,9 @@ class RetrievalModel:
             from torch.cuda import amp
 
             scaler = amp.GradScaler()
+
+        if args.external_embeddings:
+            args.train_context_encoder = False
 
         for current_epoch in train_iterator:
             if args.train_context_encoder:
@@ -3111,7 +3114,10 @@ class RetrievalModel:
         with torch.no_grad() if not (
             self.args.train_context_encoder or self.args.train_query_encoder
         ) else nullcontext():
-            context_outputs = context_model(**context_inputs)
+            if self.args.external_embeddings:
+                context_outputs = context_inputs["external_embeddings"]
+            else:
+                context_outputs = context_model(**context_inputs)
             query_outputs = query_model(**query_inputs)
 
             if unified_rr:
@@ -3656,6 +3662,20 @@ class RetrievalModel:
             else:
                 context_ids = batch["context_ids"]
                 context_masks = batch["context_mask"]
+
+            if self.args.external_embeddings:
+                external_embeddings = batch["embeddings"].to(device)
+                if self.args.hard_negatives:
+                    hard_negative_embeddings = batch["hard_negative_embeddings"].to(
+                        device
+                    )
+                    external_embeddings = torch.cat(
+                        [external_embeddings, hard_negative_embeddings], dim=0
+                    )
+                context_input = {
+                    "external_embeddings": external_embeddings,
+                }
+
             context_input = {
                 "input_ids": context_ids.to(device),
                 "attention_mask": context_masks.to(device),

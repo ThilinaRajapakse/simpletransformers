@@ -35,6 +35,7 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import T5Args
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.t5.t5_utils import T5Dataset, load_hf_dataset
+from simpletransformers.custom_models.reranking_model import EET5
 
 try:
     import wandb
@@ -56,6 +57,7 @@ MODEL_CLASSES = {
     "t5": (T5Config, T5ForConditionalGeneration),
     "mt5": (MT5Config, MT5ForConditionalGeneration),
     "byt5": (T5Config, T5ForConditionalGeneration),
+    "eet5": (T5Config, EET5),
 }
 
 
@@ -127,7 +129,14 @@ class T5Model:
             self.model = model_class(config=self.config)
         else:
             self.config = config_class.from_pretrained(model_name, **self.args.config)
-            self.model = model_class.from_pretrained(model_name, config=self.config)
+            if model_type == "eet5":
+                self.model = model_class.from_pretrained(
+                    model_name,
+                    config=self.config,
+                    max_seq_length=self.args.max_seq_length,
+                )
+            else:
+                self.model = model_class.from_pretrained(model_name, config=self.config)
 
         if isinstance(tokenizer, T5Tokenizer):
             self.tokenizer = tokenizer
@@ -983,6 +992,8 @@ class T5Model:
         if self.args.fp16:
             from torch.cuda import amp
 
+        reranking_preds = []
+
         for batch in tqdm(
             eval_dataloader, disable=args.silent or silent, desc="Running Evaluation"
         ):
@@ -1011,7 +1022,7 @@ class T5Model:
 
         return results
 
-    def predict(self, to_predict):
+    def predict(self, to_predict, reranking_eval=False):
         """
         Performs predictions on a list of text.
 
@@ -1041,25 +1052,53 @@ class T5Model:
                 return_tensors="pt",
                 truncation=True,
             )
+
             input_ids = input_batch["input_ids"]
             attention_mask = input_batch["attention_mask"]
+
+            if self.args.model_type == "eet5":
+                # Fake encoder_outputs for testing
+                warnings.warn("Using fake encoder_outputs")
+                encoder_outputs = torch.rand(
+                    input_ids.shape[0],
+                    768 * 2,
+                )
+                encoder_outputs = encoder_outputs.to(self.device)
 
             input_ids = input_ids.to(self.device)
             attention_mask = attention_mask.to(self.device)
 
-            outputs = self.model.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                num_beams=self.args.num_beams,
-                max_length=self.args.max_length,
-                length_penalty=self.args.length_penalty,
-                early_stopping=self.args.early_stopping,
-                repetition_penalty=self.args.repetition_penalty,
-                do_sample=self.args.do_sample,
-                top_k=self.args.top_k,
-                top_p=self.args.top_p,
-                num_return_sequences=self.args.num_return_sequences,
-            )
+            if self.args.model_type == "eet5":
+                outputs = self.model.generate(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    encoder_outputs=encoder_outputs
+                    if self.args.model_type == "eet5"
+                    else None,
+                    num_beams=self.args.num_beams,
+                    max_new_tokens=self.args.max_length,
+                    length_penalty=self.args.length_penalty,
+                    early_stopping=self.args.early_stopping,
+                    repetition_penalty=self.args.repetition_penalty,
+                    do_sample=self.args.do_sample,
+                    top_k=self.args.top_k,
+                    top_p=self.args.top_p,
+                    num_return_sequences=self.args.num_return_sequences,
+                )
+            else:
+                outputs = self.model.generate(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    num_beams=self.args.num_beams,
+                    max_new_tokens=self.args.max_length,
+                    length_penalty=self.args.length_penalty,
+                    early_stopping=self.args.early_stopping,
+                    repetition_penalty=self.args.repetition_penalty,
+                    do_sample=self.args.do_sample,
+                    top_k=self.args.top_k,
+                    top_p=self.args.top_p,
+                    num_return_sequences=self.args.num_return_sequences,
+                )
             all_outputs.extend(outputs.cpu().numpy())
 
         if self.args.use_multiprocessed_decoding:
@@ -1098,6 +1137,140 @@ class T5Model:
         else:
             return outputs
 
+    def rerank(self, eval_data, qrels):
+        """
+        Used with monoT5 style models for reranking
+        """
+        self._move_model_to_device()
+        args = self.args
+
+        try:
+            import pytrec_eval
+        except ImportError:
+            logger.error(
+                "pytrec_eval not installed. Please install with `pip install pytrec_eval`. (See https://github.com/cvangysel/pytrec_eval)"
+            )
+            return
+
+        eval_dataset = self.load_and_cache_examples(
+            eval_data, evaluate=True, tokenize_targets=False, reranking=True
+        )
+        eval_dataloader = DataLoader(
+            eval_dataset, batch_size=self.args.eval_batch_size, shuffle=False
+        )
+        # os.makedirs(output_dir, exist_ok=True)
+
+        if args.n_gpu > 1:
+            model = torch.nn.DataParallel(model)
+
+        eval_iterator = tqdm(
+            eval_dataloader, desc="Evaluating", disable=args.silent
+        )
+
+        reranking_preds = []
+        reranking_scores = []
+        true_token_idx = self.tokenizer("true", add_special_tokens=False)["input_ids"][0]
+        false_token_idx = self.tokenizer("false", add_special_tokens=False)["input_ids"][0]
+
+        for batch in eval_iterator:
+            inputs = self._get_inputs_dict(batch)
+            with torch.no_grad():
+                if self.args.model_type == "eet5":
+                    outputs = self.model.generate(
+                        input_ids=inputs["input_ids"],
+                        attention_mask=inputs["attention_mask"],
+                        encoder_outputs=inputs["encoder_outputs"],
+                        max_new_tokens=self.args.max_length,
+                        output_scores=True,
+                        return_dict_in_generate=True
+                    )
+                else:
+                    outputs = self.model.generate(
+                        input_ids=inputs["input_ids"],
+                        attention_mask=inputs["attention_mask"],
+                        max_new_tokens=self.args.max_length,
+                        output_scores=True,
+                        return_dict_in_generate=True
+                    )
+
+                preds, scores = self._get_reranking_outputs(outputs, true_token_idx, false_token_idx)
+
+                reranking_preds.extend(preds)
+                reranking_scores.extend(scores)
+
+        query_ids = eval_dataset["query_id"]
+        doc_ids = eval_dataset["passage_id"]
+
+        run_dict = {}
+        for query_id, doc_id, score in zip(query_ids, doc_ids, reranking_scores):
+            query_id = str(query_id)
+            doc_id = str(doc_id)
+            if query_id not in run_dict:
+                run_dict[query_id] = {}
+            run_dict[query_id][doc_id] = score
+
+        # Sort by score
+        for query_id in run_dict:
+            run_dict[query_id] = dict(
+                sorted(run_dict[query_id].items(), key=lambda item: item[1], reverse=True)
+            )
+
+        os.makedirs(args.output_dir, exist_ok=True)
+
+        runfile_save_path = os.path.join(args.output_dir, f"{eval_data.split('/')[-1]}-runfile.json")
+
+        with open(runfile_save_path, "w") as f:
+            json.dump(run_dict, f)
+
+        qrels_df = pd.read_csv(qrels, sep="\t")
+
+        qrels_dict = {}
+        for query_id, doc_id, relevance in zip(
+            qrels_df["query-id"],
+            qrels_df["corpus-id"],
+            qrels_df["score"],
+        ):
+            query_id = str(query_id)
+            doc_id = str(doc_id)
+            if query_id not in qrels_dict:
+                qrels_dict[query_id] = {}
+            qrels_dict[query_id][doc_id] = relevance
+
+        pytrec_eval_metrics = ["recip_rank", "recall_100", "ndcg_cut_10", "ndcg"]
+
+        evaluator = pytrec_eval.RelevanceEvaluator(
+            qrels_dict,
+            pytrec_eval_metrics,
+            relevance_level=1,
+        )
+
+        # Test by loading bm25 dev runfile as run_dict
+        # runfile_path = "../data/bm25/bm25_dev.json"
+
+        # with open(runfile_path, "r") as f:
+        #     run_dict = json.load(f)
+
+        try:
+            results = evaluator.evaluate(run_dict)
+        except:
+            # Convert run_dict keys to strings
+            run_dict = {
+                str(key): {str(k): v for k, v in value.items()}
+                for key, value in run_dict.items()
+            }
+            results = evaluator.evaluate(run_dict)
+
+        result_report = {}
+
+        for metric in pytrec_eval_metrics:
+            per_metric_dict = {
+                query_id: value[metric] for query_id, value in results.items()
+            }
+            mean_metric = np.mean(list(per_metric_dict.values()))
+            result_report[metric] = mean_metric
+
+        return result_report
+
     def _decode(self, output_id):
         return self.tokenizer.decode(
             output_id,
@@ -1134,6 +1307,11 @@ class T5Model:
         if self.args.use_hf_datasets:
             inputs = {**batch}
 
+            # if self.args.model_type == "eet5":
+            #     inputs["encoder_outputs"] = batch["embeddings"]
+            #     # Remove embeddings
+            #     del inputs["embeddings"]
+
             return {key: value.to(self.device) for key, value in inputs.items()}
         else:
             batch = tuple(t.to(self.device) for t in batch)
@@ -1152,7 +1330,7 @@ class T5Model:
             return inputs
 
     def load_and_cache_examples(
-        self, data, evaluate=False, no_cache=False, verbose=True, silent=False
+        self, data, evaluate=False, no_cache=False, verbose=True, silent=False, tokenize_targets=True, reranking=False
     ):
         """
         Creates a T5Dataset from data.
@@ -1172,7 +1350,7 @@ class T5Model:
         mode = "dev" if evaluate else "train"
 
         if self.args.use_hf_datasets:
-            dataset = load_hf_dataset(data, tokenizer, self.args)
+            dataset = load_hf_dataset(data, tokenizer, self.args, tokenize_targets=tokenize_targets, reranking=reranking)
             return dataset
         elif args.dataset_class:
             CustomDataset = args.dataset_class
@@ -1238,3 +1416,22 @@ class T5Model:
 
     def get_named_parameters(self):
         return [n for n, p in self.model.named_parameters()]
+
+    def _get_reranking_outputs(self, outputs, true_token_idx, false_token_idx):
+        preds = self.tokenizer.batch_decode(outputs[0], skip_special_tokens=True)
+
+        # batch_scores = outputs[1][0]
+        # batch_scores = batch_scores[:, [false_token_idx, true_token_idx]]
+        # batch_scores = torch.nn.functional.log_softmax(batch_scores, dim=1)
+        # scores = batch_scores[:, 1].tolist()
+
+        logits = outputs[1][0]
+
+        pred_logits = logits[:, [false_token_idx, true_token_idx]]
+
+        # Score is the softmax of the true logit
+        scores = torch.softmax(pred_logits, dim=-1)[:, 1].cpu().tolist()
+
+        return preds, scores
+
+

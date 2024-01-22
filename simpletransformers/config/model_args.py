@@ -222,6 +222,7 @@ class T5Args(ModelArgs):
     """
 
     model_class: str = "T5Model"
+    add_prefix: bool = True
     dataset_class: Dataset = None
     do_sample: bool = False
     early_stopping: bool = True
@@ -378,6 +379,7 @@ class RetrievalArgs(Seq2SeqArgs):
     disable_datasets_caching: bool = False
     embed_batch_size: int = 128
     evaluate_with_beir: bool = False
+    external_embeddings: bool = False
     extra_cls_token_count: int = 0
     extra_mask_token_count: int = 0
     faiss_clustering: bool = True

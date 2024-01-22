@@ -106,7 +106,12 @@ def generate_flipped_latex_row(
     model_name_map=None,
     experiment_dir=None,
 ):
-    row = f"\t\t{model_name} & "
+    if model_name_map is not None:
+        model_name_to_use = model_name_map[model_name] if model_name_map else model_name
+    else:
+        model_name_to_use = model_name
+    model_name_to_use = model_name_to_use.replace("_", "\\_")
+    row = f"\t\t{model_name_to_use} & "
 
     for metric in all_metrics:
         all_scores = [
@@ -149,15 +154,19 @@ def generate_flipped_latex_row(
                             f"{metric}.json",
                         ),
                     )
-                    # row += f"\\textbf{{{results[model_name][dataset_name][metric]:.3f}}} & "
-                    if pvalue < 0.01:
-                        # Add \rlap{\textsuperscript{**}} after the score
-                        row += f"\\textbf{{{results[model_name][dataset_name][metric]:.3f}}}\\rlap{{\\textsuperscript{{**}}}} & "
-                    elif pvalue < 0.05:
-                        # Add \rlap{\textsuperscript{*}} after the score
-                        row += f"\\textbf{{{results[model_name][dataset_name][metric]:.3f}}}\\rlap{{\\textsuperscript{{*}}}} & "
-                    else:
+                    if isinstance(results[model_name][dataset_name][metric], float):
                         row += f"\\textbf{{{results[model_name][dataset_name][metric]:.3f}}} & "
+                    else:
+                        row += f"\\textbf{{{results[model_name][dataset_name][metric]}}} & "
+
+                    # if pvalue < 0.01:
+                    #     # Add \rlap{\textsuperscript{**}} after the score
+                    #     row += f"\\textbf{{{results[model_name][dataset_name][metric]:.3f}}}\\rlap{{\\textsuperscript{{**}}}} & "
+                    # elif pvalue < 0.05:
+                    #     # Add \rlap{\textsuperscript{*}} after the score
+                    #     row += f"\\textbf{{{results[model_name][dataset_name][metric]:.3f}}}\\rlap{{\\textsuperscript{{*}}}} & "
+                    # else:
+                    #     row += f"\\textbf{{{results[model_name][dataset_name][metric]:.3f}}} & "
                 elif (
                     dataset_name == second_best_dataset_name
                     and best_dataset_name != second_best_dataset_name
@@ -505,3 +514,42 @@ def calculate_significance(run_a, run_b):
     _, pvalue = stats.ttest_rel(run_a_scores, run_b_scores)
 
     return pvalue
+
+
+def convert_trec_queries_to_beir_format(trec_queries_path, beir_queries_path=None, save=True):
+    trec_queries_df = pd.read_csv(
+        trec_queries_path, sep="\t", names=["_id", "text"]
+    )
+    trec_queries_df["_id"] = trec_queries_df["_id"].astype(str)
+    trec_queries_df["text"] = trec_queries_df["text"].astype(str)
+    if beir_queries_path is None:
+        beir_queries_path = os.path.join(
+            os.path.dirname(trec_queries_path),
+            os.path.basename(trec_queries_path).replace(".tsv", ".jsonl"),
+        )
+    if save:
+        trec_queries_df.to_json(beir_queries_path, orient="records", lines=True)
+
+    return trec_queries_df
+
+def convert_trec_qrels_to_beir_format(trec_qrels_path, beir_qrels_path=None, save=True):
+    trec_qrel_df = pd.read_csv(
+        trec_qrels_path, sep=" ", names=["query-id", "Q0", "corpus-id", "score"]
+    )
+    trec_qrel_df["query-id"] = trec_qrel_df["query-id"].astype(int)
+    trec_qrel_df["corpus-id"] = trec_qrel_df["corpus-id"].astype(int)
+    trec_qrel_df["score"] = trec_qrel_df["score"].astype(int)
+
+    if beir_qrels_path is None:
+        # Extension for trec_qrels_path can be .txt or .tsv
+        beir_qrels_path = os.path.join(
+            os.path.dirname(trec_qrels_path),
+            os.path.basename(trec_qrels_path).replace(".txt", ".tsv").replace(".tsv", ".tsv"),
+        )
+
+    beir_qrels_df = trec_qrel_df[["query-id", "corpus-id", "score"]]
+
+    if save:
+        beir_qrels_df.to_csv(beir_qrels_path, sep="\t", index=False)
+
+    return beir_qrels_df

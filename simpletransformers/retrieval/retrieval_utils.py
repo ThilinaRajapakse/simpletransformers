@@ -184,6 +184,15 @@ def load_hf_dataset(
             "reranking_query_mask",
         ]
 
+    if args.external_embeddings:
+        column_names += ["embeddings"]
+        if args.hard_negatives:
+            if n_hard_negatives == 1:
+                column_names += ["hard_negative_embeddings"]
+            else:
+                for i in range(n_hard_negatives):
+                    column_names.append(f"hard_negative_{i}_embeddings")
+
     if evaluate:
         gold_passages = dataset["gold_passage"]
         dataset.set_format(type="pt", columns=column_names)
