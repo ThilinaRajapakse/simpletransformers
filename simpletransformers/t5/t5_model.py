@@ -932,6 +932,9 @@ class T5Model:
         self.results.update(result)
 
         if self.args.evaluate_generated_text:
+            raise ValueError(
+                "evaluate_generated_text not implemented without use_hf_datasets."
+            )
             if self.args.preprocess_inputs:
                 to_predict = [
                     prefix + ": " + input_text
