@@ -97,7 +97,7 @@ def load_hf_dataset(
                 )
             dataset = dataset.map(
                 lambda example: {
-                    "gold_passage": example["title"] + " " + example["gold_passage"]
+                    "gold_passage": example["title"] + " " + example["gold_passage"] if example["title"] is not None else example["gold_passage"]
                 }
             )
 
@@ -1086,13 +1086,13 @@ class DPRIndex(Index):
     def get_top_doc_ids(
         self, question_hidden_states, n_docs=5, reranking_query_outputs=None
     ):
-        _, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
+        scores, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
 
         doc_ids = [doc["passage_id"] for doc in docs]
 
         if reranking_query_outputs is None:
-            return doc_ids
+            return doc_ids, scores
 
         rerank_similarity = compute_rerank_similarity(
             reranking_query_outputs, docs, passage_column="passage_text"
@@ -1969,7 +1969,7 @@ def embed_passages_trec_format(
             passage_dataset = passage_data
         else:
             logger.info("Adding FAISS index to evaluation passages")
-            index
+            index = get_faiss_index(args)
             passage_dataset.add_faiss_index("embeddings", custom_index=index)
             logger.info("Adding FAISS index to evaluation passages completed.")
             if args.save_passage_dataset:

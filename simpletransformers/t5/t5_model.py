@@ -754,7 +754,8 @@ class T5Model:
             epoch_number += 1
             output_dir_current = os.path.join(
                 output_dir,
-                "checkpoint-{}-epoch-{}".format(global_step, epoch_number + 1),
+                "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
+,
             )
 
             if args.save_model_every_epoch or args.evaluate_during_training:
@@ -1420,11 +1421,6 @@ class T5Model:
     def _get_reranking_outputs(self, outputs, true_token_idx, false_token_idx):
         preds = self.tokenizer.batch_decode(outputs[0], skip_special_tokens=True)
 
-        # batch_scores = outputs[1][0]
-        # batch_scores = batch_scores[:, [false_token_idx, true_token_idx]]
-        # batch_scores = torch.nn.functional.log_softmax(batch_scores, dim=1)
-        # scores = batch_scores[:, 1].tolist()
-
         logits = outputs[1][0]
 
         pred_logits = logits[:, [false_token_idx, true_token_idx]]
@@ -1433,5 +1429,3 @@ class T5Model:
         scores = torch.softmax(pred_logits, dim=-1)[:, 1].cpu().tolist()
 
         return preds, scores
-
-

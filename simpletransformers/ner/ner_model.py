@@ -1036,7 +1036,8 @@ class NERModel:
             epoch_number += 1
             output_dir_current = os.path.join(
                 output_dir,
-                "checkpoint-{}-epoch-{}".format(global_step, epoch_number + 1),
+                "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
+,
             )
 
             if args.save_model_every_epoch or args.evaluate_during_training:

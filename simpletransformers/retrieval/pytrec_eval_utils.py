@@ -5,21 +5,37 @@ logger = logging.getLogger(__name__)
 
 
 def convert_predictions_to_pytrec_format(
-    predicted_doc_ids, query_dataset, id_column="_id"
+    predicted_doc_ids, query_dataset, id_column="_id", predicted_scores=None
 ):
     run_dict = {}
-    for query_id, doc_ids in zip(query_dataset[id_column], predicted_doc_ids):
-        # run_dict[query_id] = {doc_id: 1 / (i + 1) for i, doc_id in enumerate(doc_ids)}
-        # This doesn't work when there are duplicate doc_ids
+    if predicted_scores is None:
+        logger.warning(
+            "No scores provided. Using 1 / (rank + 1) for all documents in the run file."
+        )
+        for query_id, doc_ids in zip(query_dataset[id_column], predicted_doc_ids):
+            # run_dict[query_id] = {doc_id: 1 / (i + 1) for i, doc_id in enumerate(doc_ids)}
+            # This doesn't work when there are duplicate doc_ids
 
-        run_dict[query_id] = {}
-        for i, doc_id in enumerate(doc_ids):
-            if doc_id not in run_dict[query_id]:
-                run_dict[query_id][doc_id] = 1 / (i + 1)
-            else:
-                logger.warning(
-                    f"Duplicate doc_id {doc_id} for query_id {query_id} at position {i}"
-                )
+            run_dict[query_id] = {}
+            for i, doc_id in enumerate(doc_ids):
+                if doc_id not in run_dict[query_id]:
+                    run_dict[query_id][doc_id] = 1 / (i + 1)
+                else:
+                    logger.warning(
+                        f"Duplicate doc_id {doc_id} for query_id {query_id} at position {i}"
+                    )
+    else:
+        for query_id, doc_ids, scores in zip(
+            query_dataset[id_column], predicted_doc_ids, predicted_scores
+        ):
+            run_dict[query_id] = {}
+            for doc_id, score in zip(doc_ids, scores):
+                if doc_id not in run_dict[query_id]:
+                    run_dict[query_id][doc_id] = float(score)
+                else:
+                    logger.warning(
+                        f"Duplicate doc_id {doc_id} for query_id {query_id} with score {score}"
+                    )
 
     return run_dict
 

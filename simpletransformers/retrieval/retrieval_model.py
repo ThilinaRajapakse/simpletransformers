@@ -1586,7 +1586,7 @@ class RetrievalModel:
                 "text" if self.args.data_format == "beir" else "query_text"
             )
 
-            predicted_doc_ids, pre_rerank_doc_ids = self.predict(
+            predicted_doc_ids, scores = self.predict(
                 to_predict=query_dataset[query_text_column], doc_ids_only=True
             )
 
@@ -1594,6 +1594,7 @@ class RetrievalModel:
                 predicted_doc_ids,
                 query_dataset,
                 id_column="_id" if self.args.data_format == "beir" else "query_id",
+                predicted_scores=scores,
             )
 
             qrels_dict = convert_qrels_dataset_to_pytrec_format(qrels_dataset)
@@ -2177,14 +2178,14 @@ class RetrievalModel:
                 )
                 return doc_ids, pre_rerank_doc_ids
             else:
-                doc_ids, rerank_scores = self.retrieve_docs_from_query_embeddings(
+                doc_ids, scores = self.retrieve_docs_from_query_embeddings(
                     all_query_embeddings,
                     self.prediction_passages,
                     retrieve_n_docs,
                     doc_ids_only=True,
                     reranking_query_outputs=all_reranking_query_embeddings,
                 )
-                return doc_ids, rerank_scores
+                return doc_ids, scores
         else:
             retrieval_outputs = self.retrieve_docs_from_query_embeddings(
                 all_query_embeddings, self.prediction_passages, retrieve_n_docs
@@ -2420,6 +2421,7 @@ class RetrievalModel:
             return passages
         elif doc_ids_only:
             doc_ids_batched = []
+            scores_batched = []
 
             if self.args.unified_rr:
                 for i, (query_embeddings_retr, reranking_query_outputs) in enumerate(
@@ -2514,12 +2516,13 @@ class RetrievalModel:
                         disable=args.silent,
                     )
                 ):
-                    ids = passage_dataset.get_top_doc_ids(
+                    ids, scores = passage_dataset.get_top_doc_ids(
                         query_embeddings_retr.astype(np.float32), retrieve_n_docs
                     )
                     doc_ids_batched.extend(ids)
+                    scores_batched.extend(scores)
 
-                reranking_scores = None
+                reranking_scores = scores_batched
 
             return doc_ids_batched, reranking_scores
         else:
