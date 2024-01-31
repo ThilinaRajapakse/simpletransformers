@@ -5,11 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="simpletransformers",
-<<<<<<< HEAD
-    version="0.64.4",
-=======
-    version="0.64.5",
->>>>>>> master
+    version="0.65.0",
     author="Thilina Rajapakse",
     author_email="chaturangarajapakshe@gmail.com",
     description="An easy-to-use wrapper library for the Transformers library.",
