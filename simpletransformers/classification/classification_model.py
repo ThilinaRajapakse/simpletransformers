@@ -22,12 +22,14 @@ from scipy.stats import mode, pearsonr
 from scipy.special import softmax
 from sklearn.metrics import (
     confusion_matrix,
+    f1_score,
     label_ranking_average_precision_score,
     matthews_corrcoef,
     mean_squared_error,
     roc_curve,
     auc,
     average_precision_score,
+    accuracy_score,
 )
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn import CrossEntropyLoss
@@ -1155,8 +1157,7 @@ class ClassificationModel:
             epoch_number += 1
             output_dir_current = os.path.join(
                 output_dir,
-                "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
-,
+                "checkpoint-{}-epoch-{}".format(global_step, epoch_number),
             )
 
             if args.save_model_every_epoch or args.evaluate_during_training:
@@ -1924,6 +1925,8 @@ class ClassificationModel:
             return {**extra_metrics}, wrong
 
         mcc = matthews_corrcoef(labels, preds)
+        accuracy = accuracy_score(labels, preds)
+        f1 = f1_score(labels, preds)
         if self.model.num_labels == 2:
             tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
             if self.args.sliding_window:
@@ -1943,6 +1946,8 @@ class ClassificationModel:
                     {
                         **{
                             "mcc": mcc,
+                            "accuracy": accuracy,
+                            "f1_score": f1,
                             "tp": tp,
                             "tn": tn,
                             "fp": fp,

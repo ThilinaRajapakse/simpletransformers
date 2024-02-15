@@ -754,8 +754,7 @@ class T5Model:
             epoch_number += 1
             output_dir_current = os.path.join(
                 output_dir,
-                "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
-,
+                "checkpoint-{}-epoch-{}".format(global_step, epoch_number),
             )
 
             if args.save_model_every_epoch or args.evaluate_during_training:
@@ -1167,14 +1166,16 @@ class T5Model:
         if args.n_gpu > 1:
             model = torch.nn.DataParallel(model)
 
-        eval_iterator = tqdm(
-            eval_dataloader, desc="Evaluating", disable=args.silent
-        )
+        eval_iterator = tqdm(eval_dataloader, desc="Evaluating", disable=args.silent)
 
         reranking_preds = []
         reranking_scores = []
-        true_token_idx = self.tokenizer("true", add_special_tokens=False)["input_ids"][0]
-        false_token_idx = self.tokenizer("false", add_special_tokens=False)["input_ids"][0]
+        true_token_idx = self.tokenizer("true", add_special_tokens=False)["input_ids"][
+            0
+        ]
+        false_token_idx = self.tokenizer("false", add_special_tokens=False)[
+            "input_ids"
+        ][0]
 
         for batch in eval_iterator:
             inputs = self._get_inputs_dict(batch)
@@ -1186,7 +1187,7 @@ class T5Model:
                         encoder_outputs=inputs["encoder_outputs"],
                         max_new_tokens=self.args.max_length,
                         output_scores=True,
-                        return_dict_in_generate=True
+                        return_dict_in_generate=True,
                     )
                 else:
                     outputs = self.model.generate(
@@ -1194,10 +1195,12 @@ class T5Model:
                         attention_mask=inputs["attention_mask"],
                         max_new_tokens=self.args.max_length,
                         output_scores=True,
-                        return_dict_in_generate=True
+                        return_dict_in_generate=True,
                     )
 
-                preds, scores = self._get_reranking_outputs(outputs, true_token_idx, false_token_idx)
+                preds, scores = self._get_reranking_outputs(
+                    outputs, true_token_idx, false_token_idx
+                )
 
                 reranking_preds.extend(preds)
                 reranking_scores.extend(scores)
@@ -1216,12 +1219,16 @@ class T5Model:
         # Sort by score
         for query_id in run_dict:
             run_dict[query_id] = dict(
-                sorted(run_dict[query_id].items(), key=lambda item: item[1], reverse=True)
+                sorted(
+                    run_dict[query_id].items(), key=lambda item: item[1], reverse=True
+                )
             )
 
         os.makedirs(args.output_dir, exist_ok=True)
 
-        runfile_save_path = os.path.join(args.output_dir, f"{eval_data.split('/')[-1]}-runfile.json")
+        runfile_save_path = os.path.join(
+            args.output_dir, f"{eval_data.split('/')[-1]}-runfile.json"
+        )
 
         with open(runfile_save_path, "w") as f:
             json.dump(run_dict, f)
@@ -1334,7 +1341,14 @@ class T5Model:
             return inputs
 
     def load_and_cache_examples(
-        self, data, evaluate=False, no_cache=False, verbose=True, silent=False, tokenize_targets=True, reranking=False
+        self,
+        data,
+        evaluate=False,
+        no_cache=False,
+        verbose=True,
+        silent=False,
+        tokenize_targets=True,
+        reranking=False,
     ):
         """
         Creates a T5Dataset from data.
@@ -1354,7 +1368,13 @@ class T5Model:
         mode = "dev" if evaluate else "train"
 
         if self.args.use_hf_datasets:
-            dataset = load_hf_dataset(data, tokenizer, self.args, tokenize_targets=tokenize_targets, reranking=reranking)
+            dataset = load_hf_dataset(
+                data,
+                tokenizer,
+                self.args,
+                tokenize_targets=tokenize_targets,
+                reranking=reranking,
+            )
             return dataset
         elif args.dataset_class:
             CustomDataset = args.dataset_class

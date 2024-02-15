@@ -92,7 +92,9 @@ def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=Fals
                     "input_text": datasets.Value("string"),
                     "target_text": datasets.Value("string"),
                 }
-            ) if args.add_prefix else datasets.Features(
+            )
+            if args.add_prefix
+            else datasets.Features(
                 {
                     "input_text": datasets.Value("string"),
                     "target_text": datasets.Value("string"),
@@ -105,7 +107,9 @@ def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=Fals
     # tokenize_targets = not (evaluate and args.model_type == "eet5")
 
     dataset = dataset.map(
-        lambda x: preprocess_batch_for_hf_dataset(x, tokenizer=tokenizer, args=args, tokenize_targets=tokenize_targets),
+        lambda x: preprocess_batch_for_hf_dataset(
+            x, tokenizer=tokenizer, args=args, tokenize_targets=tokenize_targets
+        ),
         batched=True,
     )
 
@@ -118,11 +122,17 @@ def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=Fals
             if tokenize_targets:
                 dataset.set_format(
                     type="pt",
-                    columns=["input_ids", "attention_mask", "labels", "encoder_outputs"],
+                    columns=[
+                        "input_ids",
+                        "attention_mask",
+                        "labels",
+                        "encoder_outputs",
+                    ],
                 )
             else:
                 dataset.set_format(
-                    type="pt", columns=["input_ids", "attention_mask", "encoder_outputs"]
+                    type="pt",
+                    columns=["input_ids", "attention_mask", "encoder_outputs"],
                 )
         else:
             if tokenize_targets:
@@ -131,9 +141,7 @@ def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=Fals
                     columns=["input_ids", "attention_mask", "labels"],
                 )
             else:
-                dataset.set_format(
-                    type="pt", columns=["input_ids", "attention_mask"]
-                )
+                dataset.set_format(type="pt", columns=["input_ids", "attention_mask"])
     else:
         dataset.set_format(type="pt", columns=["input_ids", "attention_mask", "labels"])
 

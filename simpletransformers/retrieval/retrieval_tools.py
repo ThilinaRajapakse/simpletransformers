@@ -184,8 +184,6 @@ def generate_flipped_latex_row(
     return row
 
 
-
-
 def generate_latex_table(
     results,
     all_metrics,
@@ -387,8 +385,6 @@ def generate_flipped_latex_table(
     return table
 
 
-
-
 def analyze_experiment(
     experiment_dir,
     model_name_map=None,
@@ -516,10 +512,10 @@ def calculate_significance(run_a, run_b):
     return pvalue
 
 
-def convert_trec_queries_to_beir_format(trec_queries_path, beir_queries_path=None, save=True):
-    trec_queries_df = pd.read_csv(
-        trec_queries_path, sep="\t", names=["_id", "text"]
-    )
+def convert_trec_queries_to_beir_format(
+    trec_queries_path, beir_queries_path=None, save=True
+):
+    trec_queries_df = pd.read_csv(trec_queries_path, sep="\t", names=["_id", "text"])
     trec_queries_df["_id"] = trec_queries_df["_id"].astype(str)
     trec_queries_df["text"] = trec_queries_df["text"].astype(str)
     if beir_queries_path is None:
@@ -531,6 +527,7 @@ def convert_trec_queries_to_beir_format(trec_queries_path, beir_queries_path=Non
         trec_queries_df.to_json(beir_queries_path, orient="records", lines=True)
 
     return trec_queries_df
+
 
 def convert_trec_qrels_to_beir_format(trec_qrels_path, beir_qrels_path=None, save=True):
     trec_qrel_df = pd.read_csv(
@@ -544,7 +541,9 @@ def convert_trec_qrels_to_beir_format(trec_qrels_path, beir_qrels_path=None, sav
         # Extension for trec_qrels_path can be .txt or .tsv
         beir_qrels_path = os.path.join(
             os.path.dirname(trec_qrels_path),
-            os.path.basename(trec_qrels_path).replace(".txt", ".tsv").replace(".tsv", ".tsv"),
+            os.path.basename(trec_qrels_path)
+            .replace(".txt", ".tsv")
+            .replace(".tsv", ".tsv"),
         )
 
     beir_qrels_df = trec_qrel_df[["query-id", "corpus-id", "score"]]

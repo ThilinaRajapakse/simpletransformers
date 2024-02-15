@@ -93,6 +93,7 @@ class ModelArgs:
     tokenizer_type: str = None
     train_batch_size: int = 8
     train_custom_parameters_only: bool = False
+    trust_remote_code: bool = False
     use_cached_eval_features: bool = False
     use_early_stopping: bool = False
     use_hf_datasets: bool = False
@@ -247,6 +248,36 @@ class T5Args(ModelArgs):
 
 
 @dataclass
+class GenerationArgs:
+    """
+    Args for language generation.
+    """
+
+    max_length: int = 20
+    max_new_tokens: int = None
+    min_length: int = 0
+    min_new_tokens: int = None
+    early_stopping: bool = False
+    max_time: float = None
+
+    do_sample: bool = False
+    num_beams: int = 1
+    num_beam_groups: int = 1
+    penalty_alpha: float = None
+    use_cache: bool = True
+
+    temperature: float = 1.0
+    top_k: int = 50
+    top_p: float = 1.0
+    repetition_penalty: float = 1.0
+    diversity_penalty: float = 0.0
+
+    def get_dict(self):
+        d = asdict(self)
+        return {k: v for k, v in d.items() if v is not None}
+
+
+@dataclass
 class LanguageModelingArgs(ModelArgs):
     """
     Model args for a LanguageModelingModel
@@ -254,6 +285,7 @@ class LanguageModelingArgs(ModelArgs):
 
     model_class: str = "LanguageModelingModel"
     block_size: int = -1
+    chunk_text: bool = True
     config_name: str = None
     dataset_class: Dataset = None
     dataset_type: str = "None"
@@ -276,6 +308,14 @@ class LanguageModelingArgs(ModelArgs):
     special_tokens_list: list = field(default_factory=list)
     strip_accents: bool = True
     local_rank: int = -1
+    loftq_bits: int = 4
+    loftq_config: dict = field(default_factory=dict)
+    lora_config: dict = field(default_factory=dict)
+    peft: bool = False
+    qlora: bool = False
+    rag: bool = False
+    rag_replace_method: str = "prepend"
+    nf4: bool = False
     use_autoencoder: bool = False
     stream_hf_datasets: bool = False
 

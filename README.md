@@ -9,17 +9,17 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
 
 **Supported Tasks:**
 
+- Information Retrieval (Dense Retrieval)
+- (Large) Language Models (Training, Fine-tuning, and Generation)
+- Encoder Model Training and Fine-tuning
 - Sequence Classification
 - Token Classification (NER)
 - Question Answering
-- Language Model Fine-Tuning
-- Language Model Training
 - Language Generation
 - T5 Model
 - Seq2Seq Tasks
 - Multi-Modal Classification
 - Conversational AI.
-- Text Representation Generation.
 
 # Table of contents
 

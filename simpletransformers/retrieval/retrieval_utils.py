@@ -97,7 +97,9 @@ def load_hf_dataset(
                 )
             dataset = dataset.map(
                 lambda example: {
-                    "gold_passage": example["title"] + " " + example["gold_passage"] if example["title"] is not None else example["gold_passage"]
+                    "gold_passage": example["title"] + " " + example["gold_passage"]
+                    if example["title"] is not None
+                    else example["gold_passage"]
                 }
             )
 
@@ -935,7 +937,6 @@ def get_prediction_passage_dataset(
                 "csv",
                 data_files=prediction_passages,
                 delimiter="\t",
-                column_names=["passages"],
                 cache_dir=args.dataset_cache_dir,
             )
             prediction_passages_dataset = prediction_passages_dataset["train"]
@@ -946,7 +947,7 @@ def get_prediction_passage_dataset(
                     )
                 prediction_passages_dataset = prediction_passages_dataset.map(
                     lambda example: {
-                        "gold_passage": example["title"] + " " + example["gold_passage"]
+                        "passages": example["title"] + " " + example["gold_passage"]
                     }  # Should these be "passage" instead of "gold_passage"?
                 )
     elif isinstance(prediction_passages, list):
@@ -962,7 +963,7 @@ def get_prediction_passage_dataset(
                 )
             prediction_passages_dataset = prediction_passages_dataset.map(
                 lambda example: {
-                    "gold_passage": example["title"] + " " + example["gold_passage"]
+                    "passages": example["title"] + " " + example["gold_passage"]
                 }
             )
 
@@ -1086,7 +1087,9 @@ class DPRIndex(Index):
     def get_top_doc_ids(
         self, question_hidden_states, n_docs=5, reranking_query_outputs=None
     ):
-        scores, ids = self.dataset.search_batch("embeddings", question_hidden_states, n_docs)
+        scores, ids = self.dataset.search_batch(
+            "embeddings", question_hidden_states, n_docs
+        )
         docs = [self.dataset[[i for i in indices if i >= 0]] for indices in ids]
 
         doc_ids = [doc["passage_id"] for doc in docs]

@@ -316,7 +316,7 @@ class RetrievalModel:
                     query_encoder_name, **self.args.query_config
                 )
                 # if self.args.query_config.get("projection_dim") is not None:
-                    # query_encoder._keys_to_ignore_on_load_missing.append("encode_proj")
+                # query_encoder._keys_to_ignore_on_load_missing.append("encode_proj")
                 self.query_encoder = query_encoder.from_pretrained(
                     query_encoder_name, config=self.query_config
                 )
@@ -1608,7 +1608,11 @@ class RetrievalModel:
             else:
                 custom_mrr = False
 
-            evaluator = pytrec_eval.RelevanceEvaluator(qrels_dict, pytrec_eval_metrics, relevance_level=self.args.relevance_level)
+            evaluator = pytrec_eval.RelevanceEvaluator(
+                qrels_dict,
+                pytrec_eval_metrics,
+                relevance_level=self.args.relevance_level,
+            )
 
             try:
                 results = evaluator.evaluate(run_dict)
@@ -2208,7 +2212,11 @@ class RetrievalModel:
                 )
             else:
                 doc_ids, doc_vectors, doc_dicts = retrieval_outputs
-            passages = [d["passages"] for d in doc_dicts]
+
+            try:
+                passages = [d["passages"] for d in doc_dicts]
+            except KeyError:
+                passages = [d["passage_text"] for d in doc_dicts]
 
             if self.args.unified_rr:
                 rerank_similarity = compute_rerank_similarity(
@@ -2416,7 +2424,10 @@ class RetrievalModel:
                     passages_only=True,
                 )
 
-                passages.extend([d["passages"] for d in doc_dicts_batch])
+                try:
+                    passages.extend([d["passages"] for d in doc_dicts_batch])
+                except KeyError:
+                    passages.extend([d["passage_text"] for d in doc_dicts_batch])
 
             return passages
         elif doc_ids_only:
