@@ -173,6 +173,7 @@ def read_examples_from_file(data_file, mode, bbox=False):
 
 
 def get_examples_from_df(data, bbox=False):
+    data = pd.DataFrame(data,columns=["sentence_id","words","labels"])
     if bbox:
         return [
             InputExample(
