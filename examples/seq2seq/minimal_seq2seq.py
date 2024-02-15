@@ -36,6 +36,7 @@ model_args = {
     "evaluate_during_training": True,
     "evaluate_during_training_verbose": True,
     "use_multiprocessing": False,
+    "use_multiprocessing_for_evaluation": False, # necessary for evaluation, see issue https://github.com/ThilinaRajapakse/simpletransformers/issues/1522
     "save_best_model": False,
     "max_length": 15,
 }
