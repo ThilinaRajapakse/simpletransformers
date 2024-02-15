@@ -30,13 +30,15 @@ def test_t5():
         "save_model_every_epoch": False,
         "max_length": 20,
         "num_beams": 1,
+        "evaluate_generated_text": True,
+        "evaluate_during_training": True,
     }
 
     # Create T5 Model
     model = T5Model("t5", "t5-base", args=model_args, use_cuda=False)
 
     # Train T5 Model on new task
-    model.train_model(train_df)
+    model.train_model(train_df, eval_data=eval_data)
 
     # Evaluate T5 Model on new task
     model.eval_model(eval_df)
