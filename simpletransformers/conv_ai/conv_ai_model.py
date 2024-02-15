@@ -1227,7 +1227,7 @@ class ConvAIModel:
             ATTR_TO_SPECIAL_TOKEN
         )  # doesn't add if they are already there
         if num_added_tokens > 0:
-            self.model.resize_token_embeddings(
+            model.resize_token_embeddings(
                 new_num_tokens=orig_num_tokens + num_added_tokens
             )
 
@@ -1330,13 +1330,13 @@ class ConvAIModel:
         if self.args.model_type in ["blender", "blender-small"]:
             print("Input >>>>>>> ", "\n".join(personality) + "\n" + "\n".join(history))
             print("---------------------------------")
-            inputs = self.tokenizer(
+            inputs = tokenizer(
                 ["\n".join(history).strip("\n")], return_tensors="pt"
             )
-            # inputs = self.tokenizer(["\n".join(personality) + "\n" + "\n".join(history)], return_tensors='pt')
+            # inputs = tokenizer(["\n".join(personality) + "\n" + "\n".join(history)], return_tensors='pt')
             inputs["input_ids"] = inputs["input_ids"].to(self.device)
             inputs["attention_mask"] = inputs["attention_mask"].to(self.device)
-            reply_ids = self.model.generate(**inputs)
+            reply_ids = model.generate(**inputs)
             reply = [
                 tokenizer.decode(
                     g, skip_special_tokens=True, clean_up_tokenization_spaces=True
