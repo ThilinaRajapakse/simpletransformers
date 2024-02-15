@@ -174,7 +174,7 @@ class LanguageModelingModel:
 
         Args:
             model_type: The type of model (gpt2, openai-gpt, bert, roberta, distilbert, camembert)
-            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_nodel.bin).
+            model_name: Default Transformer model name or path to a directory containing Transformer model file (pytorch_model.bin).
             generator_name (optional): A pretrained model name or path to a directory containing an ELECTRA generator model.
             discriminator_name (optional): A pretrained model name or path to a directory containing an ELECTRA discriminator model.
             args (optional): Default args will be used if this parameter is not provided. If provided, it should be a dict containing the args that should be changed in the default args.
