@@ -50,9 +50,9 @@ model = ConvAIModel(
 | max_history              | int   | 2       | Number of previous exchanges to keep in history                                            |
 | lm_coef                  | float | 2.0     | Language Model loss coefficient                                                            |
 | mc_coef                  | float | 1.0     | Multiple-choice loss coefficient                                                           |
-| do_sample                | bool  | 20      | If set to False greedy decoding is used. Otherwise sampling is used.                       |
-| max_length               | int   | -1      | The maximum length of the sequence to be generated. Between 0 and infinity. Default to 20. |
-| min_length               | int   | 1       | The minimum length of the sequence to be generated. Between 0 and infinity. Default to 20. |
+| do_sample                | bool  | True    | If set to False greedy decoding is used. Otherwise sampling is used.                       |
+| max_length               | int   | 20      | The maximum length of the sequence to be generated. Between 0 and infinity. Default to 20. |
+| min_length               | int   | 1       | The minimum length of the sequence to be generated. Between 0 and infinity. Default to 1.  |
 | temperature              | float | 0.7     | Sampling softmax temperature                                                               |
 | top_k                    | int   | 0       | Filter top-k tokens before sampling (<=0: no filtering)                                    |
 | top_p                    | float | 0.9     | Nucleus filtering (top-p) before sampling (<=0.0: no filtering)                            |
