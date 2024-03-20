@@ -4,6 +4,6 @@ pytest-localserver==0.5.0
 pytest==7.1.2
 
 # lint/format/types
-black==22.3.0
+black==24.3.0
 flake8==3.7.8
 pytype==2019.7.11
