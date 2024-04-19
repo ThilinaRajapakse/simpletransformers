@@ -6,6 +6,7 @@ import os
 import random
 import warnings
 import string
+import itertools
 from dataclasses import asdict
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
@@ -229,6 +230,7 @@ class RetrievalModel:
                 )
             )
 
+        # Using autoencoder
         if self.args.use_autoencoder:
             self.autoencoder_model = Autoencoder()
             if autoencoder_model is not None:
@@ -248,6 +250,7 @@ class RetrievalModel:
         else:
             self.autoencoder_model = None
 
+        # Using unified cross reranking
         if self.args.unified_cross_rr:
             if reranking_model_name:
                 self.reranking_config = config_class.from_pretrained(
@@ -272,6 +275,7 @@ class RetrievalModel:
             self.reranking_config = None
             self.reranking_model = None
 
+        # Using standard DPR
         if context_encoder_name:
             self.context_config = config_class.from_pretrained(
                 context_encoder_name, **self.args.context_config
@@ -473,11 +477,18 @@ class RetrievalModel:
             disable_caching()
 
         if prediction_passages is not None:
-            self.prediction_passages = self.get_updated_prediction_passages(
-                prediction_passages
-            )
+            if self.args.multi_head_vectors:
+                (
+                    self.prediction_passages,
+                    self.id_to_vec_dataset,
+                ) = self.get_updated_prediction_passages(prediction_passages)
+            else:
+                self.prediction_passages = self.get_updated_prediction_passages(
+                    prediction_passages
+                )
         else:
             self.prediction_passages = None
+        self.id_to_vec_dataset = None
 
         if self.args.ance_training and not self.args.hard_negatives:
             self.args.hard_negatives = True
@@ -1580,6 +1591,10 @@ class RetrievalModel:
                     device=self.device,
                     autoencoder=self.autoencoder_model,
                 )
+                if self.args.multi_head_vectors:
+                    passage_index, id_to_vec_dataset = passage_index
+                else:
+                    id_to_vec_dataset = None
                 self.prediction_passages = passage_index
 
             query_text_column = (
@@ -1587,7 +1602,9 @@ class RetrievalModel:
             )
 
             predicted_doc_ids, scores = self.predict(
-                to_predict=query_dataset[query_text_column], doc_ids_only=True
+                to_predict=query_dataset[query_text_column],
+                doc_ids_only=True,
+                id_to_vec_dataset=id_to_vec_dataset,
             )
 
             run_dict = convert_predictions_to_pytrec_format(
@@ -2004,6 +2021,7 @@ class RetrievalModel:
         passages_only=False,
         doc_ids_only=False,
         is_training=False,
+        id_to_vec_dataset=None,
     ):
         """
         Retrieve the relevant documents from the prediction passages for a list of queries.
@@ -2061,6 +2079,10 @@ class RetrievalModel:
                         * (1 + self.args.extra_cls_token_count),
                     )
                 )
+        elif self.args.multi_head_vectors:
+            num_heads = 12
+            head_dim = 64
+            all_query_embeddings = torch.zeros((len(to_predict), num_heads, head_dim))
         else:
             all_query_embeddings = np.zeros(
                 (
@@ -2156,12 +2178,21 @@ class RetrievalModel:
 
             all_query_embeddings[
                 i * self.args.eval_batch_size : (i + 1) * self.args.eval_batch_size
-            ] = (query_outputs.cpu().detach().numpy())
+            ] = (
+                (query_outputs.cpu().detach().numpy())
+                if not self.args.multi_head_vectors
+                else query_outputs.cpu().detach()
+            )
 
             if self.unified_rr:
                 all_reranking_query_embeddings[
                     i * self.args.eval_batch_size : (i + 1) * self.args.eval_batch_size
                 ] = (reranking_query_outputs.cpu().detach().numpy())
+
+        if self.args.multi_head_vectors:
+            # Right now, shape is (n_queries, 12, 64)
+            # Need to convert to (n_queries * 12, 64)
+            all_query_embeddings = all_query_embeddings.reshape(-1, head_dim)
 
         if passages_only:
             passages = self.retrieve_docs_from_query_embeddings(
@@ -2189,6 +2220,10 @@ class RetrievalModel:
                     doc_ids_only=True,
                     reranking_query_outputs=all_reranking_query_embeddings,
                 )
+                if self.args.multi_head_vectors:
+                    doc_ids, scores = self.get_multi_head_predictions(
+                        doc_ids, scores, all_query_embeddings, id_to_vec_dataset
+                    )
                 return doc_ids, scores
         else:
             retrieval_outputs = self.retrieve_docs_from_query_embeddings(
@@ -2528,7 +2563,10 @@ class RetrievalModel:
                     )
                 ):
                     ids, scores = passage_dataset.get_top_doc_ids(
-                        query_embeddings_retr.astype(np.float32), retrieve_n_docs
+                        query_embeddings_retr.numpy().astype(np.float32)
+                        if self.args.multi_head_vectors
+                        else query_embeddings_retr,
+                        retrieve_n_docs,
                     )
                     doc_ids_batched.extend(ids)
                     scores_batched.extend(scores)
@@ -3094,6 +3132,10 @@ class RetrievalModel:
             self.device,
         )
 
+        if self.args.multi_head_vectors:
+            prediction_passages, id_to_vec_dataset = prediction_passages
+            return prediction_passages, id_to_vec_dataset
+
         return prediction_passages
 
     def _calculate_loss(
@@ -3170,12 +3212,13 @@ class RetrievalModel:
                 reranking_query_outputs = None
                 reranking_context_outputs = None
 
-            context_outputs = torch.nn.functional.dropout(
-                context_outputs, p=self.args.output_dropout
-            )
-            query_outputs = torch.nn.functional.dropout(
-                query_outputs, p=self.args.output_dropout
-            )
+            if not self.args.multi_head_vectors:
+                context_outputs = torch.nn.functional.dropout(
+                    context_outputs, p=self.args.output_dropout
+                )
+                query_outputs = torch.nn.functional.dropout(
+                    query_outputs, p=self.args.output_dropout
+                )
 
         if self.args.include_triplet_loss:
             nll_criterion = torch.nn.NLLLoss(reduction="mean")
@@ -3229,7 +3272,18 @@ class RetrievalModel:
                 full_context_outputs = None
                 full_query_outputs = None
 
-            similarity_score = torch.matmul(query_outputs, context_outputs.t())
+            if self.args.multi_head_vectors:
+                # context_outputs: (batch_size, num_heads, hidden_size)
+                # query_outputs: (batch_size, num_heads, hidden_size)
+                # similarity_score: (batch_size, num_heads, num_heads)
+
+                similarity_score = compute_multi_head_similarity(
+                    query_outputs,
+                    context_outputs,
+                    strategy=self.args.multi_head_vector_strategy,
+                )
+            else:
+                similarity_score = torch.matmul(query_outputs, context_outputs.t())
             softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
 
             if self.args.unified_cross_rr:
@@ -3987,3 +4041,146 @@ class RetrievalModel:
         return [n for n, p in self.context_encoder.named_parameters()] + [
             n for n, p in self.query_encoder.named_parameters()
         ]
+
+    def get_multi_head_predictions(
+        self,
+        doc_ids,
+        scores,
+        all_query_embeddings,
+        id_to_vec_dataset,
+        num_heads=12,
+        head_dim=64,
+    ):
+        logger.info("Reranking documents using multi-head similarity scores.")
+        all_query_embeddings = all_query_embeddings.reshape(-1, num_heads, head_dim)
+
+        # Build id_to_vec_dict
+        # all_doc_ids = set(itertools.chain(*doc_ids))
+        # id_to_vec_dict = id_to_vec_dataset.filter(
+        #     lambda x: x["passage_id"] in all_doc_ids
+        # ).to_dict()
+        # id_to_vec_dict = {
+        #     pid: vector
+        #     for pid, vector in zip(
+        #         id_to_vec_dict["passage_id"], id_to_vec_dict["embeddings"]
+        #     )
+        # }
+
+        ids_to_idx_map = {
+            id: idx
+            for idx, id in zip(
+                range(len(id_to_vec_dataset)), id_to_vec_dataset["passage_id"]
+            )
+        }
+
+        reranked_doc_ids = np.zeros(
+            (len(all_query_embeddings), self.args.retrieve_n_docs), dtype=int
+        ).tolist()
+        reranked_scores = np.zeros(
+            (len(all_query_embeddings), self.args.retrieve_n_docs)
+        )
+
+        with torch.no_grad():
+            # Now we need to combine doc_ids into groups of num_heads and dedupe in the process
+            query_i = 0
+            for i in tqdm(
+                range(0, len(doc_ids), num_heads), desc="Reranking documents"
+            ):
+                doc_group = doc_ids[i : i + num_heads]
+                doc_group = list(set(itertools.chain(*doc_group)))
+
+                query_outputs = (
+                    all_query_embeddings[query_i].unsqueeze(0).to(self.device)
+                )
+
+                # Get doc head vectors
+                doc_group_vectors = []
+                for doc_id in doc_group:
+                    # doc_group_vectors.append(torch.tensor(id_to_vec_dict[doc_id]))
+                    doc_group_vectors.append(
+                        torch.tensor(
+                            id_to_vec_dataset[ids_to_idx_map[doc_id]]["embeddings"]
+                        )
+                    )
+
+                doc_group_vectors = torch.stack(doc_group_vectors).to(self.device)
+
+                similarity_scores = compute_multi_head_similarity(
+                    query_outputs,
+                    doc_group_vectors,
+                    strategy=self.args.multi_head_vector_strategy,
+                )
+                ranked_values, ranked_ids = torch.topk(
+                    similarity_scores, self.args.retrieve_n_docs, sorted=True
+                )
+
+                reranked_doc_ids[query_i] = [
+                    doc_group[ranked_id]
+                    for ranked_id in ranked_ids.squeeze().cpu().numpy()
+                ]
+                reranked_scores[query_i] = ranked_values.cpu().numpy()
+
+                query_i += 1
+
+        logger.info("Finished reranking documents.")
+        return reranked_doc_ids, reranked_scores
+
+
+def compute_multi_head_similarity(
+    query_outputs, context_outputs, strategy="maxsim",
+):
+    """
+    Compute multi-head similarity scores for each query vs. every document.
+    Each query and document has multiple vectors (heads).
+    The similarity score between a query  and a doc is computed as follows:
+        1. For each query head, compute the similarity score with each document head for that document.
+        2. Take the max sim for each query head.
+        3. Sum the max sims for all query heads.
+
+    Parameters:
+    - query_outputs: Tensor of shape (num_queries, num_heads, hidden_dim), query embeddings.
+    - context_outputs: Tensor of shape (num_docs, num_heads, hidden_dim), document embeddings.
+
+    Returns:
+    - similarity_scores: Tensor of shape (num_queries, num_docs), similarity scores for each query-doc pair.
+    """
+    num_queries, num_heads, hidden_dim = query_outputs.shape
+    num_docs = context_outputs.shape[0]
+
+    # Compute similarity scores for each query head with each document head.
+    # similarity_scores: Tensor of shape (num_queries, num_docs, num_heads, num_heads)
+
+    similarity_scores = torch.zeros(
+        (num_queries, num_docs, num_heads, num_heads), device=query_outputs.device
+    )
+
+    for i in range(num_heads):
+        for j in range(num_heads):
+            similarity_scores[:, :, i, j] = torch.matmul(
+                query_outputs[:, :, i].unsqueeze(1),
+                context_outputs[:, :, j].transpose(-1, -2),
+            ).squeeze(1)
+
+    # Take the max similarity score for each query head.
+    # max_similarities: Tensor of shape (num_queries, num_docs, num_heads)
+    max_similarities = torch.max(similarity_scores, dim=3).values
+
+    if strategy == "maxsim":
+        # Sum the max similarities for all query heads.
+        # similarity_scores: Tensor of shape (num_queries, num_docs)
+            similarity_scores = torch.sum(max_similarities, dim=2)
+    elif strategy == "minmax":
+        min_similarities = torch.min(similarity_scores, dim=3).values
+        similarity_scores = torch.sum(max_similarities, dim=2) + torch.sum(
+            min_similarities, dim=2
+        )
+    elif strategy == "max":
+        # Take the max similarity of all query heads.
+        # similarity_scores: Tensor of shape (num_queries, num_docs)
+        similarity_scores = torch.max(max_similarities, dim=2).values
+    elif strategy == "mean":
+        # Take the mean similarity of all query heads versus all doc heads.
+        # similarity_scores: Tensor of shape (num_queries, num_docs)
+        pass
+
+    return similarity_scores

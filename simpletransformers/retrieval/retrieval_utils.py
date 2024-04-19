@@ -448,6 +448,15 @@ def get_output_embeddings(
         return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(
             input_mask_expanded.sum(1), min=1e-9
         )
+    elif args is not None and args.multi_head_vectors:
+        batch_size = embeddings[0].shape[0]
+        num_heads = 12
+        head_size = 64
+
+        attention_output = embeddings.attention_output
+        attention_output = attention_output.view(batch_size, -1, num_heads, head_size)
+
+        return attention_output[:, 0, :, :]
     else:
         if use_pooler_output:
             return embeddings.pooler_output
@@ -574,6 +583,7 @@ def embed(
                         concatenate_embeddings=concatenate_embeddings,
                         n_cls_tokens=(1 + extra_cls_token_count),
                         return_all_embeddings=use_autoencoder,
+                        args=args,
                     )
                     if use_autoencoder:
                         embeddings = autoencoder.encode(embeddings)
@@ -932,6 +942,11 @@ def get_prediction_passage_dataset(
     if isinstance(prediction_passages, str):
         if os.path.isdir(prediction_passages):
             prediction_passages_dataset = load_from_disk(prediction_passages)
+
+            if args.multi_head_vectors:
+                id_to_vec_dataset = load_from_disk(
+                    os.path.join(prediction_passages, "id_to_vec_dataset")
+                )
         else:
             prediction_passages_dataset = load_dataset(
                 "csv",
@@ -1009,12 +1024,12 @@ def get_prediction_passage_dataset(
 
     index_added = False
     index_path = None
-    if isinstance(prediction_passages, str):
-        index_path = os.path.join(prediction_passages, "hf_dataset_index.faiss")
-        if os.path.isfile(index_path):
-            logger.info(f"Loaded FAISS index from {index_path}")
-            prediction_passages_dataset.load_faiss_index("embeddings", index_path)
-            index_added = True
+    # if isinstance(prediction_passages, str):
+    #     index_path = os.path.join(prediction_passages, "hf_dataset_index.faiss")
+    #     if os.path.isfile(index_path):
+    #         logger.info(f"Loaded FAISS index from {index_path}")
+    #         prediction_passages_dataset.load_faiss_index("embeddings", index_path)
+    #         index_added = True
 
     if not index_added:
         logger.info("Adding FAISS index to prediction passages")
@@ -1034,6 +1049,10 @@ def get_prediction_passage_dataset(
             prediction_passages_dataset.save_faiss_index("embeddings", faiss_save_path)
 
     passage_index = DPRIndex(prediction_passages_dataset, context_config.hidden_size)
+
+    if args.multi_head_vectors:
+        return passage_index, id_to_vec_dataset
+
     return passage_index
 
 
@@ -1953,6 +1972,27 @@ def convert_beir_columns_to_trec_format(
     return collection, queries, qrels
 
 
+def explode(batch):
+    return {
+        "passage_id": [
+            pid
+            for i, pid in enumerate(batch["passage_id"])
+            for _ in batch["embeddings"][i]
+        ],
+        "title": [
+            title
+            for i, title in enumerate(batch["title"])
+            for _ in batch["embeddings"][i]
+        ],
+        "passage_text": [
+            text
+            for i, text in enumerate(batch["passage_text"])
+            for _ in batch["embeddings"][i]
+        ],
+        "embeddings": [emb for emb_list in batch["embeddings"] for emb in emb_list],
+    }
+
+
 def embed_passages_trec_format(
     passage_dataset,
     encoder,
@@ -2018,10 +2058,29 @@ def embed_passages_trec_format(
         )
         logger.info("Generating embeddings for evaluation passages completed.")
 
+        if args.multi_head_vectors:
+            logger.info("Exploding passage dataset for multi-head vectors")
+
+            id_to_vec_dataset = passage_dataset.remove_columns(
+                ["title", "passage_text"]
+            )
+            passage_dataset = passage_dataset.map(
+                explode, batched=True, remove_columns=passage_dataset.column_names
+            )
+
+            logger.info("Exploding passage dataset for multi-head vectors completed")
+
         if args.save_passage_dataset:
             output_dataset_directory = os.path.join(args.output_dir, "passage_dataset")
             os.makedirs(output_dataset_directory, exist_ok=True)
             passage_dataset.save_to_disk(output_dataset_directory)
+
+            if args.multi_head_vectors:
+                id_to_vec_path = os.path.join(
+                    output_dataset_directory, "id_to_vec_dataset"
+                )
+                os.makedirs(id_to_vec_path, exist_ok=True)
+                id_to_vec_dataset.save_to_disk(id_to_vec_path)
 
         logger.info("Adding FAISS index to evaluation passages")
         index = get_faiss_index(args)
@@ -2035,6 +2094,8 @@ def embed_passages_trec_format(
                 output_dataset_directory, "hf_dataset_index.faiss"
             )
             passage_dataset.save_faiss_index("embeddings", faiss_save_path)
+    if args.multi_head_vectors:
+        return passage_index, id_to_vec_dataset
     return passage_index
 
 

@@ -376,7 +376,6 @@ class LanguageModelingModel:
                 if self.args.nf4:
                     from transformers import BitsAndBytesConfig
 
-
                     nf4_config = BitsAndBytesConfig(
                         load_in_4bit=True,
                         bnb_4bit_quant_type="nf4",
@@ -429,6 +428,7 @@ class LanguageModelingModel:
                     )
                     self.adapter_name = adapter_name
                 else:
+                    self.adapter_name = None
                     self.model = get_peft_model(self.model, self.lora_config)
                     self.model.print_trainable_parameters()
 
@@ -1517,7 +1517,7 @@ class LanguageModelingModel:
 
         if self.args.peft and self.adapter_name:
             logger.info(
-                "Merging adapter with model for faster inference. Contunuing training from this point may result in unexpected behavior."
+                "Merging adapter with model for faster inference. Continuing training from this point may result in unexpected behavior."
             )
             self.model = self.model.merge_and_unload()
 

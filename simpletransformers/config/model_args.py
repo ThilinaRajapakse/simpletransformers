@@ -439,6 +439,9 @@ class RetrievalArgs(Seq2SeqArgs):
     larger_representations: bool = False
     mse_loss: bool = False
     moving_average_loss_count: int = 10
+    multi_head_vectors: bool = False
+    multi_head_vector_strategy: str = "maxsim"
+    minmax_multi_head_vectors: bool = False
     multi_vector_query: bool = False
     query_vector_count: int = 50
     nll_lambda: float = 1.0
