@@ -1,7 +1,11 @@
 import logging
 import pandas as pd
 
-from simpletransformers.language_modeling import LanguageModelingModel, LanguageModelingArgs, GenerationArgs
+from simpletransformers.language_modeling import (
+    LanguageModelingModel,
+    LanguageModelingArgs,
+    GenerationArgs,
+)
 from simpletransformers.retrieval import (
     RetrievalModel,
     RetrievalArgs,

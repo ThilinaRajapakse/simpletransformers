@@ -376,7 +376,6 @@ class LanguageModelingModel:
                 if self.args.nf4:
                     from transformers import BitsAndBytesConfig
 
-
                     nf4_config = BitsAndBytesConfig(
                         load_in_4bit=True,
                         bnb_4bit_quant_type="nf4",
