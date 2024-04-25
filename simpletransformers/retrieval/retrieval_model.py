@@ -1529,6 +1529,11 @@ class RetrievalModel:
 
         self._move_model_to_device(is_evaluating=True)
 
+        context_encoder_was_training = self.context_encoder.training
+        query_encoder_was_training = self.query_encoder.training
+        self.context_encoder.eval()
+        self.query_encoder.eval()
+
         if self.args.evaluate_with_beir:
             results = self.evaluate_beir(
                 eval_data,
@@ -1670,6 +1675,11 @@ class RetrievalModel:
                 ) as f:
                     json.dump(run_dict, f)
 
+            if context_encoder_was_training:
+                self.context_encoder.train()
+            if query_encoder_was_training:
+                self.query_encoder.train()
+
             return result_report
 
         if self.prediction_passages is None or evaluating_during_training:
@@ -1731,6 +1741,12 @@ class RetrievalModel:
 
         if verbose:
             logger.info(result)
+
+
+        if context_encoder_was_training:
+            self.context_encoder.train()
+        if query_encoder_was_training:
+            self.query_encoder.train()
 
         return (
             result,
