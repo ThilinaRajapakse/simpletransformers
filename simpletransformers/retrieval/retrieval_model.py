@@ -3227,6 +3227,8 @@ class RetrievalModel:
                 true_n_scores,
             )
 
+        # This is where the quartet loss will go
+
         if not (
             self.args.include_nll_loss
             or self.args.mse_loss
