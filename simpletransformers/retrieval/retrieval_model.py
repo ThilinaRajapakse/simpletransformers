@@ -60,6 +60,7 @@ from simpletransformers.custom_models.reranking_model import RerankingModel
 from simpletransformers.custom_models.retrieval_autoencoder import Autoencoder
 from simpletransformers.retrieval.beir_evaluation import BeirRetrievalModel
 from simpletransformers.retrieval.retrieval_utils import (
+    KLDivLossForTriplets,
     calculate_mrr,
     convert_beir_columns_to_trec_format,
     get_clustered_passage_dataset,
@@ -363,7 +364,7 @@ class RetrievalModel:
             self.teacher_model = None
             self.teacher_tokenizer = None
 
-        if args.mse_loss or args.kl_div_loss:
+        if args.mse_loss or args.reranking_kl_div_loss:
             if args.teacher_type == "colbert":
                 self.teacher_model = ColBERTModel.from_pretrained(
                     teacher_model_name,
@@ -485,6 +486,8 @@ class RetrievalModel:
                 "Setting hard_negatives to True since ANCE training is enabled."
             )
 
+        self.eval_dataset_names = None
+
     def train_model(
         self,
         train_data,
@@ -498,6 +501,7 @@ class RetrievalModel:
         top_k_values=None,
         verbose=True,
         eval_set="dev",
+        eval_dataset_names=None,
         **kwargs,
     ):
         """
@@ -516,6 +520,11 @@ class RetrievalModel:
                         This may be a list of passages, a pandas DataFrame with the column `passages`, or a TSV file with the column `passages`.
             relevant_docs: A list of lists or path to a JSON file of relevant documents for each query.
             eval_data (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+            clustered_training (optional): Whether to use clustered training. Defaults to False.
+            top_k_values (optional): Cutoff values for metrics. Defaults to [1, 2, 3, 5, 10].
+            verbose (optional): If verbose, the training progress will be displayed. Defaults to True.
+            eval_set (optional): The set of evaluation dataset to use. Defaults to 'dev'. Typically 'dev' or 'test'. Should be a list if multiple datasets are used for evaluation.
+            eval_dataset_names (optional): A list of names for the evaluation datasets. This is used to identify the datasets in the evaluation results. Defaults to None.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
                         will be lists of strings. Note that this will slow down training significantly as the predicted sequences need to be generated.
@@ -531,11 +540,38 @@ class RetrievalModel:
         # if self.args.silent:
         #     show_running_loss = False
 
-        if self.args.evaluate_during_training and eval_data is None:
-            raise ValueError(
-                "evaluate_during_training is enabled but eval_data is not specified."
-                " Pass eval_data to model.train_model() if using evaluate_during_training."
-            )
+        if self.args.evaluate_during_training:
+            if not eval_data:
+                raise ValueError(
+                    "evaluate_during_training is enabled but eval_data is not specified."
+                    " Pass eval_data to model.train_model() if using evaluate_during_training."
+                )
+            elif isinstance(eval_data, list):
+                # Checks if everything is in order for multiple evaluation datasets
+                if not eval_dataset_names:
+                    raise ValueError(
+                        "eval_dataset_names is required when multiple evaluation datasets are used."
+                    )
+                if len(eval_data) != len(eval_dataset_names):
+                    raise ValueError(
+                        "Length of eval_data and eval_dataset_names should be the same."
+                    )
+                if not isinstance(eval_set, list) and (
+                    self.args.data_format == "beir"
+                    or self.args.data_format == "msmarco"
+                    or self.args.evaluate_with_beir
+                ):
+                    eval_set = [eval_set] * len(eval_data)
+                    warnings.warn(
+                        f"eval_set is not a list. Setting eval_set to {eval_set}."
+                    )
+                elif isinstance(eval_set, list) and len(eval_set) != len(eval_data):
+                    raise ValueError(
+                        "Length of eval_set should be the same as the number of evaluation datasets."
+                    )
+                self.eval_dataset_names = eval_dataset_names
+            else:
+                self.eval_dataset_names = None
 
         if not output_dir:
             output_dir = self.args.output_dir
@@ -671,6 +707,12 @@ class RetrievalModel:
                 // args.gradient_accumulation_steps
                 * args.num_train_epochs
             )
+        self.t_total = t_total
+        if self.args.nll_lambda_start_decay is not None:
+            total_decay_steps = self.t_total - self.args.nll_lambda_start_decay
+            self.nll_lambda_decay_per_step = (
+                self.args.nll_lambda - self.args.nll_lambda_min
+            ) / total_decay_steps
 
         optimizer_grouped_parameters = self.get_optimizer_parameters(
             context_model, query_model, args, self.reranking_model
@@ -732,7 +774,7 @@ class RetrievalModel:
 
         logger.info(" Training started")
 
-        global_step = 0
+        self.global_step = 0
         training_progress_scores = None
         tr_loss, logging_loss = 0.0, 0.0
         context_model.zero_grad()
@@ -757,13 +799,13 @@ class RetrievalModel:
                     checkpoint_suffix = checkpoint_suffix[1]
                 else:
                     checkpoint_suffix = checkpoint_suffix[-1]
-                global_step = int(checkpoint_suffix)
+                self.global_step = int(checkpoint_suffix)
                 epochs_trained = (
-                    global_step
+                    self.global_step
                     // (len(train_dataloader) // args.gradient_accumulation_steps)
                     + 1
                 )
-                steps_trained_in_current_epoch = global_step % (
+                steps_trained_in_current_epoch = self.global_step % (
                     len(train_dataloader) // args.gradient_accumulation_steps
                 )
 
@@ -771,7 +813,9 @@ class RetrievalModel:
                     "   Continuing training from checkpoint, will skip to saved global_step"
                 )
                 logger.info("   Continuing training from epoch %d", epochs_trained)
-                logger.info("   Continuing training from global step %d", global_step)
+                logger.info(
+                    "   Continuing training from global step %d", self.global_step
+                )
                 logger.info(
                     "   Will skip the first %d steps in the current epoch",
                     steps_trained_in_current_epoch,
@@ -792,6 +836,14 @@ class RetrievalModel:
                 top_k_values=top_k_values,
                 **kwargs,
             )
+            if self.args.early_stopping_metric not in training_progress_scores:
+                raise ValueError(
+                    "early_stopping_metric should be one of the metrics used for evaluation. \
+                        Available metrics are {} and the early_stopping_metric is {}".format(
+                        list(training_progress_scores.keys()),
+                        self.args.early_stopping_metric,
+                    )
+                )
 
         if args.wandb_project:
             wandb.init(
@@ -858,7 +910,14 @@ class RetrievalModel:
                         reranking_input,
                     ) = self._get_inputs_dict(batch)
                 else:
-                    context_inputs, query_inputs, labels = self._get_inputs_dict(batch)
+                    (
+                        context_inputs,
+                        query_inputs,
+                        labels,
+                        margins,
+                        true_p_scores,
+                        true_n_scores,
+                    ) = self._get_inputs_dict(batch)
                     reranking_input = None
 
                 high_loss_repeats = 0
@@ -875,6 +934,9 @@ class RetrievalModel:
                                 criterion,
                                 reranking_input,
                                 reranking_model=self.reranking_model,
+                                margins=margins,
+                                true_p_scores=true_p_scores,
+                                true_n_scores=true_n_scores,
                             )
                             loss = retrieval_output.loss
                             correct_predictions_percentage = (
@@ -890,6 +952,9 @@ class RetrievalModel:
                             criterion,
                             reranking_input,
                             reranking_model=self.reranking_model,
+                            margins=margins,
+                            true_p_scores=true_p_scores,
+                            true_n_scores=true_n_scores,
                         )
                         loss = retrieval_output.loss
                         correct_predictions_percentage = (
@@ -950,7 +1015,7 @@ class RetrievalModel:
                 if args.repeat_high_loss_n > 0:
                     moving_loss.add_loss(current_loss)
 
-                if show_running_loss and (args.kl_div_loss or args.mse_loss):
+                if show_running_loss and (args.reranking_kl_div_loss or args.mse_loss):
                     if args.unified_cross_rr:
                         batch_iterator.set_description(
                             f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Reranking correct percentage: {reranking_correct_predictions_percentage:4.1f} Teacher correct percentage: {colbert_percentage:4.1f}"
@@ -1003,17 +1068,20 @@ class RetrievalModel:
                     query_model.zero_grad()
                     if self.unified_rr or self.args.unified_cross_rr:
                         self.reranking_model.zero_grad()
-                    global_step += 1
+                    self.global_step += 1
 
-                    if args.logging_steps > 0 and global_step % args.logging_steps == 0:
+                    if (
+                        args.logging_steps > 0
+                        and self.global_step % args.logging_steps == 0
+                    ):
                         # Log metrics
                         tb_writer.add_scalar(
-                            "lr", scheduler.get_last_lr()[0], global_step
+                            "lr", scheduler.get_last_lr()[0], self.global_step
                         )
                         tb_writer.add_scalar(
                             "loss",
                             (tr_loss - logging_loss) / args.logging_steps,
-                            global_step,
+                            self.global_step,
                         )
                         logging_loss = tr_loss
                         if args.wandb_project or self.is_sweeping:
@@ -1021,18 +1089,18 @@ class RetrievalModel:
                                 logging_dict = {
                                     "Training loss": current_loss,
                                     "lr": scheduler.get_last_lr()[0],
-                                    "global_step": global_step,
+                                    "global_step": self.global_step,
                                     "correct_predictions_percentage": correct_predictions_percentage,
                                     "reranking_loss": retrieval_output.reranking_loss,
                                     "nll_loss": retrieval_output.nll_loss,
                                 }
                             else:
-                                if args.kl_div_loss or args.mse_loss:
+                                if args.reranking_kl_div_loss or args.mse_loss:
                                     if args.unified_cross_rr:
                                         logging_dict = {
                                             "Training loss": current_loss,
                                             "lr": scheduler.get_last_lr()[0],
-                                            "global_step": global_step,
+                                            "global_step": self.global_step,
                                             "correct_predictions_percentage": correct_predictions_percentage,
                                             "teacher_correct_predictions_percentage": colbert_percentage,
                                             "reranking_correct_predictions_percentage": reranking_correct_predictions_percentage,
@@ -1041,7 +1109,7 @@ class RetrievalModel:
                                         logging_dict = {
                                             "Training loss": current_loss,
                                             "lr": scheduler.get_last_lr()[0],
-                                            "global_step": global_step,
+                                            "global_step": self.global_step,
                                             "correct_predictions_percentage": correct_predictions_percentage,
                                             "teacher_correct_predictions_percentage": colbert_percentage,
                                         }
@@ -1049,7 +1117,7 @@ class RetrievalModel:
                                         logging_dict[
                                             "nll_loss"
                                         ] = retrieval_output.nll_loss
-                                        if args.kl_div_loss:
+                                        if args.reranking_kl_div_loss:
                                             logging_dict["kl_div_loss"] = (
                                                 current_loss - retrieval_output.nll_loss
                                             )
@@ -1061,15 +1129,15 @@ class RetrievalModel:
                                     logging_dict = {
                                         "Training loss": current_loss,
                                         "lr": scheduler.get_last_lr()[0],
-                                        "global_step": global_step,
+                                        "global_step": self.global_step,
                                         "correct_predictions_percentage": correct_predictions_percentage,
                                     }
                             wandb.log(logging_dict)
 
-                    if args.save_steps > 0 and global_step % args.save_steps == 0:
+                    if args.save_steps > 0 and self.global_step % args.save_steps == 0:
                         # Save model checkpoint
                         output_dir_current = os.path.join(
-                            output_dir, "checkpoint-{}".format(global_step)
+                            output_dir, "checkpoint-{}".format(self.global_step)
                         )
 
                         self.save_model(
@@ -1082,19 +1150,41 @@ class RetrievalModel:
 
                     if args.evaluate_during_training and (
                         args.evaluate_during_training_steps > 0
-                        and global_step % args.evaluate_during_training_steps == 0
+                        and self.global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
                         if args.data_format == "beir" or args.data_format == "msmarco":
-                            results = self.eval_model(
-                                eval_data,
-                                verbose=verbose
-                                and args.evaluate_during_training_verbose,
-                                silent=args.evaluate_during_training_silent,
-                                evaluating_during_training=True,
-                                eval_set=eval_set,
-                                **kwargs,
-                            )
+                            if isinstance(eval_data, list):
+                                results = {}
+                                for eval_data_item, eval_name, current_set in zip(
+                                    eval_data, self.eval_dataset_names, eval_set
+                                ):
+                                    # We need to keep adding the results to the same dictionary
+                                    # as we are evaluating on multiple datasets
+                                    results_default_names = self.eval_model(
+                                        eval_data_item,
+                                        verbose=verbose
+                                        and args.evaluate_during_training_verbose,
+                                        silent=args.evaluate_during_training_silent,
+                                        evaluating_during_training=True,
+                                        eval_set=current_set,
+                                        **kwargs,
+                                    )
+
+                                    for key in results_default_names:
+                                        results[
+                                            f"{eval_name}_{key}"
+                                        ] = results_default_names[key]
+                            else:
+                                results = self.eval_model(
+                                    eval_data,
+                                    verbose=verbose
+                                    and args.evaluate_during_training_verbose,
+                                    silent=args.evaluate_during_training_silent,
+                                    evaluating_during_training=True,
+                                    eval_set=eval_set,
+                                    **kwargs,
+                                )
                         else:
                             results, *_ = self.eval_model(
                                 eval_data,
@@ -1110,13 +1200,13 @@ class RetrievalModel:
                         for key, value in results.items():
                             try:
                                 tb_writer.add_scalar(
-                                    "eval_{}".format(key), value, global_step
+                                    "eval_{}".format(key), value, self.global_step
                                 )
                             except (NotImplementedError, AssertionError):
                                 pass
 
                         output_dir_current = os.path.join(
-                            output_dir, "checkpoint-{}".format(global_step)
+                            output_dir, "checkpoint-{}".format(self.global_step)
                         )
 
                         if args.save_eval_checkpoints:
@@ -1129,7 +1219,7 @@ class RetrievalModel:
                                 results=results,
                             )
 
-                        training_progress_scores["global_step"].append(global_step)
+                        training_progress_scores["global_step"].append(self.global_step)
                         training_progress_scores["train_loss"].append(current_loss)
                         for key in results:
                             training_progress_scores[key].append(results[key])
@@ -1196,8 +1286,8 @@ class RetrievalModel:
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return (
-                                            global_step,
-                                            tr_loss / global_step
+                                            self.global_step,
+                                            tr_loss / self.global_step
                                             if not self.args.evaluate_during_training
                                             else training_progress_scores,
                                         )
@@ -1242,8 +1332,8 @@ class RetrievalModel:
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return (
-                                            global_step,
-                                            tr_loss / global_step
+                                            self.global_step,
+                                            tr_loss / self.global_step
                                             if not self.args.evaluate_during_training
                                             else training_progress_scores,
                                         )
@@ -1257,7 +1347,7 @@ class RetrievalModel:
             epoch_number += 1
             output_dir_current = os.path.join(
                 output_dir,
-                "checkpoint-{}-epoch-{}".format(global_step, epoch_number),
+                "checkpoint-{}-epoch-{}".format(self.global_step, epoch_number),
             )
 
             if (
@@ -1301,15 +1391,37 @@ class RetrievalModel:
                 )
 
             if args.evaluate_during_training and args.evaluate_each_epoch:
-                if args.data_format == "beir":
-                    results = self.eval_model(
-                        eval_data,
-                        verbose=verbose and args.evaluate_during_training_verbose,
-                        silent=args.evaluate_during_training_silent,
-                        evaluating_during_training=True,
-                        eval_set=eval_set,
-                        **kwargs,
-                    )
+                if args.data_format == "beir" or args.data_format == "msmarco":
+                    if isinstance(eval_data, list):
+                        results = {}
+                        for eval_data_item, eval_name, current_set in zip(
+                            eval_data, self.eval_dataset_names, eval_set
+                        ):
+                            # We need to keep adding the results to the same dictionary
+                            # as we are evaluating on multiple datasets
+                            results_default_names = self.eval_model(
+                                eval_data_item,
+                                verbose=verbose
+                                and args.evaluate_during_training_verbose,
+                                silent=args.evaluate_during_training_silent,
+                                evaluating_during_training=True,
+                                eval_set=current_set,
+                                **kwargs,
+                            )
+
+                            for key in results_default_names:
+                                results[f"{eval_name}_{key}"] = results_default_names[
+                                    key
+                                ]
+                    else:
+                        results = self.eval_model(
+                            eval_data,
+                            verbose=verbose and args.evaluate_during_training_verbose,
+                            silent=args.evaluate_during_training_silent,
+                            evaluating_during_training=True,
+                            eval_set=eval_set,
+                            **kwargs,
+                        )
                 else:
                     results, *_ = self.eval_model(
                         eval_data,
@@ -1327,7 +1439,7 @@ class RetrievalModel:
                         output_dir_current, optimizer, scheduler, results=results
                     )
 
-                training_progress_scores["global_step"].append(global_step)
+                training_progress_scores["global_step"].append(self.global_step)
                 training_progress_scores["train_loss"].append(current_loss)
                 for key in results:
                     training_progress_scores[key].append(results[key])
@@ -1393,8 +1505,8 @@ class RetrievalModel:
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return (
-                                    global_step,
-                                    tr_loss / global_step
+                                    self.global_step,
+                                    tr_loss / self.global_step
                                     if not self.args.evaluate_during_training
                                     else training_progress_scores,
                                 )
@@ -1439,15 +1551,15 @@ class RetrievalModel:
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return (
-                                    global_step,
-                                    tr_loss / global_step
+                                    self.global_step,
+                                    tr_loss / self.global_step
                                     if not self.args.evaluate_during_training
                                     else training_progress_scores,
                                 )
 
         return (
-            global_step,
-            tr_loss / global_step
+            self.global_step,
+            tr_loss / self.global_step
             if not self.args.evaluate_during_training
             else training_progress_scores,
         )
@@ -1742,7 +1854,6 @@ class RetrievalModel:
         if verbose:
             logger.info(result)
 
-
         if context_encoder_was_training:
             self.context_encoder.train()
         if query_encoder_was_training:
@@ -1838,7 +1949,7 @@ class RetrievalModel:
         ):
             # batch = tuple(t.to(device) for t in batch)
 
-            context_inputs, query_inputs, labels = self._get_inputs_dict(
+            context_inputs, query_inputs, labels, _ = self._get_inputs_dict(
                 batch, evaluate=True
             )
             with torch.no_grad():
@@ -3122,6 +3233,9 @@ class RetrievalModel:
         criterion,
         reranking_input=None,
         reranking_model=None,
+        margins=None,
+        true_p_scores=None,
+        true_n_scores=None,
     ):
         # if self.args.larger_representations:
         #     context_outputs_all = context_model(**context_inputs)
@@ -3245,7 +3359,13 @@ class RetrievalModel:
                 full_context_outputs = None
                 full_query_outputs = None
 
-            similarity_score = torch.matmul(query_outputs, context_outputs.t())
+            if self.args.skip_hard_negatives_for_nll:
+                similarity_score = torch.matmul(
+                    query_outputs,
+                    context_outputs[: context_outputs.size(0) // 2, :].t(),
+                )
+            else:
+                similarity_score = torch.matmul(query_outputs, context_outputs.t())
             softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
 
             if self.args.unified_cross_rr:
@@ -3272,7 +3392,7 @@ class RetrievalModel:
                     loss = bce_loss
                     nll_loss = None
             else:
-                if self.args.mse_loss or self.args.kl_div_loss:
+                if self.args.mse_loss or self.args.reranking_kl_div_loss:
                     with torch.no_grad():
                         label_scores = self._get_teacher_scores(
                             reranking_input, query_inputs, context_inputs
@@ -3294,10 +3414,17 @@ class RetrievalModel:
                     reranking_query_outputs if self.args.unified_cross_rr else None,
                     reranking_context_outputs if self.args.unified_cross_rr else None,
                     unified_rr,
-                    query_outputs=full_query_outputs,
-                    context_outputs=full_context_outputs,
+                    query_outputs=full_query_outputs
+                    if full_query_outputs
+                    else query_outputs,
+                    context_outputs=full_context_outputs
+                    if full_context_outputs
+                    else context_outputs,
                     decoded_query_outputs=decoded_query_outputs,
                     decoded_context_outputs=decoded_context_outputs,
+                    margins=margins,
+                    true_p_scores=true_p_scores,
+                    true_n_scores=true_n_scores,
                 )
 
         (
@@ -3488,6 +3615,9 @@ class RetrievalModel:
         context_outputs=None,
         decoded_query_outputs=None,
         decoded_context_outputs=None,
+        margins=None,
+        true_p_scores=None,
+        true_n_scores=None,
     ):
         if self.args.use_autoencoder:
             if self.args.autoencoder_mse_loss:
@@ -3504,7 +3634,7 @@ class RetrievalModel:
 
             if self.args.autoencoder_kl_div_loss:
                 kl_criterion = torch.nn.KLDivLoss(reduction="batchmean")
-                kl_div_loss = kl_criterion(
+                reranking_kl_div_loss = kl_criterion(
                     torch.nn.functional.log_softmax(decoded_query_outputs, dim=-1),
                     torch.nn.functional.softmax(query_outputs, dim=-1),
                 ) + kl_criterion(
@@ -3512,7 +3642,7 @@ class RetrievalModel:
                     torch.nn.functional.softmax(context_outputs, dim=-1),
                 )
             else:
-                kl_div_loss = None
+                reranking_kl_div_loss = None
 
         if self.args.mse_loss:
             mse_criterion = torch.nn.MSELoss()
@@ -3523,11 +3653,11 @@ class RetrievalModel:
                 label_scores,
             )
 
-        elif self.args.kl_div_loss:
+        elif self.args.reranking_kl_div_loss:
             kl_criterion = torch.nn.KLDivLoss(reduction="batchmean")
             label_scores = label_scores.reshape(similarity_score.shape)
 
-            kl_div_loss = kl_criterion(
+            reranking_kl_div_loss = kl_criterion(
                 reranking_softmax_score
                 if self.args.unified_cross_rr
                 else softmax_score,
@@ -3537,11 +3667,37 @@ class RetrievalModel:
             criterion = torch.nn.NLLLoss(reduction="mean")
             nll_loss = criterion(softmax_score, labels)
             nll_labels = labels
+        if self.args.include_margin_mse_loss:
+            mmse_criterion = MarginMSELoss()
+            half = context_outputs.size(0) // 2
+            hn_outputs = context_outputs[half:, :]
+            positive_outputs = context_outputs[:half, :]
+
+            mmse_loss = mmse_criterion(
+                query_outputs, positive_outputs, hn_outputs, margins
+            )
+        if self.args.include_kl_div_loss:
+            kl_criterion = KLDivLossForTriplets()
+            half = context_outputs.size(0) // 2
+            hn_outputs = context_outputs[half:, :]
+            positive_outputs = context_outputs[:half, :]
+
+            kl_div_loss = kl_criterion(
+                query_outputs,
+                positive_outputs,
+                hn_outputs,
+                true_p_scores,
+                true_n_scores,
+            )
+
         if not (
-            self.args.include_nll_loss or self.args.mse_loss or self.args.kl_div_loss
+            self.args.include_nll_loss
+            or self.args.mse_loss
+            or self.args.reranking_kl_div_loss
+            or self.args.include_margin_mse_loss
         ):
             raise ValueError(
-                "Either include_nll_loss, mse_loss, or kl_div_loss must be True."
+                "One of include_nll_loss, mse_loss, include_margin_mse_loss or reranking_kl_div_loss must be True."
             )
 
         nll_labels = labels
@@ -3570,21 +3726,50 @@ class RetrievalModel:
         elif self.args.unified_cross_rr:
             if self.args.include_nll_loss:
                 loss = nll_loss + (
-                    self.args.kl_div_loss_multiplier
-                    if self.args.kl_div_loss
+                    self.args.kl_div_lambda
+                    if self.args.reranking_kl_div_loss
                     else mse_loss
                 )
             else:
-                loss = kl_div_loss if self.args.kl_div_loss else mse_loss
+                loss = (
+                    reranking_kl_div_loss
+                    if self.args.reranking_kl_div_loss
+                    else mse_loss
+                )
             reranking_loss = None
         elif self.args.use_autoencoder:
             loss = nll_loss + (
-                self.args.kl_div_loss_multiplier if self.args.kl_div_loss else mse_loss
+                self.args.kl_div_lambda if self.args.reranking_kl_div_loss else mse_loss
             )
             reranking_loss = None
         else:
             reranking_loss = None
-            loss = nll_loss
+            if self.args.include_nll_loss:
+                loss = nll_loss
+                if self.args.include_margin_mse_loss or self.args.include_kl_div_loss:
+                    if (
+                        self.args.nll_lambda_start_decay is not None
+                        and self.global_step > self.args.nll_lambda_start_decay
+                    ):
+                        nll_lambda = self.args.nll_lambda - (
+                            self.nll_lambda_decay_per_step
+                            * (self.global_step - self.args.nll_lambda_start_decay)
+                        )
+                    else:
+                        nll_lambda = self.args.nll_lambda
+
+                if self.args.include_margin_mse_loss:
+                    loss = (
+                        nll_lambda * nll_loss + self.args.margin_mse_lambda * mmse_loss
+                    )
+                elif self.args.include_kl_div_loss:
+                    loss = nll_lambda * nll_loss + self.args.kl_div_lambda * kl_div_loss
+            elif self.args.include_margin_mse_loss:
+                loss = mmse_loss
+            elif self.args.include_kl_div_loss:
+                loss = kl_div_loss
+            else:
+                loss = nll_loss
 
         nll_loss = nll_loss.item() if self.args.include_nll_loss else None
         return loss, reranking_loss, nll_loss, nll_labels, label_scores
@@ -3617,7 +3802,7 @@ class RetrievalModel:
                 rerank_correct_predictions_count / len(nll_labels)
             ) * 100
 
-        if self.args.kl_div_loss or self.args.mse_loss:
+        if self.args.reranking_kl_div_loss or self.args.mse_loss:
             teacher_softmax_score = torch.nn.functional.softmax(label_scores, dim=-1)
             teacher_max_score, teacher_max_idxs = torch.max(teacher_softmax_score, 1)
             teacher_correct_predictions_count = (
@@ -3647,6 +3832,9 @@ class RetrievalModel:
 
         labels = [i for i in range(len(batch["context_ids"]))]
         labels = torch.tensor(labels, dtype=torch.long).to(device)
+        margins = None
+        true_p_scores = None
+        true_n_scores = None
 
         if not evaluate:
             # Training
@@ -3689,6 +3877,12 @@ class RetrievalModel:
                         ],
                         dim=0,
                     )
+                if self.args.include_margin_mse_loss:
+                    margins = batch["margin"].to(device)
+
+                if self.args.include_kl_div_loss:
+                    true_p_scores = batch["true_p_scores"].to(device)
+                    true_n_scores = batch["true_n_scores"].to(device)
             else:
                 context_ids = batch["context_ids"]
                 context_masks = batch["context_mask"]
@@ -3830,7 +4024,7 @@ class RetrievalModel:
         ):
             labels = batch["labels"].to(device), labels  # BCELabels, NLLLabels
 
-        return context_input, query_input, labels
+        return context_input, query_input, labels, margins, true_p_scores, true_n_scores
 
     def _create_training_progress_scores(
         self, calculate_recall=False, top_k_values=None, **kwargs
@@ -3857,13 +4051,24 @@ class RetrievalModel:
                 **{f"mrr_at_{k}": [] for k in beir_top_ks},
             }
         elif self.args.data_format == "beir":
-            training_progress_scores = {
-                **training_progress_scores,
-                **{"ndcg": []},
-                **{"recip_rank": []},
-                **{"recall_100": []},
-                **{"ndcg_cut_10": []},
-            }
+            if self.eval_dataset_names:
+                for dataset_name in self.eval_dataset_names:
+                    training_progress_scores = {
+                        **training_progress_scores,
+                        **{f"{dataset_name}_ndcg": []},
+                        **{f"{dataset_name}_recip_rank": []},
+                        **{f"{dataset_name}_recall_100": []},
+                        **{f"{dataset_name}_ndcg_cut_10": []},
+                    }
+
+            else:
+                training_progress_scores = {
+                    **training_progress_scores,
+                    **{"ndcg": []},
+                    **{"recip_rank": []},
+                    **{"recall_100": []},
+                    **{"ndcg_cut_10": []},
+                }
             # Remove eval_loss from training_progress_scores
             training_progress_scores.pop("eval_loss")
         else:
@@ -3984,7 +4189,9 @@ class RetrievalModel:
         if self.args.unified_cross_rr:
             self.reranking_model.to(self.device)
 
-        if (self.args.mse_loss or self.args.kl_div_loss) and not is_evaluating:
+        if (
+            self.args.mse_loss or self.args.reranking_kl_div_loss
+        ) and not is_evaluating:
             self.teacher_model.to(self.device)
 
         if self.args.use_autoencoder:

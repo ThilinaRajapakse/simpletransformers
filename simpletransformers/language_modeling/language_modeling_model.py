@@ -1550,11 +1550,7 @@ class LanguageModelingModel:
 
         if apply_chat_template:
             to_predict = apply_chat_template_to_inputs(
-                to_predict,
-                user_role,
-                system_role,
-                system_prompt,
-                self.tokenizer
+                to_predict, user_role, system_role, system_prompt, self.tokenizer
             )
 
         try:

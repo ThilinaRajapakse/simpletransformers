@@ -14,6 +14,7 @@ from datasets.load import load_from_disk
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import transformers
 import numpy as np
 import faiss
@@ -185,6 +186,12 @@ def load_hf_dataset(
             "reranking_query_ids",
             "reranking_query_mask",
         ]
+
+    if args.include_margin_mse_loss and not evaluate:
+        column_names += ["margin"]
+
+    if args.include_kl_div_loss and not evaluate:
+        column_names += ["true_p_scores", "true_n_scores"]
 
     if args.external_embeddings:
         column_names += ["embeddings"]
@@ -1626,29 +1633,31 @@ def get_clustered_passage_dataset(
     def select_batch_from_pandas(batch, df):
         batch_dataset = HFDataset.from_pandas(df.iloc[batch].reset_index(drop=True))
         if args.hard_negatives:
-            batch_dataset.set_format(
-                type="torch",
-                columns=[
-                    "query_ids",
-                    "query_mask",
-                    "context_ids",
-                    "context_mask",
-                    "hard_negative_ids",
-                    "hard_negatives_mask",
-                    "cluster_id",
-                ],
-            )
+            columns = [
+                "query_ids",
+                "query_mask",
+                "context_ids",
+                "context_mask",
+                "hard_negative_ids",
+                "hard_negatives_mask",
+                "cluster_id",
+            ]
         else:
-            batch_dataset.set_format(
-                type="torch",
-                columns=[
-                    "query_ids",
-                    "query_mask",
-                    "context_ids",
-                    "context_mask",
-                    "cluster_id",
-                ],
-            )
+            columns = [
+                "query_ids",
+                "query_mask",
+                "context_ids",
+                "context_mask",
+                "cluster_id",
+            ]
+
+        if args.include_margin_mse_loss:
+            columns += ["margin"]
+
+        batch_dataset.set_format(
+            type="torch",
+            columns=columns,
+        )
 
         return batch_dataset
 
@@ -2083,20 +2092,51 @@ class RetrievalOutput:
         )
 
 
+def pairwise_dot_score(a, b):
+    return (a * b).sum(dim=-1)
+
+
 class MarginMSELoss(nn.Module):
-    def __init__(self, margin=1.0):
+    def __init__(self):
         super(MarginMSELoss, self).__init__()
-        self.margin = margin
+        self.mse = nn.MSELoss()
 
-    def forward(self, scores, labels):
-        """
-        A Margin-MSE loss variant for matrices of relevance scores and labels.
-        """
-        diff_scores = scores.unsqueeze(1) - scores.unsqueeze(2)
-        diff_labels = labels.unsqueeze(1) - labels.unsqueeze(2)
-        margin_diff = diff_labels - self.margin
+    def forward(self, query_output, context_output, hard_negative_output, margins):
+        positive_scores = pairwise_dot_score(query_output, context_output)
+        negative_scores = pairwise_dot_score(query_output, hard_negative_output)
+        predicted_margins = positive_scores - negative_scores
 
-        loss = torch.mean(torch.pow(diff_scores - margin_diff, 2))
+        loss = self.mse(predicted_margins, margins)
+
+        return loss
+
+
+class KLDivLossForTriplets(nn.Module):
+    def __init__(self):
+        super(KLDivLossForTriplets, self).__init__()
+        self.kl = nn.KLDivLoss(reduction="batchmean")
+
+    def forward(
+        self,
+        query_output,
+        context_output,
+        hard_negative_output,
+        true_p_scores,
+        true_n_scores,
+    ):
+        positive_scores = pairwise_dot_score(query_output, context_output)
+        negative_scores = pairwise_dot_score(query_output, hard_negative_output)
+
+        input_tensor = F.log_softmax(
+            torch.stack((positive_scores, negative_scores), dim=0).transpose(0, 1),
+            dim=1,
+        )
+        target_tensor = F.softmax(
+            torch.stack((true_p_scores, true_n_scores), dim=0).transpose(0, 1), dim=1
+        )
+
+        loss = self.kl(input_tensor, target_tensor)
+
         return loss
 
 

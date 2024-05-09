@@ -1164,7 +1164,7 @@ class T5Model:
         # os.makedirs(output_dir, exist_ok=True)
 
         if args.n_gpu > 1:
-            model = torch.nn.DataParallel(model)
+            self.model = torch.nn.DataParallel(self.model)
 
         eval_iterator = tqdm(eval_dataloader, desc="Evaluating", disable=args.silent)
 

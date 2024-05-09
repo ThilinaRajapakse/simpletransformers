@@ -391,7 +391,9 @@ def mask_tokens(
     return inputs, labels
 
 
-def apply_chat_template_to_inputs(to_predict, user_role, system_role, system_prompt, tokenizer):
+def apply_chat_template_to_inputs(
+    to_predict, user_role, system_role, system_prompt, tokenizer
+):
     to_predict = [
         tokenizer.apply_chat_template(
             [
@@ -399,13 +401,10 @@ def apply_chat_template_to_inputs(to_predict, user_role, system_role, system_pro
                     "role": system_role,
                     "content": system_prompt,
                 },
-                {
-                    "role": user_role,
-                    "content": to_pred
-                }
+                {"role": user_role, "content": to_pred},
             ],
             tokenize=False,
-            add_generation_prompt=True
+            add_generation_prompt=True,
         )
         for to_pred in to_predict
     ]
