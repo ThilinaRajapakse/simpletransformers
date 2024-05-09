@@ -2068,27 +2068,17 @@ class RetrievalOutput:
         query_outputs,
         correct_predictions_count,
         correct_predictions_percentage=None,
-        reranking_context_outputs=None,
-        reranking_query_outputs=None,
-        reranking_loss=None,
         nll_loss=None,
         teacher_correct_predictions_percentage=None,
-        reranking_correct_predictions_percentage=None,
     ):
         self.loss = loss
         self.context_outputs = context_outputs
         self.query_outputs = query_outputs
         self.correct_predictions_count = correct_predictions_count
         self.correct_predictions_percentage = correct_predictions_percentage
-        self.reranking_context_outputs = reranking_context_outputs
-        self.reranking_query_outputs = reranking_query_outputs
-        self.reranking_loss = reranking_loss
         self.nll_loss = nll_loss
         self.teacher_correct_predictions_percentage = (
             teacher_correct_predictions_percentage
-        )
-        self.reranking_correct_predictions_percentage = (
-            reranking_correct_predictions_percentage
         )
 
 
