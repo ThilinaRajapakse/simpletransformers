@@ -143,18 +143,32 @@ def load_hf_dataset(
 
     n_hard_negatives = args.n_hard_negatives
 
-    dataset = dataset.map(
-        lambda x: preprocess_batch_for_hf_dataset(
-            x,
-            context_tokenizer=context_tokenizer,
-            query_tokenizer=query_tokenizer,
-            args=args,
-            evaluate=evaluate,
-            teacher_tokenizer=teacher_tokenizer,
-            n_hard_negatives=n_hard_negatives,
-        ),
-        batched=True,
-    )
+    if args.include_quartet_loss or args.quartet_training_format:
+        dataset = dataset.map(
+            lambda x: preprocess_quartet_batch_for_hf_dataset(
+                x,
+                context_tokenizer=context_tokenizer,
+                query_tokenizer=query_tokenizer,
+                args=args,
+                evaluate=evaluate,
+                teacher_tokenizer=teacher_tokenizer,
+                n_hard_negatives=n_hard_negatives,
+            ),
+            batched=True,
+        )
+    else:
+        dataset = dataset.map(
+            lambda x: preprocess_batch_for_hf_dataset(
+                x,
+                context_tokenizer=context_tokenizer,
+                query_tokenizer=query_tokenizer,
+                args=args,
+                evaluate=evaluate,
+                teacher_tokenizer=teacher_tokenizer,
+                n_hard_negatives=n_hard_negatives,
+            ),
+            batched=True,
+        )
 
     if args.hard_negatives and (args.hard_negatives_in_eval or not evaluate):
         if n_hard_negatives == 1:
@@ -178,6 +192,21 @@ def load_hf_dataset(
             for i in range(n_hard_negatives):
                 column_names.append(f"hard_negative_{i}_ids")
                 column_names.append(f"hard_negative_{i}_mask")
+    elif args.include_quartet_loss or args.quartet_training_format:
+        column_names = [
+            "context_ids_a",
+            "context_ids_b",
+            "query_ids_a",
+            "query_ids_b",
+            "context_mask_a",
+            "context_mask_b",
+            "query_mask_a",
+            "query_mask_b",
+            "aa_score",
+            "ab_score",
+            "ba_score",
+            "bb_score",
+        ]
     else:
         if args.cluster_concatenated:
             column_names = [
@@ -229,6 +258,133 @@ def load_hf_dataset(
         #     dataset = ClusteredDataset(batch_datasets, len(batch_datasets))
 
         return dataset
+
+
+def preprocess_quartet_batch_for_hf_dataset(
+    dataset,
+    context_tokenizer,
+    query_tokenizer,
+    args,
+    evaluate=False,
+    teacher_tokenizer=None,
+    n_hard_negatives=1,
+):
+    try:
+        context_inputs_a = context_tokenizer(
+            dataset["passage_text_a"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+    except (TypeError, ValueError) as e:
+        logger.warn(e)
+        logger.warn(
+            """Error encountered while converting passage_text_a.
+        All passage_text_a values have been manually cast to String as a workaround.
+        This may have been caused by NaN values present in the data."""
+        )
+        dataset["passage_text_a"] = [str(p) for p in dataset["passage_text_a"]]
+        context_inputs_a = context_tokenizer(
+            dataset["passage_text_a"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+
+    try:
+        context_inputs_b = context_tokenizer(
+            dataset["passage_text_b"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+    except (TypeError, ValueError) as e:
+        logger.warn(e)
+        logger.warn(
+            """Error encountered while converting passage_text_b.
+        All passage_text_b values have been manually cast to String as a workaround.
+        This may have been caused by NaN values present in the data."""
+        )
+        dataset["passage_text_b"] = [str(p) for p in dataset["passage_text_b"]]
+        context_inputs_b = context_tokenizer(
+            dataset["passage_text_b"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+
+    try:
+        query_inputs_a = query_tokenizer(
+            dataset["query_text_a"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+    except (TypeError, ValueError) as e:
+        logger.warn(e)
+        logger.warn(
+            """Error encountered while converting query_text_a.
+        All query_text_a values have been manually cast to String as a workaround.
+        This may have been caused by NaN values present in the data."""
+        )
+        dataset["query_text_a"] = [str(p) for p in dataset["query_text_a"]]
+        query_inputs_a = query_tokenizer(
+            dataset["query_text_a"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+
+    try:
+        query_inputs_b = query_tokenizer(
+            dataset["query_text_b"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+    except (TypeError, ValueError) as e:
+        logger.warn(e)
+        logger.warn(
+            """Error encountered while converting query_text_b.
+        All query_text_b values have been manually cast to String as a workaround.
+        This may have been caused by NaN values present in the data."""
+        )
+        dataset["query_text_b"] = [str(p) for p in dataset["query_text_b"]]
+        query_inputs_b = query_tokenizer(
+            dataset["query_text_b"],
+            max_length=args.max_seq_length,
+            padding="max_length",
+            return_tensors="np",
+            truncation=True,
+        )
+
+    context_ids_a = context_inputs_a["input_ids"].squeeze()
+    context_ids_b = context_inputs_b["input_ids"].squeeze()
+    query_ids_a = query_inputs_a["input_ids"].squeeze()
+    query_ids_b = query_inputs_b["input_ids"].squeeze()
+
+    context_mask_a = context_inputs_a["attention_mask"].squeeze()
+    context_mask_b = context_inputs_b["attention_mask"].squeeze()
+    query_mask_a = query_inputs_a["attention_mask"].squeeze()
+    query_mask_b = query_inputs_b["attention_mask"].squeeze()
+
+    return {
+        "context_ids_a": context_ids_a,
+        "context_ids_b": context_ids_b,
+        "query_ids_a": query_ids_a,
+        "query_ids_b": query_ids_b,
+        "context_mask_a": context_mask_a,
+        "context_mask_b": context_mask_b,
+        "query_mask_a": query_mask_a,
+        "query_mask_b": query_mask_b,
+    }
 
 
 def preprocess_batch_for_hf_dataset(
@@ -2026,6 +2182,9 @@ class RetrievalOutput:
         correct_predictions_percentage=None,
         nll_loss=None,
         teacher_correct_predictions_percentage=None,
+        margine_mse_loss=None,
+        kl_div_loss=None,
+        quartet_loss=None,
     ):
         self.loss = loss
         self.context_outputs = context_outputs
@@ -2036,6 +2195,9 @@ class RetrievalOutput:
         self.teacher_correct_predictions_percentage = (
             teacher_correct_predictions_percentage
         )
+        self.margin_mse_loss = margine_mse_loss
+        self.kl_div_loss = kl_div_loss
+        self.quartet_loss = quartet_loss
 
 
 def pairwise_dot_score(a, b):
@@ -2047,12 +2209,76 @@ class MarginMSELoss(nn.Module):
         super(MarginMSELoss, self).__init__()
         self.mse = nn.MSELoss()
 
-    def forward(self, query_output, context_output, hard_negative_output, margins):
-        positive_scores = pairwise_dot_score(query_output, context_output)
-        negative_scores = pairwise_dot_score(query_output, hard_negative_output)
+    def forward(
+        self,
+        query_output=None,
+        context_output=None,
+        hard_negative_output=None,
+        margins=None,
+        positive_scores=None,
+        negative_scores=None,
+    ):
+        if positive_scores is None:
+            positive_scores = pairwise_dot_score(query_output, context_output)
+        if negative_scores is None:
+            negative_scores = pairwise_dot_score(query_output, hard_negative_output)
         predicted_margins = positive_scores - negative_scores
 
         loss = self.mse(predicted_margins, margins)
+
+        return loss
+
+
+class QuartetLossV1(nn.Module):
+    def __init__(self):
+        super(QuartetLossV1, self).__init__()
+        self.margin_mse = MarginMSELoss()
+
+    def forward(
+        self,
+        query_output_a,
+        context_output_a,
+        query_output_b,
+        context_output_b,
+        teacher_scores,
+    ):
+        aa_predicted_margins = pairwise_dot_score(query_output_a, context_output_a)
+        ab_predicted_margins = pairwise_dot_score(query_output_a, context_output_b)
+        ba_predicted_margins = pairwise_dot_score(query_output_b, context_output_a)
+        bb_predicted_margins = pairwise_dot_score(query_output_b, context_output_b)
+
+        aa_teacher_margins = teacher_scores["aa_scores"]
+        ab_teacher_margins = teacher_scores["ab_scores"]
+        ba_teacher_margins = teacher_scores["ba_scores"]
+        bb_teacher_margins = teacher_scores["bb_scores"]
+
+        # We want to compare:
+        # aa - ab
+        # bb - ba
+        # aa - bb
+        # ba - ab
+        loss = (
+            self.margin_mse(
+                positive_scores=aa_predicted_margins,
+                negative_scores=ab_predicted_margins,
+                margins=(aa_teacher_margins - ab_teacher_margins),
+            )
+            + self.margin_mse(
+                positive_scores=bb_predicted_margins,
+                negative_scores=ba_predicted_margins,
+                margins=(bb_teacher_margins - ba_teacher_margins),
+            )
+            + self.margin_mse(
+                positive_scores=aa_predicted_margins,
+                negative_scores=bb_predicted_margins,
+                margins=(aa_teacher_margins - bb_teacher_margins),
+            )
+            + self.margin_mse(
+                positive_scores=ba_predicted_margins,
+                negative_scores=ab_predicted_margins,
+                margins=(ba_teacher_margins - ab_teacher_margins),
+            )
+        )
 
         return loss
 

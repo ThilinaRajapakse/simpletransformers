@@ -478,6 +478,9 @@ class RetrievalArgs(Seq2SeqArgs):
     autoencoder_mse_loss: bool = True
     autoencoder_kl_div_loss: bool = False
     mean_pooling: bool = False
+    include_quartet_loss: bool = False
+    quartet_training_format: bool = False
+    quartet_lambda: float = 1.0
 
 
 @dataclass

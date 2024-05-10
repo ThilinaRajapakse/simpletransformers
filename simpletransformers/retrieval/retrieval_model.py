@@ -61,6 +61,7 @@ from simpletransformers.custom_models.retrieval_autoencoder import Autoencoder
 from simpletransformers.retrieval.beir_evaluation import BeirRetrievalModel
 from simpletransformers.retrieval.retrieval_utils import (
     KLDivLossForTriplets,
+    QuartetLossV1,
     calculate_mrr,
     convert_beir_columns_to_trec_format,
     get_clustered_passage_dataset,
@@ -893,9 +894,7 @@ class RetrievalModel:
                     context_inputs,
                     query_inputs,
                     labels,
-                    margins,
-                    true_p_scores,
-                    true_n_scores,
+                    teacher_scores,
                 ) = self._get_inputs_dict(batch)
 
                 high_loss_repeats = 0
@@ -909,9 +908,7 @@ class RetrievalModel:
                                 context_inputs,
                                 query_inputs,
                                 labels,
-                                margins=margins,
-                                true_p_scores=true_p_scores,
-                                true_n_scores=true_n_scores,
+                                teacher_scores=teacher_scores,
                             )
                             loss = retrieval_output.loss
                             correct_predictions_percentage = (
@@ -924,9 +921,7 @@ class RetrievalModel:
                             context_inputs,
                             query_inputs,
                             labels,
-                            margins=margins,
-                            true_p_scores=true_p_scores,
-                            true_n_scores=true_n_scores,
+                            teacher_scores=teacher_scores,
                         )
                         loss = retrieval_output.loss
                         correct_predictions_percentage = (
@@ -1043,43 +1038,50 @@ class RetrievalModel:
                         )
                         logging_loss = tr_loss
                         if args.wandb_project or self.is_sweeping:
-                            if self.unified_rr:
-                                logging_dict = {
-                                    "Training loss": current_loss,
-                                    "lr": scheduler.get_last_lr()[0],
-                                    "global_step": self.global_step,
-                                    "correct_predictions_percentage": correct_predictions_percentage,
-                                    "reranking_loss": retrieval_output.reranking_loss,
-                                    "nll_loss": retrieval_output.nll_loss,
-                                }
-                            else:
-                                if args.reranking_kl_div_loss or args.mse_loss:
-                                    logging_dict = {
-                                        "Training loss": current_loss,
-                                        "lr": scheduler.get_last_lr()[0],
-                                        "global_step": self.global_step,
-                                        "correct_predictions_percentage": correct_predictions_percentage,
-                                        "teacher_correct_predictions_percentage": colbert_percentage,
-                                    }
-                                    if args.include_nll_loss:
-                                        logging_dict[
-                                            "nll_loss"
-                                        ] = retrieval_output.nll_loss
-                                        if args.reranking_kl_div_loss:
-                                            logging_dict["kl_div_loss"] = (
-                                                current_loss - retrieval_output.nll_loss
-                                            )
-                                        elif args.mse_loss:
-                                            logging_dict["mse_loss"] = (
-                                                current_loss - retrieval_output.nll_loss
-                                            )
-                                else:
-                                    logging_dict = {
-                                        "Training loss": current_loss,
-                                        "lr": scheduler.get_last_lr()[0],
-                                        "global_step": self.global_step,
-                                        "correct_predictions_percentage": correct_predictions_percentage,
-                                    }
+                            # if args.reranking_kl_div_loss or args.mse_loss:
+                            #     # Deprecated
+                            #     logging_dict = {
+                            #         "Training loss": current_loss,
+                            #         "lr": scheduler.get_last_lr()[0],
+                            #         "global_step": self.global_step,
+                            #         "correct_predictions_percentage": correct_predictions_percentage,
+                            #         "teacher_correct_predictions_percentage": colbert_percentage,
+                            #     }
+                            #     if args.include_nll_loss:
+                            #         logging_dict[
+                            #             "nll_loss"
+                            #         ] = retrieval_output.nll_loss
+                            #         if args.reranking_kl_div_loss:
+                            #             logging_dict["kl_div_loss"] = (
+                            #                 current_loss - retrieval_output.nll_loss
+                            #             )
+                            #         elif args.mse_loss:
+                            #             logging_dict["mse_loss"] = (
+                            #                 current_loss - retrieval_output.nll_loss
+                            #             )
+
+                            logging_dict = {
+                                "Training loss": current_loss,
+                                "lr": scheduler.get_last_lr()[0],
+                                "global_step": self.global_step,
+                                "correct_predictions_percentage": correct_predictions_percentage,
+                            }
+
+                            if retrieval_output.nll_loss is not None:
+                                logging_dict["nll_loss"] = retrieval_output.nll_loss
+                            if retrieval_output.kl_div_loss is not None:
+                                logging_dict[
+                                    "kl_div_loss"
+                                ] = retrieval_output.kl_div_loss
+                            if retrieval_output.margin_mse_loss is not None:
+                                logging_dict[
+                                    "margin_mse_loss"
+                                ] = retrieval_output.margin_mse_loss
+                            if retrieval_output.quartet_loss is not None:
+                                logging_dict[
+                                    "quartet_loss"
+                                ] = retrieval_output.quartet_loss
+
                             wandb.log(logging_dict)
 
                     if args.save_steps > 0 and self.global_step % args.save_steps == 0:
@@ -2874,9 +2876,7 @@ class RetrievalModel:
         context_inputs,
         query_inputs,
         labels,
-        margins=None,
-        true_p_scores=None,
-        true_n_scores=None,
+        teacher_scores=None,
     ):
         # if self.args.larger_representations:
         #     context_outputs_all = context_model(**context_inputs)
@@ -3005,15 +3005,16 @@ class RetrievalModel:
                     nll_loss,
                     nll_labels,
                     label_scores,
+                    margin_mse_loss,
+                    kl_div_loss,
+                    quartet_loss,
                 ) = self._get_loss(
                     similarity_score,
                     softmax_score,
                     labels,
                     query_outputs=query_outputs,
                     context_outputs=context_outputs,
-                    margins=margins,
-                    true_p_scores=true_p_scores,
-                    true_n_scores=true_n_scores,
+                    teacher_scores=teacher_scores,
                 )
 
         (
@@ -3034,6 +3035,9 @@ class RetrievalModel:
             correct_predictions_percentage=correct_predictions_percentage,
             nll_loss=nll_loss,
             teacher_correct_predictions_percentage=teacher_correct_predictions_percentage,
+            margine_mse_loss=margin_mse_loss,
+            kl_div_loss=kl_div_loss,
+            quartet_loss=quartet_loss,
         )
 
         return retrieval_output
@@ -3188,10 +3192,13 @@ class RetrievalModel:
         label_scores=None,
         query_outputs=None,
         context_outputs=None,
-        margins=None,
-        true_p_scores=None,
-        true_n_scores=None,
+        teacher_scores=None,
     ):
+        margin_mse_loss = None
+        kl_div_loss = None
+        nll_loss = None
+        quartet_loss = None
+
         if self.args.mse_loss:
             mse_criterion = torch.nn.MSELoss()
 
@@ -3211,7 +3218,7 @@ class RetrievalModel:
             positive_outputs = context_outputs[:half, :]
 
             mmse_loss = mmse_criterion(
-                query_outputs, positive_outputs, hn_outputs, margins
+                query_outputs, positive_outputs, hn_outputs, teacher_scores["margins"]
             )
         if self.args.include_kl_div_loss:
             kl_criterion = KLDivLossForTriplets()
@@ -3223,20 +3230,41 @@ class RetrievalModel:
                 query_outputs,
                 positive_outputs,
                 hn_outputs,
-                true_p_scores,
-                true_n_scores,
+                teacher_scores["true_p_scores"],
+                teacher_scores["true_n_scores"],
             )
 
         # This is where the quartet loss will go
+        if self.args.include_quartet_loss:
+            half = context_outputs.size(0) // 2
+            context_outputs_a = context_outputs[:half, :]
+            context_outputs_b = context_outputs[half:, :]
+            query_outputs_a = query_outputs[:half, :]
+            query_outputs_b = query_outputs[half:, :]
+
+            quartet_criterion = QuartetLossV1()
+
+            quartet_loss = quartet_criterion(
+                query_outputs_a,
+                query_outputs_b,
+                context_outputs_a,
+                context_outputs_b,
+                teacher_scores,
+            )
 
         if not (
             self.args.include_nll_loss
             or self.args.mse_loss
             or self.args.reranking_kl_div_loss
             or self.args.include_margin_mse_loss
+            or self.args.include_quartet_loss
         ):
             raise ValueError(
-                "One of include_nll_loss, mse_loss, include_margin_mse_loss or reranking_kl_div_loss must be True."
+                """One of the following must be True:
+                - include_nll_loss
+                - include_margin_mse_loss
+                - include_kl_div_loss
+                - include_quartet_loss"""
             )
 
         nll_labels = labels
@@ -3256,18 +3284,30 @@ class RetrievalModel:
                     nll_lambda = self.args.nll_lambda
 
             if self.args.include_margin_mse_loss:
-                loss = nll_lambda * nll_loss + self.args.margin_mse_lambda * mmse_loss
-            elif self.args.include_kl_div_loss:
-                loss = nll_lambda * nll_loss + self.args.kl_div_lambda * kl_div_loss
+                loss = loss + self.args.margin_mse_lambda * mmse_loss
+            if self.args.include_kl_div_loss:
+                loss = loss + self.args.kl_div_lambda * kl_div_loss
+            if self.args.include_quartet_loss:
+                loss = loss + self.args.quartet_lambda * quartet_loss
         elif self.args.include_margin_mse_loss:
             loss = mmse_loss
         elif self.args.include_kl_div_loss:
             loss = kl_div_loss
+        elif self.args.include_quartet_loss:
+            loss = quartet_loss
         else:
             loss = nll_loss
 
         nll_loss = nll_loss.item() if self.args.include_nll_loss else None
-        return loss, nll_loss, nll_labels, label_scores
+        return (
+            loss,
+            nll_loss,
+            nll_labels,
+            label_scores,
+            margin_mse_loss,
+            kl_div_loss,
+            quartet_loss,
+        )
 
     def _get_running_stats(
         self,
@@ -3308,62 +3348,131 @@ class RetrievalModel:
     def _get_inputs_dict(self, batch, evaluate=False):
         device = self.device
 
-        labels = [i for i in range(len(batch["context_ids"]))]
+        if self.args.include_quartet_loss or self.args.quartet_training_format:
+            labels = [
+                i
+                for i in range(
+                    len(batch["context_ids_a"]) + len(batch["context_ids_b"])
+                )
+            ]
+        else:
+            labels = [i for i in range(len(batch["context_ids"]))]
         labels = torch.tensor(labels, dtype=torch.long).to(device)
         margins = None
         true_p_scores = None
         true_n_scores = None
+        aa_scores = None
+        ab_scores = None
+        ba_scores = None
+        bb_scores = None
+        teacher_scores = {}
 
         if not evaluate:
             # Training
             # labels = labels.to(device)
-            if self.args.hard_negatives:
-                if self.args.n_hard_negatives == 1:
-                    context_ids = torch.cat(
-                        [
-                            batch["context_ids"],
-                            batch["hard_negative_ids"],
-                        ],
-                        dim=0,
-                    )
-                    context_masks = torch.cat(
-                        [
-                            batch["context_mask"],
-                            batch["hard_negatives_mask"],
-                        ],
-                        dim=0,
-                    )
-                else:
-                    context_ids = torch.cat(
-                        [
-                            batch["context_ids"],
-                        ]
-                        + [
-                            batch[f"hard_negative_{i}_ids"]
-                            for i in range(self.args.n_hard_negatives)
-                        ],
-                        dim=0,
-                    )
+            if self.args.include_quartet_loss or self.args.quartet_training_format:
+                context_ids = torch.cat(
+                    [
+                        batch["context_ids_a"],
+                        batch["context_ids_b"],
+                    ],
+                    dim=0,
+                )
+                context_masks = torch.cat(
+                    [
+                        batch["context_mask_a"],
+                        batch["context_mask_b"],
+                    ],
+                    dim=0,
+                )
 
-                    context_masks = torch.cat(
-                        [
-                            batch["context_mask"],
-                        ]
-                        + [
-                            batch[f"hard_negative_{i}_mask"]
-                            for i in range(self.args.n_hard_negatives)
-                        ],
-                        dim=0,
-                    )
-                if self.args.include_margin_mse_loss:
-                    margins = batch["margin"].to(device)
+                query_ids = torch.cat(
+                    [
+                        batch["query_ids_a"],
+                        batch["query_ids_b"],
+                    ],
+                    dim=0,
+                )
+                query_masks = torch.cat(
+                    [
+                        batch["query_mask_a"],
+                        batch["query_mask_b"],
+                    ],
+                    dim=0,
+                )
+                if self.args.include_quartet_loss:
+                    aa_scores = batch["aa_score"].to(device)
+                    ab_scores = batch["ab_score"].to(device)
+                    ba_scores = batch["ba_score"].to(device)
+                    bb_scores = batch["bb_score"].to(device)
 
-                if self.args.include_kl_div_loss:
-                    true_p_scores = batch["true_p_scores"].to(device)
-                    true_n_scores = batch["true_n_scores"].to(device)
+                teacher_scores["aa_scores"] = aa_scores
+                teacher_scores["ab_scores"] = ab_scores
+                teacher_scores["ba_scores"] = ba_scores
+                teacher_scores["bb_scores"] = bb_scores
             else:
-                context_ids = batch["context_ids"]
-                context_masks = batch["context_mask"]
+                if self.args.hard_negatives:
+                    if self.args.n_hard_negatives == 1:
+                        context_ids = torch.cat(
+                            [
+                                batch["context_ids"],
+                                batch["hard_negative_ids"],
+                            ],
+                            dim=0,
+                        )
+                        context_masks = torch.cat(
+                            [
+                                batch["context_mask"],
+                                batch["hard_negatives_mask"],
+                            ],
+                            dim=0,
+                        )
+                    else:
+                        context_ids = torch.cat(
+                            [
+                                batch["context_ids"],
+                            ]
+                            + [
+                                batch[f"hard_negative_{i}_ids"]
+                                for i in range(self.args.n_hard_negatives)
+                            ],
+                            dim=0,
+                        )
+
+                        context_masks = torch.cat(
+                            [
+                                batch["context_mask"],
+                            ]
+                            + [
+                                batch[f"hard_negative_{i}_mask"]
+                                for i in range(self.args.n_hard_negatives)
+                            ],
+                            dim=0,
+                        )
+                    if self.args.include_margin_mse_loss:
+                        margins = batch["margin"].to(device)
+
+                    if self.args.include_kl_div_loss:
+                        true_p_scores = batch["true_p_scores"].to(device)
+                        true_n_scores = batch["true_n_scores"].to(device)
+                    if (
+                        self.args.include_quartet_loss
+                        or self.args.quartet_training_format
+                    ):
+                        aa_scores = batch["aa_scores"].to(device)
+                        ab_scores = batch["ab_scores"].to(device)
+                        ba_scores = batch["ba_scores"].to(device)
+                        bb_scores = batch["bb_scores"].to(device)
+
+                    teacher_scores["true_p_scores"] = true_p_scores
+                    teacher_scores["true_n_scores"] = true_n_scores
+                    teacher_scores["margins"] = margins
+                else:
+                    context_ids = batch["context_ids"]
+                    context_masks = batch["context_mask"]
+
+                query_ids = batch["query_ids"]
+                query_masks = batch["query_mask"]
 
             if self.args.external_embeddings:
                 external_embeddings = batch["embeddings"].to(device)
@@ -3383,8 +3492,8 @@ class RetrievalModel:
                 "attention_mask": context_masks.to(device),
             }
             query_input = {
-                "input_ids": batch["query_ids"].to(device),
-                "attention_mask": batch["query_mask"].to(device),
+                "input_ids": query_ids.to(device),
+                "attention_mask": query_masks.to(device),
             }
         else:
             # Evaluation
@@ -3427,7 +3536,7 @@ class RetrievalModel:
         ):
             labels = batch["labels"].to(device), labels  # BCELabels, NLLLabels
 
-        return context_input, query_input, labels, margins, true_p_scores, true_n_scores
+        return context_input, query_input, labels, teacher_scores
 
     def _create_training_progress_scores(
         self, calculate_recall=False, top_k_values=None, **kwargs
