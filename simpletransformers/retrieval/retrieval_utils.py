@@ -2204,6 +2204,12 @@ def pairwise_dot_score(a, b):
     return (a * b).sum(dim=-1)
 
 
+def pairwise_cosine_score(a, b):
+    a = F.normalize(a, p=2, dim=-1)
+    b = F.normalize(b, p=2, dim=-1)
+    return (a * b).sum(dim=-1)
+
+
 class MarginMSELoss(nn.Module):
     def __init__(self):
         super(MarginMSELoss, self).__init__()
@@ -2232,7 +2238,7 @@ class MarginMSELoss(nn.Module):
 class QuartetLossV1(nn.Module):
     def __init__(self):
         super(QuartetLossV1, self).__init__()
-        self.margin_mse = MarginMSELoss()
+        self.mse = nn.MSELoss()
 
     def forward(
         self,
@@ -2241,46 +2247,253 @@ class QuartetLossV1(nn.Module):
         query_output_b,
         context_output_b,
         teacher_scores,
+        similarity_function="dot_product",
     ):
-        aa_predicted_margins = pairwise_dot_score(query_output_a, context_output_a)
-        ab_predicted_margins = pairwise_dot_score(query_output_a, context_output_b)
-        ba_predicted_margins = pairwise_dot_score(query_output_b, context_output_a)
-        bb_predicted_margins = pairwise_dot_score(query_output_b, context_output_b)
+        if similarity_function == "dot_product":
+            aa_predicted_scores = pairwise_dot_score(query_output_a, context_output_a)
+            ab_predicted_scores = pairwise_dot_score(query_output_a, context_output_b)
+            ba_predicted_scores = pairwise_dot_score(query_output_b, context_output_a)
+            bb_predicted_scores = pairwise_dot_score(query_output_b, context_output_b)
+        elif similarity_function == "cosine":
+            aa_predicted_scores = pairwise_cosine_score(
+                query_output_a, context_output_a
+            )
+            ab_predicted_scores = pairwise_cosine_score(
+                query_output_a, context_output_b
+            )
+            ba_predicted_scores = pairwise_cosine_score(
+                query_output_b, context_output_a
+            )
+            bb_predicted_scores = pairwise_cosine_score(
+                query_output_b, context_output_b
+            )
 
-        aa_teacher_margins = teacher_scores["aa_scores"]
-        ab_teacher_margins = teacher_scores["ab_scores"]
-        ba_teacher_margins = teacher_scores["ba_scores"]
-        bb_teacher_margins = teacher_scores["bb_scores"]
+        aa_teacher_scores = teacher_scores["aa_scores"]
+        ab_teacher_scores = teacher_scores["ab_scores"]
+        ba_teacher_scores = teacher_scores["ba_scores"]
+        bb_teacher_scores = teacher_scores["bb_scores"]
+
+        # Apply softmax to each relevant pair individually
+        aa_ab_softmax = F.softmax(
+            torch.stack([aa_predicted_scores, ab_predicted_scores]), dim=0
+        )
+        bb_ba_softmax = F.softmax(
+            torch.stack([bb_predicted_scores, ba_predicted_scores]), dim=0
+        )
+
+        aa_predicted_scores, ab_predicted_scores = aa_ab_softmax[0], aa_ab_softmax[1]
+        bb_predicted_scores, ba_predicted_scores = bb_ba_softmax[0], bb_ba_softmax[1]
 
         # We want to compare:
         # aa - ab
         # bb - ba
         # aa - bb
         # ba - ab
+
+        aa_ab = aa_predicted_scores - ab_predicted_scores
+        bb_ba = bb_predicted_scores - ba_predicted_scores
+        aa_bb = aa_predicted_scores - bb_predicted_scores
+        ba_ab = ba_predicted_scores - ab_predicted_scores
+
+        aa_ab_teacher = aa_teacher_scores - ab_teacher_scores
+        bb_ba_teacher = bb_teacher_scores - ba_teacher_scores
+        aa_bb_teacher = aa_teacher_scores - bb_teacher_scores
+        ba_ab_teacher = ba_teacher_scores - ab_teacher_scores
+
         loss = (
-            self.margin_mse(
-                positive_scores=aa_predicted_margins,
-                negative_scores=ab_predicted_margins,
-                margins=(aa_teacher_margins - ab_teacher_margins),
-            )
-            + self.margin_mse(
-                positive_scores=bb_predicted_margins,
-                negative_scores=ba_predicted_margins,
-                margins=(bb_teacher_margins - ba_teacher_margins),
-            )
-            + self.margin_mse(
-                positive_scores=aa_predicted_margins,
-                negative_scores=bb_predicted_margins,
-                margins=(aa_teacher_margins - bb_teacher_margins),
-            )
-            + self.margin_mse(
-                positive_scores=ba_predicted_margins,
-                negative_scores=ab_predicted_margins,
-                margins=(ba_teacher_margins - ab_teacher_margins),
-            )
+            self.mse(aa_ab, aa_ab_teacher)
+            + self.mse(bb_ba, bb_ba_teacher)
+            + self.mse(aa_bb, aa_bb_teacher)
+            + self.mse(ba_ab, ba_ab_teacher)
         )
 
         return loss
+
+
+class QuartetLossV2(nn.Module):
+    def __init__(self):
+        """
+        This version works for each query vs all contexts in a batch
+        """
+        super(QuartetLossV2, self).__init__()
+        self.mse = nn.MSELoss(reduction="mean")
+
+    def forward(
+        self,
+        query_output_a,
+        context_output_a,
+        query_output_b,
+        context_output_b,
+        predicted_scores,
+        softmax_scores,
+        teacher_scores,
+        similarity_function="dot_product",
+    ):
+        softmax_scores = F.softmax(predicted_scores, dim=1)
+
+        softmax_scores_diag = torch.diagonal(softmax_scores)
+        aa_scores, bb_scores = (
+            softmax_scores_diag[: len(query_output_a)],
+            softmax_scores_diag[len(query_output_a) :],
+        )
+
+        ab_scores = torch.diagonal(softmax_scores, offset=len(query_output_a))
+        ba_scores = torch.diagonal(softmax_scores[len(query_output_a) :, :])
+
+        aa_teacher_scores = teacher_scores["aa_scores"]
+        ab_teacher_scores = teacher_scores["ab_scores"]
+        ba_teacher_scores = teacher_scores["ba_scores"]
+        bb_teacher_scores = teacher_scores["bb_scores"]
+
+        aa_ab = aa_scores - ab_scores
+        bb_ba = bb_scores - ba_scores
+        aa_bb = aa_scores - bb_scores
+        ba_ab = ba_scores - ab_scores
+
+        # Maybe we should softmax the teacher scores as well
+        aa_ab_teacher = torch.stack(
+            (
+                torch.unsqueeze(aa_teacher_scores, 1),
+                torch.unsqueeze(ab_teacher_scores, 1),
+            ),
+            1,
+        ).squeeze()
+        bb_ba_teacher = torch.stack(
+            (
+                torch.unsqueeze(bb_teacher_scores, 1),
+                torch.unsqueeze(ba_teacher_scores, 1),
+            ),
+            1,
+        ).squeeze()
+        aa_bb_teacher = torch.stack(
+            (
+                torch.unsqueeze(aa_teacher_scores, 1),
+                torch.unsqueeze(bb_teacher_scores, 1),
+            ),
+            1,
+        ).squeeze()
+        ba_ab_teacher = torch.stack(
+            (
+                torch.unsqueeze(ba_teacher_scores, 1),
+                torch.unsqueeze(ab_teacher_scores, 1),
+            ),
+            1,
+        ).squeeze()
+
+        softmax_aa_ab_teacher = F.softmax(aa_ab_teacher, dim=1)
+        softmax_bb_ba_teacher = F.softmax(bb_ba_teacher, dim=1)
+        softmax_aa_bb_teacher = F.softmax(aa_bb_teacher, dim=1)
+        softmax_ba_ab_teacher = F.softmax(ba_ab_teacher, dim=1)
+
+        softmax_aa_ab_teacher_margin = (
+            softmax_aa_ab_teacher[:, 0] - softmax_aa_ab_teacher[:, 1]
+        )
+        softmax_bb_ba_teacher_margin = (
+            softmax_bb_ba_teacher[:, 0] - softmax_bb_ba_teacher[:, 1]
+        )
+        softmax_aa_bb_teacher_margin = (
+            softmax_aa_bb_teacher[:, 0] - softmax_aa_bb_teacher[:, 1]
+        )
+        softmax_ba_ab_teacher_margin = (
+            softmax_ba_ab_teacher[:, 0] - softmax_ba_ab_teacher[:, 1]
+        )
+
+        # Calculate regularization loss for all other softmax values
+        mask = torch.ones_like(softmax_scores)
+        num_queries = len(query_output_a)
+
+        # Zero out the relevant scores for set A
+        mask[torch.arange(num_queries), torch.arange(num_queries)] = 0
+        mask[torch.arange(num_queries), torch.arange(num_queries) + num_queries] = 0
+
+        # Zero out the relevant scores for set B
+        mask[
+            torch.arange(num_queries, 2 * num_queries),
+            torch.arange(num_queries, 2 * num_queries),
+        ] = 0
+        mask[torch.arange(num_queries, 2 * num_queries), torch.arange(num_queries)] = 0
+
+        remaining_softmax_scores = softmax_scores * mask
+        regularization_loss = torch.mean(remaining_softmax_scores**2)
+
+        loss = (
+            self.mse(aa_ab, softmax_aa_ab_teacher_margin)
+            + self.mse(bb_ba, softmax_bb_ba_teacher_margin)
+            # + self.mse(aa_bb, softmax_aa_bb_teacher_margin)
+            # + self.mse(ba_ab, softmax_ba_ab_teacher_margin)
+            + regularization_loss
+        )
+
+        return loss
+
+
+class QuartetLossV3(nn.Module):
+    def __init__(self):
+        super(QuartetLossV3, self).__init__()
+        self.kl_div = nn.KLDivLoss(
+            reduction="batchmean"
+        )  # Use KLDivLoss instead of MSELoss
+
+    def forward(
+        self,
+        query_output_a,
+        context_output_a,
+        query_output_b,
+        context_output_b,
+        predicted_scores,
+        log_softmax_scores,
+        teacher_scores,
+        similarity_function="dot_product",
+    ):
+        softmax_scores_diag = torch.diagonal(log_softmax_scores)
+        aa_scores, bb_scores = (
+            softmax_scores_diag[: len(query_output_a)],
+            softmax_scores_diag[len(query_output_a) :],
+        )
+        ab_scores = torch.diagonal(log_softmax_scores, offset=len(query_output_a))
+        ba_scores = torch.diagonal(log_softmax_scores[len(query_output_a) :, :])
+
+        aa_ab = torch.stack(
+            (aa_scores.unsqueeze(1), ab_scores.unsqueeze(1)), dim=1
+        ).squeeze()
+        bb_ba = torch.stack(
+            (bb_scores.unsqueeze(1), ba_scores.unsqueeze(1)), dim=1
+        ).squeeze()
+
+        aa_teacher_scores = teacher_scores["aa_scores"]
+        ab_teacher_scores = teacher_scores["ab_scores"]
+        ba_teacher_scores = teacher_scores["ba_scores"]
+        bb_teacher_scores = teacher_scores["bb_scores"]
+
+        # Prepare teacher scores for KL divergence, must be softmax probabilities
+        aa_ab_teacher = torch.stack([aa_teacher_scores, ab_teacher_scores], dim=1)
+        bb_ba_teacher = torch.stack([bb_teacher_scores, ba_teacher_scores], dim=1)
+
+        # Calculate KL divergence loss
+        loss_aa_ab = self.kl_div(aa_ab, F.softmax(aa_ab_teacher, dim=1))
+        loss_bb_ba = self.kl_div(bb_ba, F.softmax(bb_ba_teacher, dim=1))
+
+        # Calculate regularization loss for all other softmax values
+        mask = torch.ones_like(log_softmax_scores)
+        num_queries = len(query_output_a)
+
+        # Zero out the relevant scores for set A and set B
+        mask[torch.arange(num_queries), torch.arange(num_queries)] = 0
+        mask[torch.arange(num_queries), torch.arange(num_queries) + num_queries] = 0
+        mask[
+            torch.arange(num_queries, 2 * num_queries),
+            torch.arange(num_queries, 2 * num_queries),
+        ] = 0
+        mask[torch.arange(num_queries, 2 * num_queries), torch.arange(num_queries)] = 0
+
+        remaining_softmax_scores = log_softmax_scores * mask
+        regularization_loss = torch.mean(remaining_softmax_scores**2)
+
+        # Combine all losses
+        # total_loss = loss_aa_ab + loss_bb_ba + regularization_loss
+        total_loss = loss_aa_ab + loss_bb_ba
+
+        return total_loss
 
 
 class KLDivLossForTriplets(nn.Module):

@@ -481,6 +481,7 @@ class RetrievalArgs(Seq2SeqArgs):
     include_quartet_loss: bool = False
     quartet_training_format: bool = False
     quartet_lambda: float = 1.0
+    similarity_function: str = "dot_product"
 
 
 @dataclass

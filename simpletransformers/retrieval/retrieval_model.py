@@ -62,6 +62,7 @@ from simpletransformers.retrieval.beir_evaluation import BeirRetrievalModel
 from simpletransformers.retrieval.retrieval_utils import (
     KLDivLossForTriplets,
     QuartetLossV1,
+    QuartetLossV3,
     calculate_mrr,
     convert_beir_columns_to_trec_format,
     get_clustered_passage_dataset,
@@ -989,9 +990,14 @@ class RetrievalModel:
                             f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} High loss repeats: {high_loss_repeats}"
                         )
                     else:
-                        batch_iterator.set_description(
-                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f}"
-                        )
+                        if args.include_quartet_loss:
+                            batch_iterator.set_description(
+                                f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Quartet loss: {retrieval_output.quartet_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f}"
+                            )
+                        else:
+                            batch_iterator.set_description(
+                                f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f}"
+                            )
 
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps
@@ -2925,12 +2931,12 @@ class RetrievalModel:
             if self.args.multi_vector_query:
                 query_outputs = query_outputs[0]
 
-            context_outputs = torch.nn.functional.dropout(
-                context_outputs, p=self.args.output_dropout
-            )
-            query_outputs = torch.nn.functional.dropout(
-                query_outputs, p=self.args.output_dropout
-            )
+            # context_outputs = torch.nn.functional.dropout(
+            #     context_outputs, p=self.args.output_dropout
+            # )
+            # query_outputs = torch.nn.functional.dropout(
+            #     query_outputs, p=self.args.output_dropout
+            # )
 
         if self.args.include_triplet_loss:
             nll_criterion = torch.nn.NLLLoss(reduction="mean")
@@ -2975,7 +2981,17 @@ class RetrievalModel:
                     context_outputs[: context_outputs.size(0) // 2, :].t(),
                 )
             else:
-                similarity_score = torch.matmul(query_outputs, context_outputs.t())
+                if self.args.similarity_function == "cosine":
+                    similarity_score = torch.nn.functional.cosine_similarity(
+                        query_outputs.unsqueeze(1),
+                        context_outputs.unsqueeze(0),
+                        dim=-1,
+                    )
+                elif self.args.similarity_function == "dot_product":
+                    similarity_score = torch.matmul(
+                        query_outputs,
+                        context_outputs.t(),
+                    )
             softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
 
             if self.args.include_bce_loss and self.context_encoder.training:
@@ -3123,7 +3139,7 @@ class RetrievalModel:
     #             ]
 
     #             reranking_dot_score = torch.bmm(
-    #                 reranking_query_outputs.unsqueeze(1),
+    #                 reranking_query_outputs.unsqueeze(1),pairwise_dot_score(query_outputs, context_outputs)
     #                 reranking_context_outputs.transpose(-1, -2),
     #             )
     #             reranking_softmax_score = torch.nn.functional.log_softmax(
@@ -3242,14 +3258,17 @@ class RetrievalModel:
             query_outputs_a = query_outputs[:half, :]
             query_outputs_b = query_outputs[half:, :]
 
-            quartet_criterion = QuartetLossV1()
+            quartet_criterion = QuartetLossV3()
 
             quartet_loss = quartet_criterion(
                 query_outputs_a,
                 query_outputs_b,
                 context_outputs_a,
                 context_outputs_b,
+                similarity_score,
+                softmax_score,
                 teacher_scores,
+                similarity_function=self.args.similarity_function,
             )
 
         if not (
@@ -3350,10 +3369,12 @@ class RetrievalModel:
 
         if self.args.include_quartet_loss or self.args.quartet_training_format:
             labels = [
-                i
-                for i in range(
-                    len(batch["context_ids_a"]) + len(batch["context_ids_b"])
-                )
+                i if a > b else i + batch["context_ids_a"].size(0)
+                for i, (a, b) in enumerate(zip(batch["aa_score"], batch["ab_score"]))
+            ]
+            labels += [
+                i + batch["context_ids_a"].size(0) if a > b else i
+                for i, (a, b) in enumerate(zip(batch["bb_score"], batch["ba_score"]))
             ]
         else:
             labels = [i for i in range(len(batch["context_ids"]))]
