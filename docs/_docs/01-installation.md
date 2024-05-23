@@ -9,7 +9,7 @@ toc: true
 It's a good idea to always use virtual environments when working with Python packages.
 Anaconda/Miniconda is a package manager that lets you create virtual environments and manage package installations smoothly.
 
-Follow the instructions given below to install Simple Transformers using with Anaconda (or miniconda, a lighter version of anaconda).
+Follow the instructions given below to install Simple Transformers with Anaconda (or Miniconda, a lighter version of Anaconda).
 
 ## Installation steps
 

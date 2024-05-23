@@ -117,6 +117,7 @@ from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.custom_models.models import ElectraForLanguageModelingModel
 from simpletransformers.language_modeling.language_modeling_utils import (
     SimpleDataset,
+    apply_chat_template_to_inputs,
     load_hf_dataset,
     mask_tokens,
 )
@@ -1494,6 +1495,10 @@ class LanguageModelingModel:
         generation_args=None,
         rag_queries=None,
         knowledge_dataset=None,
+        user_role="user",
+        system_role="system",
+        system_prompt="",
+        apply_chat_template=False,
         **kwargs,
     ):
         """
@@ -1544,6 +1549,11 @@ class LanguageModelingModel:
             # - Simplest option is to just prepend context: context_docs to to_predict
             # - Advanced option is to have <CONTEXT_1> ... <CONTEXT_n> in to_predict and then replace <CONTEXT_1> ... <CONTEXT_n> with context_docs
 
+        if apply_chat_template:
+            to_predict = apply_chat_template_to_inputs(
+                to_predict, user_role, system_role, system_prompt, self.tokenizer
+            )
+
         try:
             inputs = self.tokenizer(
                 to_predict,
@@ -1553,7 +1563,7 @@ class LanguageModelingModel:
         except ValueError:
             if not self.tokenizer.pad_token:
                 warnings.warn(
-                    "The tokenizer you are using does not have a pad token set. Setting to `eos_token`."
+                    "The tokenizer you are using does not have a pad_token assigned. Setting to `eos_token`."
                 )
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             inputs = self.tokenizer(

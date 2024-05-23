@@ -76,31 +76,50 @@ def preprocess_batch_for_hf_dataset(dataset, tokenizer, args, tokenize_targets=T
 
 
 def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=False):
-    if args.model_type == "eet5" or reranking:
-        dataset = load_from_disk(data)
-    elif isinstance(data, str):
-        dataset = load_dataset(
-            "csv",
-            data_files=data,
-            delimiter="\t",
-            download_mode="force_redownload"
-            if args.reprocess_input_data
-            else "reuse_dataset_if_exists",
-            features=datasets.Features(
-                {
-                    "prefix": datasets.Value("string"),
-                    "input_text": datasets.Value("string"),
-                    "target_text": datasets.Value("string"),
-                }
+    if isinstance(data, str):
+        if (args.model_type == "eet5" or reranking) and os.path.isdir(data):
+            dataset = load_from_disk(data)
+        elif isinstance(data, str):
+            if reranking:
+                if args.add_prefix:
+                    features = datasets.Features(
+                        {
+                            "prefix": datasets.Value("string"),
+                            "input_text": datasets.Value("string"),
+                        }
+                    )
+                else:
+                    features = datasets.Features(
+                        {
+                            "input_text": datasets.Value("string"),
+                        }
+                    )
+            else:
+                if args.add_prefix:
+                    features = datasets.Features(
+                        {
+                            "prefix": datasets.Value("string"),
+                            "input_text": datasets.Value("string"),
+                            "target_text": datasets.Value("string"),
+                        }
+                    )
+                else:
+                    features = datasets.Features(
+                        {
+                            "input_text": datasets.Value("string"),
+                            "target_text": datasets.Value("string"),
+                        }
+                    )
+
+            dataset = load_dataset(
+                "csv",
+                data_files=data,
+                delimiter="\t",
+                download_mode="force_redownload"
+                if args.reprocess_input_data
+                else "reuse_dataset_if_exists",
+                features=features,
             )
-            if args.add_prefix
-            else datasets.Features(
-                {
-                    "input_text": datasets.Value("string"),
-                    "target_text": datasets.Value("string"),
-                }
-            ),
-        )
     else:
         dataset = HFDataset.from_pandas(data)
 
@@ -114,6 +133,10 @@ def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=Fals
     )
 
     if args.model_type == "eet5" or reranking:
+        try:
+            dataset = dataset["train"]
+        except:
+            pass
         # If embeddings in dataset and encoder_ouputs not in dataset, rename embeddings to encoder_outputs
         if "embeddings" in dataset.features:
             dataset = dataset.rename_column("embeddings", "encoder_outputs")

@@ -1140,7 +1140,7 @@ class T5Model:
         else:
             return outputs
 
-    def rerank(self, eval_data, qrels):
+    def rerank(self, eval_data, qrels=None):
         """
         Used with monoT5 style models for reranking
         """
@@ -1164,7 +1164,7 @@ class T5Model:
         # os.makedirs(output_dir, exist_ok=True)
 
         if args.n_gpu > 1:
-            model = torch.nn.DataParallel(model)
+            self.model = torch.nn.DataParallel(self.model)
 
         eval_iterator = tqdm(eval_dataloader, desc="Evaluating", disable=args.silent)
 
@@ -1204,6 +1204,9 @@ class T5Model:
 
                 reranking_preds.extend(preds)
                 reranking_scores.extend(scores)
+
+        if not qrels:
+            return reranking_preds, reranking_scores
 
         query_ids = eval_dataset["query_id"]
         doc_ids = eval_dataset["passage_id"]

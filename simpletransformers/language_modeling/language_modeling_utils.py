@@ -389,3 +389,23 @@ def mask_tokens(
 
         # The rest of the time (10% of the time) we keep the masked input tokens unchanged
     return inputs, labels
+
+
+def apply_chat_template_to_inputs(
+    to_predict, user_role, system_role, system_prompt, tokenizer
+):
+    to_predict = [
+        tokenizer.apply_chat_template(
+            [
+                {
+                    "role": system_role,
+                    "content": system_prompt,
+                },
+                {"role": user_role, "content": to_pred},
+            ],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        for to_pred in to_predict
+    ]
+    return to_predict
