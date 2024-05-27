@@ -1140,7 +1140,7 @@ class T5Model:
         else:
             return outputs
 
-    def rerank(self, eval_data, qrels=None):
+    def rerank(self, eval_data, qrels=None, run_dict=None, beir_format=False):
         """
         Used with monoT5 style models for reranking
         """
