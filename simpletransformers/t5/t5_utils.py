@@ -77,7 +77,9 @@ def preprocess_batch_for_hf_dataset(dataset, tokenizer, args, tokenize_targets=T
         return model_inputs
 
 
-def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=False):
+def load_hf_dataset(
+    data, tokenizer, args, tokenize_targets=True, reranking=False, evaluate=False
+):
     if isinstance(data, str):
         if (args.model_type == "eet5" or reranking) and os.path.isdir(data):
             dataset = load_from_disk(data)
@@ -91,11 +93,20 @@ def load_hf_dataset(data, tokenizer, args, tokenize_targets=True, reranking=Fals
                         }
                     )
                 else:
-                    features = datasets.Features(
-                        {
-                            "input_text": datasets.Value("string"),
-                        }
-                    )
+                    if evaluate:
+                        features = datasets.Features(
+                            {
+                                "query_id": datasets.Value("string"),
+                                "passage_id": datasets.Value("string"),
+                                "input_text": datasets.Value("string"),
+                            }
+                        )
+                    else:
+                        features = datasets.Features(
+                            {
+                                "input_text": datasets.Value("string"),
+                            }
+                        )
             else:
                 if args.add_prefix:
                     features = datasets.Features(
@@ -283,7 +294,9 @@ class T5Dataset(Dataset):
         return self.examples[index]
 
 
-def convert_beir_to_monot5_format(data, run_dict=None, top_k=None, include_title=False, save_path=None):
+def convert_beir_to_monot5_format(
+    data, run_dict=None, top_k=None, include_title=False, save_path=None
+):
     """
     Utility function to convert BEIR format to MonoT5 format
 
@@ -306,12 +319,18 @@ def convert_beir_to_monot5_format(data, run_dict=None, top_k=None, include_title
             run_dict = json.load(f)
         if top_k:
             for query_id in run_dict:
-                run_dict[query_id] = dict(sorted(run_dict[query_id].items(), key=lambda x: x[1], reverse=True)[:top_k])
+                run_dict[query_id] = dict(
+                    sorted(
+                        run_dict[query_id].items(), key=lambda x: x[1], reverse=True
+                    )[:top_k]
+                )
 
         # Make sure both query_id and doc_id are strings
         updated_dict = {}
         for query_id in run_dict:
-            updated_dict[str(query_id)] = {str(k): v for k, v in run_dict[query_id].items()}
+            updated_dict[str(query_id)] = {
+                str(k): v for k, v in run_dict[query_id].items()
+            }
 
         run_dict = updated_dict
     else:
@@ -364,7 +383,7 @@ def convert_beir_to_monot5_format(data, run_dict=None, top_k=None, include_title
         lambda x: f"Query: {x['query']} Document: {x['passage']} Relevant:", axis=1
     )
 
-    reranking_df = reranking_df[["query_id", "passage", "input_text"]]
+    reranking_df = reranking_df[["query_id", "passage_id", "input_text"]]
 
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)

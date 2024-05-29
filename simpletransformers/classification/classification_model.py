@@ -1926,7 +1926,7 @@ class ClassificationModel:
 
         mcc = matthews_corrcoef(labels, preds)
         accuracy = accuracy_score(labels, preds)
-        f1 = f1_score(labels, preds)
+        f1 = f1_score(labels, preds, average="macro")
         if self.model.num_labels == 2:
             tn, fp, fn, tp = confusion_matrix(labels, preds, labels=[0, 1]).ravel()
             if self.args.sliding_window:

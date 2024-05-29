@@ -34,15 +34,8 @@ from transformers.models.big_bird.modeling_big_bird import (
     BigBirdPreTrainedModel,
 )
 from transformers.models.camembert.configuration_camembert import CamembertConfig
-from transformers.models.camembert.modeling_camembert import (
-    CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-)
 from transformers.models.distilbert.configuration_distilbert import DistilBertConfig
-from transformers.models.distilbert.modeling_distilbert import (
-    DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-)
 from transformers.models.electra.modeling_electra import (
-    ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
     ElectraConfig,
     ElectraModel,
     ElectraPreTrainedModel,
@@ -59,7 +52,6 @@ from transformers.models.nystromformer.modeling_nystromformer import (
 from transformers.models.rembert.configuration_rembert import RemBertConfig
 from transformers.models.roberta.configuration_roberta import RobertaConfig
 from transformers.models.roberta.modeling_roberta import (
-    ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
     RobertaClassificationHead,
     RobertaForQuestionAnswering,
     RobertaPreTrainedModel,
@@ -67,9 +59,6 @@ from transformers.models.roberta.modeling_roberta import (
     MaskedLMOutput,
 )
 from transformers.models.xlm_roberta.configuration_xlm_roberta import XLMRobertaConfig
-from transformers.models.xlm_roberta.modeling_xlm_roberta import (
-    XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-)
 from simpletransformers.custom_models.retrieval_autoencoder import Autoencoder
 
 
@@ -237,7 +226,6 @@ class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
     """
 
     config_class = RobertaConfig
-    pretrained_model_archive_map = ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "roberta"
 
     def __init__(self, config, pos_weight=None):
@@ -304,7 +292,6 @@ class CamembertForMultiLabelSequenceClassification(
     """
 
     config_class = CamembertConfig
-    pretrained_model_archive_map = CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "camembert"
 
 
@@ -430,7 +417,6 @@ class DistilBertPreTrainedModel(PreTrainedModel):
     """
 
     config_class = DistilBertConfig
-    pretrained_model_archive_map = DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST
     load_tf_weights = None
     base_model_prefix = "distilbert"
 
@@ -664,7 +650,6 @@ class XLMRobertaForMultiLabelSequenceClassification(
     RobertaForMultiLabelSequenceClassification
 ):
     config_class = XLMRobertaConfig
-    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
 
 
 class ElectraPooler(nn.Module):
@@ -773,7 +758,6 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention heads.
     """  # noqa
     config_class = ElectraConfig
-    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "electra"
 
     def __init__(self, config, weight=None):
@@ -829,7 +813,6 @@ class ElectraForMultiLabelSequenceClassification(ElectraPreTrainedModel):
     """
 
     config_class = ElectraConfig
-    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "electra"
 
     def __init__(self, config, pos_weight=None):
@@ -883,7 +866,6 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
     """
 
     config_class = ElectraConfig
-    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "electra"
 
     def __init__(self, config, weight=None):
@@ -949,7 +931,6 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
 
 class XLMRobertaForQuestionAnswering(RobertaForQuestionAnswering):
     config_class = XLMRobertaConfig
-    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
 
 
 class BigBirdForMultiLabelSequenceClassification(BigBirdPreTrainedModel):

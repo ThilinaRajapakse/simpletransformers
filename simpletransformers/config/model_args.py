@@ -224,6 +224,7 @@ class T5Args(ModelArgs):
 
     model_class: str = "T5Model"
     add_prefix: bool = True
+    as_reranker: bool = False
     dataset_class: Dataset = None
     do_sample: bool = False
     early_stopping: bool = True
