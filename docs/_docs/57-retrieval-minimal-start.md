@@ -42,6 +42,11 @@ eval_data = [
     }
 ]
 
+
+train_df = pd.DataFrame(
+    train_data
+)
+
 eval_df = pd.DataFrame(
     eval_data
 )
