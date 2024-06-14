@@ -60,6 +60,7 @@ model = RetrievalModel(
     model_type=model_type,
     context_encoder_name=context_encoder_name,
     query_encoder_name=question_encoder_name,
+    args=model_args
 )
 
 
