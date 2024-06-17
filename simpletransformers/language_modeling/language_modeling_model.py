@@ -911,7 +911,7 @@ class LanguageModelingModel:
                 if args.fp16:
                     with amp.autocast():
                         if args.model_type == "longformer":
-                            outputs = model(inputs, attention_mask=None, labels=labels)
+                            outputs = model(inputs, labels=labels)
                         elif args.model_type == "electra":
                             outputs = model(
                                 inputs,
@@ -934,9 +934,7 @@ class LanguageModelingModel:
                             loss = outputs[0]
                 else:
                     if args.model_type == "longformer":
-                        outputs = model(
-                            **inputs_dict, attention_mask=None, labels=labels
-                        )
+                        outputs = model(**inputs_dict, labels=labels)
                     elif args.model_type == "electra":
                         outputs = model(
                             input_ids,

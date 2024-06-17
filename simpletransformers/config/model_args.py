@@ -39,6 +39,7 @@ class ModelArgs:
     custom_layer_parameters: list = field(default_factory=list)
     custom_parameter_groups: list = field(default_factory=list)
     dataloader_num_workers: int = 0
+    dataset_cache_dir: str = None
     do_lower_case: bool = False
     dynamic_quantize: bool = False
     early_stopping_consider_epochs: bool = False
@@ -149,6 +150,8 @@ class ClassificationArgs(ModelArgs):
     """
 
     model_class: str = "ClassificationModel"
+    as_reranker: bool = False
+    batch_chunk_size: int = None
     labels_list: list = field(default_factory=list)
     labels_map: dict = field(default_factory=dict)
     lazy_delimiter: str = "\t"
@@ -224,10 +227,13 @@ class T5Args(ModelArgs):
 
     model_class: str = "T5Model"
     add_prefix: bool = True
+    as_reranker: bool = False
+    batch_chunk_size: int = None
     dataset_class: Dataset = None
     do_sample: bool = False
     early_stopping: bool = True
     evaluate_generated_text: bool = False
+    evaluate_before_training: bool = False
     length_penalty: float = 2.0
     max_length: int = 20
     max_steps: int = -1
@@ -351,7 +357,6 @@ class Seq2SeqArgs(ModelArgs):
     model_class: str = "Seq2SeqModel"
     base_marian_model_name: str = None
     dataset_class: Dataset = None
-    dataset_cache_dir: str = None
     do_sample: bool = False
     early_stopping: bool = True
     evaluate_generated_text: bool = False

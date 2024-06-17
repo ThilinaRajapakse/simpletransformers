@@ -56,7 +56,7 @@ model = ClassificationModel("roberta", "roberta-large", use_cuda=True, args=mode
 # Train the model
 model.train_model(
     train_df,
-    eval_df=eval_df,
+    eval_data=eval_df,
     accuracy=lambda truth, predictions: accuracy_score(
         truth, [round(p) for p in predictions]
     ),

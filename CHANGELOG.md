@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.70.1] - 2024-02-15
+
+### Fixed
+
+- Fixed compatibility issues with transformers >= 4.41.0
+
+### Changed
+
+- QoL changes for MonoT5 style models
+
 ## [0.70.0] - 2024-02-15
 
 ### Added

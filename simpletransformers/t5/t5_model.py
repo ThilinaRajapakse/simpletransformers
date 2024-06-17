@@ -34,7 +34,7 @@ from transformers.models.byt5 import ByT5Tokenizer
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import T5Args
 from simpletransformers.config.utils import sweep_config_to_sweep_values
-from simpletransformers.t5.t5_utils import T5Dataset, load_hf_dataset
+from simpletransformers.t5.t5_utils import ChunkSampler, T5Dataset, load_hf_dataset
 from simpletransformers.custom_models.reranking_model import EET5
 
 try:
@@ -179,6 +179,9 @@ class T5Model:
         show_running_loss=True,
         args=None,
         eval_data=None,
+        qrels=None,
+        run_dict=None,
+        eval_name=None,
         verbose=True,
         **kwargs,
     ):
@@ -194,6 +197,9 @@ class T5Model:
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             eval_data (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+            verbose (optional): If verbose, results will be printed to the console on completion of training. Defaults to True.
+            qrels (optional): Path to qrels file for evaluation. Only used with reranking.
+            run_dict (optional): Path to run file for evaluation. Only used with reranking.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
                         will be lists of strings. Note that this will slow down training significantly as the predicted sequences need to be generated.
@@ -240,6 +246,9 @@ class T5Model:
             show_running_loss=show_running_loss,
             eval_data=eval_data,
             verbose=verbose,
+            qrels=qrels,
+            run_dict=run_dict,
+            eval_name=eval_name,
             **kwargs,
         )
 
@@ -260,6 +269,9 @@ class T5Model:
         output_dir,
         show_running_loss=True,
         eval_data=None,
+        qrels=None,
+        run_dict=None,
+        eval_name=None,
         verbose=True,
         **kwargs,
     ):
@@ -274,7 +286,12 @@ class T5Model:
         device = self.device
 
         tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
-        train_sampler = RandomSampler(train_dataset)
+        if args.batch_chunk_size is not None:
+            train_sampler = ChunkSampler(
+                train_dataset, args.batch_chunk_size, args.train_batch_size
+            )
+        else:
+            train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
             sampler=train_sampler,
@@ -490,7 +507,9 @@ class T5Model:
                 logger.info("   Starting fine-tuning.")
 
         if args.evaluate_during_training:
-            training_progress_scores = self._create_training_progress_scores(**kwargs)
+            training_progress_scores = self._create_training_progress_scores(
+                eval_name, **kwargs
+            )
 
         if args.wandb_project:
             wandb.init(
@@ -506,6 +525,30 @@ class T5Model:
             from torch.cuda import amp
 
             scaler = amp.GradScaler()
+
+        if args.evaluate_before_training:
+            results = self._evaluate_during_training(
+                eval_data,
+                verbose=verbose and args.evaluate_during_training_verbose,
+                silent=args.evaluate_during_training_silent,
+                qrels=qrels,
+                run_dict=run_dict,
+                eval_name=eval_name,
+                **kwargs,
+            )
+
+            training_progress_scores["global_step"].append(global_step)
+            training_progress_scores["train_loss"].append(0)
+            for key in results:
+                training_progress_scores[key].append(results[key])
+            report = pd.DataFrame(training_progress_scores)
+            report.to_csv(
+                os.path.join(args.output_dir, "training_progress_scores.csv"),
+                index=False,
+            )
+
+            if args.wandb_project or self.is_sweeping:
+                wandb.log(self._get_last_metrics(training_progress_scores))
 
         for current_epoch in train_iterator:
             model.train()
@@ -610,12 +653,16 @@ class T5Model:
                         and global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results = self.eval_model(
+                        results = self._evaluate_during_training(
                             eval_data,
                             verbose=verbose and args.evaluate_during_training_verbose,
                             silent=args.evaluate_during_training_silent,
+                            qrels=qrels,
+                            run_dict=run_dict,
+                            eval_name=eval_name,
                             **kwargs,
                         )
+
                         for key, value in results.items():
                             try:
                                 tb_writer.add_scalar(
@@ -764,10 +811,13 @@ class T5Model:
                 self.save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args.evaluate_during_training and args.evaluate_each_epoch:
-                results = self.eval_model(
+                results = self._evaluate_during_training(
                     eval_data,
                     verbose=verbose and args.evaluate_during_training_verbose,
                     silent=args.evaluate_during_training_silent,
+                    qrels=qrels,
+                    run_dict=run_dict,
+                    eval_name=eval_name,
                     **kwargs,
                 )
 
@@ -1140,12 +1190,17 @@ class T5Model:
         else:
             return outputs
 
-    def rerank(self, eval_data, qrels=None):
+    def rerank(self, eval_data, qrels=None, run_dict=None, beir_format=False):
         """
         Used with monoT5 style models for reranking
         """
         self._move_model_to_device()
         args = self.args
+
+        if not self.args.as_reranker:
+            warnings.warn(
+                "rerank() being called on a model without as_reranker set to True. This may not work as expected."
+            )
 
         try:
             import pytrec_eval
@@ -1156,7 +1211,10 @@ class T5Model:
             return
 
         eval_dataset = self.load_and_cache_examples(
-            eval_data, evaluate=True, tokenize_targets=False, reranking=True
+            eval_data,
+            tokenize_targets=False,
+            reranking=True,
+            evaluate=qrels is not None,
         )
         eval_dataloader = DataLoader(
             eval_dataset, batch_size=self.args.eval_batch_size, shuffle=False
@@ -1258,12 +1316,6 @@ class T5Model:
             relevance_level=1,
         )
 
-        # Test by loading bm25 dev runfile as run_dict
-        # runfile_path = "../data/bm25/bm25_dev.json"
-
-        # with open(runfile_path, "r") as f:
-        #     run_dict = json.load(f)
-
         try:
             results = evaluator.evaluate(run_dict)
         except:
@@ -1284,6 +1336,68 @@ class T5Model:
             result_report[metric] = mean_metric
 
         return result_report
+
+    def _evaluate_during_training(
+        self,
+        eval_data,
+        qrels=None,
+        run_dict=None,
+        eval_name=None,
+        verbose=True,
+        silent=False,
+        **kwargs,
+    ):
+        """
+        Utility function to evaluate the model during training.
+        """
+        is_training = self.model.training
+        self.model.eval()
+
+        if isinstance(eval_data, list):
+            results = {}
+            for eval_data_item, name, qrel, run in zip(
+                eval_data, eval_name, qrels, run_dict
+            ):
+                if self.args.as_reranker:
+                    results_default_names = self.rerank(
+                        eval_data_item,
+                        qrels=qrel,
+                        run_dict=run,
+                        **kwargs,
+                    )
+                else:
+                    results_default_names = self.eval_model(
+                        eval_data_item,
+                        verbose=verbose and self.args.evaluate_during_training_verbose,
+                        silent=self.args.evaluate_during_training_silent,
+                        **kwargs,
+                    )
+
+                for key in results_default_names:
+                    results[f"{name}_{key}"] = results_default_names[key]
+        else:
+            if self.args.as_reranker:
+                results = self.rerank(
+                    eval_data,
+                    qrels=qrels,
+                    run_dict=run_dict,
+                    **kwargs,
+                )
+            else:
+                results = self.eval_model(
+                    eval_data,
+                    verbose=verbose and self.args.evaluate_during_training_verbose,
+                    silent=self.args.evaluate_during_training_silent,
+                    **kwargs,
+                )
+
+        if is_training:
+            self.model.train()
+
+        if verbose and self.args.as_reranker:
+            logger.info(results)
+
+        return results
 
     def _decode(self, output_id):
         return self.tokenizer.decode(
@@ -1377,6 +1491,7 @@ class T5Model:
                 self.args,
                 tokenize_targets=tokenize_targets,
                 reranking=reranking,
+                evaluate=evaluate,
             )
             return dataset
         elif args.dataset_class:
@@ -1390,7 +1505,7 @@ class T5Model:
                 mode,
             )
 
-    def _create_training_progress_scores(self, **kwargs):
+    def _create_training_progress_scores(self, eval_name=None, **kwargs):
         extra_metrics = {key: [] for key in kwargs}
         training_progress_scores = {
             "global_step": [],
@@ -1398,6 +1513,31 @@ class T5Model:
             "train_loss": [],
             **extra_metrics,
         }
+
+        if self.args.as_reranker:
+            if isinstance(eval_name, list):
+                for name in eval_name:
+                    training_progress_scores = {
+                        **training_progress_scores,
+                        f"{name}_recip_rank": [],
+                        f"{name}_recall_100": [],
+                        f"{name}_ndcg_cut_10": [],
+                        f"{name}_ndcg": [],
+                    }
+            else:
+                training_progress_scores = {
+                    **training_progress_scores,
+                    "recip_rank": [],
+                    "recall_100": [],
+                    "ndcg_cut_10": [],
+                    "ndcg": [],
+                }
+            training_progress_scores.pop("eval_loss")
+            if self.args.early_stopping_metric == "eval_loss":
+                self.args.early_stopping_metric = f"{eval_name[0]}_ndcg_cut_10"
+                warnings.warn(
+                    f"Early stopping metric changed to {eval_name[0]}_ndcg_cut_10 from eval_loss."
+                )
 
         return training_progress_scores
 
