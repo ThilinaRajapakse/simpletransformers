@@ -1721,7 +1721,6 @@ class RetrievalModel:
                 ) as f:
                     json.dump(result_report, f)
 
-            if save_as_experiment:
                 # Save run_dict
                 with open(
                     os.path.join(

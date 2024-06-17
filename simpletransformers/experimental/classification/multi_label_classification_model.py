@@ -163,7 +163,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         return super().train_model(
             train_df,
             multi_label=multi_label,
-            eval_df=eval_df,
+            eval_data=eval_df,
             output_dir=output_dir,
             show_running_loss=show_running_loss,
             args=args,

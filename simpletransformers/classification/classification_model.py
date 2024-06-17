@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import, division, print_function
 import collections
+import json
 import logging
 import math
 import os
@@ -121,6 +122,7 @@ from transformers import (
 from transformers.convert_graph_to_onnx import convert, quantize
 
 from simpletransformers.classification.classification_utils import (
+    ChunkSampler,
     InputExample,
     LazyClassificationDataset,
     ClassificationDataset,
@@ -500,7 +502,10 @@ class ClassificationModel:
         output_dir=None,
         show_running_loss=True,
         args=None,
-        eval_df=None,
+        eval_data=None,
+        qrels=None,
+        run_dict=None,
+        eval_name=None,
         verbose=True,
         **kwargs,
     ):
@@ -513,7 +518,7 @@ class ClassificationModel:
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             show_running_loss (optional): Set to False to prevent running loss from being printed to console. Defaults to True.
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
-            eval_df (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+            eval_data (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use). E.g. f1=sklearn.metrics.f1_score.
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions.
 
@@ -522,13 +527,19 @@ class ClassificationModel:
             training_details: Average training loss if evaluate_during_training is False or full training progress scores if evaluate_during_training is True
         """  # noqa: ignore flake8"
 
+        if "eval_df" in kwargs and eval_data is None:
+            eval_data = kwargs.pop("eval_df")
+            warnings.warn(
+                "The 'eval_df' parameter has been deprecated and will be removed in a future version. Please use 'eval_data' instead."
+            )
+
         if args:
             self.args.update_from_dict(args)
 
         if self.args.silent:
             show_running_loss = False
 
-        if self.args.evaluate_during_training and eval_df is None:
+        if self.args.evaluate_during_training and eval_data is None:
             raise ValueError(
                 "evaluate_during_training is enabled but eval_df is not specified."
                 " Pass eval_df to model.train_model() if using evaluate_during_training."
@@ -617,7 +628,12 @@ class ClassificationModel:
             train_dataset = self.load_and_cache_examples(
                 train_examples, verbose=verbose
             )
-        train_sampler = RandomSampler(train_dataset)
+        if self.args.batch_chunk_size is not None:
+            train_sampler = ChunkSampler(
+                train_dataset, self.args.batch_chunk_size, self.args.train_batch_size
+            )
+        else:
+            train_sampler = RandomSampler(train_dataset)
         train_dataloader = DataLoader(
             train_dataset,
             sampler=train_sampler,
@@ -632,7 +648,10 @@ class ClassificationModel:
             output_dir,
             multi_label=multi_label,
             show_running_loss=show_running_loss,
-            eval_df=eval_df,
+            eval_data=eval_data,
+            qrels=qrels,
+            run_dict=run_dict,
+            eval_name=eval_name,
             verbose=verbose,
             **kwargs,
         )
@@ -658,7 +677,10 @@ class ClassificationModel:
         output_dir,
         multi_label=False,
         show_running_loss=True,
-        eval_df=None,
+        eval_data=None,
+        qrels=None,
+        run_dict=None,
+        eval_name=None,
         test_df=None,
         verbose=True,
         **kwargs,
@@ -861,7 +883,7 @@ class ClassificationModel:
 
         if args.evaluate_during_training:
             training_progress_scores = self._create_training_progress_scores(
-                multi_label, **kwargs
+                multi_label, eval_name=eval_name, **kwargs
             )
 
         if args.wandb_project:
@@ -880,6 +902,9 @@ class ClassificationModel:
             from torch.cuda import amp
 
             scaler = amp.GradScaler()
+
+        if self.args.as_reranker and self.num_labels == 1:
+            self.loss_fct = torch.nn.BCEWithLogitsLoss()
 
         for _ in train_iterator:
             model.train()
@@ -992,11 +1017,13 @@ class ClassificationModel:
                         and global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results, _, _ = self.eval_model(
-                            eval_df,
+                        results = self._evaluate_during_training(
+                            eval_data,
                             verbose=verbose and args.evaluate_during_training_verbose,
                             silent=args.evaluate_during_training_silent,
-                            wandb_log=False,
+                            qrels=qrels,
+                            run_dict=run_dict,
+                            eval_name=eval_name,
                             **kwargs,
                         )
 
@@ -1018,19 +1045,19 @@ class ClassificationModel:
                         for key in results:
                             training_progress_scores[key].append(results[key])
 
-                        if test_df is not None:
-                            test_results, _, _ = self.eval_model(
-                                test_df,
-                                verbose=verbose
-                                and args.evaluate_during_training_verbose,
-                                silent=args.evaluate_during_training_silent,
-                                wandb_log=False,
-                                **kwargs,
-                            )
-                            for key in test_results:
-                                training_progress_scores["test_" + key].append(
-                                    test_results[key]
-                                )
+                        # if test_df is not None:
+                        #     test_results, _, _ = self.eval_model(
+                        #         test_df,
+                        #         verbose=verbose
+                        #         and args.evaluate_during_training_verbose,
+                        #         silent=args.evaluate_during_training_silent,
+                        #         wandb_log=False,
+                        #         **kwargs,
+                        #     )
+                        #     for key in test_results:
+                        #         training_progress_scores["test_" + key].append(
+                        #             test_results[key]
+                        #         )
 
                         report = pd.DataFrame(training_progress_scores)
                         report.to_csv(
@@ -1167,11 +1194,13 @@ class ClassificationModel:
                 self.save_model(output_dir_current, optimizer, scheduler, model=model)
 
             if args.evaluate_during_training and args.evaluate_each_epoch:
-                results, _, _ = self.eval_model(
-                    eval_df,
+                results = self._evaluate_during_training(
+                    eval_data,
                     verbose=verbose and args.evaluate_during_training_verbose,
                     silent=args.evaluate_during_training_silent,
-                    wandb_log=False,
+                    qrels=qrels,
+                    run_dict=run_dict,
+                    eval_name=eval_name,
                     **kwargs,
                 )
 
@@ -1183,18 +1212,18 @@ class ClassificationModel:
                 training_progress_scores["train_loss"].append(current_loss)
                 for key in results:
                     training_progress_scores[key].append(results[key])
-                if test_df is not None:
-                    test_results, _, _ = self.eval_model(
-                        test_df,
-                        verbose=verbose and args.evaluate_during_training_verbose,
-                        silent=args.evaluate_during_training_silent,
-                        wandb_log=False,
-                        **kwargs,
-                    )
-                    for key in test_results:
-                        training_progress_scores["test_" + key].append(
-                            test_results[key]
-                        )
+                # if test_df is not None:
+                #     test_results = self.eval_model(
+                #         test_df,
+                #         verbose=verbose and args.evaluate_during_training_verbose,
+                #         silent=args.evaluate_during_training_silent,
+                #         wandb_log=False,
+                #         **kwargs,
+                #     )
+                #     for key in test_results:
+                #         training_progress_scores["test_" + key].append(
+                #             test_results[key]
+                #         )
 
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(
@@ -1657,6 +1686,7 @@ class ClassificationModel:
         evaluate=False,
         no_cache=False,
         multi_label=False,
+        reranking=False,
         verbose=True,
         silent=False,
     ):
@@ -2298,6 +2328,328 @@ class ClassificationModel:
         else:
             return preds, model_outputs
 
+    def _evaluate_during_training(
+        self,
+        eval_data,
+        qrels=None,
+        run_dict=None,
+        eval_name=None,
+        verbose=True,
+        silent=False,
+        **kwargs,
+    ):
+        """
+        Utility function to evaluate the model during training.
+        """
+        is_training = self.model.training
+        self.model.eval()
+
+        if isinstance(eval_data, list):
+            results = {}
+            for eval_data_item, name, qrel, run in zip(
+                eval_data, eval_name, qrels, run_dict
+            ):
+                if self.args.as_reranker:
+                    results_default_names, *_ = self.rerank(
+                        eval_data_item,
+                        qrels=qrel,
+                        run_dict=run,
+                        **kwargs,
+                    )
+                else:
+                    results_default_names = self.eval_model(
+                        eval_data_item,
+                        verbose=verbose and self.args.evaluate_during_training_verbose,
+                        silent=self.args.evaluate_during_training_silent,
+                        **kwargs,
+                    )
+
+                for key in results_default_names:
+                    results[f"{name}_{key}"] = results_default_names[key]
+        else:
+            if self.args.as_reranker:
+                results, *_ = self.rerank(
+                    eval_data,
+                    qrels=qrels,
+                    run_dict=run_dict,
+                    **kwargs,
+                )
+            else:
+                results = self.eval_model(
+                    eval_data,
+                    verbose=verbose and self.args.evaluate_during_training_verbose,
+                    silent=self.args.evaluate_during_training_silent,
+                    **kwargs,
+                )
+
+        if is_training:
+            self.model.train()
+
+        if verbose and self.args.as_reranker:
+            logger.info(results)
+
+        return results
+
+    def get_relevance_score(self, probabilities, num_labels, weights=None):
+        if num_labels == 1:
+            return torch.sigmoid(probabilities).detach().cpu().numpy().flatten()
+        elif num_labels == 2:
+            return probabilities.softmax(dim=1).detach().cpu().numpy()[:, 1]
+
+        if weights is not None:
+            if len(weights) != num_labels:
+                raise ValueError(
+                    f"Number of weights ({len(weights)}) does not match the number of labels ({num_labels})"
+                )
+        else:
+            weights = [i / (num_labels - 1) for i in range(num_labels)]
+            # weights = [0, 0.2, 1]
+
+        # Compute relevance score as weighted sum of class probabilities
+        # relevance_score = probabilities[:, 0] * 0 + probabilities[:, 1] * 0.5 + probabilities[:, 2] * 1
+        relevance_score = sum(
+            [probabilities[:, i] * weights[i] for i in range(num_labels)]
+        )
+
+        return relevance_score
+
+    def rerank(
+        self,
+        eval_data,
+        qrels=None,
+        run_dict=None,
+        beir_format=False,
+        weights=None,
+        experiment_name=None,
+        dataset_name=None,
+        model_name=None,
+        save_as_experiment=False,
+        save_logit=False,
+    ):
+        """
+        Reranks the retrieved documents using the trained model.
+        """
+
+        if save_as_experiment:
+            # Throw error if experiment_name, dataset_name, or model_name is not provided
+            if not experiment_name:
+                raise ValueError(
+                    "experiment_name is required to save results as an experiment."
+                )
+            if not dataset_name:
+                raise ValueError(
+                    "dataset_name is required to save results as an experiment."
+                )
+            if not model_name:
+                raise ValueError(
+                    "model_name is required to save results as an experiment."
+                )
+        else:
+            if experiment_name or dataset_name or model_name:
+                warnings.warn(
+                    "experiment_name, dataset_name, and model_name are only used when save_as_experiment is set to True. Ignoring provided values."
+                )
+
+        self._move_model_to_device()
+        args = self.args
+        model = self.model
+
+        was_training = model.training
+        model.eval()
+
+        if not self.args.as_reranker:
+            warnings.warn(
+                "rerank() being called on a model without as_reranker set to True. This may not work as expected."
+            )
+
+        try:
+            import pytrec_eval
+        except ImportError:
+            logger.error(
+                "pytrec_eval not installed. Please install with `pip install pytrec_eval`. (See https://github.com/cvangysel/pytrec_eval)"
+            )
+            return
+
+        eval_dataset = load_hf_dataset(
+            eval_data, self.tokenizer, self.args, multi_label=False, reranking=True
+        )
+
+        eval_dataloader = DataLoader(
+            eval_dataset, batch_size=self.args.eval_batch_size, shuffle=False
+        )
+        # os.makedirs(output_dir, exist_ok=True)
+
+        if args.n_gpu > 1:
+            self.model = torch.nn.DataParallel(self.model)
+
+        eval_iterator = tqdm(eval_dataloader, desc="Evaluating", disable=args.silent)
+
+        if self.args.fp16:
+            from torch.cuda import amp
+
+        total_samples = len(eval_dataset)
+        if self.num_labels > 1:
+            reranking_preds = np.zeros(total_samples, dtype=np.int64)
+        else:
+            reranking_preds = None
+        reranking_scores = np.zeros(total_samples, dtype=np.float32)
+        reranking_logits = np.empty((total_samples, self.num_labels), dtype=np.float32)
+
+        start_idx = 0
+
+        for batch in eval_iterator:
+            inputs = self._get_inputs_dict(batch, reranking=True)
+            with torch.no_grad():
+                if self.args.fp16:
+                    with amp.autocast():
+                        outputs = model(**inputs)
+                else:
+                    outputs = model(**inputs)
+
+                logits = outputs.logits
+                # This is always multiclass
+                preds = (
+                    logits.argmax(dim=1).detach().cpu().numpy()
+                    if self.num_labels > 1
+                    else logits.detach().cpu().numpy()
+                )
+                reranking_logits[start_idx : start_idx + self.args.eval_batch_size] = (
+                    logits.detach().cpu().numpy()
+                )
+                scores = self.get_relevance_score(
+                    logits,
+                    self.num_labels,
+                    weights=weights,
+                )
+
+                end_idx = start_idx + self.args.eval_batch_size
+                if self.num_labels > 1:
+                    reranking_preds[start_idx:end_idx] = preds
+                reranking_scores[start_idx:end_idx] = scores
+
+                start_idx = end_idx
+
+        if self.num_labels > 1:
+            reranking_preds = reranking_preds.tolist()
+        reranking_scores = reranking_scores.tolist()
+
+        if not qrels:
+            return reranking_preds, reranking_scores
+
+        query_ids = eval_dataset["query_id"]
+        doc_ids = eval_dataset["passage_id"]
+
+        run_dict = {}
+        for query_id, doc_id, score in zip(query_ids, doc_ids, reranking_scores):
+            query_id = str(query_id)
+            doc_id = str(doc_id)
+            if query_id not in run_dict:
+                run_dict[query_id] = {}
+            run_dict[query_id][doc_id] = score
+
+        # Sort by score
+        for query_id in run_dict:
+            run_dict[query_id] = dict(
+                sorted(
+                    run_dict[query_id].items(), key=lambda item: item[1], reverse=True
+                )
+            )
+
+        os.makedirs(args.output_dir, exist_ok=True)
+
+        runfile_save_path = os.path.join(
+            args.output_dir, f"{eval_data.split('/')[-1]}-runfile.json"
+        )
+
+        with open(runfile_save_path, "w") as f:
+            json.dump(run_dict, f)
+
+        qrels_df = pd.read_csv(qrels, sep="\t")
+
+        qrels_dict = {}
+        for query_id, doc_id, relevance in zip(
+            qrels_df["query-id"],
+            qrels_df["corpus-id"],
+            qrels_df["score"],
+        ):
+            query_id = str(query_id)
+            doc_id = str(doc_id)
+            if query_id not in qrels_dict:
+                qrels_dict[query_id] = {}
+            qrels_dict[query_id][doc_id] = relevance
+
+        pytrec_eval_metrics = ["recip_rank", "recall_100", "ndcg_cut_10", "ndcg"]
+
+        evaluator = pytrec_eval.RelevanceEvaluator(
+            qrels_dict,
+            pytrec_eval_metrics,
+            relevance_level=1,
+        )
+
+        try:
+            results = evaluator.evaluate(run_dict)
+        except:
+            # Convert run_dict keys to strings
+            run_dict = {
+                str(key): {str(k): v for k, v in value.items()}
+                for key, value in run_dict.items()
+            }
+            results = evaluator.evaluate(run_dict)
+
+        if save_as_experiment:
+            os.makedirs(
+                os.path.join(experiment_name, dataset_name, model_name),
+                exist_ok=True,
+            )
+        result_report = {}
+
+        result_report = {}
+
+        for metric in pytrec_eval_metrics:
+            per_metric_dict = {
+                query_id: value[metric] for query_id, value in results.items()
+            }
+            mean_metric = np.mean(list(per_metric_dict.values()))
+            result_report[metric] = mean_metric
+
+        if save_as_experiment:
+            with open(
+                os.path.join(
+                    experiment_name, dataset_name, model_name, f"{metric}.json"
+                ),
+                "w",
+            ) as f:
+                json.dump(per_metric_dict, f)
+
+        if save_as_experiment:
+            with open(
+                os.path.join(experiment_name, dataset_name, model_name, "results.json"),
+                "w",
+            ) as f:
+                json.dump(result_report, f)
+
+            # Save run_dict
+            with open(
+                os.path.join(
+                    experiment_name, dataset_name, model_name, "run_dict.json"
+                ),
+                "w",
+            ) as f:
+                json.dump(run_dict, f)
+
+            if self.num_labels > 1:
+                np.save(
+                    os.path.join(
+                        experiment_name, dataset_name, model_name, "reranking_preds.npy"
+                    ),
+                    reranking_preds,
+                )
+
+        if was_training:
+            model.train()
+
+        return result_report, per_metric_dict, run_dict, reranking_logits
+
     def convert_to_onnx(self, output_dir=None, set_onnx_arg=True):
         """Convert the model to ONNX format and save to output_dir
 
@@ -2341,10 +2693,14 @@ class ClassificationModel:
         # model outputs are always tuple in pytorch-transformers (see doc)
         loss = outputs[0]
         if loss_fct:
-            logits = outputs[1]
-            labels = inputs["labels"]
+            logits = (
+                outputs[1].view(-1)
+                if self.args.as_reranker
+                else outputs[1].view(-1, num_labels)
+            )
+            labels = inputs["labels"].view(-1)
 
-            loss = loss_fct(logits.view(-1, num_labels), labels.view(-1))
+            loss = loss_fct(logits, labels)
         return (loss, *outputs[1:])
 
     def _threshold(self, x, threshold):
@@ -2355,9 +2711,18 @@ class ClassificationModel:
     def _move_model_to_device(self):
         self.model.to(self.device)
 
-    def _get_inputs_dict(self, batch, no_hf=False):
+    def _get_inputs_dict(self, batch, no_hf=False, reranking=False):
         if self.args.use_hf_datasets and not no_hf:
-            return {key: value.to(self.device) for key, value in batch.items()}
+            # Skip keys for reranking
+            if reranking:
+                to_skip = ["query_id", "passage_id"]
+            else:
+                to_skip = []
+            return {
+                key: value.to(self.device)
+                for key, value in batch.items()
+                if key not in to_skip
+            }
         if isinstance(batch[0], dict) or isinstance(batch[0].data, dict):
             inputs = {
                 key: value.squeeze(1).to(self.device) for key, value in batch[0].items()
@@ -2389,7 +2754,41 @@ class ClassificationModel:
     def _get_last_metrics(self, metric_values):
         return {metric: values[-1] for metric, values in metric_values.items()}
 
-    def _create_training_progress_scores(self, multi_label, **kwargs):
+    def _create_training_progress_scores(self, multi_label, eval_name=None, **kwargs):
+        if eval_name is not None:
+            extra_metrics = {key: [] for key in kwargs}
+            training_progress_scores = {
+                "global_step": [],
+                "eval_loss": [],
+                "train_loss": [],
+                **extra_metrics,
+            }
+
+            if self.args.as_reranker:
+                if isinstance(eval_name, list):
+                    for name in eval_name:
+                        training_progress_scores = {
+                            **training_progress_scores,
+                            f"{name}_recip_rank": [],
+                            f"{name}_recall_100": [],
+                            f"{name}_ndcg_cut_10": [],
+                            f"{name}_ndcg": [],
+                        }
+                else:
+                    training_progress_scores = {
+                        **training_progress_scores,
+                        "recip_rank": [],
+                        "recall_100": [],
+                        "ndcg_cut_10": [],
+                        "ndcg": [],
+                    }
+                training_progress_scores.pop("eval_loss")
+                if self.args.early_stopping_metric == "eval_loss":
+                    self.args.early_stopping_metric = f"{eval_name[0]}_ndcg_cut_10"
+                    warnings.warn(
+                        f"Early stopping metric changed to {eval_name[0]}_ndcg_cut_10 from eval_loss."
+                    )
+
         return collections.defaultdict(list)
         """extra_metrics = {key: [] for key in kwargs}
         if multi_label:

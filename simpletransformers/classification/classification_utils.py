@@ -21,18 +21,22 @@ import json
 import logging
 import linecache
 import os
+import shutil
 import sys
 from collections import Counter
 from io import open
 from multiprocessing import Pool, cpu_count
+import warnings
 
 try:
     from collections import Iterable, Mapping
 except ImportError:
     from collections.abc import Iterable, Mapping
 
+import pandas as pd
 import torch
 import torch.nn as nn
+from torch.utils.data import Dataset, Sampler
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
 
@@ -302,7 +306,7 @@ def map_labels_to_numeric(example, multi_label, args):
     return example
 
 
-def load_hf_dataset(data, tokenizer, args, multi_label):
+def load_hf_dataset(data, tokenizer, args, multi_label, reranking=False):
     if isinstance(data, str):
         dataset = load_dataset(
             "csv",
@@ -325,13 +329,18 @@ def load_hf_dataset(data, tokenizer, args, multi_label):
         batched=True,
     )
 
-    if args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
-        dataset.set_format(
-            type="pt",
-            columns=["input_ids", "token_type_ids", "attention_mask", "labels"],
-        )
+    if reranking:
+        if args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
+            columns = ["input_ids", "token_type_ids", "attention_mask"]
+        else:
+            columns = ["input_ids", "attention_mask"]
     else:
-        dataset.set_format(type="pt", columns=["input_ids", "attention_mask", "labels"])
+        if args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
+            columns = ["input_ids", "token_type_ids", "attention_mask", "labels"]
+        else:
+            columns = ["input_ids", "attention_mask", "labels"]
+
+    dataset.set_format(type="pt", columns=columns)
 
     if isinstance(data, str):
         # This is not necessarily a train dataset. The datasets library insists on calling it train.
@@ -1013,3 +1022,129 @@ def flatten_results(results, parent_key="", sep="/"):
     else:
         out.append((parent_key, results))
     return dict(out)
+
+
+def convert_beir_to_cross_encoder_format(
+    data, run_dict=None, top_k=None, include_title=False, save_path=None
+):
+    """
+    Utility function to convert BEIR format to cross-encoder format
+
+    Args:
+        data: A directory containing a dataset in the BEIR format
+        run_dict: Path to a run file to build a reranking dataset. If not provided, all documents are considered.
+                  run_dict should be a json file with the following format:
+                    {
+                        "query_id1": ["doc_id1": score1, "doc_id2": score2, ...],
+                        "query_id2": ["doc_id1": score1, "doc_id2": score2, ...],
+                        ...
+                    }
+        top_k: Number of documents to consider for reranking. Only used if run_dict is provided.
+        include_title: Whether to include the title of the document in the cross-encoder format.
+        save_path: Path to save the converted dataset. If not provided, the dataset is returned as a DataFrame.
+    """
+    if run_dict:
+        with open(run_dict, "r") as f:
+            run_dict = json.load(f)
+        if top_k:
+            for query_id in run_dict:
+                run_dict[query_id] = dict(
+                    sorted(
+                        run_dict[query_id].items(), key=lambda x: x[1], reverse=True
+                    )[:top_k]
+                )
+
+        # Make sure both query_id and doc_id are strings
+        updated_dict = {}
+        for query_id in run_dict:
+            updated_dict[str(query_id)] = {
+                str(k): v for k, v in run_dict[query_id].items()
+            }
+
+        run_dict = updated_dict
+    else:
+        if top_k:
+            warnings.warn(
+                "top_k is only used when run_dict is provided. Ignoring top_k."
+            )
+
+    queries_df = pd.read_json(os.path.join(data, "queries.jsonl"), lines=True)
+    corpus_df = pd.read_json(os.path.join(data, "corpus.jsonl"), lines=True)
+
+    queries_df["_id"] = queries_df["_id"].astype(str)
+    corpus_df["_id"] = corpus_df["_id"].astype(str)
+
+    if include_title:
+        corpus_df["text"] = corpus_df["title"] + " " + corpus_df["text"]
+
+    queries_df = queries_df.set_index("_id")
+    corpus_df = corpus_df.set_index("_id")
+
+    if run_dict:
+        reranking_data = []
+        for query_id in tqdm(run_dict, total=len(run_dict)):
+            for passage_id in run_dict[query_id]:
+                reranking_data.append(
+                    {
+                        "query_id": query_id,
+                        "passage_id": passage_id,
+                        "text_a": queries_df.loc[query_id]["text"],
+                        "text_b": corpus_df.loc[passage_id]["text"],
+                    }
+                )
+    else:
+        reranking_data = []
+        for query_id, query in tqdm(queries_df.iterrows(), total=len(queries_df)):
+            for passage_id, passage in corpus_df.iterrows():
+                reranking_data.append(
+                    {
+                        "query_id": query_id,
+                        "passage_id": passage_id,
+                        "text_a": query["text"],
+                        "text_b": passage["text"],
+                    }
+                )
+
+    reranking_df = pd.DataFrame(reranking_data)
+
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        reranking_df.to_csv(save_path, sep="\t", index=False)
+
+        save_dir = os.path.dirname(save_path)
+        run_dict_path = os.path.join(save_dir, "run_dict.json")
+        with open(run_dict_path, "w") as f:
+            json.dump(run_dict, f)
+
+        # If the BEIR dir contains a qrels directory, copy it to the save_dir
+        qrels_dir = os.path.join(data, "qrels")
+        if os.path.exists(qrels_dir):
+            shutil.copytree(qrels_dir, os.path.join(save_dir, "qrels"))
+
+    return reranking_df
+
+
+class ChunkSampler(Sampler):
+    def __init__(self, data_source, chunk_size, batch_size):
+        assert (
+            batch_size % chunk_size == 0
+        ), "Batch size must be divisible by chunk size"
+        self.data_source = data_source
+        self.chunk_size = chunk_size
+        self.num_chunks = len(data_source) // chunk_size
+
+    def __iter__(self):
+        # Create a list of chunk indices
+        chunk_indices_list = torch.randperm(self.num_chunks).tolist()
+
+        # Create indices by chunk
+        indices = []
+        for chunk_idx in chunk_indices_list:
+            start_idx = chunk_idx * self.chunk_size
+            chunk_indices = list(range(start_idx, start_idx + self.chunk_size))
+            indices.extend(chunk_indices)
+
+        return iter(indices)
+
+    def __len__(self):
+        return len(self.data_source)
