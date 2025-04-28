@@ -466,6 +466,7 @@ class LanguageModelingModel:
                     self.model.module if hasattr(self.model, "module") else self.model
                 )
                 model_to_resize.resize_token_embeddings(len(self.tokenizer))
+                self.args.vocab_size = len(self.tokenizer)
 
         # if self.args.use_autoencoder:
         #     self.autoencoder_model = Autoencoder()
