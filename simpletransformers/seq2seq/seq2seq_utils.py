@@ -57,9 +57,9 @@ def preprocess_batch_for_hf_dataset(
         )
 
         return {
-            "source_ids": input_ids["input_ids"].squeeze(),
-            "source_mask": input_ids["attention_mask"].squeeze(),
-            "target_ids": target_ids["input_ids"].squeeze(),
+            "source_ids": input_ids["input_ids"].squeeze(0),
+            "source_mask": input_ids["attention_mask"].squeeze(0),
+            "target_ids": target_ids["input_ids"].squeeze(0),
         }
     elif args.model_type == "mbart":
         tokenized_example = encoder_tokenizer.prepare_seq2seq_batch(
@@ -85,10 +85,10 @@ def preprocess_batch_for_hf_dataset(
         labels[labels == encoder_tokenizer.pad_token_id] = -100
 
         return {
-            "input_ids": tokenized_example["input_ids"].squeeze(),
-            "attention_mask": tokenized_example["attention_mask"].squeeze(),
-            "decoder_input_ids": decoder_input_ids.squeeze(),
-            "labels": labels.squeeze(),
+            "input_ids": tokenized_example["input_ids"].squeeze(0),
+            "attention_mask": tokenized_example["attention_mask"].squeeze(0),
+            "decoder_input_ids": decoder_input_ids.squeeze(0),
+            "labels": labels.squeeze(0),
         }
     elif args.model_type in ["rag-token", "rag-sequence"]:
         source_inputs = encoder_tokenizer(
@@ -121,9 +121,9 @@ def preprocess_batch_for_hf_dataset(
                 return_tensors="np",
                 truncation=True,
             )
-        source_ids = source_inputs["input_ids"].squeeze()
-        target_ids = target_inputs["input_ids"].squeeze()
-        src_mask = source_inputs["attention_mask"].squeeze()
+        source_ids = source_inputs["input_ids"].squeeze(0)
+        target_ids = target_inputs["input_ids"].squeeze(0)
+        src_mask = source_inputs["attention_mask"].squeeze(0)
         return {
             "input_ids": source_ids,
             "attention_mask": src_mask,
@@ -145,9 +145,9 @@ def preprocess_batch_for_hf_dataset(
             return_tensors="np",
             truncation=True,
         )
-        source_ids = source_inputs["input_ids"].squeeze()
-        target_ids = target_inputs["input_ids"].squeeze()
-        src_mask = source_inputs["attention_mask"].squeeze()
+        source_ids = source_inputs["input_ids"].squeeze(0)
+        target_ids = target_inputs["input_ids"].squeeze(0)
+        src_mask = source_inputs["attention_mask"].squeeze(0)
         return {
             "input_ids": source_ids,
             "attention_mask": src_mask,
@@ -226,9 +226,9 @@ def preprocess_data(data):
             return_tensors="pt",
             truncation=True,
         )
-        source_ids = source_inputs["input_ids"].squeeze()
-        target_ids = target_inputs["input_ids"].squeeze()
-        src_mask = source_inputs["attention_mask"].squeeze()
+        source_ids = source_inputs["input_ids"].squeeze(0)
+        target_ids = target_inputs["input_ids"].squeeze(0)
+        src_mask = source_inputs["attention_mask"].squeeze(0)
         return {
             "input_ids": source_ids,
             "attention_mask": src_mask,
@@ -335,9 +335,9 @@ def preprocess_data_bart(data):
     )
 
     return {
-        "source_ids": input_ids["input_ids"].squeeze(),
-        "source_mask": input_ids["attention_mask"].squeeze(),
-        "target_ids": target_ids["input_ids"].squeeze(),
+        "source_ids": input_ids["input_ids"].squeeze(0),
+        "source_mask": input_ids["attention_mask"].squeeze(0),
+        "target_ids": target_ids["input_ids"].squeeze(0),
     }
 
 
@@ -366,10 +366,10 @@ def preprocess_data_mbart(data):
     labels[labels == tokenizer.pad_token_id] = -100
 
     return {
-        "input_ids": tokenized_example["input_ids"].squeeze(),
-        "attention_mask": tokenized_example["attention_mask"].squeeze(),
-        "decoder_input_ids": decoder_input_ids.squeeze(),
-        "labels": labels.squeeze(),
+        "input_ids": tokenized_example["input_ids"].squeeze(0),
+        "attention_mask": tokenized_example["attention_mask"].squeeze(0),
+        "decoder_input_ids": decoder_input_ids.squeeze(0),
+        "labels": labels.squeeze(0),
     }
 
 
