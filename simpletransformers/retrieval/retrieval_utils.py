@@ -17,7 +17,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import transformers
 import numpy as np
-import faiss
+
+# import faiss  ## Trying to make faiss optional
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.model_selection import train_test_split
 
