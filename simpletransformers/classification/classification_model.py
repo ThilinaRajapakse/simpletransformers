@@ -122,7 +122,6 @@ from transformers import (
 from transformers.convert_graph_to_onnx import convert, quantize
 
 from simpletransformers.classification.classification_utils import (
-    ChunkSampler,
     InputExample,
     LazyClassificationDataset,
     ClassificationDataset,
@@ -134,6 +133,9 @@ from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import ClassificationArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
 from simpletransformers.losses.loss_utils import init_loss
+from simpletransformers.retrieval.retrieval_utils import load_trec_format
+from simpletransformers.utils.utils import ChunkSampler
+from datasets import Features, Value
 
 # from simpletransformers.custom_models.models import ElectraForSequenceClassification
 
@@ -184,6 +186,7 @@ class ClassificationModel:
         use_cuda=True,
         cuda_device=-1,
         onnx_execution_provider=None,
+        global_attention_fn=None,
         **kwargs,
     ):
         """
@@ -201,6 +204,7 @@ class ClassificationModel:
             use_cuda (optional): Use GPU if available. Setting to False will force model to use CPU only.
             cuda_device (optional): Specific GPU that should be used. Will use the first available GPU by default.
             onnx_execution_provider (optional): ExecutionProvider to use with ONNX Runtime. Will use CUDA (if use_cuda) or CPU (if use_cuda is False) by default.
+            global_attention_fn (optional): A function that will be used to calculate global attention. The function should take in a list of input_ids and a list of text (single sentence) or two lists (text_a, text_b) and return a list of global attention scores.
             **kwargs (optional): For providing proxies, force_download, resume_download, cache_dir and other options specific to the 'from_pretrained' implementation where this will be supplied.
         """  # noqa: ignore flake8"
 
@@ -495,6 +499,11 @@ class ClassificationModel:
             )
             self.args.wandb_project = None
 
+        if global_attention_fn:
+            self.global_attention_fn = global_attention_fn
+        else:
+            self.global_attention_fn = None
+
     def train_model(
         self,
         train_df,
@@ -506,6 +515,9 @@ class ClassificationModel:
         qrels=None,
         run_dict=None,
         eval_name=None,
+        eval_set="dev",
+        top_k=10,
+        include_titles=False,
         verbose=True,
         **kwargs,
     ):
@@ -571,7 +583,11 @@ class ClassificationModel:
                     "HuggingFace Datasets support is not implemented for LayoutLM models"
                 )
             train_dataset = load_hf_dataset(
-                train_df, self.tokenizer, self.args, multi_label=multi_label
+                train_df,
+                self.tokenizer,
+                self.args,
+                multi_label=multi_label,
+                global_attention_fn=self.global_attention_fn,
             )
         elif isinstance(train_df, str) and self.args.lazy_loading:
             if self.args.sliding_window:
@@ -652,6 +668,7 @@ class ClassificationModel:
             qrels=qrels,
             run_dict=run_dict,
             eval_name=eval_name,
+            eval_set=eval_set,
             verbose=verbose,
             **kwargs,
         )
@@ -681,6 +698,9 @@ class ClassificationModel:
         qrels=None,
         run_dict=None,
         eval_name=None,
+        eval_set="dev",
+        top_k=10,
+        include_titles=False,
         test_df=None,
         verbose=True,
         **kwargs,
@@ -1024,6 +1044,9 @@ class ClassificationModel:
                             qrels=qrels,
                             run_dict=run_dict,
                             eval_name=eval_name,
+                            eval_set=eval_set,
+                            top_k=top_k,
+                            include_titles=include_titles,
                             **kwargs,
                         )
 
@@ -1131,9 +1154,11 @@ class ClassificationModel:
                                             train_iterator.close()
                                         return (
                                             global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            (
+                                                tr_loss / global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         else:
                             if (
@@ -1175,9 +1200,11 @@ class ClassificationModel:
                                             train_iterator.close()
                                         return (
                                             global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            (
+                                                tr_loss / global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         model.train()
 
@@ -1201,6 +1228,9 @@ class ClassificationModel:
                     qrels=qrels,
                     run_dict=run_dict,
                     eval_name=eval_name,
+                    eval_set=eval_set,
+                    top_k=top_k,
+                    include_titles=include_titles,
                     **kwargs,
                 )
 
@@ -1295,9 +1325,11 @@ class ClassificationModel:
                                     train_iterator.close()
                                 return (
                                     global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    (
+                                        tr_loss / global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
                 else:
                     if (
@@ -1339,16 +1371,20 @@ class ClassificationModel:
                                     train_iterator.close()
                                 return (
                                     global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    (
+                                        tr_loss / global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
 
         return (
             global_step,
-            tr_loss / global_step
-            if not self.args.evaluate_during_training
-            else training_progress_scores,
+            (
+                tr_loss / global_step
+                if not self.args.evaluate_during_training
+                else training_progress_scores
+            ),
         )
 
     def eval_model(
@@ -1729,7 +1765,7 @@ class ClassificationModel:
                 (not args.reprocess_input_data and not no_cache)
                 or (mode == "dev" and args.use_cached_eval_features and not no_cache)
             ):
-                features = torch.load(cached_features_file)
+                features = torch.load(cached_features_file, weights_only=False)
                 if verbose:
                     logger.info(
                         f" Features loaded from cache at {cached_features_file}"
@@ -1859,6 +1895,7 @@ class ClassificationModel:
                 multi_label=multi_label,
                 output_mode=output_mode,
                 no_cache=no_cache,
+                global_attention_fn=self.global_attention_fn,
             )
             return dataset
 
@@ -2034,11 +2071,16 @@ class ClassificationModel:
                 "layoutlm",
                 "layoutlmv2",
             ]:
-                for i, (input_ids, attention_mask, token_type_ids) in enumerate(
-                    zip(
-                        model_inputs["input_ids"],
-                        model_inputs["attention_mask"],
-                        model_inputs["token_type_ids"],
+                for i, (input_ids, attention_mask, token_type_ids) in tqdm(
+                    enumerate(
+                        zip(
+                            model_inputs["input_ids"],
+                            model_inputs["attention_mask"],
+                            model_inputs["token_type_ids"],
+                        ),
+                        desc="Predicting",
+                        disable=args.silent,
+                        total=len(to_predict),
                     )
                 ):
                     input_ids = input_ids.unsqueeze(0).detach().cpu().numpy()
@@ -2132,9 +2174,7 @@ class ClassificationModel:
                 preds = None
                 out_label_ids = None
                 for i, batch in enumerate(
-                    tqdm(
-                        eval_dataloader, disable=args.silent, desc="Running Prediction"
-                    )
+                    tqdm(eval_dataloader, disable=args.silent, desc="Predicting")
                 ):
                     # batch = tuple(t.to(self.device) for t in batch)
                     with torch.no_grad():
@@ -2207,7 +2247,9 @@ class ClassificationModel:
                         )
             else:
                 n_batches = len(eval_dataloader)
-                for i, batch in enumerate(tqdm(eval_dataloader, disable=args.silent)):
+                for i, batch in enumerate(
+                    tqdm(eval_dataloader, disable=args.silent, desc="Predicting")
+                ):
                     model.eval()
                     # batch = tuple(t.to(device) for t in batch)
 
@@ -2334,6 +2376,9 @@ class ClassificationModel:
         qrels=None,
         run_dict=None,
         eval_name=None,
+        eval_set="dev",
+        top_k=10,
+        include_titles=False,
         verbose=True,
         silent=False,
         **kwargs,
@@ -2356,6 +2401,15 @@ class ClassificationModel:
                         run_dict=run,
                         **kwargs,
                     )
+                elif self.args.tourney_mode:
+                    results_default_names, *_ = self.rerank(
+                        eval_data_item,
+                        beir_format=True,
+                        eval_set=eval_set,
+                        run_dict=run,
+                        top_k=top_k,
+                        include_titles=include_titles,
+                    )
                 else:
                     results_default_names = self.eval_model(
                         eval_data_item,
@@ -2374,8 +2428,17 @@ class ClassificationModel:
                     run_dict=run_dict,
                     **kwargs,
                 )
+            elif self.args.tourney_mode:
+                results, *_ = self.rerank(
+                    eval_data,
+                    beir_format=True,
+                    eval_set=eval_set,
+                    run_dict=run_dict,
+                    top_k=top_k,
+                    include_titles=include_titles,
+                )
             else:
-                results = self.eval_model(
+                results, *_ = self.eval_model(
                     eval_data,
                     verbose=verbose and self.args.evaluate_during_training_verbose,
                     silent=self.args.evaluate_during_training_silent,
@@ -2385,7 +2448,7 @@ class ClassificationModel:
         if is_training:
             self.model.train()
 
-        if verbose and self.args.as_reranker:
+        if verbose:
             logger.info(results)
 
         return results
@@ -2425,6 +2488,13 @@ class ClassificationModel:
         model_name=None,
         save_as_experiment=False,
         save_logit=False,
+        eval_set="dev",
+        top_k=None,
+        tourney_strategy="round_robin",
+        include_titles=False,
+        precomputed_runfile=None,
+        precomputed_tourney_scores=None,
+        tourney_scores_save_path=None,
     ):
         """
         Reranks the retrieved documents using the trained model.
@@ -2457,11 +2527,6 @@ class ClassificationModel:
         was_training = model.training
         model.eval()
 
-        if not self.args.as_reranker:
-            warnings.warn(
-                "rerank() being called on a model without as_reranker set to True. This may not work as expected."
-            )
-
         try:
             import pytrec_eval
         except ImportError:
@@ -2470,90 +2535,154 @@ class ClassificationModel:
             )
             return
 
-        eval_dataset = load_hf_dataset(
-            eval_data, self.tokenizer, self.args, multi_label=False, reranking=True
-        )
-
-        eval_dataloader = DataLoader(
-            eval_dataset, batch_size=self.args.eval_batch_size, shuffle=False
-        )
-        # os.makedirs(output_dir, exist_ok=True)
-
-        if args.n_gpu > 1:
-            self.model = torch.nn.DataParallel(self.model)
-
-        eval_iterator = tqdm(eval_dataloader, desc="Evaluating", disable=args.silent)
-
-        if self.args.fp16:
-            from torch.cuda import amp
-
-        total_samples = len(eval_dataset)
-        if self.num_labels > 1:
-            reranking_preds = np.zeros(total_samples, dtype=np.int64)
-        else:
-            reranking_preds = None
-        reranking_scores = np.zeros(total_samples, dtype=np.float32)
-        reranking_logits = np.empty((total_samples, self.num_labels), dtype=np.float32)
-
-        start_idx = 0
-
-        for batch in eval_iterator:
-            inputs = self._get_inputs_dict(batch, reranking=True)
-            with torch.no_grad():
-                if self.args.fp16:
-                    with amp.autocast():
-                        outputs = model(**inputs)
-                else:
-                    outputs = model(**inputs)
-
-                logits = outputs.logits
-                # This is always multiclass
-                preds = (
-                    logits.argmax(dim=1).detach().cpu().numpy()
-                    if self.num_labels > 1
-                    else logits.detach().cpu().numpy()
-                )
-                reranking_logits[start_idx : start_idx + self.args.eval_batch_size] = (
-                    logits.detach().cpu().numpy()
-                )
-                scores = self.get_relevance_score(
-                    logits,
-                    self.num_labels,
-                    weights=weights,
-                )
-
-                end_idx = start_idx + self.args.eval_batch_size
-                if self.num_labels > 1:
-                    reranking_preds[start_idx:end_idx] = preds
-                reranking_scores[start_idx:end_idx] = scores
-
-                start_idx = end_idx
-
-        if self.num_labels > 1:
-            reranking_preds = reranking_preds.tolist()
-        reranking_scores = reranking_scores.tolist()
-
-        if not qrels:
-            return reranking_preds, reranking_scores
-
-        query_ids = eval_dataset["query_id"]
-        doc_ids = eval_dataset["passage_id"]
-
-        run_dict = {}
-        for query_id, doc_id, score in zip(query_ids, doc_ids, reranking_scores):
-            query_id = str(query_id)
-            doc_id = str(doc_id)
-            if query_id not in run_dict:
-                run_dict[query_id] = {}
-            run_dict[query_id][doc_id] = score
-
-        # Sort by score
-        for query_id in run_dict:
-            run_dict[query_id] = dict(
-                sorted(
-                    run_dict[query_id].items(), key=lambda item: item[1], reverse=True
-                )
+        if not self.args.as_reranker or self.args.tourney_mode:
+            warnings.warn(
+                "rerank() being called on a model without as_reranker set to True. This may not work as expected."
             )
+
+        if args.tourney_mode:
+            queries_df, corpus_df, run_dict = self._load_tourney_data(
+                eval_data,
+                run_dict=run_dict,
+                top_k=top_k,
+                include_titles=include_titles,
+                beir_format=beir_format,
+            )
+
+            if not precomputed_runfile:
+                if not precomputed_tourney_scores:
+                    text_pairs, tourney_scores = self._set_up_round_robin_tourney(
+                        run_dict=run_dict,
+                        queries_df=queries_df,
+                        corpus_df=corpus_df,
+                    )
+
+                    preds, model_outputs = self.predict(
+                        # Needs to be [[text_a_0, text_b_0], [text_a_1, text_b_1], ...
+                        text_pairs,
+                        multi_label=False,
+                    )
+
+                    preds_list = preds.tolist()
+
+                    tourney_scores = self._populate_match_outcomes(
+                        run_dict=run_dict,
+                        preds_list=preds_list,
+                        tourney_scores=tourney_scores,
+                        tourney_scores_save_path=tourney_scores_save_path,
+                    )
+
+                else:
+                    with open(precomputed_tourney_scores, "r") as f:
+                        tourney_scores = json.load(f)
+                    model_outputs = None
+
+                run_dict, reranking_logits = self._calculate_tourney_scores(
+                    tourney_scores=tourney_scores,
+                    model_outputs=model_outputs,
+                )
+
+                run_dict = self._resolve_tourney_ties(
+                    run_dict=run_dict,
+                    tourney_scores=tourney_scores,
+                )
+
+            else:
+                with open(precomputed_runfile, "r") as f:
+                    run_dict = json.load(f)
+                reranking_logits = None
+
+        else:
+            eval_dataset = load_hf_dataset(
+                eval_data, self.tokenizer, self.args, multi_label=False, reranking=True
+            )
+
+            eval_dataloader = DataLoader(
+                eval_dataset, batch_size=self.args.eval_batch_size, shuffle=False
+            )
+            # os.makedirs(output_dir, exist_ok=True)
+
+            if args.n_gpu > 1:
+                self.model = torch.nn.DataParallel(self.model)
+
+            eval_iterator = tqdm(
+                eval_dataloader, desc="Evaluating", disable=args.silent
+            )
+
+            if self.args.fp16:
+                from torch.cuda import amp
+
+            total_samples = len(eval_dataset)
+            if self.num_labels > 1:
+                reranking_preds = np.zeros(total_samples, dtype=np.int64)
+            else:
+                reranking_preds = None
+            reranking_scores = np.zeros(total_samples, dtype=np.float32)
+            reranking_logits = np.empty(
+                (total_samples, self.num_labels), dtype=np.float32
+            )
+
+            start_idx = 0
+
+            for batch in eval_iterator:
+                inputs = self._get_inputs_dict(batch, reranking=True)
+                with torch.no_grad():
+                    if self.args.fp16:
+                        with amp.autocast():
+                            outputs = model(**inputs)
+                    else:
+                        outputs = model(**inputs)
+
+                    logits = outputs.logits
+                    # This is always multiclass
+                    preds = (
+                        logits.argmax(dim=1).detach().cpu().numpy()
+                        if self.num_labels > 1
+                        else logits.detach().cpu().numpy()
+                    )
+                    reranking_logits[
+                        start_idx : start_idx + self.args.eval_batch_size
+                    ] = (logits.detach().cpu().numpy())
+                    scores = self.get_relevance_score(
+                        logits,
+                        self.num_labels,
+                        weights=weights,
+                    )
+
+                    end_idx = start_idx + self.args.eval_batch_size
+                    if self.num_labels > 1:
+                        reranking_preds[start_idx:end_idx] = preds
+                    reranking_scores[start_idx:end_idx] = scores
+
+                    start_idx = end_idx
+
+            if self.num_labels > 1:
+                reranking_preds = reranking_preds.tolist()
+            reranking_scores = reranking_scores.tolist()
+
+            if not qrels:
+                return reranking_preds, reranking_scores
+
+            query_ids = eval_dataset["query_id"]
+            doc_ids = eval_dataset["passage_id"]
+
+            run_dict = {}
+            for query_id, doc_id, score in zip(query_ids, doc_ids, reranking_scores):
+                query_id = str(query_id)
+                doc_id = str(doc_id)
+                if query_id not in run_dict:
+                    run_dict[query_id] = {}
+                run_dict[query_id][doc_id] = score
+
+            # Sort by score
+            for query_id in run_dict:
+                run_dict[query_id] = dict(
+                    sorted(
+                        run_dict[query_id].items(),
+                        key=lambda item: item[1],
+                        reverse=True,
+                    )
+                )
 
         os.makedirs(args.output_dir, exist_ok=True)
 
@@ -2564,7 +2693,12 @@ class ClassificationModel:
         with open(runfile_save_path, "w") as f:
             json.dump(run_dict, f)
 
-        qrels_df = pd.read_csv(qrels, sep="\t")
+        if not qrels:
+            qrels_df = pd.read_csv(
+                os.path.join(eval_data, "qrels", f"{eval_set}.tsv"), sep="\t"
+            )
+        else:
+            qrels_df = pd.read_csv(qrels, sep="\t")
 
         qrels_dict = {}
         for query_id, doc_id, relevance in zip(
@@ -2578,7 +2712,13 @@ class ClassificationModel:
                 qrels_dict[query_id] = {}
             qrels_dict[query_id][doc_id] = relevance
 
-        pytrec_eval_metrics = ["recip_rank", "recall_100", "ndcg_cut_10", "ndcg"]
+        pytrec_eval_metrics = [
+            "recip_rank",
+            "recall_100",
+            "ndcg_cut_10",
+            "ndcg",
+            "ndcg_cut_1",
+        ]
 
         evaluator = pytrec_eval.RelevanceEvaluator(
             qrels_dict,
@@ -2601,8 +2741,6 @@ class ClassificationModel:
                 os.path.join(experiment_name, dataset_name, model_name),
                 exist_ok=True,
             )
-        result_report = {}
-
         result_report = {}
 
         for metric in pytrec_eval_metrics:
@@ -2688,6 +2826,221 @@ class ClassificationModel:
         self.config.save_pretrained(output_dir)
         self.save_model_args(output_dir)
 
+    def _load_tourney_data(
+        self, eval_data, run_dict, top_k=None, include_titles=False, beir_format=False
+    ):
+        if not beir_format:
+            raise ValueError("tourney_mode is enabled. Please set beir_format=True.")
+        if not run_dict.endswith(".json"):
+            bm_df = pd.read_csv(run_dict, sep=" ", header=None)
+            bm_df.columns = ["qid", "Q0", "pid", "rank", "score", "runstring"]
+            bm_df = bm_df[["qid", "pid", "rank", "score"]]
+
+            run_dict = {}
+            for qid, group in bm_df.groupby("qid"):
+                if top_k:
+                    run_dict[str(qid)] = [
+                        str(row[2]) for row in group[:top_k].itertuples()
+                    ]
+                else:
+                    run_dict[str(qid)] = [str(row[2]) for row in group.itertuples()]
+        else:
+            with open(run_dict, "r") as f:
+                run_dict = json.load(f)
+            if top_k:
+                for query_id in run_dict:
+                    run_dict[query_id] = dict(
+                        sorted(
+                            run_dict[query_id].items(),
+                            key=lambda x: x[1],
+                            reverse=True,
+                        )[:top_k]
+                    )
+
+        # Make sure both query_id and doc_id are strings
+        updated_dict = {}
+        for query_id in run_dict:
+            updated_dict[str(query_id)] = [str(k) for k in run_dict[query_id].keys()]
+
+        run_dict = updated_dict
+
+        logger.info("Building Dataset")
+        queries_df = pd.read_json(os.path.join(eval_data, "queries.jsonl"), lines=True)
+        corpus_df = pd.read_json(os.path.join(eval_data, "corpus.jsonl"), lines=True)
+
+        queries_df["_id"] = queries_df["_id"].astype(str)
+        corpus_df["_id"] = corpus_df["_id"].astype(str)
+
+        if include_titles:
+            corpus_df["text"] = corpus_df["title"] + " " + corpus_df["text"]
+
+        queries_df = queries_df.set_index("_id")
+        corpus_df = corpus_df.set_index("_id")
+
+        # # collection_df = collection_dataset.to_pandas()
+        # collection_df["_id"] = collection_df["_id"].astype(str)
+        # collection_dict = collection_df.set_index("_id")
+
+        # # queries_df = queries_dataset.to_pandas()
+        # queries_df["_id"] = queries_df["_id"].astype(str)
+        # queries_dict = queries_df.set_index("_id")
+        logger.info("Dataset built")
+
+        return queries_df, corpus_df, run_dict
+
+    def _set_up_round_robin_tourney(self, run_dict, queries_df, corpus_df):
+        logger.info("Setting up Round Robin Tournament")
+
+        text_pairs = []
+        tourney_scores = {}
+
+        for qid, pids in tqdm(run_dict.items(), total=len(run_dict)):
+            tourney_scores[qid] = {}
+            for i, pid in enumerate(pids):
+                tourney_scores[qid][pid] = {}
+                passage_a = corpus_df.loc[pid]["text"]
+
+                for other_pid in list(pids)[i + 1 :]:
+                    pair = []
+                    if pid != other_pid:
+                        if self.args.pairwise_reranking_format == "simple":
+                            tourney_scores[qid][pid][other_pid] = None
+                            pair.append(f'Query: {queries_df.loc[qid]["text"]}')
+
+                            passage_b = corpus_df.loc[other_pid]["text"]
+
+                            truncate_to = 80
+
+                            warnings.warn(
+                                f"Manually truncating passages to {truncate_to} words each"
+                            )
+                            passage_a = " ".join(
+                                passage_a.split()[
+                                    : min(truncate_to, len(passage_a.split()))
+                                ]
+                            )
+                            passage_b = " ".join(
+                                passage_b.split()[
+                                    : min(truncate_to, len(passage_a.split()))
+                                ]
+                            )
+
+                            pair.append(
+                                f"Passage A: {passage_a} Passage B: {passage_b}"
+                            )
+                            text_pairs.append(pair)
+                        elif self.args.pairwise_reranking_format == "repeat_query":
+                            tourney_scores[qid][pid][other_pid] = None
+                            query = queries_df.loc[qid]["text"]
+                            passage_b = corpus_df.loc[other_pid]["text"]
+
+                            # to_truncate = 80
+                            # warnings.warn(
+                            #     f"Manually truncating passages to {to_truncate} words each"
+                            # )
+
+                            # pair.append(f"Query: {query} Passage A: {' '.join(passage_a.split()[:to_truncate])}")
+                            # pair.append(f"Query: {query} Passage B: {' '.join(passage_b.split()[:to_truncate])}")
+
+                            pair.append(f"Query: {query} Passage A: {passage_a}")
+                            pair.append(f"Query: {query} Passage B: {passage_b}")
+
+                            text_pairs.append(pair)
+
+        logger.info(f"Round Robin Tournament built with {len(text_pairs)} matches")
+
+        return text_pairs, tourney_scores
+
+    def _calculate_tourney_scores(self, tourney_scores, model_outputs):
+        # Calculate scores
+        scores = {}
+        for qid in tourney_scores:
+            scores[qid] = {pid: 0 for pid in tourney_scores[qid]}
+            for i, pid in enumerate(tourney_scores[qid]):
+                for other_pid in list(tourney_scores[qid][pid].keys())[i + 1 :]:
+                    if tourney_scores[qid][pid][other_pid] == 1:
+                        scores[qid][pid] += 1
+                    else:
+                        scores[qid][other_pid] += 1
+
+        # Sort by score
+        for qid in scores:
+            scores[qid] = dict(
+                sorted(scores[qid].items(), key=lambda item: item[1], reverse=True)
+            )
+
+        return scores, model_outputs
+
+    def _populate_match_outcomes(
+        self, run_dict, preds_list, tourney_scores, tourney_scores_save_path
+    ):
+        for qid, pids in tqdm(
+            run_dict.items(),
+            total=len(run_dict),
+            desc="Populating match outcomes",
+        ):
+            for i, pid in enumerate(pids):
+                for other_pid in list(pids)[i + 1 :]:
+                    if pid != other_pid:
+                        tourney_scores[qid][pid][other_pid] = preds_list.pop(0)
+
+        if tourney_scores_save_path:
+            try:
+                with open(tourney_scores_save_path, "w") as f:
+                    json.dump(tourney_scores, f)
+            except Exception as e:
+                logger.error(f"Error saving tourney scores: {e}")
+                with open("tourney_scores.json", "w") as f:
+                    json.dump(tourney_scores, f)
+                logger.info("Tourney scores saved to tourney_scores.json instead")
+
+        return tourney_scores
+
+    def _resolve_tourney_ties(self, run_dict, tourney_scores):
+        # Resolve ties by checking direct encounters
+        ties = 0
+        for qid in run_dict:
+            ranked_pids = list(run_dict[qid].keys())
+            i = 0
+            while i < len(ranked_pids) - 1:
+                # Find the range of tied scores
+                tied_group = [ranked_pids[i]]
+                while (
+                    i < len(ranked_pids) - 1
+                    and run_dict[qid][ranked_pids[i]]
+                    == run_dict[qid][ranked_pids[i + 1]]
+                ):
+                    tied_group.append(ranked_pids[i + 1])
+                    i += 1
+                if len(tied_group) > 1:
+                    ties += len(tied_group) - 1
+                    # Resolve ties within this group
+                    tie_scores = {pid: 0 for pid in tied_group}
+                    for j, pid in enumerate(tied_group):
+                        for other_pid in tied_group[j + 1 :]:
+                            if pid != other_pid:
+                                if tourney_scores[qid][pid][other_pid] == 1:
+                                    tie_scores[pid] += 1
+                                else:
+                                    tie_scores[other_pid] += 1
+                    # Sort the tied group by their direct encounter scores
+                    sorted_tied_group = sorted(
+                        tie_scores.keys(), key=lambda pid: tie_scores[pid], reverse=True
+                    )
+                    # Place the resolved tied group back into the ranked list, but within the bounds of the tied group
+                    for j, pid in enumerate(sorted_tied_group):
+                        ranked_pids[i - len(tied_group) + 1 + j] = pid
+                i += 1
+
+            # Update the scores dict with the resolved ties. We need to add a small tie-breaking value to avoid pytreceval sorting
+            # run_dict[qid] = {pid: run_dict[qid][pid] for pid in ranked_pids}
+            run_dict[qid] = {
+                pid: run_dict[qid][pid] + 1e-5 * (len(ranked_pids) - i)
+                for i, pid in enumerate(ranked_pids)
+            }
+
+        return run_dict
+
     def _calculate_loss(self, model, inputs, loss_fct, num_labels, args):
         outputs = model(**inputs)
         # model outputs are always tuple in pytorch-transformers (see doc)
@@ -2698,7 +3051,11 @@ class ClassificationModel:
                 if self.args.as_reranker
                 else outputs[1].view(-1, num_labels)
             )
-            labels = inputs["labels"].view(-1)
+            labels = (
+                inputs["labels"].view(-1)
+                if self.num_labels > 1
+                else inputs["labels"].view(-1).float()
+            )
 
             loss = loss_fct(logits, labels)
         return (loss, *outputs[1:])
@@ -2756,94 +3113,21 @@ class ClassificationModel:
 
     def _create_training_progress_scores(self, multi_label, eval_name=None, **kwargs):
         if eval_name is not None:
-            extra_metrics = {key: [] for key in kwargs}
-            training_progress_scores = {
-                "global_step": [],
-                "eval_loss": [],
-                "train_loss": [],
-                **extra_metrics,
-            }
-
-            if self.args.as_reranker:
-                if isinstance(eval_name, list):
-                    for name in eval_name:
-                        training_progress_scores = {
-                            **training_progress_scores,
-                            f"{name}_recip_rank": [],
-                            f"{name}_recall_100": [],
-                            f"{name}_ndcg_cut_10": [],
-                            f"{name}_ndcg": [],
-                        }
-                else:
-                    training_progress_scores = {
-                        **training_progress_scores,
-                        "recip_rank": [],
-                        "recall_100": [],
-                        "ndcg_cut_10": [],
-                        "ndcg": [],
-                    }
-                training_progress_scores.pop("eval_loss")
+            if self.args.as_reranker or self.args.tourney_mode:
                 if self.args.early_stopping_metric == "eval_loss":
                     self.args.early_stopping_metric = f"{eval_name[0]}_ndcg_cut_10"
                     warnings.warn(
                         f"Early stopping metric changed to {eval_name[0]}_ndcg_cut_10 from eval_loss."
                     )
+        else:
+            if self.args.as_reranker or self.args.tourney_mode:
+                if self.args.early_stopping_metric == "eval_loss":
+                    self.args.early_stopping_metric = "ndcg_cut_10"
+                    warnings.warn(
+                        "Early stopping metric changed to ndcg_cut_10 from eval_loss."
+                    )
 
         return collections.defaultdict(list)
-        """extra_metrics = {key: [] for key in kwargs}
-        if multi_label:
-            training_progress_scores = {
-                "global_step": [],
-                "LRAP": [],
-                "train_loss": [],
-                "eval_loss": [],
-                **extra_metrics,
-            }
-        else:
-            if self.model.num_labels == 2:
-                if self.args.sliding_window:
-                    training_progress_scores = {
-                        "global_step": [],
-                        "tp": [],
-                        "tn": [],
-                        "fp": [],
-                        "fn": [],
-                        "mcc": [],
-                        "train_loss": [],
-                        "eval_loss": [],
-                        **extra_metrics,
-                    }
-                else:
-                    training_progress_scores = {
-                        "global_step": [],
-                        "tp": [],
-                        "tn": [],
-                        "fp": [],
-                        "fn": [],
-                        "mcc": [],
-                        "train_loss": [],
-                        "eval_loss": [],
-                        "auroc": [],
-                        "auprc": [],
-                        **extra_metrics,
-                    }
-            elif self.model.num_labels == 1:
-                training_progress_scores = {
-                    "global_step": [],
-                    "train_loss": [],
-                    "eval_loss": [],
-                    **extra_metrics,
-                }
-            else:
-                training_progress_scores = {
-                    "global_step": [],
-                    "mcc": [],
-                    "train_loss": [],
-                    "eval_loss": [],
-                    **extra_metrics,
-                }
-
-        return training_progress_scores"""
 
     def save_model(
         self, output_dir=None, optimizer=None, scheduler=None, model=None, results=None

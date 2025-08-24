@@ -162,15 +162,17 @@ class ClassificationArgs(ModelArgs):
     lazy_text_b_column: bool = None
     lazy_text_column: int = 0
     onnx: bool = False
+    pairwise_reranking_format: str = "repeat_query"
     regression: bool = False
     sliding_window: bool = False
     special_tokens_list: list = field(default_factory=list)
     stride: float = 0.8
     tie_value: int = 1
+    tourney_mode: bool = False
 
 
 @dataclass
-class MultiLabelClassificationArgs(ModelArgs):
+class MultiLabelClassificationArgs(ClassificationArgs):
     """
     Model args for a MultiLabelClassificationModel
     """
@@ -413,6 +415,7 @@ class RetrievalArgs(Seq2SeqArgs):
     model_class: str = "RetrievalModel"
     ance_refresh_n_epochs: int = 1
     ance_training: bool = False
+    batch_chunk_size: int = None
     cluster_concatenated: bool = False
     cluster_every_n_epochs: int = 1
     cluster_queries: bool = False
@@ -447,6 +450,7 @@ class RetrievalArgs(Seq2SeqArgs):
     margin_mse_lambda: float = 1
     mse_loss: bool = False
     moving_average_loss_count: int = 10
+    multi_negatives: bool = False
     multi_head_vectors: bool = False
     multi_head_vector_strategy: str = "maxsim"
     minmax_multi_head_vectors: bool = False
@@ -487,6 +491,7 @@ class RetrievalArgs(Seq2SeqArgs):
     autoencoder_kl_div_loss: bool = False
     mean_pooling: bool = False
     include_quartet_loss: bool = False
+    include_multi_negatives_loss: bool = False
     quartet_training_format: bool = False
     quartet_lambda: float = 1.0
     similarity_function: str = "dot_product"

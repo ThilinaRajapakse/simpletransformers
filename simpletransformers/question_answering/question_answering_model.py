@@ -299,7 +299,7 @@ class QuestionAnsweringModel:
             (not args.reprocess_input_data and not no_cache)
             or (mode == "dev" and args.use_cached_eval_features)
         ):
-            features = torch.load(cached_features_file)
+            features = torch.load(cached_features_file, weights_only=False)
             logger.info(f" Features loaded from cache at {cached_features_file}")
 
             # Convert to Tensors and build dataset
@@ -885,9 +885,11 @@ class QuestionAnsweringModel:
                                             train_iterator.close()
                                         return (
                                             global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            (
+                                                tr_loss / global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         else:
                             if (
@@ -929,9 +931,11 @@ class QuestionAnsweringModel:
                                             train_iterator.close()
                                         return (
                                             global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            (
+                                                tr_loss / global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         model.train()
 
@@ -1016,9 +1020,11 @@ class QuestionAnsweringModel:
                                     train_iterator.close()
                                 return (
                                     global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    (
+                                        tr_loss / global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
                 else:
                     if (
@@ -1060,16 +1066,20 @@ class QuestionAnsweringModel:
                                     train_iterator.close()
                                 return (
                                     global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    (
+                                        tr_loss / global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
 
         return (
             global_step,
-            tr_loss / global_step
-            if not self.args.evaluate_during_training
-            else training_progress_scores,
+            (
+                tr_loss / global_step
+                if not self.args.evaluate_during_training
+                else training_progress_scores
+            ),
         )
 
     def eval_model(

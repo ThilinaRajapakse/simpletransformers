@@ -91,9 +91,11 @@ def load_hf_dataset(
                 data_files=data,
                 hard_negatives=args.hard_negatives,
                 include_title=args.include_title,
-                download_mode="force_redownload"
-                if args.reprocess_input_data
-                else "reuse_dataset_if_exists",
+                download_mode=(
+                    "force_redownload"
+                    if args.reprocess_input_data
+                    else "reuse_dataset_if_exists"
+                ),
             )
             dataset = dataset["train"]
         # If data is a directory, then it should be a HF dataset
@@ -108,9 +110,11 @@ def load_hf_dataset(
                 "csv",
                 data_files=data,
                 delimiter="\t",
-                download_mode="force_redownload"
-                if args.reprocess_input_data
-                else "reuse_dataset_if_exists",
+                download_mode=(
+                    "force_redownload"
+                    if args.reprocess_input_data
+                    else "reuse_dataset_if_exists"
+                ),
                 cache_dir=args.dataset_cache_dir,
             )
             dataset = dataset["train"]
@@ -225,6 +229,8 @@ def load_hf_dataset(
                 "query_mask",
                 # "passage_id",
             ]
+            if args.batch_chunk_size is not None:
+                column_names.append("labels")
 
     if args.include_margin_mse_loss and not evaluate:
         column_names += ["margin"]
@@ -809,9 +815,11 @@ def get_evaluation_passage_dataset(
                     data_files=eval_data,
                     hard_negatives=args.hard_negatives,
                     include_title=args.include_title_in_corpus,
-                    download_mode="force_redownload"
-                    if args.reprocess_input_data
-                    else "reuse_dataset_if_exists",
+                    download_mode=(
+                        "force_redownload"
+                        if args.reprocess_input_data
+                        else "reuse_dataset_if_exists"
+                    ),
                 )
                 passage_dataset = passage_dataset["train"]
             else:
@@ -819,9 +827,11 @@ def get_evaluation_passage_dataset(
                     "csv",
                     data_files=eval_data,
                     delimiter="\t",
-                    download_mode="force_redownload"
-                    if args.reprocess_input_data
-                    else "reuse_dataset_if_exists",
+                    download_mode=(
+                        "force_redownload"
+                        if args.reprocess_input_data
+                        else "reuse_dataset_if_exists"
+                    ),
                     cache_dir=args.dataset_cache_dir,
                 )
                 passage_dataset = passage_dataset["train"]
@@ -1143,13 +1153,13 @@ def get_prediction_passage_dataset(
             prediction_passages_dataset.save_to_disk(output_dataset_directory)
 
     index_added = False
-    index_path = None
-    # if isinstance(prediction_passages, str):
-    #     index_path = os.path.join(prediction_passages, "hf_dataset_index.faiss")
-    #     if os.path.isfile(index_path):
-    #         logger.info(f"Loaded FAISS index from {index_path}")
-    #         prediction_passages_dataset.load_faiss_index("embeddings", index_path)
-    #         index_added = True
+    # index_path = None
+    if isinstance(prediction_passages, str):
+        index_path = os.path.join(prediction_passages, "hf_dataset_index.faiss")
+        if os.path.isfile(index_path):
+            logger.info(f"Loaded FAISS index from {index_path}")
+            prediction_passages_dataset.load_faiss_index("embeddings", index_path)
+            index_added = True
 
     if not index_added:
         logger.info("Adding FAISS index to prediction passages")
@@ -2080,7 +2090,7 @@ def convert_beir_columns_to_trec_format(
     collection = collection.rename_column("_id", "passage_id")
     if include_titles:
         collection = collection.map(
-            lambda row: {"text": row["title"] + " " + row["text"]}
+            lambda row: {"text": str(row["title"]) + " " + row["text"]}
         )
     collection = collection.rename_column("text", "passage_text")
     # queries = queries.rename_column("_id", "query_id")
@@ -2555,6 +2565,20 @@ class QuartetLossV3(nn.Module):
         total_loss = loss_aa_ab + loss_bb_ba
 
         return total_loss
+
+
+class MultiNegativesLoss(nn.Module):
+    def __init__(self):
+        super(MultiNegativesLoss, self).__init__()
+        self.loss_fct = nn.BCEWithLogitsLoss()
+
+    def forward(
+        self,
+        predicted_scores,
+        labels,
+    ):
+        predicted_scores = torch.diagonal(predicted_scores)
+        return self.loss_fct(predicted_scores, labels)
 
 
 class KLDivLossForTriplets(nn.Module):

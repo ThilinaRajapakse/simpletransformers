@@ -115,9 +115,11 @@ def load_hf_dataset(data, tokenizer, args, retrieval_model=None):
         dataset = load_dataset(
             "text",
             data_files=data,
-            download_mode="force_redownload"
-            if args.reprocess_input_data
-            else "reuse_dataset_if_exists",
+            download_mode=(
+                "force_redownload"
+                if args.reprocess_input_data
+                else "reuse_dataset_if_exists"
+            ),
             streaming=True if args.stream_hf_datasets else False,
         )
     elif args.data_format == "tsv":
@@ -125,18 +127,22 @@ def load_hf_dataset(data, tokenizer, args, retrieval_model=None):
             "csv",
             delimiter="\t",
             data_files=data,
-            download_mode="force_redownload"
-            if args.reprocess_input_data
-            else "reuse_dataset_if_exists",
+            download_mode=(
+                "force_redownload"
+                if args.reprocess_input_data
+                else "reuse_dataset_if_exists"
+            ),
             streaming=True if args.stream_hf_datasets else False,
         )
     elif args.data_format == "json" or args.data_format == "jsonl":
         dataset = load_dataset(
             "json",
             data_files=data,
-            download_mode="force_redownload"
-            if args.reprocess_input_data
-            else "reuse_dataset_if_exists",
+            download_mode=(
+                "force_redownload"
+                if args.reprocess_input_data
+                else "reuse_dataset_if_exists"
+            ),
             streaming=True if args.stream_hf_datasets else False,
         )
     else:
@@ -362,7 +368,7 @@ def mask_tokens(
     probability_matrix.masked_fill_(
         torch.tensor(special_tokens_mask, dtype=torch.bool), value=0.0
     )
-    if tokenizer._pad_token is not None:
+    if tokenizer.pad_token is not None:
         padding_mask = labels.eq(tokenizer.pad_token_id)
         probability_matrix.masked_fill_(padding_mask, value=0.0)
     masked_indices = torch.bernoulli(probability_matrix).bool()

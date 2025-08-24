@@ -612,7 +612,7 @@ class LanguageModelingModel:
         tokenizer = self.tokenizer
 
         def collate(examples: List[torch.Tensor]):
-            if tokenizer._pad_token is None:
+            if tokenizer.pad_token is None:
                 return pad_sequence(examples, batch_first=True)
             return pad_sequence(
                 examples, batch_first=True, padding_value=tokenizer.pad_token_id
@@ -1128,9 +1128,11 @@ class LanguageModelingModel:
                                             train_iterator.close()
                                         return (
                                             global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            (
+                                                tr_loss / global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         else:
                             if (
@@ -1172,18 +1174,22 @@ class LanguageModelingModel:
                                             train_iterator.close()
                                         return (
                                             global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            (
+                                                tr_loss / global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         model.train()
 
                 if args.max_steps > 0 and global_step > args.max_steps:
                     return (
                         global_step,
-                        tr_loss / global_step
-                        if not self.args.evaluate_during_training
-                        else training_progress_scores,
+                        (
+                            tr_loss / global_step
+                            if not self.args.evaluate_during_training
+                            else training_progress_scores
+                        ),
                     )
 
             epoch_number += 1
@@ -1272,9 +1278,11 @@ class LanguageModelingModel:
                                     train_iterator.close()
                                 return (
                                     global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    (
+                                        tr_loss / global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
                 else:
                     if (
@@ -1316,24 +1324,30 @@ class LanguageModelingModel:
                                     train_iterator.close()
                                 return (
                                     global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    (
+                                        tr_loss / global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 return (
                     global_step,
-                    tr_loss / global_step
-                    if not self.args.evaluate_during_training
-                    else training_progress_scores,
+                    (
+                        tr_loss / global_step
+                        if not self.args.evaluate_during_training
+                        else training_progress_scores
+                    ),
                 )
 
         return (
             global_step,
-            tr_loss / global_step
-            if not self.args.evaluate_during_training
-            else training_progress_scores,
+            (
+                tr_loss / global_step
+                if not self.args.evaluate_during_training
+                else training_progress_scores
+            ),
         )
 
     def eval_model(
@@ -1398,7 +1412,7 @@ class LanguageModelingModel:
         results = {}
 
         def collate(examples: List[torch.Tensor]):
-            if tokenizer._pad_token is None:
+            if tokenizer.pad_token is None:
                 return pad_sequence(examples, batch_first=True)
             return pad_sequence(
                 examples, batch_first=True, padding_value=tokenizer.pad_token_id
@@ -1442,19 +1456,25 @@ class LanguageModelingModel:
             if "token_type_ids" in batch:
                 inputs_dict = {
                     "input_ids": inputs,
-                    "attention_mask": batch["attention_mask"].to(self.device)
-                    if self.args.use_hf_datasets
-                    else None,
-                    "token_type_ids": batch["token_type_ids"].to(self.device)
-                    if self.args.use_hf_datasets
-                    else None,
+                    "attention_mask": (
+                        batch["attention_mask"].to(self.device)
+                        if self.args.use_hf_datasets
+                        else None
+                    ),
+                    "token_type_ids": (
+                        batch["token_type_ids"].to(self.device)
+                        if self.args.use_hf_datasets
+                        else None
+                    ),
                 }
             else:
                 inputs_dict = {
                     "input_ids": inputs,
-                    "attention_mask": batch["attention_mask"].to(self.device)
-                    if self.args.use_hf_datasets
-                    else None,
+                    "attention_mask": (
+                        batch["attention_mask"].to(self.device)
+                        if self.args.use_hf_datasets
+                        else None
+                    ),
                 }
 
             with torch.no_grad():

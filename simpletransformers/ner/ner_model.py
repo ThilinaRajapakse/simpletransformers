@@ -983,9 +983,11 @@ class NERModel:
                                             train_iterator.close()
                                         return (
                                             global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            (
+                                                tr_loss / global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         else:
                             if (
@@ -1027,9 +1029,11 @@ class NERModel:
                                             train_iterator.close()
                                         return (
                                             global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            (
+                                                tr_loss / global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         model.train()
 
@@ -1145,9 +1149,11 @@ class NERModel:
                                     train_iterator.close()
                                 return (
                                     global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    (
+                                        tr_loss / global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
                 else:
                     if (
@@ -1190,16 +1196,20 @@ class NERModel:
                                     train_iterator.close()
                                 return (
                                     global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    (
+                                        tr_loss / global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
 
         return (
             global_step,
-            tr_loss / global_step
-            if not self.args.evaluate_during_training
-            else training_progress_scores,
+            (
+                tr_loss / global_step
+                if not self.args.evaluate_during_training
+                else training_progress_scores
+            ),
         )
 
     def eval_model(
@@ -1841,9 +1851,11 @@ class NERModel:
                         examples = read_examples_from_file(
                             data,
                             mode,
-                            bbox=True
-                            if self.args.model_type in ["layoutlm", "layoutlmv2"]
-                            else False,
+                            bbox=(
+                                True
+                                if self.args.model_type in ["layoutlm", "layoutlmv2"]
+                                else False
+                            ),
                         )
                     else:
                         if self.args.lazy_loading:
@@ -1852,9 +1864,11 @@ class NERModel:
                             )
                         examples = get_examples_from_df(
                             data,
-                            bbox=True
-                            if self.args.model_type in ["layoutlm", "layoutlmv2"]
-                            else False,
+                            bbox=(
+                                True
+                                if self.args.model_type in ["layoutlm", "layoutlmv2"]
+                                else False
+                            ),
                         )
 
                 cached_features_file = os.path.join(
@@ -1876,7 +1890,7 @@ class NERModel:
                         mode == "dev" and args.use_cached_eval_features and not no_cache
                     )
                 ):
-                    features = torch.load(cached_features_file)
+                    features = torch.load(cached_features_file, weights_only=False)
                     logger.info(
                         f" Features loaded from cache at {cached_features_file}"
                     )

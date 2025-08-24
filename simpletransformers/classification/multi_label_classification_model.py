@@ -87,6 +87,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         args=None,
         use_cuda=True,
         cuda_device=-1,
+        global_attention_fn=None,
         **kwargs,
     ):
         """
@@ -298,6 +299,11 @@ class MultiLabelClassificationModel(ClassificationModel):
                 "wandb_project specified but wandb is not available. Wandb disabled."
             )
             self.args.wandb_project = None
+
+        if global_attention_fn:
+            self.global_attention_fn = global_attention_fn
+        else:
+            self.global_attention_fn = None
 
         self.weight = None  # Not implemented for multilabel
 

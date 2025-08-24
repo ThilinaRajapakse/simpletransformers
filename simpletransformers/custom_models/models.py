@@ -21,7 +21,7 @@ from transformers import (
     XLNetPreTrainedModel,
     BertTokenizerFast,
 )
-from transformers.modeling_utils import PreTrainedModel, SequenceSummary
+from transformers.modeling_utils import PreTrainedModel
 from transformers.models.albert.modeling_albert import (
     AlbertConfig,
     AlbertModel,
@@ -60,6 +60,10 @@ from transformers.models.roberta.modeling_roberta import (
 )
 from transformers.models.xlm_roberta.configuration_xlm_roberta import XLMRobertaConfig
 from simpletransformers.custom_models.retrieval_autoencoder import Autoencoder
+
+from transformers.models.xlnet.modeling_xlnet import XLNetSequenceSummary
+from transformers.models.xlm.modeling_xlm import XLMSequenceSummary
+from transformers.models.flaubert.modeling_flaubert import FlaubertSequenceSummary
 
 
 class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
@@ -306,7 +310,7 @@ class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
         self.pos_weight = pos_weight
 
         self.transformer = XLNetModel(config)
-        self.sequence_summary = SequenceSummary(config)
+        self.sequence_summary = XLNetSequenceSummary(config)
         self.logits_proj = nn.Linear(config.d_model, config.num_labels)
 
         self.init_weights()
@@ -365,7 +369,7 @@ class XLMForMultiLabelSequenceClassification(XLMPreTrainedModel):
         self.pos_weight = pos_weight
 
         self.transformer = XLMModel(config)
-        self.sequence_summary = SequenceSummary(config)
+        self.sequence_summary = XLMSequenceSummary(config)
 
         self.init_weights()
 
@@ -548,7 +552,7 @@ class FlaubertForMultiLabelSequenceClassification(FlaubertModel):
         self.pos_weight = pos_weight
 
         self.transformer = FlaubertModel(config)
-        self.sequence_summary = SequenceSummary(config)
+        self.sequence_summary = FlaubertSequenceSummary(config)
 
         self.init_weights()
 
@@ -757,6 +761,7 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
             list of ``torch.FloatTensor`` (one for each layer) of shape ``(batch_size, num_heads, sequence_length, sequence_length)``:
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention heads.
     """  # noqa
+
     config_class = ElectraConfig
     base_model_prefix = "electra"
 

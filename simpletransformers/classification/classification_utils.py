@@ -138,30 +138,49 @@ def preprocess_data_multiprocessing(data):
     return examples
 
 
-def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
+def preprocess_batch_for_hf_dataset(
+    dataset, tokenizer, max_seq_length, return_tensors=None, global_attention_fn=None
+):
     if "text_b" in dataset:
-        return tokenizer(
+        tokenized_dict = tokenizer(
             text=dataset["text_a"],
             text_pair=dataset["text_b"],
             truncation=True,
             padding="max_length",
             max_length=max_seq_length,
+            return_tensors=return_tensors,
         )
     else:
-        return tokenizer(
+        tokenized_dict = tokenizer(
             text=dataset["text"],
             truncation=True,
             padding="max_length",
             max_length=max_seq_length,
+            return_tensors=return_tensors,
         )
+
+    if global_attention_fn:
+        if "text_b" in dataset:
+            tokenized_dict["global_attention_mask"] = global_attention_fn(
+                tokenized_dict["input_ids"],
+                dataset["text_a"],
+                dataset["text_b"],
+            )
+        else:
+            tokenized_dict["global_attention_mask"] = global_attention_fn(
+                tokenized_dict["input_ids"], dataset["text"]
+            )
+
+    return tokenized_dict
 
 
 def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
     return tokenizer(
         text=text_a,
         text_pair=text_b,
-        truncation=True,
+        truncation="only_second" if text_b else "only_first",
         padding="max_length",
+        # padding="longest",
         max_length=max_seq_length,
         return_tensors="pt",
     )
@@ -188,7 +207,14 @@ def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
 
 
 def build_classification_dataset(
-    data, tokenizer, args, mode, multi_label, output_mode, no_cache
+    data,
+    tokenizer,
+    args,
+    mode,
+    multi_label,
+    output_mode,
+    no_cache,
+    global_attention_fn=None,
 ):
     cached_features_file = os.path.join(
         args.cache_dir,
@@ -205,7 +231,7 @@ def build_classification_dataset(
         (not args.reprocess_input_data and not args.no_cache)
         or (mode == "dev" and args.use_cached_eval_features and not args.no_cache)
     ):
-        data = torch.load(cached_features_file)
+        data = torch.load(cached_features_file, weights_only=False)
         logger.info(f" Features loaded from cache at {cached_features_file}")
         examples, labels = data
     else:
@@ -262,10 +288,49 @@ def build_classification_dataset(
                 key: torch.cat([example[key] for example in examples])
                 for key in examples[0]
             }
+
+            if global_attention_fn is not None:
+                warnings.warn(
+                    "Global attention masks are not supported with multiprocessing. "
+                    "Please disable multiprocessing to use global attention masks."
+                )
         else:
-            examples = preprocess_data(
-                text_a, text_b, labels, tokenizer, args.max_seq_length
+            dataset = HFDataset.from_dict(
+                {
+                    "text_a": text_a,
+                    "text_b": text_b,
+                    "labels": labels,
+                }
             )
+            dataset = dataset.map(
+                lambda x: preprocess_batch_for_hf_dataset(
+                    x,
+                    tokenizer=tokenizer,
+                    max_seq_length=args.max_seq_length,
+                    global_attention_fn=global_attention_fn,
+                ),
+                batched=True,
+            )
+
+            # examples = preprocess_data(
+            #     text_a, text_b, labels, tokenizer, args.max_seq_length
+            # )
+
+            dataset.set_format(type="torch")
+
+            labels = dataset["labels"]
+
+            if global_attention_fn is None:
+                examples = {
+                    "input_ids": dataset["input_ids"],
+                    "attention_mask": dataset["attention_mask"],
+                }
+            else:
+                examples = {
+                    "input_ids": dataset["input_ids"],
+                    "attention_mask": dataset["attention_mask"],
+                    "global_attention_mask": dataset["global_attention_mask"],
+                }
 
         if output_mode == "classification":
             labels = torch.tensor(labels, dtype=torch.long)
@@ -282,9 +347,26 @@ def build_classification_dataset(
 
 
 class ClassificationDataset(Dataset):
-    def __init__(self, data, tokenizer, args, mode, multi_label, output_mode, no_cache):
+    def __init__(
+        self,
+        data,
+        tokenizer,
+        args,
+        mode,
+        multi_label,
+        output_mode,
+        no_cache,
+        global_attention_fn=None,
+    ):
         self.examples, self.labels = build_classification_dataset(
-            data, tokenizer, args, mode, multi_label, output_mode, no_cache
+            data,
+            tokenizer,
+            args,
+            mode,
+            multi_label,
+            output_mode,
+            no_cache,
+            global_attention_fn,
         )
 
     def __len__(self):
@@ -306,15 +388,19 @@ def map_labels_to_numeric(example, multi_label, args):
     return example
 
 
-def load_hf_dataset(data, tokenizer, args, multi_label, reranking=False):
+def load_hf_dataset(
+    data, tokenizer, args, multi_label, reranking=False, global_attention_fn=None
+):
     if isinstance(data, str):
         dataset = load_dataset(
             "csv",
             data_files=data,
             delimiter="\t",
-            download_mode="force_redownload"
-            if args.reprocess_input_data
-            else "reuse_dataset_if_exists",
+            download_mode=(
+                "force_redownload"
+                if args.reprocess_input_data
+                else "reuse_dataset_if_exists"
+            ),
         )
     else:
         dataset = HFDataset.from_pandas(data)
@@ -324,7 +410,10 @@ def load_hf_dataset(data, tokenizer, args, multi_label, reranking=False):
 
     dataset = dataset.map(
         lambda x: preprocess_batch_for_hf_dataset(
-            x, tokenizer=tokenizer, max_seq_length=args.max_seq_length
+            x,
+            tokenizer=tokenizer,
+            max_seq_length=args.max_seq_length,
+            global_attention_fn=global_attention_fn,
         ),
         batched=True,
     )
@@ -339,6 +428,9 @@ def load_hf_dataset(data, tokenizer, args, multi_label, reranking=False):
             columns = ["input_ids", "token_type_ids", "attention_mask", "labels"]
         else:
             columns = ["input_ids", "attention_mask", "labels"]
+
+    if global_attention_fn is not None:
+        columns.append("global_attention_mask")
 
     dataset.set_format(type="pt", columns=columns)
 
@@ -1025,7 +1117,12 @@ def flatten_results(results, parent_key="", sep="/"):
 
 
 def convert_beir_to_cross_encoder_format(
-    data, run_dict=None, top_k=None, include_title=False, save_path=None
+    data,
+    run_dict=None,
+    top_k=None,
+    include_titles=False,
+    save_path=None,
+    bm25_format=False,
 ):
     """
     Utility function to convert BEIR format to cross-encoder format
@@ -1044,15 +1141,31 @@ def convert_beir_to_cross_encoder_format(
         save_path: Path to save the converted dataset. If not provided, the dataset is returned as a DataFrame.
     """
     if run_dict:
-        with open(run_dict, "r") as f:
-            run_dict = json.load(f)
-        if top_k:
-            for query_id in run_dict:
-                run_dict[query_id] = dict(
-                    sorted(
-                        run_dict[query_id].items(), key=lambda x: x[1], reverse=True
-                    )[:top_k]
-                )
+        if bm25_format:
+            bm_df = pd.read_csv(run_dict, sep=" ", header=None)
+            bm_df.columns = ["qid", "Q0", "pid", "rank", "score", "runstring"]
+            bm_df = bm_df[["qid", "pid", "rank", "score"]]
+
+            run_dict = {}
+            for qid, group in bm_df.groupby("qid"):
+                if top_k:
+                    run_dict[str(qid)] = {
+                        str(row[2]): row[4] for row in group[:top_k].itertuples()
+                    }
+                else:
+                    run_dict[str(qid)] = {
+                        str(row[2]): row[4] for row in group.itertuples()
+                    }
+        else:
+            with open(run_dict, "r") as f:
+                run_dict = json.load(f)
+            if top_k:
+                for query_id in run_dict:
+                    run_dict[query_id] = dict(
+                        sorted(
+                            run_dict[query_id].items(), key=lambda x: x[1], reverse=True
+                        )[:top_k]
+                    )
 
         # Make sure both query_id and doc_id are strings
         updated_dict = {}
@@ -1074,7 +1187,7 @@ def convert_beir_to_cross_encoder_format(
     queries_df["_id"] = queries_df["_id"].astype(str)
     corpus_df["_id"] = corpus_df["_id"].astype(str)
 
-    if include_title:
+    if include_titles:
         corpus_df["text"] = corpus_df["title"] + " " + corpus_df["text"]
 
     queries_df = queries_df.set_index("_id")
@@ -1119,32 +1232,8 @@ def convert_beir_to_cross_encoder_format(
         # If the BEIR dir contains a qrels directory, copy it to the save_dir
         qrels_dir = os.path.join(data, "qrels")
         if os.path.exists(qrels_dir):
-            shutil.copytree(qrels_dir, os.path.join(save_dir, "qrels"))
+            shutil.copytree(
+                qrels_dir, os.path.join(save_dir, "qrels"), dirs_exist_ok=True
+            )
 
     return reranking_df
-
-
-class ChunkSampler(Sampler):
-    def __init__(self, data_source, chunk_size, batch_size):
-        assert (
-            batch_size % chunk_size == 0
-        ), "Batch size must be divisible by chunk size"
-        self.data_source = data_source
-        self.chunk_size = chunk_size
-        self.num_chunks = len(data_source) // chunk_size
-
-    def __iter__(self):
-        # Create a list of chunk indices
-        chunk_indices_list = torch.randperm(self.num_chunks).tolist()
-
-        # Create indices by chunk
-        indices = []
-        for chunk_idx in chunk_indices_list:
-            start_idx = chunk_idx * self.chunk_size
-            chunk_indices = list(range(start_idx, start_idx + self.chunk_size))
-            indices.extend(chunk_indices)
-
-        return iter(indices)
-
-    def __len__(self):
-        return len(self.data_source)

@@ -480,6 +480,95 @@ def analyze_experiment(
     return results, latex_table
 
 
+def get_per_metric_results(
+    experiment_dir,
+    model_name_map=None,
+    dataset_name_map=None,
+    skip_models=None,
+    keep_named_only=False,
+    metrics_to_show=None,
+    metric_name_map=None,
+):
+    dataset_names = os.listdir(experiment_dir)
+    all_model_names = set()
+
+    for dataset_name in dataset_names:
+        dataset_dir = os.path.join(experiment_dir, dataset_name)
+        model_names = os.listdir(dataset_dir)
+        all_model_names.update(model_names)
+
+    all_model_names = sorted(list(all_model_names))
+
+    if keep_named_only:
+        all_model_names = [
+            model_name for model_name in all_model_names if model_name in model_name_map
+        ]
+    elif skip_models is not None:
+        all_model_names = [
+            model_name
+            for model_name in all_model_names
+            if model_name not in skip_models
+        ]
+
+    all_metrics = set()
+    results = {}
+    for model_name in all_model_names:
+        model_results = {}
+        for dataset_name in dataset_names:
+            dataset_dir = os.path.join(experiment_dir, dataset_name)
+            model_dir = os.path.join(dataset_dir, model_name)
+            results_file = os.path.join(model_dir, "results.json")
+            if os.path.exists(results_file):
+                with open(results_file, "r") as f:
+                    model_results[dataset_name] = json.load(f)
+                    all_metrics.update(model_results[dataset_name].keys())
+        results[model_name] = model_results
+
+    all_metrics = sorted(list(all_metrics))
+
+    if metrics_to_show is not None:
+        all_metrics = [metric for metric in all_metrics if metric in metrics_to_show]
+        # Same order as metrics_to_show
+        all_metrics = sorted(all_metrics, key=lambda x: metrics_to_show.index(x))
+
+    per_metric_dicts = {}
+    for metric in all_metrics:
+        per_metric_results = {}
+        for model_name in all_model_names:
+            model_results = {}
+            for dataset_name in dataset_names:
+                if dataset_name in results[model_name] and metric in results[model_name][dataset_name]:
+                    model_results[dataset_name] = results[model_name][dataset_name][metric]
+                else:
+                    model_results[dataset_name] = 0
+            per_metric_results[model_name] = model_results
+        per_metric_dicts[metric] = per_metric_results
+
+    per_metrics_dfs = {}
+    for metric in all_metrics:
+        per_metric_df = pd.DataFrame(per_metric_dicts[metric])
+        per_metric_df = per_metric_df.T
+
+        # Rename columns (datasets)
+        if dataset_name_map is not None:
+            per_metric_df.rename(columns=dataset_name_map, inplace=True)
+
+        # Rename rows (models)
+        if model_name_map is not None:
+            per_metric_df.rename(index=model_name_map, inplace=True)
+
+        # Add Avg column
+        per_metric_df["Avg"] = per_metric_df.mean(axis=1)
+
+        # Round to 3 decimal places
+        per_metric_df = per_metric_df.round(3)
+
+        metric = metric_name_map.get(metric, metric) if metric_name_map else metric
+        per_metrics_dfs[metric] = per_metric_df
+
+    return per_metrics_dfs
+
+
 def calculate_significance(run_a, run_b):
     try:
         with open(run_a, "r") as f:

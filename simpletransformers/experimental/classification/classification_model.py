@@ -460,9 +460,11 @@ class ClassificationModel:
 
         return (
             global_step,
-            tr_loss / global_step
-            if not self.args.evaluate_during_training
-            else training_progress_scores,
+            (
+                tr_loss / global_step
+                if not self.args.evaluate_during_training
+                else training_progress_scores
+            ),
         )
 
     def eval_model(
@@ -640,7 +642,7 @@ class ClassificationModel:
             and not args["reprocess_input_data"]
             and not no_cache
         ):
-            features = torch.load(cached_features_file)
+            features = torch.load(cached_features_file, weights_only=False)
             print(f"Features loaded from cache at {cached_features_file}")
         else:
             print(f"Converting to features started.")
