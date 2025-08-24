@@ -19,7 +19,29 @@ This library is based on the [Transformers](https://github.com/huggingface/trans
 - T5 Model
 - Seq2Seq Tasks
 - Multi-Modal Classification
-- Conversational AI.
+- Conversational AI
+
+# Citation
+
+If you use Simple Transformers in your work, please cite:
+
+```bibtex
+@inproceedings{Rajapakse2024SimpleTransformers,
+  author    = {Rajapakse, Thilina C. and Yates, Andrew and de Rijke, Maarten},
+  title     = {Simple Transformers: Open-source for All},
+  booktitle = {Proceedings of the 2024 Annual International ACM SIGIR
+               Conference on Research and Development in Information
+               Retrieval in the Asia Pacific Region},
+  series    = {SIGIR-AP 2024},
+  pages     = {209--215},
+  year      = {2024},
+  doi       = {10.1145/3673791.3698412},
+  url       = {https://doi.org/10.1145/3673791.3698412},
+  location  = {Tokyo, Japan}
+}
+```
+
+
 
 # Table of contents
 
