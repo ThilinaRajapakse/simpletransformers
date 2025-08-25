@@ -295,13 +295,21 @@ def build_classification_dataset(
                     "Please disable multiprocessing to use global attention masks."
                 )
         else:
-            dataset = HFDataset.from_dict(
-                {
-                    "text_a": text_a,
-                    "text_b": text_b,
-                    "labels": labels,
-                }
-            )
+            if text_b is not None:
+                dataset = HFDataset.from_dict(
+                    {
+                        "text_a": text_a,
+                        "text_b": text_b,
+                        "labels": labels,
+                    }
+                )
+            else:
+                dataset = HFDataset.from_dict(
+                    {
+                        "text": text_a,
+                        "labels": labels,
+                    }
+                )
             dataset = dataset.map(
                 lambda x: preprocess_batch_for_hf_dataset(
                     x,
