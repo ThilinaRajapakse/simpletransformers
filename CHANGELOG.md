@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.70.5] - 2025-08-26
+
+### Fixed
+
+- Fixed bug in classification data processing
+
+## [0.70.4] - 2025-08-25
+
+### Changed
+
+- Make utils importable
+
+## [0.70.3] - 2025-08-24
+
+### Changed
+
+- Make faiss optional
+
+## [0.70.2] - 2025-08-24
+
+### Fixed
+
+- Fixed compatibility issues with transformers >= 4.55
+
+## [0.70.1] - 2024-02-15
+
+### Fixed
+
+- Fixed compatibility issues with transformers >= 4.41.0
+
+### Changed
+
+- QoL changes for MonoT5 style models
+
+## [0.70.0] - 2024-02-15
+
+### Added
+
+- Added support for using LLMs with `LanguageModelingModel` (with or without quantization)
+- Added support for adapter tuning LLMs
+
+## [0.65.0] - 2024-01-31
+
+- Lots of QOL improvements
+- Added support for evaluating retrieval models with `pytrec_eval`
+- Added support for clustered training with `RetrievalModel`
+
 
 ## [0.64.0] - 2023-04-24
 

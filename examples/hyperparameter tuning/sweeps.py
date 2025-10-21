@@ -63,7 +63,7 @@ def train():
     )
 
     # Train the model
-    model.train_model(train_df, eval_df=eval_df)
+    model.train_model(train_df, eval_data=eval_df)
 
     # Evaluate the model
     model.eval_model(eval_df)

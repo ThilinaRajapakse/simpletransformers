@@ -89,7 +89,7 @@ if model_type == "xlnet":
 model = ClassificationModel(model_type, model_name, args=train_args)
 
 # Train the model
-model.train_model(train_df, eval_df=eval_df)
+model.train_model(train_df, eval_data=eval_df)
 
 # # # Evaluate the model
 # result, model_outputs, wrong_predictions = model.eval_model(eval_df)

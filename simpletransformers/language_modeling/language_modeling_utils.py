@@ -3,6 +3,7 @@ import os
 import pickle
 from multiprocessing import Pool
 from typing import Tuple
+import warnings
 
 import torch
 from torch.utils.data import Dataset
@@ -56,6 +57,50 @@ def encode_sliding_window(data):
     return features
 
 
+def chunk_sequence(sequence, max_length):
+    # Splits the sequence into chunks of max_length, handling edge cases
+    chunks = []
+    current_chunk = ""
+    words = sequence.split()
+
+    for word in words:
+        if len(current_chunk) + len(word) + 1 <= max_length:
+            current_chunk += word + " "
+        else:
+            chunks.append(current_chunk.strip())
+            current_chunk = word + " "
+    chunks.append(current_chunk.strip())  # Add the last chunk
+
+    return chunks
+
+
+def preprocess_and_chunk_batch_for_hf_dataset(
+    dataset, tokenizer, max_seq_length, chunk_text=True
+):
+    if chunk_text:
+        chunked_texts = []
+        for text in dataset["text"]:
+            chunks = chunk_sequence(text, max_seq_length)
+            for chunk in chunks:
+                chunked_texts.append(chunk)
+
+        logger.info(
+            "Chunked %d examples into %d chunks with a maximum length of %d.",
+            len(dataset["text"]),
+            len(chunked_texts),
+            max_seq_length,
+        )
+    else:
+        chunked_texts = dataset["text"]
+
+    return tokenizer(
+        text=chunked_texts,
+        padding="max_length",
+        max_length=max_seq_length,
+        truncation=True,  # Now this is safe as we have manually chunked the text
+    )
+
+
 def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
     return tokenizer(
         text=dataset["text"],
@@ -65,29 +110,118 @@ def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
     )
 
 
-def load_hf_dataset(data, tokenizer, args):
-    dataset = load_dataset(
-        "text",
-        data_files=data,
-        download_mode="force_redownload"
-        if args.reprocess_input_data
-        else "reuse_dataset_if_exists",
-    )
-
-    dataset = dataset.map(
-        lambda x: preprocess_batch_for_hf_dataset(
-            x, tokenizer=tokenizer, max_seq_length=args.max_seq_length
-        ),
-        batched=True,
-    )
-
-    dataset.set_format(type="pt", columns=["input_ids"])
-
-    if isinstance(data, str):
-        # This is not necessarily a train dataset. The datasets library insists on calling it train.
-        return dataset["train"]
+def load_hf_dataset(data, tokenizer, args, retrieval_model=None):
+    if args.data_format == "text":
+        dataset = load_dataset(
+            "text",
+            data_files=data,
+            download_mode=(
+                "force_redownload"
+                if args.reprocess_input_data
+                else "reuse_dataset_if_exists"
+            ),
+            streaming=True if args.stream_hf_datasets else False,
+        )
+    elif args.data_format == "tsv":
+        dataset = load_dataset(
+            "csv",
+            delimiter="\t",
+            data_files=data,
+            download_mode=(
+                "force_redownload"
+                if args.reprocess_input_data
+                else "reuse_dataset_if_exists"
+            ),
+            streaming=True if args.stream_hf_datasets else False,
+        )
+    elif args.data_format == "json" or args.data_format == "jsonl":
+        dataset = load_dataset(
+            "json",
+            data_files=data,
+            download_mode=(
+                "force_redownload"
+                if args.reprocess_input_data
+                else "reuse_dataset_if_exists"
+            ),
+            streaming=True if args.stream_hf_datasets else False,
+        )
     else:
-        return dataset
+        raise ValueError("args.data_format must be either 'text' or 'tsv'")
+
+    if retrieval_model:
+        if retrieval_model.prediction_passages is None:
+            raise ValueError(
+                "The RetrievalModel must be initialized with prediction_passages to use it for RAG training."
+            )
+        dataset = dataset["train"]
+        logger.info("Retrieving context documents for RAG training.")
+        rag_queries = dataset["rag_query"]
+        context_docs = retrieval_model.predict(rag_queries, passages_only=True)
+        retrieval_model.context_encoder.to("cpu")
+        retrieval_model.query_encoder.to("cpu")
+        context_docs = [" ".join(docs) for docs in context_docs]
+
+        dataset = dataset.add_column("context", context_docs)
+
+        logger.info("Merging context documents with the original text.")
+
+        def batch_process(examples):
+            # Concatenate "context" and "text" for each example in the batch
+            concatenated_texts = [
+                context + " " + text
+                for context, text in zip(examples["context"], examples["text"])
+            ]
+            return {"text": concatenated_texts}
+
+        # Apply the batch processing function to the dataset
+        dataset = dataset.map(batch_process, batched=True)
+
+        logger.info("Merged context documents with the original text.")
+
+    try:
+        dataset = dataset.map(
+            lambda x: preprocess_and_chunk_batch_for_hf_dataset(
+                x,
+                tokenizer=tokenizer,
+                max_seq_length=args.max_seq_length,
+                chunk_text=args.chunk_text,
+            ),
+            batched=True,
+            remove_columns=["text"],
+        )
+    except ValueError:
+        if not tokenizer.pad_token:
+            warnings.warn(
+                "The tokenizer you are using does not have a pad token set. Setting to 'tokenizer.eos_token'"
+            )
+            tokenizer.pad_token = tokenizer.eos_token
+        dataset = dataset.map(
+            lambda x: preprocess_and_chunk_batch_for_hf_dataset(
+                x,
+                tokenizer=tokenizer,
+                max_seq_length=args.max_seq_length,
+                chunk_text=args.chunk_text,
+            ),
+            batched=True,
+            remove_columns=["text"],
+        )
+
+    try:
+        # This is not necessarily a train dataset. The datasets library insists on calling it train.
+        dataset = dataset["train"]
+    except:
+        pass
+
+    if "token_type_ids" in dataset.features:
+        dataset = dataset.with_format(
+            type="pt", columns=["input_ids", "token_type_ids", "attention_mask"]
+        )
+    else:
+        dataset = dataset.with_format(
+            type="pt", columns=["input_ids", "attention_mask"]
+        )
+
+    return dataset
 
 
 class SimpleDataset(Dataset):
@@ -234,7 +368,7 @@ def mask_tokens(
     probability_matrix.masked_fill_(
         torch.tensor(special_tokens_mask, dtype=torch.bool), value=0.0
     )
-    if tokenizer._pad_token is not None:
+    if tokenizer.pad_token is not None:
         padding_mask = labels.eq(tokenizer.pad_token_id)
         probability_matrix.masked_fill_(padding_mask, value=0.0)
     masked_indices = torch.bernoulli(probability_matrix).bool()
@@ -261,3 +395,23 @@ def mask_tokens(
 
         # The rest of the time (10% of the time) we keep the masked input tokens unchanged
     return inputs, labels
+
+
+def apply_chat_template_to_inputs(
+    to_predict, user_role, system_role, system_prompt, tokenizer
+):
+    to_predict = [
+        tokenizer.apply_chat_template(
+            [
+                {
+                    "role": system_role,
+                    "content": system_prompt,
+                },
+                {"role": user_role, "content": to_pred},
+            ],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        for to_pred in to_predict
+    ]
+    return to_predict

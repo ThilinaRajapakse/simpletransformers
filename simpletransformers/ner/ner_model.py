@@ -228,7 +228,7 @@ class NERModel:
                 LukeConfig,
                 LukeForTokenClassification,
                 MLukeTokenizer,
-            ),            
+            ),
             "mobilebert": (
                 MobileBertConfig,
                 MobileBertForTokenClassification,
@@ -767,7 +767,7 @@ class NERModel:
             )
             batch_iterator = tqdm(
                 train_dataloader,
-                desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}",
+                desc=f"Running Epoch {epoch_number + 1} of {args.num_train_epochs}",
                 disable=args.silent,
                 mininterval=0,
             )
@@ -805,7 +805,7 @@ class NERModel:
 
                 if show_running_loss:
                     batch_iterator.set_description(
-                        f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}"
+                        f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}"
                     )
 
                 if args.gradient_accumulation_steps > 1:
@@ -868,7 +868,6 @@ class NERModel:
                         args.evaluate_during_training_steps > 0
                         and global_step % args.evaluate_during_training_steps == 0
                     ):
-
                         output_dir_current = os.path.join(
                             output_dir, "checkpoint-{}".format(global_step)
                         )
@@ -984,9 +983,11 @@ class NERModel:
                                             train_iterator.close()
                                         return (
                                             global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            (
+                                                tr_loss / global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         else:
                             if (
@@ -1028,15 +1029,18 @@ class NERModel:
                                             train_iterator.close()
                                         return (
                                             global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            (
+                                                tr_loss / global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         model.train()
 
             epoch_number += 1
             output_dir_current = os.path.join(
-                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
+                output_dir,
+                "checkpoint-{}-epoch-{}".format(global_step, epoch_number),
             )
 
             if args.save_model_every_epoch or args.evaluate_during_training:
@@ -1145,9 +1149,11 @@ class NERModel:
                                     train_iterator.close()
                                 return (
                                     global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    (
+                                        tr_loss / global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
                 else:
                     if (
@@ -1190,16 +1196,20 @@ class NERModel:
                                     train_iterator.close()
                                 return (
                                     global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    (
+                                        tr_loss / global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
 
         return (
             global_step,
-            tr_loss / global_step
-            if not self.args.evaluate_during_training
-            else training_progress_scores,
+            (
+                tr_loss / global_step
+                if not self.args.evaluate_during_training
+                else training_progress_scores
+            ),
         )
 
     def eval_model(
@@ -1501,7 +1511,6 @@ class NERModel:
                 ]
 
         if self.args.onnx:
-
             # Encode
             model_inputs = self.tokenizer.batch_encode_plus(
                 to_predict,
@@ -1751,7 +1760,6 @@ class NERModel:
     def _convert_tokens_to_word_logits(
         self, input_ids, label_ids, attention_mask, logits
     ):
-
         ignore_ids = [
             self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token),
             self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token),
@@ -1843,9 +1851,11 @@ class NERModel:
                         examples = read_examples_from_file(
                             data,
                             mode,
-                            bbox=True
-                            if self.args.model_type in ["layoutlm", "layoutlmv2"]
-                            else False,
+                            bbox=(
+                                True
+                                if self.args.model_type in ["layoutlm", "layoutlmv2"]
+                                else False
+                            ),
                         )
                     else:
                         if self.args.lazy_loading:
@@ -1854,9 +1864,11 @@ class NERModel:
                             )
                         examples = get_examples_from_df(
                             data,
-                            bbox=True
-                            if self.args.model_type in ["layoutlm", "layoutlmv2"]
-                            else False,
+                            bbox=(
+                                True
+                                if self.args.model_type in ["layoutlm", "layoutlmv2"]
+                                else False
+                            ),
                         )
 
                 cached_features_file = os.path.join(
@@ -1878,7 +1890,7 @@ class NERModel:
                         mode == "dev" and args.use_cached_eval_features and not no_cache
                     )
                 ):
-                    features = torch.load(cached_features_file)
+                    features = torch.load(cached_features_file, weights_only=False)
                     logger.info(
                         f" Features loaded from cache at {cached_features_file}"
                     )

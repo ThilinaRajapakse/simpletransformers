@@ -87,9 +87,9 @@ class MultiLabelClassificationModel(ClassificationModel):
         args=None,
         use_cuda=True,
         cuda_device=-1,
+        global_attention_fn=None,
         **kwargs,
     ):
-
         """
         Initializes a MultiLabelClassification model.
 
@@ -300,6 +300,11 @@ class MultiLabelClassificationModel(ClassificationModel):
             )
             self.args.wandb_project = None
 
+        if global_attention_fn:
+            self.global_attention_fn = global_attention_fn
+        else:
+            self.global_attention_fn = None
+
         self.weight = None  # Not implemented for multilabel
 
     def _load_model_args(self, input_dir):
@@ -321,7 +326,7 @@ class MultiLabelClassificationModel(ClassificationModel):
         return super().train_model(
             train_df,
             multi_label=multi_label,
-            eval_df=eval_df,
+            eval_data=eval_df,
             output_dir=output_dir,
             show_running_loss=show_running_loss,
             verbose=True,

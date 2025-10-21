@@ -38,7 +38,6 @@ from transformers.optimization import (
 from torch.optim import AdamW
 from transformers.optimization import Adafactor
 from transformers import (
-    BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
     WEIGHTS_NAME,
     BertConfig,
     BertModel,
@@ -86,7 +85,6 @@ class MultiModalClassificationModel:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a MultiModalClassificationModel model.
 
@@ -178,24 +176,6 @@ class MultiModalClassificationModel:
         self.model = MMBTForClassification(
             self.config, self.transformer, self.img_encoder
         )
-
-        if model_name not in BERT_PRETRAINED_MODEL_ARCHIVE_LIST:
-            try:
-                self.model.load_state_dict(
-                    torch.load(os.path.join(model_name, "pytorch_model.bin"))
-                )
-            except EnvironmentError:
-                msg = (
-                    "Model name '{}' was not found in model name list ({}). "
-                    "We assumed '{}' was a path or url to model weight files named one of {} but "
-                    "couldn't find any such file at this path or url.".format(
-                        model_name,
-                        ", ".join(BERT_PRETRAINED_MODEL_ARCHIVE_LIST),
-                        model_name,
-                        "pytorch_model.bin",
-                    )
-                )
-                raise EnvironmentError(msg)
 
         self.tokenizer = tokenizer_class.from_pretrained(
             model_name, do_lower_case=self.args.do_lower_case, **kwargs
@@ -592,7 +572,7 @@ class MultiModalClassificationModel:
             )
             batch_iterator = tqdm(
                 train_dataloader,
-                desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}",
+                desc=f"Running Epoch {epoch_number + 1} of {args.num_train_epochs}",
                 disable=args.silent,
                 mininterval=0,
             )
@@ -621,7 +601,7 @@ class MultiModalClassificationModel:
 
                 if show_running_loss:
                     batch_iterator.set_description(
-                        f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}"
+                        f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f}"
                     )
 
                 if args.gradient_accumulation_steps > 1:
@@ -814,7 +794,8 @@ class MultiModalClassificationModel:
 
             epoch_number += 1
             output_dir_current = os.path.join(
-                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
+                output_dir,
+                "checkpoint-{}-epoch-{}".format(global_step, epoch_number),
             )
 
             if args.save_model_every_epoch or args.evaluate_during_training:

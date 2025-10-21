@@ -21,18 +21,22 @@ import json
 import logging
 import linecache
 import os
+import shutil
 import sys
 from collections import Counter
 from io import open
 from multiprocessing import Pool, cpu_count
+import warnings
 
 try:
     from collections import Iterable, Mapping
 except ImportError:
     from collections.abc import Iterable, Mapping
 
+import pandas as pd
 import torch
 import torch.nn as nn
+from torch.utils.data import Dataset, Sampler
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import f1_score, matthews_corrcoef
 
@@ -134,30 +138,49 @@ def preprocess_data_multiprocessing(data):
     return examples
 
 
-def preprocess_batch_for_hf_dataset(dataset, tokenizer, max_seq_length):
+def preprocess_batch_for_hf_dataset(
+    dataset, tokenizer, max_seq_length, return_tensors=None, global_attention_fn=None
+):
     if "text_b" in dataset:
-        return tokenizer(
+        tokenized_dict = tokenizer(
             text=dataset["text_a"],
             text_pair=dataset["text_b"],
             truncation=True,
             padding="max_length",
             max_length=max_seq_length,
+            return_tensors=return_tensors,
         )
     else:
-        return tokenizer(
+        tokenized_dict = tokenizer(
             text=dataset["text"],
             truncation=True,
             padding="max_length",
             max_length=max_seq_length,
+            return_tensors=return_tensors,
         )
+
+    if global_attention_fn:
+        if "text_b" in dataset:
+            tokenized_dict["global_attention_mask"] = global_attention_fn(
+                tokenized_dict["input_ids"],
+                dataset["text_a"],
+                dataset["text_b"],
+            )
+        else:
+            tokenized_dict["global_attention_mask"] = global_attention_fn(
+                tokenized_dict["input_ids"], dataset["text"]
+            )
+
+    return tokenized_dict
 
 
 def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
     return tokenizer(
         text=text_a,
         text_pair=text_b,
-        truncation=True,
+        truncation="only_second" if text_b else "only_first",
         padding="max_length",
+        # padding="longest",
         max_length=max_seq_length,
         return_tensors="pt",
     )
@@ -184,7 +207,14 @@ def preprocess_data(text_a, text_b, labels, tokenizer, max_seq_length):
 
 
 def build_classification_dataset(
-    data, tokenizer, args, mode, multi_label, output_mode, no_cache
+    data,
+    tokenizer,
+    args,
+    mode,
+    multi_label,
+    output_mode,
+    no_cache,
+    global_attention_fn=None,
 ):
     cached_features_file = os.path.join(
         args.cache_dir,
@@ -201,7 +231,7 @@ def build_classification_dataset(
         (not args.reprocess_input_data and not args.no_cache)
         or (mode == "dev" and args.use_cached_eval_features and not args.no_cache)
     ):
-        data = torch.load(cached_features_file)
+        data = torch.load(cached_features_file, weights_only=False)
         logger.info(f" Features loaded from cache at {cached_features_file}")
         examples, labels = data
     else:
@@ -249,7 +279,7 @@ def build_classification_dataset(
                 examples = list(
                     tqdm(
                         p.imap(preprocess_data_multiprocessing, data),
-                        total=len(text_a),
+                        total=len(text_a) // chunksize,
                         disable=args.silent,
                     )
                 )
@@ -258,10 +288,57 @@ def build_classification_dataset(
                 key: torch.cat([example[key] for example in examples])
                 for key in examples[0]
             }
+
+            if global_attention_fn is not None:
+                warnings.warn(
+                    "Global attention masks are not supported with multiprocessing. "
+                    "Please disable multiprocessing to use global attention masks."
+                )
         else:
-            examples = preprocess_data(
-                text_a, text_b, labels, tokenizer, args.max_seq_length
+            if text_b is not None:
+                dataset = HFDataset.from_dict(
+                    {
+                        "text_a": text_a,
+                        "text_b": text_b,
+                        "labels": labels,
+                    }
+                )
+            else:
+                dataset = HFDataset.from_dict(
+                    {
+                        "text": text_a,
+                        "labels": labels,
+                    }
+                )
+            dataset = dataset.map(
+                lambda x: preprocess_batch_for_hf_dataset(
+                    x,
+                    tokenizer=tokenizer,
+                    max_seq_length=args.max_seq_length,
+                    global_attention_fn=global_attention_fn,
+                ),
+                batched=True,
             )
+
+            # examples = preprocess_data(
+            #     text_a, text_b, labels, tokenizer, args.max_seq_length
+            # )
+
+            dataset.set_format(type="torch")
+
+            labels = dataset["labels"]
+
+            if global_attention_fn is None:
+                examples = {
+                    "input_ids": dataset["input_ids"],
+                    "attention_mask": dataset["attention_mask"],
+                }
+            else:
+                examples = {
+                    "input_ids": dataset["input_ids"],
+                    "attention_mask": dataset["attention_mask"],
+                    "global_attention_mask": dataset["global_attention_mask"],
+                }
 
         if output_mode == "classification":
             labels = torch.tensor(labels, dtype=torch.long)
@@ -278,9 +355,26 @@ def build_classification_dataset(
 
 
 class ClassificationDataset(Dataset):
-    def __init__(self, data, tokenizer, args, mode, multi_label, output_mode, no_cache):
+    def __init__(
+        self,
+        data,
+        tokenizer,
+        args,
+        mode,
+        multi_label,
+        output_mode,
+        no_cache,
+        global_attention_fn=None,
+    ):
         self.examples, self.labels = build_classification_dataset(
-            data, tokenizer, args, mode, multi_label, output_mode, no_cache
+            data,
+            tokenizer,
+            args,
+            mode,
+            multi_label,
+            output_mode,
+            no_cache,
+            global_attention_fn,
         )
 
     def __len__(self):
@@ -302,15 +396,19 @@ def map_labels_to_numeric(example, multi_label, args):
     return example
 
 
-def load_hf_dataset(data, tokenizer, args, multi_label):
+def load_hf_dataset(
+    data, tokenizer, args, multi_label, reranking=False, global_attention_fn=None
+):
     if isinstance(data, str):
         dataset = load_dataset(
             "csv",
             data_files=data,
             delimiter="\t",
-            download_mode="force_redownload"
-            if args.reprocess_input_data
-            else "reuse_dataset_if_exists",
+            download_mode=(
+                "force_redownload"
+                if args.reprocess_input_data
+                else "reuse_dataset_if_exists"
+            ),
         )
     else:
         dataset = HFDataset.from_pandas(data)
@@ -320,18 +418,29 @@ def load_hf_dataset(data, tokenizer, args, multi_label):
 
     dataset = dataset.map(
         lambda x: preprocess_batch_for_hf_dataset(
-            x, tokenizer=tokenizer, max_seq_length=args.max_seq_length
+            x,
+            tokenizer=tokenizer,
+            max_seq_length=args.max_seq_length,
+            global_attention_fn=global_attention_fn,
         ),
         batched=True,
     )
 
-    if args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
-        dataset.set_format(
-            type="pt",
-            columns=["input_ids", "token_type_ids", "attention_mask", "labels"],
-        )
+    if reranking:
+        if args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
+            columns = ["input_ids", "token_type_ids", "attention_mask"]
+        else:
+            columns = ["input_ids", "attention_mask"]
     else:
-        dataset.set_format(type="pt", columns=["input_ids", "attention_mask", "labels"])
+        if args.model_type in ["bert", "xlnet", "albert", "layoutlm", "layoutlmv2"]:
+            columns = ["input_ids", "token_type_ids", "attention_mask", "labels"]
+        else:
+            columns = ["input_ids", "attention_mask", "labels"]
+
+    if global_attention_fn is not None:
+        columns.append("global_attention_mask")
+
+    dataset.set_format(type="pt", columns=columns)
 
     if isinstance(data, str):
         # This is not necessarily a train dataset. The datasets library insists on calling it train.
@@ -803,7 +912,6 @@ class JsonlDataset(Dataset):
         data_type_extension=None,
         multi_label=False,
     ):
-
         self.text_label = text_label if text_label else "text"
         self.labels_label = labels_label if labels_label else "labels"
         self.images_label = images_label if images_label else "images"
@@ -1014,3 +1122,126 @@ def flatten_results(results, parent_key="", sep="/"):
     else:
         out.append((parent_key, results))
     return dict(out)
+
+
+def convert_beir_to_cross_encoder_format(
+    data,
+    run_dict=None,
+    top_k=None,
+    include_titles=False,
+    save_path=None,
+    bm25_format=False,
+):
+    """
+    Utility function to convert BEIR format to cross-encoder format
+
+    Args:
+        data: A directory containing a dataset in the BEIR format
+        run_dict: Path to a run file to build a reranking dataset. If not provided, all documents are considered.
+                  run_dict should be a json file with the following format:
+                    {
+                        "query_id1": ["doc_id1": score1, "doc_id2": score2, ...],
+                        "query_id2": ["doc_id1": score1, "doc_id2": score2, ...],
+                        ...
+                    }
+        top_k: Number of documents to consider for reranking. Only used if run_dict is provided.
+        include_title: Whether to include the title of the document in the cross-encoder format.
+        save_path: Path to save the converted dataset. If not provided, the dataset is returned as a DataFrame.
+    """
+    if run_dict:
+        if bm25_format:
+            bm_df = pd.read_csv(run_dict, sep=" ", header=None)
+            bm_df.columns = ["qid", "Q0", "pid", "rank", "score", "runstring"]
+            bm_df = bm_df[["qid", "pid", "rank", "score"]]
+
+            run_dict = {}
+            for qid, group in bm_df.groupby("qid"):
+                if top_k:
+                    run_dict[str(qid)] = {
+                        str(row[2]): row[4] for row in group[:top_k].itertuples()
+                    }
+                else:
+                    run_dict[str(qid)] = {
+                        str(row[2]): row[4] for row in group.itertuples()
+                    }
+        else:
+            with open(run_dict, "r") as f:
+                run_dict = json.load(f)
+            if top_k:
+                for query_id in run_dict:
+                    run_dict[query_id] = dict(
+                        sorted(
+                            run_dict[query_id].items(), key=lambda x: x[1], reverse=True
+                        )[:top_k]
+                    )
+
+        # Make sure both query_id and doc_id are strings
+        updated_dict = {}
+        for query_id in run_dict:
+            updated_dict[str(query_id)] = {
+                str(k): v for k, v in run_dict[query_id].items()
+            }
+
+        run_dict = updated_dict
+    else:
+        if top_k:
+            warnings.warn(
+                "top_k is only used when run_dict is provided. Ignoring top_k."
+            )
+
+    queries_df = pd.read_json(os.path.join(data, "queries.jsonl"), lines=True)
+    corpus_df = pd.read_json(os.path.join(data, "corpus.jsonl"), lines=True)
+
+    queries_df["_id"] = queries_df["_id"].astype(str)
+    corpus_df["_id"] = corpus_df["_id"].astype(str)
+
+    if include_titles:
+        corpus_df["text"] = corpus_df["title"] + " " + corpus_df["text"]
+
+    queries_df = queries_df.set_index("_id")
+    corpus_df = corpus_df.set_index("_id")
+
+    if run_dict:
+        reranking_data = []
+        for query_id in tqdm(run_dict, total=len(run_dict)):
+            for passage_id in run_dict[query_id]:
+                reranking_data.append(
+                    {
+                        "query_id": query_id,
+                        "passage_id": passage_id,
+                        "text_a": queries_df.loc[query_id]["text"],
+                        "text_b": corpus_df.loc[passage_id]["text"],
+                    }
+                )
+    else:
+        reranking_data = []
+        for query_id, query in tqdm(queries_df.iterrows(), total=len(queries_df)):
+            for passage_id, passage in corpus_df.iterrows():
+                reranking_data.append(
+                    {
+                        "query_id": query_id,
+                        "passage_id": passage_id,
+                        "text_a": query["text"],
+                        "text_b": passage["text"],
+                    }
+                )
+
+    reranking_df = pd.DataFrame(reranking_data)
+
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        reranking_df.to_csv(save_path, sep="\t", index=False)
+
+        save_dir = os.path.dirname(save_path)
+        run_dict_path = os.path.join(save_dir, "run_dict.json")
+        with open(run_dict_path, "w") as f:
+            json.dump(run_dict, f)
+
+        # If the BEIR dir contains a qrels directory, copy it to the save_dir
+        qrels_dir = os.path.join(data, "qrels")
+        if os.path.exists(qrels_dir):
+            shutil.copytree(
+                qrels_dir, os.path.join(save_dir, "qrels"), dirs_exist_ok=True
+            )
+
+    return reranking_df

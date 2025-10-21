@@ -1,3 +1,4 @@
+import string
 import torch
 from torch import nn
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
@@ -18,8 +19,9 @@ from transformers import (
     XLMPreTrainedModel,
     XLNetModel,
     XLNetPreTrainedModel,
+    BertTokenizerFast,
 )
-from transformers.modeling_utils import PreTrainedModel, SequenceSummary
+from transformers.modeling_utils import PreTrainedModel
 from transformers.models.albert.modeling_albert import (
     AlbertConfig,
     AlbertModel,
@@ -32,15 +34,8 @@ from transformers.models.big_bird.modeling_big_bird import (
     BigBirdPreTrainedModel,
 )
 from transformers.models.camembert.configuration_camembert import CamembertConfig
-from transformers.models.camembert.modeling_camembert import (
-    CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-)
 from transformers.models.distilbert.configuration_distilbert import DistilBertConfig
-from transformers.models.distilbert.modeling_distilbert import (
-    DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-)
 from transformers.models.electra.modeling_electra import (
-    ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST,
     ElectraConfig,
     ElectraModel,
     ElectraPreTrainedModel,
@@ -57,14 +52,18 @@ from transformers.models.nystromformer.modeling_nystromformer import (
 from transformers.models.rembert.configuration_rembert import RemBertConfig
 from transformers.models.roberta.configuration_roberta import RobertaConfig
 from transformers.models.roberta.modeling_roberta import (
-    ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
     RobertaClassificationHead,
     RobertaForQuestionAnswering,
+    RobertaPreTrainedModel,
+    RobertaLMHead,
+    MaskedLMOutput,
 )
 from transformers.models.xlm_roberta.configuration_xlm_roberta import XLMRobertaConfig
-from transformers.models.xlm_roberta.modeling_xlm_roberta import (
-    XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST,
-)
+from simpletransformers.custom_models.retrieval_autoencoder import Autoencoder
+
+from transformers.models.xlnet.modeling_xlnet import XLNetSequenceSummary
+from transformers.models.xlm.modeling_xlm import XLMSequenceSummary
+from transformers.models.flaubert.modeling_flaubert import FlaubertSequenceSummary
 
 
 class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
@@ -231,7 +230,6 @@ class RobertaForMultiLabelSequenceClassification(BertPreTrainedModel):
     """
 
     config_class = RobertaConfig
-    pretrained_model_archive_map = ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "roberta"
 
     def __init__(self, config, pos_weight=None):
@@ -298,7 +296,6 @@ class CamembertForMultiLabelSequenceClassification(
     """
 
     config_class = CamembertConfig
-    pretrained_model_archive_map = CAMEMBERT_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "camembert"
 
 
@@ -313,7 +310,7 @@ class XLNetForMultiLabelSequenceClassification(XLNetPreTrainedModel):
         self.pos_weight = pos_weight
 
         self.transformer = XLNetModel(config)
-        self.sequence_summary = SequenceSummary(config)
+        self.sequence_summary = XLNetSequenceSummary(config)
         self.logits_proj = nn.Linear(config.d_model, config.num_labels)
 
         self.init_weights()
@@ -372,7 +369,7 @@ class XLMForMultiLabelSequenceClassification(XLMPreTrainedModel):
         self.pos_weight = pos_weight
 
         self.transformer = XLMModel(config)
-        self.sequence_summary = SequenceSummary(config)
+        self.sequence_summary = XLMSequenceSummary(config)
 
         self.init_weights()
 
@@ -424,7 +421,6 @@ class DistilBertPreTrainedModel(PreTrainedModel):
     """
 
     config_class = DistilBertConfig
-    pretrained_model_archive_map = DISTILBERT_PRETRAINED_MODEL_ARCHIVE_LIST
     load_tf_weights = None
     base_model_prefix = "distilbert"
 
@@ -516,7 +512,6 @@ class AlbertForMultiLabelSequenceClassification(AlbertPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-
         outputs = self.albert(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -557,7 +552,7 @@ class FlaubertForMultiLabelSequenceClassification(FlaubertModel):
         self.pos_weight = pos_weight
 
         self.transformer = FlaubertModel(config)
-        self.sequence_summary = SequenceSummary(config)
+        self.sequence_summary = FlaubertSequenceSummary(config)
 
         self.init_weights()
 
@@ -659,7 +654,6 @@ class XLMRobertaForMultiLabelSequenceClassification(
     RobertaForMultiLabelSequenceClassification
 ):
     config_class = XLMRobertaConfig
-    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
 
 
 class ElectraPooler(nn.Module):
@@ -767,8 +761,8 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
             list of ``torch.FloatTensor`` (one for each layer) of shape ``(batch_size, num_heads, sequence_length, sequence_length)``:
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention heads.
     """  # noqa
+
     config_class = ElectraConfig
-    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "electra"
 
     def __init__(self, config, weight=None):
@@ -791,7 +785,6 @@ class ElectraForSequenceClassification(ElectraPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-
         outputs = self.electra(
             input_ids,
             attention_mask,
@@ -825,7 +818,6 @@ class ElectraForMultiLabelSequenceClassification(ElectraPreTrainedModel):
     """
 
     config_class = ElectraConfig
-    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "electra"
 
     def __init__(self, config, pos_weight=None):
@@ -848,7 +840,6 @@ class ElectraForMultiLabelSequenceClassification(ElectraPreTrainedModel):
         inputs_embeds=None,
         labels=None,
     ):
-
         outputs = self.electra(
             input_ids,
             attention_mask,
@@ -880,7 +871,6 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
     """
 
     config_class = ElectraConfig
-    pretrained_model_archive_map = ELECTRA_PRETRAINED_MODEL_ARCHIVE_LIST
     base_model_prefix = "electra"
 
     def __init__(self, config, weight=None):
@@ -903,7 +893,6 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
         start_positions=None,
         end_positions=None,
     ):
-
         outputs = self.electra(
             input_ids,
             attention_mask,
@@ -947,7 +936,6 @@ class ElectraForQuestionAnswering(ElectraPreTrainedModel):
 
 class XLMRobertaForQuestionAnswering(RobertaForQuestionAnswering):
     config_class = XLMRobertaConfig
-    pretrained_model_archive_map = XLM_ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST
 
 
 class BigBirdForMultiLabelSequenceClassification(BigBirdPreTrainedModel):
@@ -1061,3 +1049,198 @@ class DualEncoderModel(PreTrainedModel):
         super().__init__(
             config=context_config
         )  # Initialize with context_config for now
+
+
+class ColBERTModel(BertPreTrainedModel):
+    def __init__(
+        self,
+        config,
+        query_maxlen,
+        doc_maxlen,
+        mask_punctuation,
+        dim=128,
+        similarity_metric="cosine",
+        device="cuda",
+    ):
+        super(ColBERTModel, self).__init__(config)
+
+        self.query_maxlen = query_maxlen
+        self.doc_maxlen = doc_maxlen
+        self.similarity_metric = similarity_metric
+        self.dim = dim
+
+        self.mask_punctuation = mask_punctuation
+        self.skiplist = {}
+
+        if self.mask_punctuation:
+            self.tokenizer = BertTokenizerFast.from_pretrained("bert-base-uncased")
+            self.skiplist = {
+                w: True
+                for symbol in string.punctuation
+                for w in [
+                    symbol,
+                    self.tokenizer.encode(symbol, add_special_tokens=False)[0],
+                ]
+            }
+
+        self.bert = BertModel(config)
+        self.linear = nn.Linear(config.hidden_size, dim, bias=False)
+
+        self.init_weights()
+
+    def forward(self, Q, D):
+        Q = Q["input_ids"], Q["attention_mask"]
+        D = D["input_ids"], D["attention_mask"]
+
+        # Score all docs against each query
+        # scores = torch.zeros(len(Q[0]), len(D[0]), device=self.device)
+        Q_vectors = self.query(Q[0], Q[1])
+        D_vectors = self.doc(D[0], D[1])
+
+        return Q_vectors, D_vectors
+
+        # for i, q_vec in enumerate(Q_vectors):
+        #     scores[i, :] = self.score(q_vec, D_vectors)
+
+        # return scores
+        # print(*Q)
+        # return self.score(self.query(Q_ids[0].unsqueeze(0), Q_mask[1].unsqueeze(0)), self.doc(*D))
+
+    def query(self, input_ids, attention_mask):
+        input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(
+            self.device
+        )
+        Q = self.bert(input_ids, attention_mask=attention_mask)[0]
+        Q = self.linear(Q)
+
+        return torch.nn.functional.normalize(Q, p=2, dim=2)
+
+    def doc(self, input_ids, attention_mask, keep_dims=True):
+        input_ids, attention_mask = input_ids.to(self.device), attention_mask.to(
+            self.device
+        )
+        D = self.bert(input_ids, attention_mask=attention_mask)[0]
+        D = self.linear(D)
+
+        mask = (
+            torch.tensor(self.mask(input_ids), device=self.device).unsqueeze(2).float()
+        )
+        D = D * mask
+
+        D = torch.nn.functional.normalize(D, p=2, dim=2)
+
+        if not keep_dims:
+            D, mask = D.cpu().to(dtype=torch.float16), mask.cpu().bool().squeeze(-1)
+            D = [d[mask[idx]] for idx, d in enumerate(D)]
+
+        return D
+
+    def score(self, Q, D):
+        if self.similarity_metric == "cosine":
+            return (Q @ D.permute(0, 2, 1)).max(2).values.sum(1)
+
+        assert self.similarity_metric == "l2"
+        return (
+            (-1.0 * ((Q.unsqueeze(2) - D.unsqueeze(1)) ** 2).sum(-1))
+            .max(-1)
+            .values.sum(-1)
+        )
+
+    def mask(self, input_ids):
+        mask = [
+            [(x not in self.skiplist) and (x != 0) for x in d]
+            for d in input_ids.cpu().tolist()
+        ]
+        return mask
+
+
+class RobertaWithAutoEncoderForMaskedLM(RobertaPreTrainedModel):
+    _tied_weights_keys = ["lm_head.decoder.weight", "lm_head.decoder.bias"]
+
+    def __init__(self, config):
+        super().__init__(config)
+
+        self.roberta = RobertaModel(config, add_pooling_layer=False)
+        self.lm_head = RobertaLMHead(config)
+        self.autoencoder_model = Autoencoder(
+            config.max_position_embeddings, config.hidden_size
+        )
+
+        # Initialize weights and apply final processing
+        self.post_init()
+
+    def get_output_embeddings(self):
+        return self.lm_head.decoder
+
+    def set_output_embeddings(self, new_embeddings):
+        self.lm_head.decoder = new_embeddings
+
+    def forward(
+        self,
+        input_ids=None,
+        attention_mask=None,
+        token_type_ids=None,
+        position_ids=None,
+        head_mask=None,
+        inputs_embeds=None,
+        encoder_hidden_states=None,
+        encoder_attention_mask=None,
+        labels=None,
+        output_attentions=None,
+        output_hidden_states=None,
+        return_dict=None,
+    ):
+        r"""
+        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+            Labels for computing the masked language modeling loss. Indices should be in `[-100, 0, ...,
+            config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are ignored (masked), the
+            loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
+        kwargs (`Dict[str, any]`, optional, defaults to *{}*):
+            Used to hide legacy arguments that have been deprecated.
+        """
+        return_dict = (
+            return_dict if return_dict is not None else self.config.use_return_dict
+        )
+
+        outputs = self.roberta(
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            position_ids=position_ids,
+            head_mask=head_mask,
+            inputs_embeds=inputs_embeds,
+            encoder_hidden_states=encoder_hidden_states,
+            encoder_attention_mask=encoder_attention_mask,
+            output_attentions=output_attentions,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
+        )
+        sequence_output = outputs[0]
+
+        # Autoencoder
+        encoded_x, decoded_x = self.autoencoder_model(sequence_output)
+        sequence_output = decoded_x
+
+        prediction_scores = self.lm_head(sequence_output)
+
+        masked_lm_loss = None
+        if labels is not None:
+            # move labels to correct device to enable model parallelism
+            labels = labels.to(prediction_scores.device)
+            loss_fct = CrossEntropyLoss()
+            masked_lm_loss = loss_fct(
+                prediction_scores.view(-1, self.config.vocab_size), labels.view(-1)
+            )
+
+        if not return_dict:
+            output = (prediction_scores,) + outputs[2:]
+            return (
+                ((masked_lm_loss,) + output) if masked_lm_loss is not None else output
+            )
+
+        return MaskedLMOutput(
+            loss=masked_lm_loss,
+            logits=prediction_scores,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )

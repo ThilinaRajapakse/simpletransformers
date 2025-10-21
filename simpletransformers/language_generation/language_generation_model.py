@@ -49,7 +49,6 @@ class LanguageGenerationModel:
         cuda_device=-1,
         **kwargs,
     ):
-
         """
         Initializes a LanguageGenerationModel model.
 
@@ -147,7 +146,6 @@ class LanguageGenerationModel:
         self.model.to(self.device)
 
     def generate(self, prompt=None, args=None, verbose=True):
-
         """
         Generate text using a LanguageGenerationModel
 

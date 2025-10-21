@@ -109,6 +109,13 @@ model = RetrievalModel(
 | retrieve_n_docs                            | int  | 10              | Number of documents to be retrieved when doing retrieval tasks (e.g. `evaluate_model()`, `predict()`)        |
 | save_passage_dataset                       | bool | True            | Save passage datasets (during evaluation and prediction) to disk.                                            |
 | use_hf_datasets                            | bool | True            | Use Huggingface Datasets for lazy loading of data. Must be set to True for `RetrievalModel`.                 |
+| tie_encoders                               | bool | False            | Whether to tie the weights of the context encoder and query encoder.                                         |
+| train_context_encoder                      | bool | True            | Whether to train the context encoder.                                                                        |
+| train_query_encoder                        | bool | True            | Whether to train the query encoder.                                                                          |
+| mean_pooling                               | bool | False           | Whether to use mean pooling when generating representations.                                                         |
+| cluster_every_n_epochs                     | int  | 1               | Perform a clustering step every `n` epochs                                                                   |
+
+
 
 
 **Note:** For configuration options common to all Simple Transformers models, please refer to the [Configuring a Simple Transformers Model section](/docs/usage/#configuring-a-simple-transformers-model).
@@ -186,6 +193,8 @@ Trains the model using 'train_data'
 
 * **additional_eval_passages** *(optional)* - Additional passages to be used during evaluation.
 This may be a list of passages, a pandas DataFrame with the column `passages`, or a TSV file with the column `passages`.
+
+* **clustered_training** *(`bool`, optional)* - Whether to use clustered training. If True, the model will be trained with hard negatives obtained by clustering passages or queries.
 
 * **kwargs** *(optional)* - Additional metrics that should be calculated. Pass in the metrics as keyword arguments *(name of metric: function to calculate metric)*. Refer to the [additional metrics](/docs/tips-and-tricks/#additional-evaluation-metrics) section.
 E.g. `f1=sklearn.metrics.f1_score`.
@@ -268,6 +277,10 @@ A metric function should take in two parameters. The first parameter will be the
 
 * **doc_dicts** *(`dict`)* - List of retrieved document dicts for each query. (Shape: `(num_queries, retrieve_n_docs)`)
 {: .return-list}
+
+
+**Note:** Simple Transformers can now evaluate retrieval models with `pytrec_eval`. To use this, you must install `pytrec_eval` using `pip install pytrec_eval`. In order to use `pytrec_eval`, you must provide a path to a directory containing a dataset in BEIR or MS MARCO format as `eval_data`.
+{: .notice--info}
 
 
 **Note:** For more details on evaluating models with Simple Transformers, please refer to the [Tips and Tricks](/docs/tips-and-tricks) section.

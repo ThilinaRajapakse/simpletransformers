@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import json
 import logging
 import math
@@ -5,6 +6,7 @@ import os
 import random
 import warnings
 import string
+import itertools
 from dataclasses import asdict
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
@@ -13,7 +15,7 @@ import numpy as np
 import pandas as pd
 import torch
 import transformers
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -40,19 +42,56 @@ from transformers.models.auto import (
     AutoConfig,
     AutoModel,
     AutoTokenizer,
+    AutoModelForSequenceClassification,
 )
-import datasets
 from datasets import load_from_disk
+from datasets.arrow_dataset import Dataset as HFDataset
+from datasets import disable_caching
 
 from simpletransformers.config.global_args import global_args
 from simpletransformers.config.model_args import RetrievalArgs
 from simpletransformers.config.utils import sweep_config_to_sweep_values
+from simpletransformers.custom_models.large_representation_retrieval_model import (
+    DPRContextEncoderEnhanced,
+    DPRQuestionEncoderEnhanced,
+    DPRContextEncoderUnifiedRR,
+    DPRQuestionEncoderUnifiedRR,
+)
+from simpletransformers.custom_models.reranking_model import RerankingModel
+from simpletransformers.custom_models.retrieval_autoencoder import Autoencoder
+from simpletransformers.retrieval.beir_evaluation import BeirRetrievalModel
 from simpletransformers.retrieval.retrieval_utils import (
+    KLDivLossForTriplets,
+    MultiNegativesLoss,
+    QuartetLossV1,
+    QuartetLossV3,
+    calculate_mrr,
+    convert_beir_columns_to_trec_format,
+    get_clustered_passage_dataset,
+    get_output_embeddings,
     get_prediction_passage_dataset,
+    get_tas_dataset,
     load_hf_dataset,
     get_evaluation_passage_dataset,
     mean_reciprocal_rank_at_k,
+    get_recall_at_k,
+    RetrievalOutput,
+    load_trec_format,
+    embed_passages_trec_format,
+    compute_rerank_similarity,
+    MarginMSELoss,
+    colbert_score,
+    MovingLossAverage,
 )
+from simpletransformers.retrieval.pytrec_eval_utils import (
+    convert_predictions_to_pytrec_format,
+    convert_qrels_dataset_to_pytrec_format,
+    convert_metric_dict_to_scores_list,
+)
+from simpletransformers.utils.utils import ChunkSampler
+
+from simpletransformers.custom_models.models import ColBERTModel
+
 
 try:
     import wandb
@@ -90,7 +129,12 @@ class RetrievalModel:
         query_encoder_name=None,
         context_encoder_tokenizer=None,
         query_encoder_tokenizer=None,
+        reranking_model_name=None,
         prediction_passages=None,
+        teacher_model_name=None,
+        teacher_tokenizer_name=None,
+        autoencoder_model=None,
+        clustering_model=None,
         args=None,
         use_cuda=True,
         cuda_device=-1,
@@ -153,9 +197,28 @@ class RetrievalModel:
             self.device = "cpu"
 
         self.results = {}
+        self.unified_rr = self.args.unified_rr
 
         if not use_cuda:
             self.args.fp16 = False
+
+        if self.args.larger_representations:
+            if self.args.unified_rr and not self.args.unified_cross_rr:
+                MODEL_CLASSES["custom"] = (
+                    DPRConfig,
+                    DPRContextEncoderUnifiedRR,
+                    DPRQuestionEncoderUnifiedRR,
+                    AutoTokenizer,
+                    AutoTokenizer,
+                )
+            else:
+                MODEL_CLASSES["dpr"] = (
+                    DPRConfig,
+                    DPRContextEncoderEnhanced,
+                    DPRQuestionEncoderEnhanced,
+                    AutoTokenizer,
+                    AutoTokenizer,
+                )
 
         try:
             (
@@ -172,6 +235,51 @@ class RetrievalModel:
                 )
             )
 
+        # Using autoencoder
+        if self.args.use_autoencoder:
+            self.autoencoder_model = Autoencoder()
+            if autoencoder_model is not None:
+                # Load with PyTorch
+                self.autoencoder_model.load_state_dict(
+                    torch.load(os.path.join(autoencoder_model, "pytorch_model.bin"))
+                )
+            elif model_name:
+                # PyTorch model from a PyTorch checkpoint
+                self.autoencoder_model.load_state_dict(
+                    torch.load(
+                        os.path.join(
+                            model_name, "autoencoder_model", "pytorch_model.bin"
+                        )
+                    )
+                )
+        else:
+            self.autoencoder_model = None
+
+        # if self.args.unified_cross_rr:
+        #     if reranking_model_name:
+        #         self.reranking_config = config_class.from_pretrained(
+        #             reranking_model_name, **self.args.reranking_config
+        #         )
+        #         self.reranking_model = RerankingModel.from_pretrained(
+        #             reranking_model_name, config=self.reranking_config
+        #         )
+        #     elif model_name:
+        #         self.reranking_config = config_class.from_pretrained(
+        #             os.path.join(model_name, "reranking_model"),
+        #             **self.args.reranking_config,
+        #         )
+        #         self.reranking_model = RerankingModel.from_pretrained(
+        #             os.path.join(model_name, "reranking_model"),
+        #             config=self.reranking_config,
+        #         )
+        #     else:
+        #         self.reranking_config = config_class(**self.args.reranking_config)
+        #         self.reranking_model = RerankingModel(config=self.reranking_config)
+        # else:
+        #     self.reranking_config = None
+        #     self.reranking_model = None
+
+        # Using standard DPR
         if context_encoder_name:
             self.context_config = config_class.from_pretrained(
                 context_encoder_name, **self.args.context_config
@@ -181,9 +289,14 @@ class RetrievalModel:
             self.context_encoder = context_encoder.from_pretrained(
                 context_encoder_name, config=self.context_config
             )
-            self.context_tokenizer = context_tokenizer.from_pretrained(
-                context_encoder_name
-            )
+            try:
+                self.context_tokenizer = context_tokenizer.from_pretrained(
+                    context_encoder_name
+                )
+            except Exception:
+                self.context_tokenizer = context_tokenizer.from_pretrained(
+                    context_encoder_name, use_fast=False
+                )
         elif model_name:
             self.context_config = config_class.from_pretrained(
                 os.path.join(model_name, "context_encoder"), **self.args.context_config
@@ -201,44 +314,193 @@ class RetrievalModel:
                 context_encoder_tokenizer
             )
 
-        if query_encoder_name:
-            self.query_config = config_class.from_pretrained(
-                query_encoder_name, **self.args.query_config
-            )
-            if self.args.query_config.get("projection_dim") is not None:
-                query_encoder._keys_to_ignore_on_load_missing.append("encode_proj")
-            self.query_encoder = query_encoder.from_pretrained(
-                query_encoder_name, config=self.query_config
-            )
-            self.query_tokenizer = query_tokenizer.from_pretrained(query_encoder_name)
-        elif model_name:
-            self.query_config = config_class.from_pretrained(
-                os.path.join(model_name, "query_encoder"), **self.args.query_config
-            )
-            self.query_encoder = query_encoder.from_pretrained(
-                os.path.join(model_name, "query_encoder"), config=self.query_config
-            )
-            self.query_tokenizer = query_tokenizer.from_pretrained(
-                os.path.join(model_name, "query_encoder")
-            )
+        if self.args.tie_encoders:
+            self.query_encoder = self.context_encoder
+            self.query_tokenizer = self.context_tokenizer
+            self.query_config = self.context_config
         else:
-            self.query_config = config_class(**self.args.query_config)
-            self.query_encoder = query_encoder(config=self.query_config)
-            self.query_tokenizer = query_tokenizer.from_pretrained(
-                query_encoder_tokenizer
+            if query_encoder_name:
+                self.query_config = config_class.from_pretrained(
+                    query_encoder_name, **self.args.query_config
+                )
+                # if self.args.query_config.get("projection_dim") is not None:
+                # query_encoder._keys_to_ignore_on_load_missing.append("encode_proj")
+                self.query_encoder = query_encoder.from_pretrained(
+                    query_encoder_name, config=self.query_config
+                )
+                try:
+                    self.query_tokenizer = query_tokenizer.from_pretrained(
+                        query_encoder_name
+                    )
+                except Exception:
+                    self.query_tokenizer = query_tokenizer.from_pretrained(
+                        query_encoder_name, use_fast=False
+                    )
+            elif model_name:
+                self.query_config = config_class.from_pretrained(
+                    os.path.join(model_name, "query_encoder"), **self.args.query_config
+                )
+                self.query_encoder = query_encoder.from_pretrained(
+                    os.path.join(model_name, "query_encoder"), config=self.query_config
+                )
+                self.query_tokenizer = query_tokenizer.from_pretrained(
+                    os.path.join(model_name, "query_encoder")
+                )
+            else:
+                self.query_config = config_class(**self.args.query_config)
+                self.query_encoder = query_encoder(config=self.query_config)
+                self.query_tokenizer = query_tokenizer.from_pretrained(
+                    query_encoder_tokenizer
+                )
+
+        if args.unified_rr:
+            self.teacher_model = AutoModelForSequenceClassification.from_pretrained(
+                teacher_model_name
             )
+            if teacher_tokenizer_name is None:
+                self.teacher_tokenizer = AutoTokenizer.from_pretrained(
+                    teacher_model_name, max_len=args.max_seq_length
+                )
+            elif isinstance(teacher_tokenizer_name, str):
+                self.teacher_tokenizer = AutoTokenizer.from_pretrained(
+                    teacher_tokenizer_name, max_len=args.max_seq_length
+                )
+            else:
+                self.teacher_tokenizer = teacher_tokenizer_name
+        else:
+            self.teacher_model = None
+            self.teacher_tokenizer = None
+
+        if args.mse_loss or args.reranking_kl_div_loss:
+            if args.teacher_type == "colbert":
+                self.teacher_model = ColBERTModel.from_pretrained(
+                    teacher_model_name,
+                    query_maxlen=32,
+                    doc_maxlen=180,
+                    mask_punctuation=True,
+                    device=self.device,
+                )
+            elif args.teacher_type == "cross_encoder":
+                self.teacher_model = AutoModelForSequenceClassification.from_pretrained(
+                    teacher_model_name
+                )
+                self.teacher_tokenizer = AutoTokenizer.from_pretrained(
+                    teacher_model_name
+                )
+        else:
+            self.teacher_model = None
+
+        if clustering_model is not None:
+            self.clustering_model = AutoModel.from_pretrained(clustering_model)
+            try:
+                self.clustering_tokenizer = AutoTokenizer.from_pretrained(
+                    clustering_model, max_len=args.max_seq_length
+                )
+            except Exception:
+                self.clustering_tokenizer = AutoTokenizer.from_pretrained(
+                    "bert-base-multilingual-cased",
+                    max_len=args.max_seq_length,
+                    # clustering_model
+                )
+        else:
+            self.clustering_model = None
+            self.clustering_tokenizer = None
 
         # TODO: Add support for adding special tokens to the tokenizers
 
+        if self.args.larger_representations or self.args.include_bce_loss:
+            from tokenizers.processors import TemplateProcessing
+
+            if self.args.extra_cls_token_count > 0:
+                cls_substring = (
+                    " ".join(["[CLS]"] * self.args.extra_cls_token_count) + " "
+                )
+
+                cls_substring = (
+                    " ".join(
+                        [f"[unused{i}]" for i in range(self.args.extra_cls_token_count)]
+                    )
+                    + " "
+                )
+
+                special_tokens = [
+                    ("[CLS]", self.context_tokenizer.cls_token_id),
+                    ("[UNK]", self.context_tokenizer.unk_token_id),
+                    ("[SEP]", self.context_tokenizer.sep_token_id),
+                    ("[PAD]", self.context_tokenizer.pad_token_id),
+                    ("[MASK]", self.context_tokenizer.mask_token_id),
+                ]
+
+                for i in range(self.args.extra_cls_token_count):
+                    special_tokens.append(
+                        (
+                            f"[unused{i}]",
+                            self.context_tokenizer.convert_tokens_to_ids(
+                                f"[unused{i}]"
+                            ),
+                        )
+                    )
+
+                context_post_processor = TemplateProcessing(
+                    single=f"[CLS] {cls_substring}$A [SEP]",
+                    pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+                    special_tokens=special_tokens,
+                )
+
+                self.context_tokenizer._tokenizer.post_processor = (
+                    context_post_processor
+                )
+            else:
+                cls_substring = ""
+
+            if self.args.extra_mask_token_count > 0:
+                mask_substring = (
+                    " ".join(["[MASK]"] * self.args.extra_mask_token_count) + " "
+                )
+            else:
+                mask_substring = ""
+
+            if (
+                self.args.extra_cls_token_count > 0
+                or self.args.extra_mask_token_count > 0
+            ):
+                query_post_processor = TemplateProcessing(
+                    single=f"[CLS] {cls_substring}$A {mask_substring}[SEP]",
+                    pair="[CLS] $A [SEP] $B:1 [SEP]:1",
+                    special_tokens=special_tokens,
+                )
+
+                self.query_tokenizer._tokenizer.post_processor = query_post_processor
+
         self.args.model_type = model_type
         self.args.model_name = model_name
+        self.context_encoder_name = context_encoder_name
+        self.query_encoder_name = query_encoder_name
+
+        if args.disable_datasets_caching:
+            disable_caching()
 
         if prediction_passages is not None:
-            self.prediction_passages = self.get_updated_prediction_passages(
-                prediction_passages
-            )
+            if self.args.multi_head_vectors:
+                (
+                    self.prediction_passages,
+                    self.id_to_vec_dataset,
+                ) = self.get_updated_prediction_passages(prediction_passages)
+            else:
+                self.prediction_passages = self.get_updated_prediction_passages(
+                    prediction_passages
+                )
         else:
             self.prediction_passages = None
+        self.id_to_vec_dataset = None
+
+        if self.args.ance_training and not self.args.hard_negatives:
+            self.args.hard_negatives = True
+            warnings.warn(
+                "Setting hard_negatives to True since ANCE training is enabled."
+            )
+
+        self.eval_dataset_names = None
 
     def train_model(
         self,
@@ -248,7 +510,12 @@ class RetrievalModel:
         args=None,
         eval_data=None,
         additional_eval_passages=None,
+        relevant_docs=None,
+        clustered_training=False,
+        top_k_values=None,
         verbose=True,
+        eval_set="dev",
+        eval_dataset_names=None,
         **kwargs,
     ):
         """
@@ -265,7 +532,13 @@ class RetrievalModel:
             args (optional): Optional changes to the args dict of the model. Any changes made will persist for the model.
             additional_eval_passages: Additional passages to be used during evaluation.
                         This may be a list of passages, a pandas DataFrame with the column `passages`, or a TSV file with the column `passages`.
+            relevant_docs: A list of lists or path to a JSON file of relevant documents for each query.
             eval_data (optional): A DataFrame against which evaluation will be performed when evaluate_during_training is enabled. Is required if evaluate_during_training is enabled.
+            clustered_training (optional): Whether to use clustered training. Defaults to False.
+            top_k_values (optional): Cutoff values for metrics. Defaults to [1, 2, 3, 5, 10].
+            verbose (optional): If verbose, the training progress will be displayed. Defaults to True.
+            eval_set (optional): The set of evaluation dataset to use. Defaults to 'dev'. Typically 'dev' or 'test'. Should be a list if multiple datasets are used for evaluation.
+            eval_dataset_names (optional): A list of names for the evaluation datasets. This is used to identify the datasets in the evaluation results. Defaults to None.
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
                         will be lists of strings. Note that this will slow down training significantly as the predicted sequences need to be generated.
@@ -281,11 +554,38 @@ class RetrievalModel:
         # if self.args.silent:
         #     show_running_loss = False
 
-        if self.args.evaluate_during_training and eval_data is None:
-            raise ValueError(
-                "evaluate_during_training is enabled but eval_data is not specified."
-                " Pass eval_data to model.train_model() if using evaluate_during_training."
-            )
+        if self.args.evaluate_during_training:
+            if not eval_data:
+                raise ValueError(
+                    "evaluate_during_training is enabled but eval_data is not specified."
+                    " Pass eval_data to model.train_model() if using evaluate_during_training."
+                )
+            elif isinstance(eval_data, list):
+                # Checks if everything is in order for multiple evaluation datasets
+                if not eval_dataset_names:
+                    raise ValueError(
+                        "eval_dataset_names is required when multiple evaluation datasets are used."
+                    )
+                if len(eval_data) != len(eval_dataset_names):
+                    raise ValueError(
+                        "Length of eval_data and eval_dataset_names should be the same."
+                    )
+                if not isinstance(eval_set, list) and (
+                    self.args.data_format == "beir"
+                    or self.args.data_format == "msmarco"
+                    or self.args.evaluate_with_beir
+                ):
+                    eval_set = [eval_set] * len(eval_data)
+                    warnings.warn(
+                        f"eval_set is not a list. Setting eval_set to {eval_set}."
+                    )
+                elif isinstance(eval_set, list) and len(eval_set) != len(eval_data):
+                    raise ValueError(
+                        "Length of eval_set should be the same as the number of evaluation datasets."
+                    )
+                self.eval_dataset_names = eval_dataset_names
+            else:
+                self.eval_dataset_names = None
 
         if not output_dir:
             output_dir = self.args.output_dir
@@ -308,10 +608,21 @@ class RetrievalModel:
             )
             self.query_encoder = DDP(self.query_encoder, device_ids=[kwargs["rank"]])
             self.device = kwargs["rank"]
+            if self.unified_rr:
+                self.teacher_model = self.teacher_model.to(kwargs["rank"])
+                self.teacher_model = DDP(
+                    self.teacher_model, device_ids=[kwargs["rank"]]
+                )
         else:
             self._move_model_to_device()
 
-        train_dataset = self.load_and_cache_examples(train_data, verbose=verbose)
+        train_dataset = self.load_and_cache_examples(
+            train_data,
+            verbose=verbose,
+            clustered_training=clustered_training,
+            evaluate=False,
+            additional_eval_passages=additional_eval_passages,
+        )
 
         os.makedirs(output_dir, exist_ok=True)
 
@@ -321,7 +632,12 @@ class RetrievalModel:
             show_running_loss=show_running_loss,
             eval_data=eval_data,
             additional_eval_passages=additional_eval_passages,
+            relevant_docs=relevant_docs,
+            clustered_training=clustered_training,
+            train_data=train_data,
+            top_k_values=top_k_values,
             verbose=verbose,
+            eval_set=eval_set,
             **kwargs,
         )
 
@@ -347,7 +663,12 @@ class RetrievalModel:
         show_running_loss=True,
         eval_data=None,
         additional_eval_passages=None,
+        relevant_docs=None,
+        clustered_training=False,
+        train_data=None,
+        top_k_values=None,
         verbose=True,
+        eval_set="dev",
         **kwargs,
     ):
         """
@@ -360,14 +681,41 @@ class RetrievalModel:
         query_model = self.query_encoder
         args = self.args
 
-        tb_writer = SummaryWriter(logdir=args.tensorboard_dir)
-        train_sampler = RandomSampler(train_dataset)
-        train_dataloader = DataLoader(
-            train_dataset,
-            sampler=train_sampler,
-            batch_size=args.train_batch_size,
-            num_workers=self.args.dataloader_num_workers,
-        )
+        tb_writer = SummaryWriter(log_dir=args.tensorboard_dir)
+        if self.args.batch_chunk_size is not None:
+            if clustered_training or args.tas_clustering:
+                raise ValueError(
+                    "Chunked training is not supported with clustered training or TAS clustering."
+                )
+            train_sampler = ChunkSampler(
+                train_dataset, self.args.batch_chunk_size, self.args.train_batch_size
+            )
+        else:
+            train_sampler = RandomSampler(train_dataset)
+
+        if clustered_training or args.tas_clustering:
+            train_dataloader = train_dataset
+            if args.curriculum_clustering:
+                # Number of epochs where randomizing happens is 75% of total epochs
+                randomize_epochs = int(0.75 * args.num_train_epochs)
+
+                # Linearly decrease randomize percentage for 1 to 0 over the randomize epochs
+                randomize_percentage = np.linspace(1, 0, randomize_epochs)
+
+                # Add 0 to the end of the randomize percentage for the remaining epochs
+                randomize_percentage = np.append(
+                    randomize_percentage,
+                    np.zeros(args.num_train_epochs - randomize_epochs),
+                )
+            else:
+                randomize_percentage = np.zeros(args.num_train_epochs)
+        else:
+            train_dataloader = DataLoader(
+                train_dataset,
+                sampler=train_sampler,
+                batch_size=args.train_batch_size,
+                num_workers=self.args.dataloader_num_workers,
+            )
 
         if args.max_steps > 0:
             t_total = args.max_steps
@@ -382,6 +730,12 @@ class RetrievalModel:
                 // args.gradient_accumulation_steps
                 * args.num_train_epochs
             )
+        self.t_total = t_total
+        if self.args.nll_lambda_start_decay is not None:
+            total_decay_steps = self.t_total - self.args.nll_lambda_start_decay
+            self.nll_lambda_decay_per_step = (
+                self.args.nll_lambda - self.args.nll_lambda_min
+            ) / total_decay_steps
 
         optimizer_grouped_parameters = self.get_optimizer_parameters(
             context_model, query_model, args
@@ -439,10 +793,11 @@ class RetrievalModel:
         if args.n_gpu > 1:
             context_model = torch.nn.DataParallel(context_model)
             query_model = torch.nn.DataParallel(query_model)
+            self.teacher_model = torch.nn.DataParallel(self.teacher_model)
 
         logger.info(" Training started")
 
-        global_step = 0
+        self.global_step = 0
         training_progress_scores = None
         tr_loss, logging_loss = 0.0, 0.0
         context_model.zero_grad()
@@ -455,6 +810,7 @@ class RetrievalModel:
         early_stopping_counter = 0
         steps_trained_in_current_epoch = 0
         epochs_trained = 0
+        moving_loss = MovingLossAverage(args.moving_average_loss_count)
 
         if args.model_name and os.path.exists(args.model_name):
             try:
@@ -464,11 +820,13 @@ class RetrievalModel:
                     checkpoint_suffix = checkpoint_suffix[1]
                 else:
                     checkpoint_suffix = checkpoint_suffix[-1]
-                global_step = int(checkpoint_suffix)
-                epochs_trained = global_step // (
-                    len(train_dataloader) // args.gradient_accumulation_steps
+                self.global_step = int(checkpoint_suffix)
+                epochs_trained = (
+                    self.global_step
+                    // (len(train_dataloader) // args.gradient_accumulation_steps)
+                    + 1
                 )
-                steps_trained_in_current_epoch = global_step % (
+                steps_trained_in_current_epoch = self.global_step % (
                     len(train_dataloader) // args.gradient_accumulation_steps
                 )
 
@@ -476,16 +834,37 @@ class RetrievalModel:
                     "   Continuing training from checkpoint, will skip to saved global_step"
                 )
                 logger.info("   Continuing training from epoch %d", epochs_trained)
-                logger.info("   Continuing training from global step %d", global_step)
+                logger.info(
+                    "   Continuing training from global step %d", self.global_step
+                )
                 logger.info(
                     "   Will skip the first %d steps in the current epoch",
                     steps_trained_in_current_epoch,
+                )
+                train_iterator = trange(
+                    epochs_trained,
+                    int(args.num_train_epochs),
+                    desc="Epoch",
+                    disable=args.silent,
+                    mininterval=0,
                 )
             except ValueError:
                 logger.info("   Starting fine-tuning.")
 
         if args.evaluate_during_training:
-            training_progress_scores = self._create_training_progress_scores(**kwargs)
+            training_progress_scores = self._create_training_progress_scores(
+                calculate_recall=relevant_docs is not None,
+                top_k_values=top_k_values,
+                **kwargs,
+            )
+            if self.args.early_stopping_metric not in training_progress_scores:
+                raise ValueError(
+                    "early_stopping_metric should be one of the metrics used for evaluation. \
+                        Available metrics are {} and the early_stopping_metric is {}".format(
+                        list(training_progress_scores.keys()),
+                        self.args.early_stopping_metric,
+                    )
+                )
 
         if args.wandb_project:
             wandb.init(
@@ -502,6 +881,9 @@ class RetrievalModel:
 
             scaler = amp.GradScaler()
 
+        if args.external_embeddings:
+            args.train_context_encoder = False
+
         for current_epoch in train_iterator:
             if args.train_context_encoder:
                 context_model.train()
@@ -511,15 +893,17 @@ class RetrievalModel:
                 query_model.train()
             else:
                 query_model.eval()
+
             if epochs_trained > 0:
                 epochs_trained -= 1
+                epoch_number = current_epoch - 1
                 continue
             train_iterator.set_description(
                 f"Epoch {epoch_number + 1} of {args.num_train_epochs}"
             )
             batch_iterator = tqdm(
                 train_dataloader,
-                desc=f"Running Epoch {epoch_number} of {args.num_train_epochs}",
+                desc=f"Running Epoch {epoch_number + 1} of {args.num_train_epochs}",
                 disable=args.silent,
                 mininterval=0,
             )
@@ -528,37 +912,113 @@ class RetrievalModel:
                     steps_trained_in_current_epoch -= 1
                     continue
                 # batch = tuple(t.to(device) for t in batch)
+                (
+                    context_inputs,
+                    query_inputs,
+                    labels,
+                    teacher_scores,
+                ) = self._get_inputs_dict(batch)
 
-                context_inputs, query_inputs, labels = self._get_inputs_dict(batch)
-                if args.fp16:
-                    with amp.autocast():
-                        loss, *_, correct_count = self._calculate_loss(
+                high_loss_repeats = 0
+
+                while True:
+                    if args.fp16:
+                        with amp.autocast():
+                            retrieval_output = self._calculate_loss(
+                                context_model,
+                                query_model,
+                                context_inputs,
+                                query_inputs,
+                                labels,
+                                teacher_scores=teacher_scores,
+                            )
+                            loss = retrieval_output.loss
+                            correct_predictions_percentage = (
+                                retrieval_output.correct_predictions_percentage
+                            )
+                    else:
+                        retrieval_output = self._calculate_loss(
                             context_model,
                             query_model,
                             context_inputs,
                             query_inputs,
                             labels,
-                            criterion,
+                            teacher_scores=teacher_scores,
                         )
-                else:
-                    loss, *_, correct_count = self._calculate_loss(
-                        context_model,
-                        query_model,
-                        context_inputs,
-                        query_inputs,
-                        labels,
-                        criterion,
+                        loss = retrieval_output.loss
+                        correct_predictions_percentage = (
+                            retrieval_output.correct_predictions_percentage
+                        )
+                    colbert_percentage = (
+                        retrieval_output.teacher_correct_predictions_percentage
                     )
 
-                if args.n_gpu > 1:
-                    loss = loss.mean()
+                    if args.n_gpu > 1:
+                        loss = loss.mean()
 
-                current_loss = loss.item()
+                    # Compare the current loss to the moving average loss
+                    current_loss = loss.item()
 
-                if show_running_loss:
+                    if (
+                        args.repeat_high_loss_n == 0
+                        or moving_loss.size() < args.moving_average_loss_count
+                    ):
+                        break
+
+                    if current_loss > moving_loss.get_average_loss():
+                        # Increment the high loss repeats counter
+                        high_loss_repeats += 1
+
+                        if high_loss_repeats > args.repeat_high_loss_n:
+                            # Exit the loop if the high loss repeats counter exceeds the threshold
+                            break
+                        if args.fp16:
+                            scaler.scale(loss).backward()
+                        else:
+                            loss.backward()
+
+                        if args.fp16:
+                            scaler.unscale_(optimizer)
+                        if args.optimizer == "AdamW":
+                            torch.nn.utils.clip_grad_norm_(
+                                context_model.parameters(), args.max_grad_norm
+                            )
+                            torch.nn.utils.clip_grad_norm_(
+                                query_model.parameters(), args.max_grad_norm
+                            )
+
+                        if args.fp16:
+                            scaler.step(optimizer)
+                            scaler.update()
+                        else:
+                            optimizer.step()
+                            context_model.zero_grad()
+                            query_model.zero_grad()
+                    else:
+                        # Exit the loop if the current loss is lower than the moving average loss
+                        break
+
+                if args.repeat_high_loss_n > 0:
+                    moving_loss.add_loss(current_loss)
+
+                if show_running_loss and (args.reranking_kl_div_loss or args.mse_loss):
                     batch_iterator.set_description(
-                        f"Epochs {epoch_number}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct count: {correct_count}"
+                        f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} Teacher correct percentage: {colbert_percentage:4.1f}"
                     )
+                elif show_running_loss:
+                    if args.repeat_high_loss_n > 0:
+                        batch_iterator.set_description(
+                            f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f} High loss repeats: {high_loss_repeats}"
+                        )
+                    else:
+                        if args.include_quartet_loss:
+                            batch_iterator.set_description(
+                                f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Quartet loss: {retrieval_output.quartet_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f}"
+                            )
+                        else:
+                            batch_iterator.set_description(
+                                f"Epochs {epoch_number + 1}/{args.num_train_epochs}. Running Loss: {current_loss:9.4f} Correct percentage: {correct_predictions_percentage:4.1f}"
+                            )
 
                 if args.gradient_accumulation_steps > 1:
                     loss = loss / args.gradient_accumulation_steps
@@ -588,32 +1048,73 @@ class RetrievalModel:
                     scheduler.step()  # Update learning rate schedule
                     context_model.zero_grad()
                     query_model.zero_grad()
-                    global_step += 1
+                    self.global_step += 1
 
-                    if args.logging_steps > 0 and global_step % args.logging_steps == 0:
+                    if (
+                        args.logging_steps > 0
+                        and self.global_step % args.logging_steps == 0
+                    ):
                         # Log metrics
                         tb_writer.add_scalar(
-                            "lr", scheduler.get_last_lr()[0], global_step
+                            "lr", scheduler.get_last_lr()[0], self.global_step
                         )
                         tb_writer.add_scalar(
                             "loss",
                             (tr_loss - logging_loss) / args.logging_steps,
-                            global_step,
+                            self.global_step,
                         )
                         logging_loss = tr_loss
                         if args.wandb_project or self.is_sweeping:
-                            wandb.log(
-                                {
-                                    "Training loss": current_loss,
-                                    "lr": scheduler.get_last_lr()[0],
-                                    "global_step": global_step,
-                                }
-                            )
+                            # if args.reranking_kl_div_loss or args.mse_loss:
+                            #     # Deprecated
+                            #     logging_dict = {
+                            #         "Training loss": current_loss,
+                            #         "lr": scheduler.get_last_lr()[0],
+                            #         "global_step": self.global_step,
+                            #         "correct_predictions_percentage": correct_predictions_percentage,
+                            #         "teacher_correct_predictions_percentage": colbert_percentage,
+                            #     }
+                            #     if args.include_nll_loss:
+                            #         logging_dict[
+                            #             "nll_loss"
+                            #         ] = retrieval_output.nll_loss
+                            #         if args.reranking_kl_div_loss:
+                            #             logging_dict["kl_div_loss"] = (
+                            #                 current_loss - retrieval_output.nll_loss
+                            #             )
+                            #         elif args.mse_loss:
+                            #             logging_dict["mse_loss"] = (
+                            #                 current_loss - retrieval_output.nll_loss
+                            #             )
 
-                    if args.save_steps > 0 and global_step % args.save_steps == 0:
+                            logging_dict = {
+                                "Training loss": current_loss,
+                                "lr": scheduler.get_last_lr()[0],
+                                "global_step": self.global_step,
+                                "correct_predictions_percentage": correct_predictions_percentage,
+                            }
+
+                            if retrieval_output.nll_loss is not None:
+                                logging_dict["nll_loss"] = retrieval_output.nll_loss
+                            if retrieval_output.kl_div_loss is not None:
+                                logging_dict["kl_div_loss"] = (
+                                    retrieval_output.kl_div_loss
+                                )
+                            if retrieval_output.margin_mse_loss is not None:
+                                logging_dict["margin_mse_loss"] = (
+                                    retrieval_output.margin_mse_loss
+                                )
+                            if retrieval_output.quartet_loss is not None:
+                                logging_dict["quartet_loss"] = (
+                                    retrieval_output.quartet_loss
+                                )
+
+                            wandb.log(logging_dict)
+
+                    if args.save_steps > 0 and self.global_step % args.save_steps == 0:
                         # Save model checkpoint
                         output_dir_current = os.path.join(
-                            output_dir, "checkpoint-{}".format(global_step)
+                            output_dir, "checkpoint-{}".format(self.global_step)
                         )
 
                         self.save_model(
@@ -626,26 +1127,63 @@ class RetrievalModel:
 
                     if args.evaluate_during_training and (
                         args.evaluate_during_training_steps > 0
-                        and global_step % args.evaluate_during_training_steps == 0
+                        and self.global_step % args.evaluate_during_training_steps == 0
                     ):
                         # Only evaluate when single GPU otherwise metrics may not average well
-                        results, *_ = self.eval_model(
-                            eval_data,
-                            additional_passages=additional_eval_passages,
-                            verbose=verbose and args.evaluate_during_training_verbose,
-                            silent=args.evaluate_during_training_silent,
-                            **kwargs,
-                        )
+                        if args.data_format == "beir" or args.data_format == "msmarco":
+                            if isinstance(eval_data, list):
+                                results = {}
+                                for eval_data_item, eval_name, current_set in zip(
+                                    eval_data, self.eval_dataset_names, eval_set
+                                ):
+                                    # We need to keep adding the results to the same dictionary
+                                    # as we are evaluating on multiple datasets
+                                    results_default_names = self.eval_model(
+                                        eval_data_item,
+                                        verbose=verbose
+                                        and args.evaluate_during_training_verbose,
+                                        silent=args.evaluate_during_training_silent,
+                                        evaluating_during_training=True,
+                                        eval_set=current_set,
+                                        **kwargs,
+                                    )
+
+                                    for key in results_default_names:
+                                        results[f"{eval_name}_{key}"] = (
+                                            results_default_names[key]
+                                        )
+                            else:
+                                results = self.eval_model(
+                                    eval_data,
+                                    verbose=verbose
+                                    and args.evaluate_during_training_verbose,
+                                    silent=args.evaluate_during_training_silent,
+                                    evaluating_during_training=True,
+                                    eval_set=eval_set,
+                                    **kwargs,
+                                )
+                        else:
+                            results, *_ = self.eval_model(
+                                eval_data,
+                                additional_passages=additional_eval_passages,
+                                relevant_docs=relevant_docs,
+                                verbose=verbose
+                                and args.evaluate_during_training_verbose,
+                                silent=args.evaluate_during_training_silent,
+                                top_k_values=top_k_values,
+                                evaluating_during_training=True,
+                                **kwargs,
+                            )
                         for key, value in results.items():
                             try:
                                 tb_writer.add_scalar(
-                                    "eval_{}".format(key), value, global_step
+                                    "eval_{}".format(key), value, self.global_step
                                 )
                             except (NotImplementedError, AssertionError):
                                 pass
 
                         output_dir_current = os.path.join(
-                            output_dir, "checkpoint-{}".format(global_step)
+                            output_dir, "checkpoint-{}".format(self.global_step)
                         )
 
                         if args.save_eval_checkpoints:
@@ -658,7 +1196,7 @@ class RetrievalModel:
                                 results=results,
                             )
 
-                        training_progress_scores["global_step"].append(global_step)
+                        training_progress_scores["global_step"].append(self.global_step)
                         training_progress_scores["train_loss"].append(current_loss)
                         for key in results:
                             training_progress_scores[key].append(results[key])
@@ -725,10 +1263,12 @@ class RetrievalModel:
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return (
-                                            global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            self.global_step,
+                                            (
+                                                tr_loss / self.global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         else:
                             if (
@@ -771,18 +1311,49 @@ class RetrievalModel:
                                             logger.info(" Training terminated.")
                                             train_iterator.close()
                                         return (
-                                            global_step,
-                                            tr_loss / global_step
-                                            if not self.args.evaluate_during_training
-                                            else training_progress_scores,
+                                            self.global_step,
+                                            (
+                                                tr_loss / self.global_step
+                                                if not self.args.evaluate_during_training
+                                                else training_progress_scores
+                                            ),
                                         )
                         context_model.train()
                         query_model.train()
 
             epoch_number += 1
             output_dir_current = os.path.join(
-                output_dir, "checkpoint-{}-epoch-{}".format(global_step, epoch_number)
+                output_dir,
+                "checkpoint-{}-epoch-{}".format(self.global_step, epoch_number),
             )
+
+            if (
+                clustered_training or self.args.ance_training
+            ) and epoch_number != args.num_train_epochs:
+                train_dataset = self.load_and_cache_examples(
+                    train_data,
+                    verbose=verbose,
+                    clustered_training=clustered_training,
+                    evaluate=False,
+                    additional_eval_passages=additional_eval_passages,
+                    clustered_batch_randomize_percentage=(
+                        randomize_percentage[epoch_number]
+                        if clustered_training
+                        else None
+                    ),
+                    epoch_number=epoch_number,
+                    dataset=train_dataset,
+                )
+                train_sampler = RandomSampler(train_dataset)
+                if clustered_training:
+                    train_dataloader = train_dataset
+                else:
+                    train_dataloader = DataLoader(
+                        train_dataset,
+                        sampler=train_sampler,
+                        batch_size=args.train_batch_size,
+                        num_workers=self.args.dataloader_num_workers,
+                    )
 
             if args.save_model_every_epoch or args.evaluate_during_training:
                 os.makedirs(output_dir_current, exist_ok=True)
@@ -797,23 +1368,59 @@ class RetrievalModel:
                 )
 
             if args.evaluate_during_training and args.evaluate_each_epoch:
-                results, *_ = self.eval_model(
-                    eval_data,
-                    additional_passages=additional_eval_passages,
-                    verbose=verbose and args.evaluate_during_training_verbose,
-                    silent=args.evaluate_during_training_silent,
-                    **kwargs,
-                )
+                if args.data_format == "beir" or args.data_format == "msmarco":
+                    if isinstance(eval_data, list):
+                        results = {}
+                        for eval_data_item, eval_name, current_set in zip(
+                            eval_data, self.eval_dataset_names, eval_set
+                        ):
+                            # We need to keep adding the results to the same dictionary
+                            # as we are evaluating on multiple datasets
+                            results_default_names = self.eval_model(
+                                eval_data_item,
+                                verbose=verbose
+                                and args.evaluate_during_training_verbose,
+                                silent=args.evaluate_during_training_silent,
+                                evaluating_during_training=True,
+                                eval_set=current_set,
+                                **kwargs,
+                            )
+
+                            for key in results_default_names:
+                                results[f"{eval_name}_{key}"] = results_default_names[
+                                    key
+                                ]
+                    else:
+                        results = self.eval_model(
+                            eval_data,
+                            verbose=verbose and args.evaluate_during_training_verbose,
+                            silent=args.evaluate_during_training_silent,
+                            evaluating_during_training=True,
+                            eval_set=eval_set,
+                            **kwargs,
+                        )
+                else:
+                    results, *_ = self.eval_model(
+                        eval_data,
+                        additional_passages=additional_eval_passages,
+                        relevant_docs=relevant_docs,
+                        verbose=verbose and args.evaluate_during_training_verbose,
+                        silent=args.evaluate_during_training_silent,
+                        top_k_values=top_k_values,
+                        evaluating_during_training=True,
+                        **kwargs,
+                    )
 
                 if args.save_eval_checkpoints:
                     self.save_model(
                         output_dir_current, optimizer, scheduler, results=results
                     )
 
-                training_progress_scores["global_step"].append(global_step)
+                training_progress_scores["global_step"].append(self.global_step)
                 training_progress_scores["train_loss"].append(current_loss)
                 for key in results:
                     training_progress_scores[key].append(results[key])
+
                 report = pd.DataFrame(training_progress_scores)
                 report.to_csv(
                     os.path.join(args.output_dir, "training_progress_scores.csv"),
@@ -875,10 +1482,12 @@ class RetrievalModel:
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return (
-                                    global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    self.global_step,
+                                    (
+                                        tr_loss / self.global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
                 else:
                     if (
@@ -921,17 +1530,21 @@ class RetrievalModel:
                                     logger.info(" Training terminated.")
                                     train_iterator.close()
                                 return (
-                                    global_step,
-                                    tr_loss / global_step
-                                    if not self.args.evaluate_during_training
-                                    else training_progress_scores,
+                                    self.global_step,
+                                    (
+                                        tr_loss / self.global_step
+                                        if not self.args.evaluate_during_training
+                                        else training_progress_scores
+                                    ),
                                 )
 
         return (
-            global_step,
-            tr_loss / global_step
-            if not self.args.evaluate_during_training
-            else training_progress_scores,
+            self.global_step,
+            (
+                tr_loss / self.global_step
+                if not self.args.evaluate_during_training
+                else training_progress_scores
+            ),
         )
 
     def eval_model(
@@ -939,6 +1552,7 @@ class RetrievalModel:
         eval_data,
         evaluate_with_all_passages=True,
         additional_passages=None,
+        relevant_docs=None,
         top_k_values=None,
         retrieve_n_docs=None,
         return_doc_dicts=True,
@@ -947,6 +1561,13 @@ class RetrievalModel:
         output_dir=None,
         verbose=True,
         silent=False,
+        evaluating_during_training=False,
+        pytrec_eval_metrics=None,
+        save_as_experiment=False,
+        experiment_name=None,
+        dataset_name=None,
+        model_name=None,
+        eval_set="dev",
         **kwargs,
     ):
         """
@@ -960,6 +1581,7 @@ class RetrievalModel:
             evaluate_with_all_passages: If True, evaluate with all passages. If False, evaluate only with in-batch negatives.
             additional_passages: Additional passages to be used during evaluation.
                         This may be a list of passages, a pandas DataFrame with the column "passages", or a TSV file with the column "passages".
+            relevant_docs: A list of lists or path to a JSON file of relevant documents for each query.
             top_k_values: List of top-k values to be used for evaluation.
             retrieve_n_docs: Number of documents to retrieve for each query. Overrides `args.retrieve_n_docs` for this evaluation.
             return_doc_dicts: If True, return the doc dicts for the retrieved passages. Setting this to False can speed up evaluation.
@@ -968,19 +1590,201 @@ class RetrievalModel:
             output_dir: The directory where model files will be saved. If not given, self.args.output_dir will be used.
             verbose: If verbose, results will be printed to the console on completion of evaluation.
             silent: If silent, tqdm progress bars will be hidden.
+            evaluating_during_training: Set to True to perform evaluation during training.
+            pytrec_eval_metrics: A list of pytrec_eval metrics to use. Only valid if `data_format == "beir"`.
+            save_as_experiment: If True, `experiment_name`, `dataset_name`, and `model_name` must be provided. Pytrec_eval output will be saved to `experiment_name`.
+            experiment_name: Name of the experiment. Only valid if `save_as_experiment == True`.
+            dataset_name: Name of the dataset. Only valid if `save_as_experiment == True`.
+            model_name: Name of the model. Only valid if `save_as_experiment == True`.
+            eval_set: "dev" or "test".
             **kwargs: Additional metrics that should be used. Pass in the metrics as keyword arguments (name of metric: function to use).
                         A metric function should take in two parameters. The first parameter will be the true labels, and the second parameter will be the predictions. Both inputs
                         will be lists of strings. Note that this will slow down evaluation significantly as the predicted sequences need to be generated.
         Returns:
-            results: Dictionary containing evaluation results.
+            result: Dictionary containing evaluation results.
+            doc_ids: List of retrieved document IDs.
+            doc_dicts: List of retrieved document dictionaries.
+            top_k_accuracy_each_query: List of top-k accuracy for each query.
+            recall_at_k_each_query: List of recall at k for each query.
+            relevance_list: Array of relevance hits for each query.
         """  # noqa: ignore flake8"
+
+        if save_as_experiment:
+            if not experiment_name or not dataset_name or not model_name:
+                raise ValueError(
+                    "experiment_name, dataset_name, and model_name must be provided if save_as_experiment is True"
+                )
+        elif (experiment_name or dataset_name or model_name) and not save_as_experiment:
+            raise ValueError(
+                "experiment_name, dataset_name, and model_name provided but save_as_experiment is False. Please set save_as_experiment to True."
+            )
 
         if not output_dir:
             output_dir = self.args.output_dir
 
-        self._move_model_to_device()
+        self._move_model_to_device(is_evaluating=True)
 
-        if self.prediction_passages is None:
+        context_encoder_was_training = self.context_encoder.training
+        query_encoder_was_training = self.query_encoder.training
+        self.context_encoder.eval()
+        self.query_encoder.eval()
+
+        if self.args.evaluate_with_beir:
+            results = self.evaluate_beir(
+                eval_data,
+                eval_set=eval_set,
+            )
+
+            return results, None, None, None, None, None
+
+        if self.args.data_format == "beir" or self.args.data_format == "msmarco":
+            try:
+                import pytrec_eval
+            except ImportError:
+                logger.error(
+                    "pytrec_eval not installed. Please install with `pip install pytrec_eval`. (See https://github.com/cvangysel/pytrec_eval)"
+                )
+                return
+
+            if passage_dataset != "preloaded":
+                passage_dataset, query_dataset, qrels_dataset = load_trec_format(
+                    eval_data, qrels_name=eval_set, data_format=self.args.data_format
+                )
+            else:
+                _, query_dataset, qrels_dataset = load_trec_format(
+                    eval_data,
+                    qrels_name=eval_set,
+                    data_format=self.args.data_format,
+                    skip_passages=True,
+                )
+
+            if self.args.data_format == "beir" and passage_dataset != "preloaded":
+                (
+                    passage_dataset,
+                    query_dataset,
+                    qrels_dataset,
+                ) = convert_beir_columns_to_trec_format(
+                    passage_dataset,
+                    query_dataset,
+                    qrels_dataset,
+                    include_titles=self.args.include_title_in_corpus,
+                )
+
+            if passage_dataset != "preloaded":
+                passage_index = embed_passages_trec_format(
+                    passage_dataset,
+                    self.context_encoder,
+                    self.context_tokenizer,
+                    args=self.args,
+                    context_config=self.context_config,
+                    device=self.device,
+                    autoencoder=self.autoencoder_model,
+                )
+                if self.args.multi_head_vectors:
+                    passage_index, id_to_vec_dataset = passage_index
+                else:
+                    id_to_vec_dataset = None
+                self.prediction_passages = passage_index
+            else:
+                id_to_vec_dataset = None
+
+            query_text_column = (
+                "text" if self.args.data_format == "beir" else "query_text"
+            )
+
+            predicted_doc_ids, scores = self.predict(
+                to_predict=query_dataset[query_text_column],
+                doc_ids_only=True,
+                id_to_vec_dataset=id_to_vec_dataset,
+            )
+
+            run_dict = convert_predictions_to_pytrec_format(
+                predicted_doc_ids,
+                query_dataset,
+                id_column="_id" if self.args.data_format == "beir" else "query_id",
+                predicted_scores=scores,
+            )
+
+            qrels_dict = convert_qrels_dataset_to_pytrec_format(qrels_dataset)
+
+            if pytrec_eval_metrics is None:
+                pytrec_eval_metrics = self.args.pytrec_eval_metrics
+
+            if "mrr" in pytrec_eval_metrics:
+                custom_mrr = True
+                pytrec_eval_metrics.remove("mrr")
+            else:
+                custom_mrr = False
+
+            evaluator = pytrec_eval.RelevanceEvaluator(
+                qrels_dict,
+                pytrec_eval_metrics,
+                relevance_level=self.args.relevance_level,
+            )
+
+            try:
+                results = evaluator.evaluate(run_dict)
+            except:
+                # Convert run_dict keys to strings
+                run_dict = {
+                    str(key): {str(k): v for k, v in value.items()}
+                    for key, value in run_dict.items()
+                }
+                results = evaluator.evaluate(run_dict)
+
+            if save_as_experiment:
+                os.makedirs(
+                    os.path.join(experiment_name, dataset_name, model_name),
+                    exist_ok=True,
+                )
+            result_report = {}
+
+            for metric in pytrec_eval_metrics:
+                per_metric_dict = {
+                    query_id: value[metric] for query_id, value in results.items()
+                }
+                mean_metric = np.mean(list(per_metric_dict.values()))
+                result_report[metric] = mean_metric
+
+                if save_as_experiment:
+                    with open(
+                        os.path.join(
+                            experiment_name, dataset_name, model_name, f"{metric}.json"
+                        ),
+                        "w",
+                    ) as f:
+                        json.dump(per_metric_dict, f)
+
+            if custom_mrr:
+                # TODO: Implement custom MRR
+                pass
+
+            if save_as_experiment:
+                with open(
+                    os.path.join(
+                        experiment_name, dataset_name, model_name, "results.json"
+                    ),
+                    "w",
+                ) as f:
+                    json.dump(result_report, f)
+
+                # Save run_dict
+                with open(
+                    os.path.join(
+                        experiment_name, dataset_name, model_name, "run_dict.json"
+                    ),
+                    "w",
+                ) as f:
+                    json.dump(run_dict, f)
+
+            if context_encoder_was_training:
+                self.context_encoder.train()
+            if query_encoder_was_training:
+                self.query_encoder.train()
+
+            return result_report
+
+        if self.prediction_passages is None or evaluating_during_training:
             passage_dataset = get_evaluation_passage_dataset(
                 eval_data,
                 additional_passages,
@@ -1002,11 +1806,31 @@ class RetrievalModel:
             evaluate=True,
         )
 
-        result, doc_ids, doc_vectors, doc_dicts = self.evaluate(
+        if relevant_docs is not None:
+            if isinstance(relevant_docs, str):
+                relevant_docs = json.load(open(relevant_docs, "r"))
+            elif isinstance(relevant_docs[0], list):
+                pass
+            else:
+                raise ValueError(
+                    "relevant_docs must be a list of lists or a path to a JSON file"
+                )
+
+        (
+            result,
+            doc_ids,
+            doc_vectors,
+            doc_dicts,
+            top_k_accuracy_each_query,
+            recall_at_k_each_query,
+            mrr_each_query_dict,
+            relevance_list,
+        ) = self.evaluate(
             eval_dataset,
             gold_passages,
             evaluate_with_all_passages,
             passage_dataset,
+            relevant_docs,
             qa_evaluation,
             top_k_values,
             return_doc_dicts,
@@ -1020,7 +1844,21 @@ class RetrievalModel:
         if verbose:
             logger.info(result)
 
-        return result, doc_ids, doc_vectors, doc_dicts
+        if context_encoder_was_training:
+            self.context_encoder.train()
+        if query_encoder_was_training:
+            self.query_encoder.train()
+
+        return (
+            result,
+            doc_ids,
+            doc_vectors,
+            doc_dicts,
+            top_k_accuracy_each_query,
+            recall_at_k_each_query,
+            mrr_each_query_dict,
+            relevance_list,
+        )
 
     def evaluate(
         self,
@@ -1028,6 +1866,7 @@ class RetrievalModel:
         gold_passages,
         evaluate_with_all_passages=True,
         passage_dataset=None,
+        relevant_docs=None,
         qa_evaluation=False,
         top_k_values=None,
         return_doc_dicts=True,
@@ -1058,6 +1897,7 @@ class RetrievalModel:
         if args.n_gpu > 1:
             context_model = torch.nn.DataParallel(context_model)
             query_model = torch.nn.DataParallel(query_model)
+            self.teacher_model = torch.nn.DataParallel(self.teacher_model)
 
         nb_eval_steps = 0
         eval_loss = 0
@@ -1069,15 +1909,25 @@ class RetrievalModel:
         if self.args.fp16:
             from torch.cuda import amp
 
-        all_query_embeddings = np.zeros(
-            (
-                len(eval_dataset),
-                self.query_config.hidden_size
-                if "projection_dim" not in self.query_config.to_dict()
-                or not self.query_config.projection_dim
-                else self.query_config.projection_dim,
+        if args.larger_representations:
+            all_query_embeddings = np.zeros(
+                (
+                    len(eval_dataset),
+                    self.query_config.hidden_size * (1 + args.extra_cls_token_count),
+                )
             )
-        )
+        else:
+            all_query_embeddings = np.zeros(
+                (
+                    len(eval_dataset),
+                    (
+                        self.query_config.hidden_size
+                        if "projection_dim" not in self.query_config.to_dict()
+                        or not self.query_config.projection_dim
+                        else self.query_config.projection_dim
+                    ),
+                )
+            )
         for i, batch in enumerate(
             tqdm(
                 eval_dataloader,
@@ -1087,39 +1937,30 @@ class RetrievalModel:
         ):
             # batch = tuple(t.to(device) for t in batch)
 
-            context_inputs, query_inputs, labels = self._get_inputs_dict(
+            context_inputs, query_inputs, labels, _ = self._get_inputs_dict(
                 batch, evaluate=True
             )
             with torch.no_grad():
                 if self.args.fp16:
                     with amp.autocast():
-                        (
-                            tmp_eval_loss,
-                            _,
-                            query_outputs,
-                            correct_count,
-                        ) = self._calculate_loss(
+                        retrieval_outputs = self._calculate_loss(
                             context_model,
                             query_model,
                             context_inputs,
                             query_inputs,
                             labels,
-                            criterion,
                         )
                 else:
-                    (
-                        tmp_eval_loss,
-                        _,
-                        query_outputs,
-                        correct_count,
-                    ) = self._calculate_loss(
+                    retrieval_outputs = self._calculate_loss(
                         context_model,
                         query_model,
                         context_inputs,
                         query_inputs,
                         labels,
-                        criterion,
                     )
+
+                tmp_eval_loss = retrieval_outputs.loss
+                query_outputs = retrieval_outputs.query_outputs
                 if self.args.n_gpu > 1:
                     tmp_eval_loss = tmp_eval_loss.mean()
 
@@ -1143,14 +1984,39 @@ class RetrievalModel:
 
             doc_texts = [doc_dict["passages"] for doc_dict in doc_dicts]
 
-            scores = self.compute_metrics(
-                gold_passages,
-                doc_texts,
-                self.args,
-                qa_evaluation,
-                top_k_values,
-                **kwargs,
-            )
+            top_k_accuracy_each_query = None
+            recall_at_k_each_query = None
+            if relevant_docs is not None:
+                (
+                    scores,
+                    top_k_accuracy_each_query,
+                    recall_at_k_each_query,
+                    mrr_each_query_dict,
+                    relevance_list,
+                ) = self.compute_metrics(
+                    gold_passages,
+                    doc_texts,
+                    relevant_docs,
+                    self.args,
+                    qa_evaluation,
+                    top_k_values,
+                    **kwargs,
+                )
+            else:
+                (
+                    scores,
+                    top_k_accuracy_each_query,
+                    mrr_each_query_dict,
+                    relevance_list,
+                ) = self.compute_metrics(
+                    gold_passages,
+                    doc_texts,
+                    relevant_docs,
+                    self.args,
+                    qa_evaluation,
+                    top_k_values,
+                    **kwargs,
+                )
 
             results.update(scores)
 
@@ -1171,7 +2037,77 @@ class RetrievalModel:
                 self.wandb_run_id = wandb.run.id
             wandb.log(results)
 
-        return results, doc_ids, doc_vectors, doc_dicts
+        return (
+            results,
+            doc_ids,
+            doc_vectors,
+            doc_dicts,
+            top_k_accuracy_each_query,
+            recall_at_k_each_query,
+            mrr_each_query_dict,
+            relevance_list,
+        )
+
+    def evaluate_beir(
+        self,
+        eval_data,
+        eval_set="dev",
+    ):
+        from beir.datasets.data_loader import GenericDataLoader
+        from beir.retrieval.evaluation import EvaluateRetrieval
+        from beir.retrieval.search.dense import DenseRetrievalExactSearch as DRES
+
+        corpus, queries, qrels = GenericDataLoader(data_folder=eval_data).load(
+            split=eval_set
+        )
+
+        beir_model = DRES(
+            BeirRetrievalModel(
+                self.context_encoder,
+                self.query_encoder,
+                self.context_tokenizer,
+                self.query_tokenizer,
+                self.context_config,
+                self.query_config,
+                self.args,
+            )
+        )
+
+        retriever = EvaluateRetrieval(
+            beir_model,
+            score_function="dot",
+        )
+
+        results = retriever.retrieve(corpus, queries)
+
+        ndcg_b, _map_b, recall_b, precision_b = retriever.evaluate(
+            qrels, results, retriever.k_values
+        )
+        mrr_b = retriever.evaluate_custom(
+            qrels, results, retriever.k_values, metric="mrr"
+        )
+
+        ndcg = {}
+        _map = {}
+        recall = {}
+        precision = {}
+        mrr = {}
+
+        for i, k in enumerate(retriever.k_values):
+            ndcg["ndcg_at_" + str(k)] = ndcg_b["NDCG@" + str(k)]
+            _map["map_at_" + str(k)] = _map_b["MAP@" + str(k)]
+            recall["recall_at_" + str(k)] = recall_b["Recall@" + str(k)]
+            precision["precision_at_" + str(k)] = precision_b["P@" + str(k)]
+            mrr["mrr_at_" + str(k)] = mrr_b["MRR@" + str(k)]
+
+        return {
+            **ndcg,
+            **_map,
+            **recall,
+            **precision,
+            **mrr,
+            "eval_loss": -1,
+        }
 
     def predict(
         self,
@@ -1179,6 +2115,9 @@ class RetrievalModel:
         prediction_passages=None,
         retrieve_n_docs=None,
         passages_only=False,
+        doc_ids_only=False,
+        is_training=False,
+        id_to_vec_dataset=None,
     ):
         """
         Retrieve the relevant documents from the prediction passages for a list of queries.
@@ -1197,28 +2136,61 @@ class RetrievalModel:
             doc_vectors: List of lists containing the retrieved doc vectors per query. (Shape: `(len(to_predict), retrieve_n_docs)`)
             doc_dicts: List of dicts containing the retrieved doc dicts per query.
         """  # noqa: ignore flake8"
-        if self.prediction_passages is None:
+        if self.prediction_passages is None or (
+            self.args.ance_training and is_training
+        ):
             if prediction_passages is None:
                 raise ValueError(
                     "prediction_passages cannot be None if the model does not contain a predicition passage index."
                 )
             else:
+                if self.args.ance_training and is_training:
+                    logger.info(
+                        "Updating corpus embeddings for ANCE training. This may take a while."
+                    )
                 self.context_encoder.to(self.device)
                 self.context_encoder.eval()
                 self.prediction_passages = self.get_updated_prediction_passages(
                     prediction_passages
                 )
                 self.context_encoder.to(self.device)
+                if self.args.ance_training and is_training:
+                    logger.info("Done updating corpus embeddings.")
 
-        all_query_embeddings = np.zeros(
-            (
-                len(to_predict),
-                self.query_config.hidden_size
-                if "projection_dim" not in self.query_config.to_dict()
-                or not self.query_config.projection_dim
-                else self.query_config.projection_dim,
+        all_reranking_query_embeddings = None
+
+        if self.args.larger_representations:
+            if self.unified_rr:
+                all_query_embeddings = np.zeros(
+                    (len(to_predict), self.query_config.hidden_size)
+                )
+                all_reranking_query_embeddings = np.zeros(
+                    (len(to_predict), self.query_config.hidden_size)
+                )
+            else:
+                all_query_embeddings = np.zeros(
+                    (
+                        len(to_predict),
+                        self.query_config.hidden_size
+                        * (1 + self.args.extra_cls_token_count),
+                    )
+                )
+        elif self.args.multi_head_vectors:
+            num_heads = 12
+            head_dim = 64
+            all_query_embeddings = torch.zeros((len(to_predict), num_heads, head_dim))
+        else:
+            all_query_embeddings = np.zeros(
+                (
+                    len(to_predict),
+                    (
+                        self.query_config.hidden_size
+                        if "projection_dim" not in self.query_config.to_dict()
+                        or not self.query_config.projection_dim
+                        else self.query_config.projection_dim
+                    ),
+                )
             )
-        )
 
         query_model = self.query_encoder
         query_model.to(self.device)
@@ -1241,6 +2213,7 @@ class RetrievalModel:
             ),
             desc="Generating query embeddings",
             disable=self.args.silent,
+            total=math.ceil(len(to_predict) / self.args.eval_batch_size),
         ):
             query_batch = self.query_tokenizer(
                 batch,
@@ -1258,22 +2231,59 @@ class RetrievalModel:
             with torch.no_grad():
                 if self.args.fp16:
                     with amp.autocast():
-                        query_outputs = query_model(**query_inputs).pooler_output
+                        query_outputs = query_model(**query_inputs)
+                        query_outputs = get_output_embeddings(
+                            query_outputs,
+                            concatenate_embeddings=self.args.larger_representations
+                            and self.args.model_type == "custom",
+                            n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                            use_pooler_output=self.args.use_pooler_output,
+                            args=self.args,
+                            return_all_embeddings=self.args.use_autoencoder,
+                            input_mask=query_inputs["attention_mask"],
+                        )
+                        if self.args.use_autoencoder:
+                            query_outputs = self.autoencoder_model.encode(query_outputs)
                 else:
-                    query_outputs = query_model(**query_inputs).pooler_output
+                    query_outputs = query_model(**query_inputs)
+                    query_outputs = get_output_embeddings(
+                        query_outputs,
+                        concatenate_embeddings=self.args.larger_representations
+                        and self.args.model_type == "custom",
+                        n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                        use_pooler_output=self.args.use_pooler_output,
+                        args=self.args,
+                        query_embeddings=True,
+                        input_mask=query_inputs["attention_mask"],
+                    )
+
+            if self.unified_rr:
+                reranking_query_outputs = query_outputs[
+                    :, query_outputs.size(1) // 2 :
+                ].cpu()
+                query_outputs = query_outputs[:, : query_outputs.size(1) // 2]
+            else:
+                reranking_query_outputs = None
 
             all_query_embeddings[
                 i * self.args.eval_batch_size : (i + 1) * self.args.eval_batch_size
-            ] = (query_outputs.cpu().detach().numpy())
-
-        if not passages_only:
-            doc_ids, doc_vectors, doc_dicts = self.retrieve_docs_from_query_embeddings(
-                all_query_embeddings, self.prediction_passages, retrieve_n_docs
+            ] = (
+                (query_outputs.cpu().detach().numpy())
+                if not self.args.multi_head_vectors
+                else query_outputs.cpu().detach()
             )
-            passages = [d["passages"] for d in doc_dicts]
 
-            return passages, doc_ids, doc_vectors, doc_dicts
-        else:
+            if self.unified_rr:
+                all_reranking_query_embeddings[
+                    i * self.args.eval_batch_size : (i + 1) * self.args.eval_batch_size
+                ] = (reranking_query_outputs.cpu().detach().numpy())
+
+        if self.args.multi_head_vectors:
+            # Right now, shape is (n_queries, 12, 64)
+            # Need to convert to (n_queries * 12, 64)
+            all_query_embeddings = all_query_embeddings.reshape(-1, head_dim)
+
+        if passages_only:
             passages = self.retrieve_docs_from_query_embeddings(
                 all_query_embeddings,
                 self.prediction_passages,
@@ -1281,11 +2291,66 @@ class RetrievalModel:
                 passages_only=True,
             )
             return passages
+        elif doc_ids_only:
+            doc_ids, scores = self.retrieve_docs_from_query_embeddings(
+                all_query_embeddings,
+                self.prediction_passages,
+                retrieve_n_docs,
+                doc_ids_only=True,
+                reranking_query_outputs=all_reranking_query_embeddings,
+            )
+            return doc_ids, scores
+        else:
+            retrieval_outputs = self.retrieve_docs_from_query_embeddings(
+                all_query_embeddings, self.prediction_passages, retrieve_n_docs
+            )
+            doc_ids, doc_vectors, doc_dicts = retrieval_outputs
+
+            try:
+                passages = [d["passages"] for d in doc_dicts]
+            except KeyError:
+                passages = [d["passage_text"] for d in doc_dicts]
+
+            if self.args.unified_rr:
+                rerank_similarity = compute_rerank_similarity(
+                    reranking_query_outputs, doc_dicts
+                )
+
+                # Get indices of rerank_similarity sorted by descending order
+                rerank_indices = np.argsort(rerank_similarity, axis=1)[:, ::-1]
+
+                # Sort passages, doc_ids, doc_vectors, doc_dicts by rerank_indices
+                for i, doc_dict in enumerate(doc_dicts):
+                    doc_dict["passages"] = [
+                        doc_dict["passages"][j] for j in rerank_indices[i]
+                    ]
+                    doc_dict["embeddings"] = [
+                        doc_dict["embeddings"][j] for j in rerank_indices[i]
+                    ]
+                    doc_dict["rerank_embeddings"] = [
+                        doc_dict["rerank_embeddings"][j] for j in rerank_indices[i]
+                    ]
+
+                passages = [
+                    [passages[i][j] for j in rerank_indices[i]]
+                    for i in range(len(passages))
+                ]
+                doc_ids = [
+                    [doc_ids[i][j] for j in rerank_indices[i]]
+                    for i in range(len(doc_ids))
+                ]
+                doc_vectors = [
+                    [doc_vectors[i][j] for j in rerank_indices[i]]
+                    for i in range(len(doc_vectors))
+                ]
+
+            return passages, doc_ids, doc_vectors, doc_dicts
 
     def compute_metrics(
         self,
         gold_passages,
         doc_texts,
+        relevant_docs,
         args,
         qa_evaluation=False,
         top_k_values=None,
@@ -1297,45 +2362,115 @@ class RetrievalModel:
         if top_k_values is None:
             top_k_values = [1, 2, 3, 5, 10]
 
+        if max(top_k_values) > args.retrieve_n_docs:
+            raise ValueError(
+                "retrieve_n_docs must be >= max(top_k_values). top_k_values: {}, retrieve_n_docs: {}".format(
+                    top_k_values, args.retrieve_n_docs
+                )
+            )
+
         top_k_values = [k for k in top_k_values if k <= args.retrieve_n_docs]
 
-        relevance_list = np.zeros((len(gold_passages), args.retrieve_n_docs))
-        for i, (docs, truth) in enumerate(zip(doc_texts, gold_passages)):
-            for j, d in enumerate(docs):
-                if qa_evaluation:
-                    if truth.strip().lower().replace(" ", "").translate(
-                        str.maketrans("", "", string.punctuation)
-                    ) in d.strip().lower().replace(" ", "").translate(
-                        str.maketrans("", "", string.punctuation)
-                    ):
-                        relevance_list[i, j] = 1
-                        break
-                else:
-                    if d.strip().lower().translate(
-                        str.maketrans("", "", string.punctuation)
-                    ) == truth.strip().lower().translate(
-                        str.maketrans("", "", string.punctuation)
-                    ):
-                        relevance_list[i, j] = 1
-                        break
+        relevance_list_first_hit = np.zeros((len(gold_passages), args.retrieve_n_docs))
+        relevance_list_all_hits = np.zeros((len(gold_passages), args.retrieve_n_docs))
 
-        mrr = {
-            f"mrr@{k}": mean_reciprocal_rank_at_k(relevance_list, k)
-            for k in top_k_values
-        }
+        if relevant_docs is None:
+            for i, (docs, truth) in enumerate(zip(doc_texts, gold_passages)):
+                for j, d in enumerate(docs):
+                    if qa_evaluation:
+                        if truth.strip().lower().replace(" ", "").translate(
+                            str.maketrans("", "", string.punctuation)
+                        ) in d.strip().lower().replace(" ", "").translate(
+                            str.maketrans("", "", string.punctuation)
+                        ):
+                            relevance_list_first_hit[i, j] = 1
+                            break
+                    else:
+                        if d.strip().lower().translate(
+                            str.maketrans("", "", string.punctuation)
+                        ) == truth.strip().lower().translate(
+                            str.maketrans("", "", string.punctuation)
+                        ):
+                            relevance_list_first_hit[i, j] = 1
+                            break
+            relevance_list_all_hits = relevance_list_first_hit
+        else:
+            total_relevant = [
+                len(relevant_doc_set) for relevant_doc_set in relevant_docs
+            ]
+            for i, (docs, relevant_doc_set) in enumerate(zip(doc_texts, relevant_docs)):
+                for j, d in enumerate(docs):
+                    for relevant in relevant_doc_set:
+                        if qa_evaluation:
+                            if relevant.strip().lower().replace(" ", "").translate(
+                                str.maketrans("", "", string.punctuation)
+                            ) in d.strip().lower().replace(" ", "").translate(
+                                str.maketrans("", "", string.punctuation)
+                            ):
+                                relevance_list_all_hits[i, j] = 1
+                                if sum(relevance_list_first_hit[i]) == 0:
+                                    relevance_list_first_hit[i, j] = 1
+                                break
+                        else:
+                            if d.strip().lower().translate(
+                                str.maketrans("", "", string.punctuation)
+                            ) == relevant.strip().lower().translate(
+                                str.maketrans("", "", string.punctuation)
+                            ):
+                                relevance_list_all_hits[i, j] = 1
+                                if sum(relevance_list_first_hit[i]) == 0:
+                                    relevance_list_first_hit[i, j] = 1
+                                break
 
-        top_k_accuracy = {
-            f"top_{k}_accuracy": np.mean(np.sum(relevance_list[:, :k], axis=-1))
-            for k in top_k_values
-        }
+        mrr_each_query_dict = {}
+        mrr = {}
+        for k in top_k_values:
+            mrr_at_k, mrr_matrix_k = mean_reciprocal_rank_at_k(
+                relevance_list_first_hit, k, return_individual_scores=True
+            )
+            mrr[f"mrr_at_{k}"] = mrr_at_k
+            mrr_each_query_dict[f"mrr_at_{k}"] = mrr_matrix_k
+
+        top_k_accuracy_dict = {}
+        top_k_accuracy_each_query_dict = {}
+        recall_at_k_dict = {}
+        recall_at_k_each_query_dict = {}
+
+        for k in top_k_values:
+            top_k_accuracy_each_query = np.sum(relevance_list_first_hit[:, :k], axis=1)
+            top_k_accuracy_dict[f"top_{k}_accuracy"] = np.mean(
+                top_k_accuracy_each_query
+            )
+            top_k_accuracy_each_query_dict[f"top_{k}_accuracy"] = (
+                top_k_accuracy_each_query.tolist()
+            )
+
+            if relevant_docs is not None:
+                recall_at_k, recall_at_k_each_query = get_recall_at_k(
+                    relevance_list_all_hits, total_relevant, k
+                )
+                recall_at_k_dict[f"recall_at_{k}"] = recall_at_k
+                recall_at_k_each_query_dict[f"recall_at_{k}"] = recall_at_k_each_query
 
         extra_metrics = {}
         for metric, func in kwargs.items():
             extra_metrics[metric] = func(gold_passages, doc_texts)
 
-        results = {**mrr, **top_k_accuracy, **extra_metrics}
-
-        return results
+        if relevant_docs is not None:
+            return (
+                {**mrr, **top_k_accuracy_dict, **recall_at_k_dict, **extra_metrics},
+                top_k_accuracy_each_query_dict,
+                recall_at_k_each_query_dict,
+                mrr_each_query_dict,
+                relevance_list_all_hits,
+            )
+        else:
+            return (
+                {**mrr, **top_k_accuracy_dict, **extra_metrics},
+                top_k_accuracy_each_query_dict,
+                mrr_each_query_dict,
+                relevance_list_all_hits,
+            )
 
     def retrieve_docs_from_query_embeddings(
         self,
@@ -1344,6 +2479,8 @@ class RetrievalModel:
         retrieve_n_docs=None,
         return_doc_dicts=True,
         passages_only=False,
+        doc_ids_only=False,
+        reranking_query_outputs=None,
     ):
         """
         Retrieves documents from the index using the given query embeddings.
@@ -1357,37 +2494,82 @@ class RetrievalModel:
             for i in range(0, len(query_embeddings), args.retrieval_batch_size)
         ]
 
+        if reranking_query_outputs is not None:
+            reranking_query_outputs_batched = [
+                reranking_query_outputs[i : i + args.retrieval_batch_size]
+                for i in range(
+                    0, len(reranking_query_outputs), args.retrieval_batch_size
+                )
+            ]
+
         if passages_only:
             passages = []
-            for i, query_embeddings in enumerate(
+            for i, query_embeddings_retr in enumerate(
                 tqdm(
                     query_embeddings_batched,
                     desc="Retrieving docs",
                     disable=args.silent,
                 )
             ):
-                _, _, doc_dicts_batch = passage_dataset.get_top_docs(
-                    query_embeddings.astype(np.float32), retrieve_n_docs
+                doc_dicts_batch = passage_dataset.get_top_docs(
+                    query_embeddings_retr.astype(np.float32),
+                    retrieve_n_docs,
+                    passages_only=True,
                 )
 
-                passages.extend([d["passages"] for d in doc_dicts_batch])
+                try:
+                    passages.extend([d["passages"] for d in doc_dicts_batch])
+                except KeyError:
+                    passages.extend([d["passage_text"] for d in doc_dicts_batch])
 
             return passages
+        elif doc_ids_only:
+            doc_ids_batched = []
+            scores_batched = []
+
+            for i, query_embeddings_retr in enumerate(
+                tqdm(
+                    query_embeddings_batched,
+                    desc="Retrieving docs",
+                    disable=args.silent,
+                )
+            ):
+                ids, scores = passage_dataset.get_top_doc_ids(
+                    query_embeddings_retr.astype(np.float32), retrieve_n_docs
+                )
+                doc_ids_batched.extend(ids)
+                scores_batched.extend(scores)
+
+            reranking_scores = scores_batched
+
+            return doc_ids_batched, reranking_scores
         else:
             ids_batched = np.zeros((len(query_embeddings), retrieve_n_docs))
-            vectors_batched = np.zeros(
-                (
-                    len(query_embeddings),
-                    retrieve_n_docs,
-                    self.context_config.hidden_size
-                    if "projection_dim" not in self.context_config.to_dict()
-                    or not self.context_config.projection_dim
-                    else self.context_config.projection_dim,
+            if self.args.larger_representations:
+                vectors_batched = np.zeros(
+                    (
+                        len(query_embeddings),
+                        retrieve_n_docs,
+                        self.query_config.hidden_size
+                        * (1 + args.extra_cls_token_count),
+                    )
                 )
-            )
+            else:
+                vectors_batched = np.zeros(
+                    (
+                        len(query_embeddings),
+                        retrieve_n_docs,
+                        (
+                            self.context_config.hidden_size
+                            if "projection_dim" not in self.context_config.to_dict()
+                            or not self.context_config.projection_dim
+                            else self.context_config.projection_dim
+                        ),
+                    )
+                )
             doc_dicts = []
 
-            for i, query_embeddings in enumerate(
+            for i, query_embeddings_retr in enumerate(
                 tqdm(
                     query_embeddings_batched,
                     desc="Retrieving docs",
@@ -1395,7 +2577,7 @@ class RetrievalModel:
                 )
             ):
                 ids, vectors, doc_dicts_batch = passage_dataset.get_top_docs(
-                    query_embeddings.astype(np.float32), retrieve_n_docs
+                    query_embeddings_retr.astype(np.float32), retrieve_n_docs
                 )
                 ids_batched[
                     i * args.retrieval_batch_size : (i * args.retrieval_batch_size)
@@ -1414,6 +2596,34 @@ class RetrievalModel:
 
             return ids_batched, vectors_batched, doc_dicts
 
+    def get_hard_negatives(
+        self,
+        queries,
+        passage_dataset=None,
+        retrieve_n_docs=None,
+        passages_only=False,
+    ):
+        if passages_only:
+            hard_negatives = self.predict(
+                to_predict=queries,
+                prediction_passages=passage_dataset,
+                retrieve_n_docs=retrieve_n_docs,
+                passages_only=True,
+                is_training=True,
+            )
+        else:
+            hard_negatives, *_ = self.predict(
+                to_predict=queries,
+                prediction_passages=passage_dataset,
+                retrieve_n_docs=retrieve_n_docs,
+                is_training=True,
+            )
+
+        if retrieve_n_docs is None:
+            retrieve_n_docs = self.args.retrieve_n_docs
+
+        return hard_negatives
+
     def build_hard_negatives(
         self,
         queries,
@@ -1422,18 +2632,14 @@ class RetrievalModel:
         write_to_disk=True,
         hard_negatives_save_file_path=None,
     ):
-        hard_negatives, *_ = self.predict(
-            to_predict=queries,
-            prediction_passages=passage_dataset,
+        hard_negatives = self.get_hard_negatives(
+            queries,
+            passage_dataset=passage_dataset,
             retrieve_n_docs=retrieve_n_docs,
         )
 
-        if retrieve_n_docs is None:
-            retrieve_n_docs = self.args.retrieve_n_docs
-
-        column_names = [f"hard_negatives_{i}" for i in range(retrieve_n_docs)]
-
         # Build hard negative df from list of lists
+        column_names = [f"hard_negatives_{i}" for i in range(retrieve_n_docs)]
         hard_negative_df = pd.DataFrame(hard_negatives, columns=column_names)
 
         if write_to_disk:
@@ -1450,8 +2656,49 @@ class RetrievalModel:
 
         return hard_negative_df
 
+    def add_hard_negatives_for_ance(
+        self,
+        train_data,
+        passage_dataset=None,
+    ):
+        hard_negatives = self.get_hard_negatives(
+            train_data["query_text"].tolist(),
+            passage_dataset=passage_dataset,
+            retrieve_n_docs=self.args.retrieve_n_docs,
+            passages_only=True,
+        )
+
+        hard_negative_list = []
+        hn_found = False
+        for hns, gold in zip(hard_negatives, train_data["gold_passage"]):
+            # Randomly sample a hn from hns and check if equal to gold
+            for _ in range(len(hns)):
+                hn = random.choice(hns)
+                if hn != gold:
+                    hard_negative_list.append(hn)
+                    hn_found = True
+                    break
+
+            if not hn_found:
+                hard_negative_list.append(hns[-1])
+                hn_found = False
+
+        train_data["hard_negative"] = hard_negative_list
+
+        return train_data
+
     def load_and_cache_examples(
-        self, data, evaluate=False, no_cache=False, verbose=True, silent=False
+        self,
+        data,
+        evaluate=False,
+        no_cache=False,
+        verbose=True,
+        silent=False,
+        clustered_training=False,
+        additional_eval_passages=None,
+        clustered_batch_randomize_percentage=0.0,
+        epoch_number=None,
+        dataset=None,
     ):
         """
         Creates a IRDataset from data
@@ -1464,16 +2711,72 @@ class RetrievalModel:
             os.makedirs(self.args.cache_dir, exist_ok=True)
 
         if self.args.use_hf_datasets:
-            dataset = load_hf_dataset(
-                data, self.context_tokenizer, self.query_tokenizer, self.args
-            )
+            if self.args.ance_training and not evaluate:
+                if (
+                    epoch_number is None
+                    or epoch_number % self.args.ance_refresh_n_epochs == 0
+                ):
+                    logger.info("Adding hard negatives for ANCE training.")
+                    data = self.add_hard_negatives_for_ance(
+                        data,
+                        passage_dataset=additional_eval_passages,
+                    )
+                    logger.info("Finished adding hard negatives for ANCE training.")
+                else:
+                    logger.info(
+                        "Not updating hard negatives for ANCE training. {} epochs until next refresh.".format(
+                            self.args.ance_refresh_n_epochs
+                            - (epoch_number % self.args.ance_refresh_n_epochs)
+                        )
+                    )
+            if dataset is None or epoch_number % self.args.cluster_every_n_epochs == 0:
+                dataset = load_hf_dataset(
+                    data,
+                    self.context_tokenizer,
+                    self.query_tokenizer,
+                    self.args,
+                    teacher_tokenizer=(
+                        None
+                        if self.args.teacher_type == "colbert"
+                        else self.teacher_tokenizer
+                    ),
+                    clustered_training=clustered_training,
+                )
 
+            if clustered_training:
+                return get_clustered_passage_dataset(
+                    passage_dataset=dataset,
+                    train_batch_size=self.args.train_batch_size,
+                    encoder=self.context_encoder,
+                    tokenizer=self.context_tokenizer,
+                    args=self.args,
+                    device=self.device,
+                    teacher_model=self.teacher_model,
+                    teacher_tokenizer=(
+                        None
+                        if self.args.teacher_type == "colbert"
+                        else self.teacher_tokenizer
+                    ),
+                    clustered_batch_randomize_percentage=clustered_batch_randomize_percentage,
+                    epoch_number=epoch_number,
+                )
+            elif self.args.tas_clustering:
+                return get_tas_dataset(
+                    passage_dataset=dataset,
+                    train_batch_size=self.args.train_batch_size,
+                    encoder=self.clustering_model,
+                    tokenizer=self.clustering_tokenizer,
+                    args=self.args,
+                    device=self.device,
+                )
             return dataset
         else:
             # Retrieval models can only be used with hf datasets
             raise ValueError("Retrieval models can only be used with hf datasets.")
 
-    def get_optimizer_parameters(self, context_model, query_model, args):
+    def get_optimizer_parameters(
+        self, context_model, query_model, args, reranking_model=None
+    ):
         no_decay = ["bias", "LayerNorm.weight"]
 
         optimizer_grouped_parameters = []
@@ -1485,9 +2788,10 @@ class RetrievalModel:
             param_group["params"] = [
                 p for n, p in context_model.named_parameters() if n in params
             ]
-            param_group["params"].extend(
-                [p for n, p in query_model.named_parameters() if n in params]
-            )
+            if not args.tie_encoders:
+                param_group["params"].extend(
+                    [p for n, p in query_model.named_parameters() if n in params]
+                )
             optimizer_grouped_parameters.append(param_group)
 
         for group in self.args.custom_layer_parameters:
@@ -1505,13 +2809,14 @@ class RetrievalModel:
                     else:
                         params_d.append(p)
                     custom_parameter_names.add(n)
-            for n, p in query_model.named_parameters():
-                if n not in custom_parameter_names and layer in n:
-                    if any(nd in n for nd in no_decay):
-                        params_nd.append(p)
-                    else:
-                        params_d.append(p)
-                    custom_parameter_names.add(n)
+            if not args.tie_encoders:
+                for n, p in query_model.named_parameters():
+                    if n not in custom_parameter_names and layer in n:
+                        if any(nd in n for nd in no_decay):
+                            params_nd.append(p)
+                        else:
+                            params_d.append(p)
+                        custom_parameter_names.add(n)
             group_d["params"] = params_d
             group_nd["params"] = params_nd
 
@@ -1542,7 +2847,7 @@ class RetrievalModel:
                         },
                     ]
                 )
-            if self.args.train_query_encoder:
+            if self.args.train_query_encoder and not self.args.tie_encoders:
                 optimizer_grouped_parameters.extend(
                     [
                         {
@@ -1630,6 +2935,10 @@ class RetrievalModel:
             self.device,
         )
 
+        if self.args.multi_head_vectors:
+            prediction_passages, id_to_vec_dataset = prediction_passages
+            return prediction_passages, id_to_vec_dataset
+
         return prediction_passages
 
     def _calculate_loss(
@@ -1639,63 +2948,671 @@ class RetrievalModel:
         context_inputs,
         query_inputs,
         labels,
-        criterion,
+        teacher_scores=None,
     ):
-        context_outputs = context_model(**context_inputs).pooler_output
-        query_outputs = query_model(**query_inputs).pooler_output
+        # if self.args.larger_representations:
+        #     context_outputs_all = context_model(**context_inputs)
+        #     query_outputs_all = query_model(**query_inputs)
 
-        context_outputs = torch.nn.functional.dropout(context_outputs, p=0.1)
-        query_outputs = torch.nn.functional.dropout(query_outputs, p=0.1)
+        #     # context_outputs_all.sequence_output: (batch_size, context_length, hidden_size)
+        #     # We have 3 CLS tokens in the beginning of each sequence.
+        #     # The embeddings of these 3 CLS tokens are concatenated to be the representation of the sequence.
+        #     context_cls_embeddings = context_outputs_all.sequence_output[:, :3, :]
+        #     context_outputs = context_cls_embeddings.view(
+        #         context_cls_embeddings.size(0), -1
+        #     )
 
-        similarity_score = torch.matmul(query_outputs, context_outputs.t())
-        softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
+        #     query_cls_embeddings = query_outputs_all.sequence_output[:, :3, :]
+        #     query_outputs = query_cls_embeddings.view(query_cls_embeddings.size(0), -1)
+        # else:
 
-        criterion = torch.nn.NLLLoss(reduction="mean")
+        with (
+            torch.no_grad()
+            if not (self.args.train_context_encoder or self.args.train_query_encoder)
+            else nullcontext()
+        ):
+            if self.args.external_embeddings:
+                context_outputs = context_inputs["external_embeddings"]
+            else:
+                context_outputs = context_model(**context_inputs)
+            query_outputs = query_model(**query_inputs)
 
-        loss = criterion(softmax_score, labels)
+            context_outputs = get_output_embeddings(
+                context_outputs,
+                concatenate_embeddings=self.args.larger_representations
+                and self.args.model_type == "custom",
+                n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                use_pooler_output=self.args.use_pooler_output,
+                args=self.args,
+                return_all_embeddings=self.args.use_autoencoder,
+            )
+            query_outputs = get_output_embeddings(
+                query_outputs,
+                concatenate_embeddings=self.args.larger_representations
+                and self.args.model_type == "custom",
+                n_cls_tokens=(1 + self.args.extra_cls_token_count),
+                use_pooler_output=self.args.use_pooler_output,
+                args=self.args,
+                query_embeddings=True,
+                return_all_embeddings=self.args.use_autoencoder,
+            )
+            if self.args.multi_vector_query:
+                query_outputs = query_outputs[0]
 
-        max_score, max_idxs = torch.max(softmax_score, 1)
-        correct_predictions_count = (
-            (max_idxs == torch.tensor(labels)).sum().cpu().detach().numpy().item()
+            # context_outputs = torch.nn.functional.dropout(
+            #     context_outputs, p=self.args.output_dropout
+            # )
+            # query_outputs = torch.nn.functional.dropout(
+            #     query_outputs, p=self.args.output_dropout
+            # )
+
+        if self.args.include_triplet_loss:
+            nll_criterion = torch.nn.NLLLoss(reduction="mean")
+            triplet_criterion = torch.nn.TripletMarginLoss(
+                margin=self.args.triplet_margin, reduction="mean"
+            )
+            positive_context_outputs = context_outputs[: query_outputs.size(0)]
+            negative_context_outputs = context_outputs[query_outputs.size(0) :]
+            nll_labels = labels
+
+            if self.args.include_hard_negatives_for_triplets_only:
+                similarity_score = torch.matmul(
+                    query_outputs, positive_context_outputs.t()
+                )
+                softmax_score = torch.nn.functional.log_softmax(
+                    similarity_score, dim=-1
+                )
+                nll_loss = nll_criterion(softmax_score, nll_labels)
+            else:
+                similarity_score = torch.matmul(query_outputs, context_outputs.t())
+                softmax_score = torch.nn.functional.log_softmax(
+                    similarity_score, dim=-1
+                )
+                nll_loss = nll_criterion(softmax_score, nll_labels)
+
+            if self.context_encoder.training:
+                triplet_loss = triplet_criterion(
+                    query_outputs,
+                    positive_context_outputs,
+                    negative_context_outputs,
+                )
+                loss = (
+                    self.args.nll_lambda * nll_loss
+                    + self.args.triplet_lambda * triplet_loss
+                )
+            else:
+                loss = nll_loss
+        else:
+            if self.args.skip_hard_negatives_for_nll:
+                similarity_score = torch.matmul(
+                    query_outputs,
+                    context_outputs[: context_outputs.size(0) // 2, :].t(),
+                )
+            else:
+                if self.args.similarity_function == "cosine":
+                    similarity_score = torch.nn.functional.cosine_similarity(
+                        query_outputs.unsqueeze(1),
+                        context_outputs.unsqueeze(0),
+                        dim=-1,
+                    )
+                elif self.args.similarity_function == "dot_product":
+                    if self.args.multi_head_vectors:
+                        # context_outputs: (batch_size, num_heads, hidden_size)
+                        # query_outputs: (batch_size, num_heads, hidden_size)
+                        # similarity_score: (batch_size, num_heads, num_heads)
+
+                        similarity_score = compute_multi_head_similarity(
+                            query_outputs,
+                            context_outputs,
+                            strategy=self.args.multi_head_vector_strategy,
+                        )
+                    else:
+                        similarity_score = torch.matmul(
+                            query_outputs,
+                            context_outputs.t(),
+                        )
+            softmax_score = torch.nn.functional.log_softmax(similarity_score, dim=-1)
+
+            if self.args.include_bce_loss and self.context_encoder.training:
+                bce_criterion = torch.nn.BCEWithLogitsLoss()
+                nll_criterion = torch.nn.NLLLoss(reduction="mean")
+                bce_labels, nll_labels = labels
+
+                bce_loss = bce_criterion(similarity_score, bce_labels)
+
+                if self.args.include_nll_loss:
+                    nll_loss = nll_criterion(softmax_score, nll_labels)
+                    loss = bce_loss + nll_loss
+                else:
+                    loss = bce_loss
+                    nll_loss = None
+            else:
+                if self.args.mse_loss:
+                    raise ValueError(
+                        "Use of MSE loss is not supported. Were you looking for margin_mse?"
+                    )
+                    with torch.no_grad():
+                        label_scores = self._get_teacher_scores(
+                            None, query_inputs, context_inputs
+                        )
+                (
+                    loss,
+                    nll_loss,
+                    nll_labels,
+                    label_scores,
+                    margin_mse_loss,
+                    kl_div_loss,
+                    quartet_loss,
+                ) = self._get_loss(
+                    similarity_score,
+                    softmax_score,
+                    labels,
+                    query_outputs=query_outputs,
+                    context_outputs=context_outputs,
+                    teacher_scores=teacher_scores,
+                )
+
+        (
+            correct_predictions_count,
+            correct_predictions_percentage,
+            teacher_correct_predictions_percentage,
+        ) = self._get_running_stats(
+            softmax_score,
+            nll_labels,
+            label_scores,
         )
 
-        return loss, context_outputs, query_outputs, correct_predictions_count
+        retrieval_output = RetrievalOutput(
+            loss=loss,
+            context_outputs=context_outputs,
+            query_outputs=query_outputs,
+            correct_predictions_count=correct_predictions_count,
+            correct_predictions_percentage=correct_predictions_percentage,
+            nll_loss=nll_loss,
+            teacher_correct_predictions_percentage=teacher_correct_predictions_percentage,
+            margine_mse_loss=margin_mse_loss,
+            kl_div_loss=kl_div_loss,
+            quartet_loss=quartet_loss,
+        )
+
+        return retrieval_output
+
+    # def _rerank_passages(
+    #     self, query_outputs, context_outputs, is_evaluating=False, unified_cross_rr=True
+    # ):
+    #     """
+    #     Unified cross reranking
+
+    #     query_outputs: (batch_size, hidden_size)
+    #     context_outputs: (batch_size, hidden_size)
+
+    #     reranking_model_input_embeds: (batch_size, max_seq_length, hidden_size)
+    #     Here, a single row of reranking_model_inputs is the concatenation of a query output (hidden_size) and all context outputs padded to max_seq_length.
+    #     reranking_model_attention_mask: (batch_size, max_seq_length)
+    #     reranking_model_token_type_ids: (batch_size, max_seq_length) - 0 for the query, 1 for the context
+    #     """
+    #     if unified_cross_rr:
+    #         if is_evaluating:
+    #             query_outputs = query_outputs.unsqueeze(1)
+    #             reranking_model_inputs_embeds = torch.cat(
+    #                 [query_outputs, context_outputs], dim=1
+    #             )
+
+    #             reranking_model_attention_mask = torch.ones_like(
+    #                 reranking_model_inputs_embeds[:, :, 0]
+    #             )
+
+    #             reranking_model_token_type_ids = torch.zeros_like(
+    #                 reranking_model_inputs_embeds[:, :, 0]
+    #             )
+    #             reranking_model_token_type_ids[:, 0] = torch.ones(
+    #                 (query_outputs.size(0))
+    #             )
+    #         else:
+    #             reranking_model_inputs_embeds = torch.zeros(
+    #                 (
+    #                     query_outputs.size(0),
+    #                     self.args.max_seq_length,
+    #                     query_outputs.size(1),
+    #                 )
+    #             )
+
+    #             reranking_model_inputs_embeds[:, 0, :] = query_outputs
+    #             reranking_model_inputs_embeds[
+    #                 :, 1 : context_outputs.size(0) + 1, :
+    #             ] = context_outputs
+
+    #             reranking_model_attention_mask = torch.zeros(
+    #                 (query_outputs.size(0), self.args.max_seq_length)
+    #             )
+    #             reranking_model_attention_mask[
+    #                 :, 0 : context_outputs.size(0) + 1
+    #             ] = torch.ones((query_outputs.size(0), context_outputs.size(0) + 1)).to(
+    #                 self.device
+    #             )
+
+    #             reranking_model_token_type_ids = torch.zeros(
+    #                 (query_outputs.size(0), self.args.max_seq_length)
+    #             )
+    #             reranking_model_token_type_ids[:, 0] = torch.ones(
+    #                 (query_outputs.size(0))
+    #             )
+
+    #         reranking_model_inputs = {
+    #             "inputs_embeds": reranking_model_inputs_embeds.to(self.device),
+    #             "attention_mask": reranking_model_attention_mask.long().to(self.device),
+    #             "token_type_ids": reranking_model_token_type_ids.long().to(self.device),
+    #         }
+
+    #         reranking_outputs = self.reranking_model(**reranking_model_inputs)
+
+    #         if True:
+    #             reranking_softmax_score = torch.nn.functional.log_softmax(
+    #                 reranking_outputs, dim=-1
+    #             )
+    #             return reranking_outputs, reranking_softmax_score
+    #         else:
+    #             reranking_query_outputs = reranking_outputs[0][:, 0, :]
+    #             reranking_context_outputs = reranking_outputs[0][
+    #                 :, 1 : context_outputs.size(1 if is_evaluating else 0) + 1, :
+    #             ]
+
+    #             reranking_dot_score = torch.bmm(
+    #                 reranking_query_outputs.unsqueeze(1),pairwise_dot_score(query_outputs, context_outputs)
+    #                 reranking_context_outputs.transpose(-1, -2),
+    #             )
+    #             reranking_softmax_score = torch.nn.functional.log_softmax(
+    #                 reranking_dot_score.squeeze(1), dim=-1
+    #             )
+
+    #             return reranking_dot_score, reranking_softmax_score
+    #     else:
+    #         # Autoencoder
+    #         pass
+    #         # reranking_dot_score = torch.matmul(
+    #         #     query_outputs, context_outputs.t()
+    #         # )
+    #         # reranking_softmax_score = torch.nn.functional.log_softmax(
+    #         #     reranking_dot_score, dim=-1
+    #         # )
+
+    #         # return reranking_dot_score, reranking_softmax_score
+
+    def _get_teacher_scores(
+        self, reranking_input=None, query_inputs=None, context_inputs=None
+    ):
+        """Get teacher scores for reranking_input
+
+        Args:
+            reranking_input (dict): Reranking input dict
+        """
+        if self.args.teacher_type == "colbert":
+            label_scores = colbert_score(
+                self.teacher_model,
+                query_inputs,
+                context_inputs,
+                device=self.device,
+            )
+
+            return label_scores
+        else:
+            reranking_target_tensor = []
+            for (
+                reranking_input_ids,
+                reranking_input_mask,
+                reranking_token_type_ids,
+            ) in zip(
+                reranking_input["input_ids"],
+                reranking_input["attention_mask"],
+                reranking_input["token_type_ids"],
+            ):
+                reranking_target_tensor.extend(
+                    self.teacher_model(
+                        input_ids=reranking_input_ids,
+                        attention_mask=reranking_input_mask,
+                        token_type_ids=reranking_token_type_ids,
+                    ).logits
+                )
+
+        # Stack and back to float32
+        reranking_target_tensor = torch.stack(reranking_target_tensor).float()
+
+        return reranking_target_tensor
+
+    def _get_loss(
+        self,
+        similarity_score,
+        softmax_score,
+        labels,
+        label_scores=None,
+        query_outputs=None,
+        context_outputs=None,
+        teacher_scores=None,
+    ):
+        margin_mse_loss = None
+        kl_div_loss = None
+        nll_loss = None
+        quartet_loss = None
+
+        if self.args.mse_loss:
+            mse_criterion = torch.nn.MSELoss()
+
+            label_scores = label_scores.reshape(similarity_score.shape)
+            mse_loss = mse_criterion(
+                similarity_score,
+                label_scores,
+            )
+        if self.args.include_nll_loss:
+            criterion = torch.nn.NLLLoss(reduction="mean")
+            nll_loss = criterion(softmax_score, labels)
+            nll_labels = labels
+        if self.args.include_margin_mse_loss:
+            mmse_criterion = MarginMSELoss()
+            half = context_outputs.size(0) // 2
+            hn_outputs = context_outputs[half:, :]
+            positive_outputs = context_outputs[:half, :]
+
+            mmse_loss = mmse_criterion(
+                query_outputs, positive_outputs, hn_outputs, teacher_scores["margins"]
+            )
+        if self.args.include_kl_div_loss:
+            kl_criterion = KLDivLossForTriplets()
+            half = context_outputs.size(0) // 2
+            hn_outputs = context_outputs[half:, :]
+            positive_outputs = context_outputs[:half, :]
+
+            kl_div_loss = kl_criterion(
+                query_outputs,
+                positive_outputs,
+                hn_outputs,
+                teacher_scores["true_p_scores"],
+                teacher_scores["true_n_scores"],
+            )
+
+        # This is where the quartet loss will go
+        if self.args.include_quartet_loss:
+            half = context_outputs.size(0) // 2
+            context_outputs_a = context_outputs[:half, :]
+            context_outputs_b = context_outputs[half:, :]
+            query_outputs_a = query_outputs[:half, :]
+            query_outputs_b = query_outputs[half:, :]
+
+            quartet_criterion = QuartetLossV3()
+
+            quartet_loss = quartet_criterion(
+                query_outputs_a,
+                query_outputs_b,
+                context_outputs_a,
+                context_outputs_b,
+                similarity_score,
+                softmax_score,
+                teacher_scores,
+                similarity_function=self.args.similarity_function,
+            )
+
+        if self.args.include_multi_negatives_loss:
+            multi_negatives_criterion = MultiNegativesLoss()
+            multi_negatives_loss = multi_negatives_criterion(
+                similarity_score,
+                labels,
+            )
+
+        if not (
+            self.args.include_nll_loss
+            or self.args.mse_loss
+            or self.args.reranking_kl_div_loss
+            or self.args.include_margin_mse_loss
+            or self.args.include_quartet_loss
+            or self.args.include_multi_negatives_loss
+        ):
+            raise ValueError(
+                """One of the following must be True:
+                - include_nll_loss
+                - include_margin_mse_loss
+                - include_kl_div_loss
+                - include_quartet_loss
+                - include_multi_negatives_loss
+                """
+            )
+
+        nll_labels = labels
+
+        if self.args.include_nll_loss:
+            loss = nll_loss
+            if self.args.include_margin_mse_loss or self.args.include_kl_div_loss:
+                if (
+                    self.args.nll_lambda_start_decay is not None
+                    and self.global_step > self.args.nll_lambda_start_decay
+                ):
+                    nll_lambda = self.args.nll_lambda - (
+                        self.nll_lambda_decay_per_step
+                        * (self.global_step - self.args.nll_lambda_start_decay)
+                    )
+                else:
+                    nll_lambda = self.args.nll_lambda
+
+            if self.args.include_margin_mse_loss:
+                loss = loss + self.args.margin_mse_lambda * mmse_loss
+            if self.args.include_kl_div_loss:
+                loss = loss + self.args.kl_div_lambda * kl_div_loss
+            if self.args.include_quartet_loss:
+                loss = loss + self.args.quartet_lambda * quartet_loss
+        elif self.args.include_margin_mse_loss:
+            loss = mmse_loss
+        elif self.args.include_kl_div_loss:
+            loss = kl_div_loss
+        elif self.args.include_quartet_loss:
+            loss = quartet_loss
+        elif self.args.include_multi_negatives_loss:
+            loss = multi_negatives_loss
+        else:
+            loss = nll_loss
+
+        nll_loss = nll_loss.item() if self.args.include_nll_loss else None
+        return (
+            loss,
+            nll_loss,
+            nll_labels,
+            label_scores,
+            margin_mse_loss,
+            kl_div_loss,
+            quartet_loss,
+        )
+
+    def _get_running_stats(
+        self,
+        softmax_score,
+        nll_labels,
+        label_scores,
+    ):
+        max_score, max_idxs = torch.max(softmax_score, 1)
+        correct_predictions_count = (
+            (max_idxs == nll_labels.clone().detach()).sum().cpu().numpy().item()
+        )
+        correct_predictions_percentage = (
+            correct_predictions_count / len(nll_labels)
+        ) * 100
+
+        if self.args.reranking_kl_div_loss or self.args.mse_loss:
+            teacher_softmax_score = torch.nn.functional.softmax(label_scores, dim=-1)
+            teacher_max_score, teacher_max_idxs = torch.max(teacher_softmax_score, 1)
+            teacher_correct_predictions_count = (
+                (teacher_max_idxs == nll_labels.clone().detach())
+                .sum()
+                .cpu()
+                .numpy()
+                .item()
+            )
+            teacher_correct_predictions_percentage = (
+                teacher_correct_predictions_count / len(nll_labels)
+            ) * 100
+        else:
+            teacher_correct_predictions_percentage = None
+
+        return (
+            correct_predictions_count,
+            correct_predictions_percentage,
+            teacher_correct_predictions_percentage,
+        )
 
     def _get_inputs_dict(self, batch, evaluate=False):
         device = self.device
 
-        labels = [i for i in range(len(batch["context_ids"]))]
-        labels = torch.tensor(labels, dtype=torch.long)
+        if "labels" in batch:
+            labels = batch["labels"].to(device)
+        else:
+            if self.args.include_quartet_loss or self.args.quartet_training_format:
+                labels = [
+                    i if a > b else i + batch["context_ids_a"].size(0)
+                    for i, (a, b) in enumerate(
+                        zip(batch["aa_score"], batch["ab_score"])
+                    )
+                ]
+                labels += [
+                    i + batch["context_ids_a"].size(0) if a > b else i
+                    for i, (a, b) in enumerate(
+                        zip(batch["bb_score"], batch["ba_score"])
+                    )
+                ]
+            else:
+                labels = [i for i in range(len(batch["context_ids"]))]
+            labels = torch.tensor(labels, dtype=torch.long).to(device)
+        margins = None
+        true_p_scores = None
+        true_n_scores = None
+        aa_scores = None
+        ab_scores = None
+        ba_scores = None
+        bb_scores = None
+        teacher_scores = {}
 
         if not evaluate:
             # Training
-            labels = labels.to(device)
-            if self.args.hard_negatives:
-                shuffled_indices = torch.randperm(len(labels))
+            # labels = labels.to(device)
+            if self.args.include_quartet_loss or self.args.quartet_training_format:
                 context_ids = torch.cat(
                     [
-                        batch["context_ids"],
-                        batch["hard_negative_ids"][shuffled_indices],
+                        batch["context_ids_a"],
+                        batch["context_ids_b"],
                     ],
                     dim=0,
                 )
                 context_masks = torch.cat(
                     [
-                        batch["context_mask"],
-                        batch["hard_negatives_mask"][shuffled_indices],
+                        batch["context_mask_a"],
+                        batch["context_mask_b"],
                     ],
                     dim=0,
                 )
+
+                query_ids = torch.cat(
+                    [
+                        batch["query_ids_a"],
+                        batch["query_ids_b"],
+                    ],
+                    dim=0,
+                )
+                query_masks = torch.cat(
+                    [
+                        batch["query_mask_a"],
+                        batch["query_mask_b"],
+                    ],
+                    dim=0,
+                )
+                if self.args.include_quartet_loss:
+                    aa_scores = batch["aa_score"].to(device)
+                    ab_scores = batch["ab_score"].to(device)
+                    ba_scores = batch["ba_score"].to(device)
+                    bb_scores = batch["bb_score"].to(device)
+
+                teacher_scores["aa_scores"] = aa_scores
+                teacher_scores["ab_scores"] = ab_scores
+                teacher_scores["ba_scores"] = ba_scores
+                teacher_scores["bb_scores"] = bb_scores
             else:
-                context_ids = batch["context_ids"]
-                context_masks = batch["context_mask"]
+                if self.args.hard_negatives:
+                    if self.args.n_hard_negatives == 1:
+                        context_ids = torch.cat(
+                            [
+                                batch["context_ids"],
+                                batch["hard_negative_ids"],
+                            ],
+                            dim=0,
+                        )
+                        context_masks = torch.cat(
+                            [
+                                batch["context_mask"],
+                                batch["hard_negatives_mask"],
+                            ],
+                            dim=0,
+                        )
+                    else:
+                        context_ids = torch.cat(
+                            [
+                                batch["context_ids"],
+                            ]
+                            + [
+                                batch[f"hard_negative_{i}_ids"]
+                                for i in range(self.args.n_hard_negatives)
+                            ],
+                            dim=0,
+                        )
+
+                        context_masks = torch.cat(
+                            [
+                                batch["context_mask"],
+                            ]
+                            + [
+                                batch[f"hard_negative_{i}_mask"]
+                                for i in range(self.args.n_hard_negatives)
+                            ],
+                            dim=0,
+                        )
+                    if self.args.include_margin_mse_loss:
+                        margins = batch["margin"].to(device)
+
+                    if self.args.include_kl_div_loss:
+                        true_p_scores = batch["true_p_scores"].to(device)
+                        true_n_scores = batch["true_n_scores"].to(device)
+                    if (
+                        self.args.include_quartet_loss
+                        or self.args.quartet_training_format
+                    ):
+                        aa_scores = batch["aa_scores"].to(device)
+                        ab_scores = batch["ab_scores"].to(device)
+                        ba_scores = batch["ba_scores"].to(device)
+                        bb_scores = batch["bb_scores"].to(device)
+
+                    teacher_scores["true_p_scores"] = true_p_scores
+                    teacher_scores["true_n_scores"] = true_n_scores
+                    teacher_scores["margins"] = margins
+                else:
+                    context_ids = batch["context_ids"]
+                    context_masks = batch["context_mask"]
+
+                query_ids = batch["query_ids"]
+                query_masks = batch["query_mask"]
+
+            if self.args.external_embeddings:
+                external_embeddings = batch["embeddings"].to(device)
+                if self.args.hard_negatives:
+                    hard_negative_embeddings = batch["hard_negative_embeddings"].to(
+                        device
+                    )
+                    external_embeddings = torch.cat(
+                        [external_embeddings, hard_negative_embeddings], dim=0
+                    )
+                context_input = {
+                    "external_embeddings": external_embeddings,
+                }
+
             context_input = {
                 "input_ids": context_ids.to(device),
                 "attention_mask": context_masks.to(device),
             }
             query_input = {
-                "input_ids": batch["query_ids"].to(device),
-                "attention_mask": batch["query_mask"].to(device),
+                "input_ids": query_ids.to(device),
+                "attention_mask": query_masks.to(device),
             }
         else:
             # Evaluation
@@ -1703,7 +3620,7 @@ class RetrievalModel:
 
             labels = labels[shuffled_indices].to(device)
 
-            if self.args.hard_negatives:
+            if self.args.hard_negatives and self.args.hard_negatives_in_eval:
                 context_ids = torch.cat(
                     [
                         batch["context_ids"][shuffled_indices],
@@ -1731,11 +3648,21 @@ class RetrievalModel:
                 "attention_mask": batch["query_mask"].to(device),
             }
 
-        return context_input, query_input, labels
+        if (
+            isinstance(batch, HFDataset)
+            and "labels" in batch.column_names
+            and self.args.include_bce_loss
+        ):
+            labels = batch["labels"].to(device), labels  # BCELabels, NLLLabels
 
-    def _create_training_progress_scores(self, **kwargs):
+        return context_input, query_input, labels, teacher_scores
+
+    def _create_training_progress_scores(
+        self, calculate_recall=False, top_k_values=None, **kwargs
+    ):
         # TODO: top_k_values should be part of the model. Probably.
-        top_k_values = [1, 2, 3, 5, 10]
+        if top_k_values is None:
+            top_k_values = [1, 2, 3, 5, 10]
         extra_metrics = {key: [] for key in kwargs}
         training_progress_scores = {
             "global_step": [],
@@ -1743,14 +3670,53 @@ class RetrievalModel:
             "train_loss": [],
             **extra_metrics,
         }
-        training_progress_scores = {
-            **training_progress_scores,
-            **{f"mrr@{k}": [] for k in top_k_values},
-        }
-        training_progress_scores = {
-            **training_progress_scores,
-            **{f"top_{k}_accuracy": [] for k in top_k_values},
-        }
+
+        if self.args.evaluate_with_beir:
+            beir_top_ks = [1, 3, 5, 10, 100, 1000]
+            training_progress_scores = {
+                **training_progress_scores,
+                **{f"ndcg_at_{k}": [] for k in beir_top_ks},
+                **{f"map_at_{k}": [] for k in beir_top_ks},
+                **{f"recall_at_{k}": [] for k in beir_top_ks},
+                **{f"precision_at_{k}": [] for k in beir_top_ks},
+                **{f"mrr_at_{k}": [] for k in beir_top_ks},
+            }
+        elif self.args.data_format == "beir":
+            if self.eval_dataset_names:
+                for dataset_name in self.eval_dataset_names:
+                    training_progress_scores = {
+                        **training_progress_scores,
+                        **{f"{dataset_name}_ndcg": []},
+                        **{f"{dataset_name}_recip_rank": []},
+                        **{f"{dataset_name}_recall_100": []},
+                        **{f"{dataset_name}_ndcg_cut_10": []},
+                    }
+
+            else:
+                training_progress_scores = {
+                    **training_progress_scores,
+                    **{"ndcg": []},
+                    **{"recip_rank": []},
+                    **{"recall_100": []},
+                    **{"ndcg_cut_10": []},
+                }
+            # Remove eval_loss from training_progress_scores
+            training_progress_scores.pop("eval_loss")
+        else:
+            training_progress_scores = {
+                **training_progress_scores,
+                **{f"mrr_at_{k}": [] for k in top_k_values},
+            }
+            training_progress_scores = {
+                **training_progress_scores,
+                **{f"top_{k}_accuracy": [] for k in top_k_values},
+            }
+
+            if calculate_recall:
+                training_progress_scores = {
+                    **training_progress_scores,
+                    **{f"recall_at_{k}": [] for k in top_k_values},
+                }
 
         return training_progress_scores
 
@@ -1821,9 +3787,14 @@ class RetrievalModel:
                 for key in sorted(results.keys()):
                     writer.write("{} = {}\n".format(key, str(results[key])))
 
-    def _move_model_to_device(self):
+    def _move_model_to_device(self, is_evaluating=False):
         self.context_encoder.to(self.device)
         self.query_encoder.to(self.device)
+
+        if (
+            self.args.mse_loss or self.args.reranking_kl_div_loss
+        ) and not is_evaluating:
+            self.teacher_model.to(self.device)
 
     def save_model_args(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
@@ -1838,3 +3809,148 @@ class RetrievalModel:
         return [n for n, p in self.context_encoder.named_parameters()] + [
             n for n, p in self.query_encoder.named_parameters()
         ]
+
+    def get_multi_head_predictions(
+        self,
+        doc_ids,
+        scores,
+        all_query_embeddings,
+        id_to_vec_dataset,
+        num_heads=12,
+        head_dim=64,
+    ):
+        logger.info("Reranking documents using multi-head similarity scores.")
+        all_query_embeddings = all_query_embeddings.reshape(-1, num_heads, head_dim)
+
+        # Build id_to_vec_dict
+        # all_doc_ids = set(itertools.chain(*doc_ids))
+        # id_to_vec_dict = id_to_vec_dataset.filter(
+        #     lambda x: x["passage_id"] in all_doc_ids
+        # ).to_dict()
+        # id_to_vec_dict = {
+        #     pid: vector
+        #     for pid, vector in zip(
+        #         id_to_vec_dict["passage_id"], id_to_vec_dict["embeddings"]
+        #     )
+        # }
+
+        ids_to_idx_map = {
+            id: idx
+            for idx, id in zip(
+                range(len(id_to_vec_dataset)), id_to_vec_dataset["passage_id"]
+            )
+        }
+
+        reranked_doc_ids = np.zeros(
+            (len(all_query_embeddings), self.args.retrieve_n_docs), dtype=int
+        ).tolist()
+        reranked_scores = np.zeros(
+            (len(all_query_embeddings), self.args.retrieve_n_docs)
+        )
+
+        with torch.no_grad():
+            # Now we need to combine doc_ids into groups of num_heads and dedupe in the process
+            query_i = 0
+            for i in tqdm(
+                range(0, len(doc_ids), num_heads), desc="Reranking documents"
+            ):
+                doc_group = doc_ids[i : i + num_heads]
+                doc_group = list(set(itertools.chain(*doc_group)))
+
+                query_outputs = (
+                    all_query_embeddings[query_i].unsqueeze(0).to(self.device)
+                )
+
+                # Get doc head vectors
+                doc_group_vectors = []
+                for doc_id in doc_group:
+                    # doc_group_vectors.append(torch.tensor(id_to_vec_dict[doc_id]))
+                    doc_group_vectors.append(
+                        torch.tensor(
+                            id_to_vec_dataset[ids_to_idx_map[doc_id]]["embeddings"]
+                        )
+                    )
+
+                doc_group_vectors = torch.stack(doc_group_vectors).to(self.device)
+
+                similarity_scores = compute_multi_head_similarity(
+                    query_outputs,
+                    doc_group_vectors,
+                    strategy=self.args.multi_head_vector_strategy,
+                )
+                ranked_values, ranked_ids = torch.topk(
+                    similarity_scores, self.args.retrieve_n_docs, sorted=True
+                )
+
+                reranked_doc_ids[query_i] = [
+                    doc_group[ranked_id]
+                    for ranked_id in ranked_ids.squeeze().cpu().numpy()
+                ]
+                reranked_scores[query_i] = ranked_values.cpu().numpy()
+
+                query_i += 1
+
+        logger.info("Finished reranking documents.")
+        return reranked_doc_ids, reranked_scores
+
+
+def compute_multi_head_similarity(
+    query_outputs,
+    context_outputs,
+    strategy="maxsim",
+):
+    """
+    Compute multi-head similarity scores for each query vs. every document.
+    Each query and document has multiple vectors (heads).
+    The similarity score between a query  and a doc is computed as follows:
+        1. For each query head, compute the similarity score with each document head for that document.
+        2. Take the max sim for each query head.
+        3. Sum the max sims for all query heads.
+
+    Parameters:
+    - query_outputs: Tensor of shape (num_queries, num_heads, hidden_dim), query embeddings.
+    - context_outputs: Tensor of shape (num_docs, num_heads, hidden_dim), document embeddings.
+
+    Returns:
+    - similarity_scores: Tensor of shape (num_queries, num_docs), similarity scores for each query-doc pair.
+    """
+    num_queries, num_heads, hidden_dim = query_outputs.shape
+    num_docs = context_outputs.shape[0]
+
+    # Compute similarity scores for each query head with each document head.
+    # similarity_scores: Tensor of shape (num_queries, num_docs, num_heads, num_heads)
+
+    similarity_scores = torch.zeros(
+        (num_queries, num_docs, num_heads, num_heads), device=query_outputs.device
+    )
+
+    for i in range(num_heads):
+        for j in range(num_heads):
+            similarity_scores[:, :, i, j] = torch.matmul(
+                query_outputs[:, :, i].unsqueeze(1),
+                context_outputs[:, :, j].transpose(-1, -2),
+            ).squeeze(1)
+
+    # Take the max similarity score for each query head.
+    # max_similarities: Tensor of shape (num_queries, num_docs, num_heads)
+    max_similarities = torch.max(similarity_scores, dim=3).values
+
+    if strategy == "maxsim":
+        # Sum the max similarities for all query heads.
+        # similarity_scores: Tensor of shape (num_queries, num_docs)
+        similarity_scores = torch.sum(max_similarities, dim=2)
+    elif strategy == "minmax":
+        min_similarities = torch.min(similarity_scores, dim=3).values
+        similarity_scores = torch.sum(max_similarities, dim=2) + torch.sum(
+            min_similarities, dim=2
+        )
+    elif strategy == "max":
+        # Take the max similarity of all query heads.
+        # similarity_scores: Tensor of shape (num_queries, num_docs)
+        similarity_scores = torch.max(max_similarities, dim=2).values
+    elif strategy == "mean":
+        # Take the mean similarity of all query heads versus all doc heads.
+        # similarity_scores: Tensor of shape (num_queries, num_docs)
+        pass
+
+    return similarity_scores
