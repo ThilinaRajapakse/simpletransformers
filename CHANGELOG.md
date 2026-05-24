@@ -1388,7 +1388,7 @@ See [docs](https://simpletransformers.ai/docs/tips-and-tricks/#simple-viewer-vis
 
 ### Fixed
 
-- Fixed error that occured when `args` is not given when creating a Model.
+- Fixed error that occurred when `args` is not given when creating a Model.
 
 ## [0.19.3][0.19.3] - 2020-02-03
 
