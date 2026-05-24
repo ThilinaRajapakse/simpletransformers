@@ -287,7 +287,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed error that occured when `args` is not given when creating a Model.
+- Fixed error that occurred when `args` is not given when creating a Model.
 
 ## [0.19.3] - 2020-02-03
 
