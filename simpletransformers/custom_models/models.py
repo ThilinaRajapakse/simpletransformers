@@ -61,9 +61,20 @@ from transformers.models.roberta.modeling_roberta import (
 from transformers.models.xlm_roberta.configuration_xlm_roberta import XLMRobertaConfig
 from simpletransformers.custom_models.retrieval_autoencoder import Autoencoder
 
-from transformers.models.xlnet.modeling_xlnet import XLNetSequenceSummary
-from transformers.models.xlm.modeling_xlm import XLMSequenceSummary
-from transformers.models.flaubert.modeling_flaubert import FlaubertSequenceSummary
+try:
+    from transformers.models.xlnet.modeling_xlnet import XLNetSequenceSummary
+except ImportError:
+    from transformers.modeling_utils import SequenceSummary as XLNetSequenceSummary
+
+try:
+    from transformers.models.xlm.modeling_xlm import XLMSequenceSummary
+except ImportError:
+    from transformers.modeling_utils import SequenceSummary as XLMSequenceSummary
+
+try:
+    from transformers.models.flaubert.modeling_flaubert import FlaubertSequenceSummary
+except ImportError:
+    from transformers.modeling_utils import SequenceSummary as FlaubertSequenceSummary
 
 
 class BertForMultiLabelSequenceClassification(BertPreTrainedModel):
