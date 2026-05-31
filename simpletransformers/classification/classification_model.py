@@ -488,10 +488,11 @@ class ClassificationModel:
 
         if model_type in ["camembert", "xlmroberta"]:
             warnings.warn(
-                f"use_multiprocessing automatically disabled as {model_type}"
+                f"use_multiprocessing and use_multiprocessing_for_evaluation automatically disabled as {model_type}"
                 " fails when using multiprocessing for feature conversion."
             )
             self.args.use_multiprocessing = False
+            self.args.use_multiprocessing_for_evaluation = False
 
         if self.args.wandb_project and not wandb_available:
             warnings.warn(
